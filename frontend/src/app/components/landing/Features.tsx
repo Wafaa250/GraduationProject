@@ -1,6 +1,4 @@
-import { ImageWithFallback } from "./figma/ImageWithFallback";
-
-const aiImage = "https://images.unsplash.com/photo-1749006590475-4592a5dbf99f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxBSSUyMHRlY2hub2xvZ3klMjBuZXR3b3JrJTIwY29ubmVjdGlvbiUyMGFic3RyYWN0fGVufDF8fHx8MTc3MjU2OTM1MHww&ixlib=rb-4.1.0&q=80&w=1080";
+import aiImage from "../../../assets/images/ai-network.jpg";
 
 const features = [
   {
@@ -9,8 +7,8 @@ const features = [
         <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
       </svg>
     ),
-    title: "Smart Matching Engine",
-    description: "Our AI analyzes skill sets, interests, and project requirements to connect you with the most compatible teammates instantly.",
+    title: "AI-Based Matching Engine",
+    description: "Analyzes student skill profiles and project requirements to compute compatibility scores and suggest the best team combinations.",
     color: "text-blue-600",
     bg: "bg-blue-50",
     badge: "Core Feature",
@@ -19,11 +17,11 @@ const features = [
   {
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
       </svg>
     ),
-    title: "Supervisor Selection",
-    description: "Browse qualified academic supervisors and doctors. Filter by field of expertise and research focus to find your ideal mentor.",
+    title: "Skill Rating System",
+    description: "Students rate and verify their own skills. Peer endorsements and supervisor approvals add credibility to each profile.",
     color: "text-purple-600",
     bg: "bg-purple-50",
     badge: "Academic",
@@ -32,27 +30,27 @@ const features = [
   {
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
       </svg>
     ),
-    title: "Project Publishing & Feedback",
-    description: "Publish your projects publicly, collect structured feedback, and iterate with peer reviews from the academic community.",
+    title: "Supervisor Approval",
+    description: "Supervisors can review team compositions, approve project proposals, and monitor progress through a dedicated dashboard.",
     color: "text-indigo-600",
     bg: "bg-indigo-50",
-    badge: "Collaboration",
+    badge: "Supervision",
     badgeColor: "bg-indigo-100 text-indigo-700",
   },
   {
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
       </svg>
     ),
-    title: "Company & Association Collaboration",
-    description: "Companies and student associations can post real-world challenges and discover talented student teams ready to solve them.",
+    title: "Team Compatibility Score",
+    description: "Each suggested team receives a compatibility score based on skill balance, role coverage, and past collaboration history.",
     color: "text-teal-600",
     bg: "bg-teal-50",
-    badge: "Industry",
+    badge: "Analytics",
     badgeColor: "bg-teal-100 text-teal-700",
   },
 ];
@@ -64,11 +62,11 @@ export function Features() {
         {/* Header */}
         <div className="text-center mb-16">
           <span className="inline-block bg-purple-50 text-purple-600 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
-            Platform Features
+            System Features
           </span>
-          <h2 className="text-4xl font-bold text-slate-900 mb-4">Everything You Need to Succeed</h2>
+          <h2 className="text-4xl font-bold text-slate-900 mb-4">Key Features of the Platform</h2>
           <p className="text-slate-500 max-w-xl mx-auto">
-            SkillSwap is built with features designed specifically for the academic environment — from students to supervisors and beyond.
+            SkillSwap is designed specifically for the academic environment — built to solve real problems in university project team formation.
           </p>
         </div>
 
@@ -97,10 +95,10 @@ export function Features() {
           {/* Visual Side */}
           <div className="relative">
             <div className="rounded-3xl overflow-hidden shadow-2xl">
-              <ImageWithFallback
+              <img
                 src={aiImage}
-                alt="AI matching technology"
-                className="w-full h-[480px] object-cover"
+                alt="AI matching system visualization"
+                className="w-full h-[420px] object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 to-purple-900/30 rounded-3xl" />
             </div>
@@ -126,16 +124,16 @@ export function Features() {
 
             {/* Floating projects card */}
             <div className="absolute bottom-6 -right-4 bg-white rounded-2xl p-4 shadow-xl border border-slate-100 max-w-[200px]">
-              <div className="text-xs font-semibold text-slate-500 mb-2">Active Projects</div>
+              <div className="text-xs font-semibold text-slate-500 mb-2">Team Compatibility</div>
               <div className="space-y-2">
-                {["Mobile App Dev", "AI Research", "UI/UX Design"].map((proj) => (
-                  <div key={proj} className="flex items-center gap-2">
+                {["Skill Balance", "Role Coverage", "Past Collaboration"].map((item) => (
+                  <div key={item} className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-400" />
-                    <span className="text-xs text-slate-600">{proj}</span>
+                    <span className="text-xs text-slate-600">{item}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-2 text-xs text-blue-600 font-semibold">+3.4K more →</div>
+              <div className="mt-2 text-xs text-blue-600 font-semibold">Score: 94% →</div>
             </div>
           </div>
         </div>

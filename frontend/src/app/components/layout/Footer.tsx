@@ -1,8 +1,7 @@
 const links = {
-  Platform: ["How It Works", "Features", "Pricing", "Roadmap"],
+  Platform: ["How It Works", "Features", "Architecture", "Problem & Solution"],
   "For Users": ["Students", "Supervisors", "Companies", "Associations"],
-  Company: ["About Us", "Blog", "Careers", "Press"],
-  Legal: ["Privacy Policy", "Terms of Service", "Cookie Policy"],
+  Project: ["About SkillSwap", "Team", "University", "Contact"],
 };
 
 export function Footer() {
@@ -10,7 +9,7 @@ export function Footer() {
     <footer className="bg-slate-900 text-slate-400">
       <div className="max-w-7xl mx-auto px-6 py-16">
         <div className="grid lg:grid-cols-5 gap-12 mb-12">
-          {/* Brand */}
+          {/* Brand + Project Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -20,16 +19,24 @@ export function Footer() {
               </div>
               <span className="text-xl font-bold text-white">Skill<span className="text-blue-400">Swap</span></span>
             </div>
+
             <p className="text-sm leading-relaxed max-w-xs mb-6">
-              An AI-powered academic collaboration platform helping students build smarter teams based on skills, not social networks.
+              An AI-based platform for forming academic project teams at university level — matching students by skills, not friendships.
             </p>
-            {/* Social links */}
-            <div className="flex gap-3">
-              {["Twitter", "LinkedIn", "GitHub", "Discord"].map((social) => (
-                <a key={social} href="#" className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors" aria-label={social}>
-                  <span className="text-xs font-bold text-slate-400">{social[0]}</span>
-                </a>
-              ))}
+
+            {/* Graduation Project Badge */}
+            <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700">
+              <div className="text-xs font-semibold text-blue-400 mb-2 uppercase tracking-wider">Graduation Project</div>
+              <div className="space-y-1">
+                <div className="text-sm text-white font-medium">Computer Engineering Department</div>
+                <div className="text-sm text-slate-300">An-Najah National University</div>
+                <div className="text-sm text-slate-400">Academic Year 2025–2026</div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-slate-700">
+                <div className="text-xs text-slate-400 mb-1">Developed by</div>
+                <div className="text-sm text-slate-300">Wafaa & Rasmiya</div>
+                <div className="text-xs text-slate-400 mt-1">Supervisor: Dr. ___________</div>
+              </div>
             </div>
           </div>
 
@@ -51,10 +58,10 @@ export function Footer() {
         </div>
 
         <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm">© 2026 SkillSwap. All rights reserved.</p>
+          <p className="text-sm">© 2026 SkillSwap — Graduation Project · An-Najah National University</p>
           <div className="flex items-center gap-2 text-sm">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            All systems operational
+            Computer Engineering Dept.
           </div>
         </div>
       </div>

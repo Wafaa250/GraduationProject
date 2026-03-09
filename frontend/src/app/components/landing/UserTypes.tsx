@@ -1,10 +1,8 @@
-import { ImageWithFallback } from "./figma/ImageWithFallback";
-
-const studentImg = "https://images.unsplash.com/photo-1659080907111-7c726e435a28?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHVkZW50JTIwcHJvZmlsZSUyMGF2YXRhciUyMGFjYWRlbWljfGVufDF8fHx8MTc3MjU2OTM1Mnww&ixlib=rb-4.1.0&q=80&w=1080";
-const doctorImg = "https://images.unsplash.com/photo-1561089489-f13d5e730d72?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzb3IlMjBkb2N0b3IlMjB1bml2ZXJzaXR5JTIwdGVhY2hpbmd8ZW58MXx8fHwxNzcyNTY5MzUyfDA&ixlib=rb-4.1.0&q=80&w=1080";
-const companyImg = "https://images.unsplash.com/photo-1758691737644-ef8be18256c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMGNvbXBhbnklMjBvZmZpY2UlMjBwcm9mZXNzaW9uYWx8ZW58MXx8fHwxNzcyNTY5MzU0fDA&ixlib=rb-4.1.0&q=80&w=1080";
-const assocImg = "https://images.unsplash.com/photo-1757143090721-b93a0aef6363?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHVkZW50JTIwYXNzb2NpYXRpb24lMjBncm91cCUyMGNhbXB1cyUyMGV2ZW50fGVufDF8fHx8MTc3MjU2OTM1NXww&ixlib=rb-4.1.0&q=80&w=1080";
-
+import { ImageWithFallback } from "../ui/ImageWithFallback";
+import studentImg from "../../../assets/images/student.jpg";
+import doctorImg from "../../../assets/images/doctor.jpg";
+import companyImg from "../../../assets/images/company.jpg";
+import assocImg from "../../../assets/images/association.jpg";
 const userTypes = [
   {
     image: studentImg,
