@@ -4,7 +4,7 @@ import {
   ArrowLeft, Save, Camera, Github, Linkedin, Globe,
   Plus, X, CheckCircle2,
 } from 'lucide-react'
-
+import { useUser } from "../../../context/UserContext"
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SkillItem {
@@ -99,8 +99,25 @@ const INITIAL_FORM: EditFormState = {
 
 export default function EditProfilePage() {
   const navigate = useNavigate()
+  const { profile, updateProfile } = useUser()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [form, setForm] = useState<EditFormState>(INITIAL_FORM)
+
+  // Initialize form from current profile (so edits start with existing data)
+  const [form, setForm] = useState<EditFormState>({
+    fullName:       profile.fullName,
+    bio:            profile.bio,
+    preferredRole:  profile.preferredRole,
+    availability:   profile.availability,
+    lookingFor:     profile.lookingFor,
+    github:         profile.github,
+    linkedin:       profile.linkedin,
+    portfolio:      profile.portfolio,
+    languages:      profile.languages,
+    tools:          profile.tools,
+    generalSkills:  profile.generalSkills,
+    majorSkills:    profile.majorSkills,
+    profilePicPreview: profile.profilePic,
+  })
   const [saved, setSaved] = useState(false)
   const [activeSection, setActiveSection] = useState<string>('basic')
   const [customTool, setCustomTool] = useState('')
@@ -154,7 +171,22 @@ export default function EditProfilePage() {
   }
 
   const handleSave = () => {
-    // TODO: call PATCH /api/profile with form data
+    // Save all edited fields back to global profile context
+    updateProfile({
+      fullName:      form.fullName,
+      bio:           form.bio,
+      preferredRole: form.preferredRole,
+      availability:  form.availability,
+      lookingFor:    form.lookingFor,
+      github:        form.github,
+      linkedin:      form.linkedin,
+      portfolio:     form.portfolio,
+      languages:     form.languages,
+      tools:         form.tools,
+      generalSkills: form.generalSkills,
+      majorSkills:   form.majorSkills,
+      profilePic:    form.profilePicPreview,
+    })
     setSaved(true)
     setTimeout(() => navigate('/profile'), 1200)
   }

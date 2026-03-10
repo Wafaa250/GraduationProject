@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, GraduationCap, Stethoscope, Building2, Users } from 'lucide-react'
 
 // ── Import each role's registration form ──────────────────────────────────────
-// Uncomment these as you build each one:
 import StudentRegisterForm from '../forms/StudentRegisterForm'
 // import DoctorRegisterForm   from './forms/DoctorRegisterForm'
 // import CompanyRegisterForm  from './forms/CompanyRegisterForm'
@@ -62,13 +61,22 @@ const ROLES = [
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function RegisterPage() {
-  const [step, setStep]               = useState<1 | 2>(1)
+  const [step, setStep]                 = useState<1 | 2>(1)
   const [selectedRole, setSelectedRole] = useState<UserRole>(null)
 
   const selectedRoleData = ROLES.find(r => r.id === selectedRole)
 
-  const handleNext = () => { if (selectedRole) setStep(2) }
-  const handleBack = () => { setStep(1) }
+  const handleNext = () => {
+    if (selectedRole) {
+      sessionStorage.setItem('selectedRole', selectedRole) // ✅ حفظ الـ role
+      setStep(2)
+    }
+  }
+
+  const handleBack = () => {
+    sessionStorage.removeItem('selectedRole') // ✅ تنظيف لو رجع
+    setStep(1)
+  }
 
   // ── Render the correct form based on role ────────────────────────────────
   const renderRoleForm = () => {
@@ -76,13 +84,10 @@ export default function RegisterPage() {
       case 'student':
         return <StudentRegisterForm onBack={handleBack} />
       case 'doctor':
-        // return <DoctorRegisterForm onBack={handleBack} />
         return <ComingSoon role="Doctor / Supervisor" onBack={handleBack} />
       case 'company':
-        // return <CompanyRegisterForm onBack={handleBack} />
         return <ComingSoon role="Company" onBack={handleBack} />
       case 'association':
-        // return <AssocRegisterForm onBack={handleBack} />
         return <ComingSoon role="Student Association" onBack={handleBack} />
       default:
         return null

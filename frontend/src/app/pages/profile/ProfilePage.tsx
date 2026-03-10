@@ -6,6 +6,66 @@ import {
   ChevronRight, Github, Linkedin, Globe,
   MessageCircle, UserPlus, Zap, Plus, Camera,
 } from 'lucide-react'
+import { useUser } from '../../../context/UserContext'
+
+// ─── Skill label/icon lookup (same data as registration form) ─────────────────
+
+const ALL_SKILLS: Record<string, { label: string; icon: string }> = {
+  communication:    { label: 'Communication',           icon: '💬' },
+  teamwork:         { label: 'Teamwork',                icon: '🤝' },
+  leadership:       { label: 'Leadership',              icon: '🎯' },
+  problem_solving:  { label: 'Problem Solving',         icon: '🧩' },
+  time_management:  { label: 'Time Management',         icon: '⏰' },
+  critical_thinking:{ label: 'Critical Thinking',       icon: '🧠' },
+  autocad:          { label: 'AutoCAD / CAD Design',    icon: '📐' },
+  circuit_design:   { label: 'Circuit Design',          icon: '⚡' },
+  structural_analysis:{ label: 'Structural Analysis',   icon: '🏗️' },
+  programming_eng:  { label: 'Engineering Programming', icon: '💻' },
+  project_planning: { label: 'Project Planning',        icon: '📋' },
+  matlab:           { label: 'MATLAB / Simulation',     icon: '📈' },
+  '3d_modeling':    { label: '3D Modeling',             icon: '🧊' },
+  materials_science:{ label: 'Materials Science',       icon: '🔩' },
+  energy_systems:   { label: 'Energy Systems',          icon: '🔋' },
+  quality_control:  { label: 'Quality Control',         icon: '✅' },
+  programming:      { label: 'Programming',             icon: '💻' },
+  web_dev:          { label: 'Web Development',         icon: '🌐' },
+  mobile_dev:       { label: 'Mobile Development',      icon: '📱' },
+  ai_ml:            { label: 'AI / Machine Learning',   icon: '🤖' },
+  cyber_security:   { label: 'Cyber Security',          icon: '🔒' },
+  data_analysis:    { label: 'Data Analysis',           icon: '📊' },
+  networking:       { label: 'Networking',              icon: '🔗' },
+  database:         { label: 'Database Management',     icon: '🗄️' },
+  clinical_skills:  { label: 'Clinical Skills',         icon: '🩺' },
+  patient_care:     { label: 'Patient Care',            icon: '❤️' },
+  medical_imaging:  { label: 'Medical Imaging',         icon: '🩻' },
+  lab_diagnostics:  { label: 'Lab Diagnostics',         icon: '🧪' },
+  health_informatics:{ label: 'Health Informatics',     icon: '💊' },
+  anatomy:          { label: 'Anatomy & Physiology',    icon: '🫀' },
+  nutrition_science:{ label: 'Nutrition Science',       icon: '🥗' },
+  rehabilitation:   { label: 'Rehabilitation Therapy',  icon: '🦽' },
+  research_methods: { label: 'Research Methods',        icon: '🔬' },
+  medical_data:     { label: 'Medical Data Analysis',   icon: '📊' },
+  marketing:        { label: 'Marketing',               icon: '📣' },
+  finance:          { label: 'Finance',                 icon: '💰' },
+  entrepreneurship: { label: 'Entrepreneurship',        icon: '🚀' },
+  business_analysis:{ label: 'Business Analysis',       icon: '📈' },
+  project_management:{ label: 'Project Management',     icon: '📋' },
+  graphic_design:   { label: 'Graphic Design',          icon: '🎨' },
+  ui_ux:            { label: 'UI/UX Design',            icon: '🖼️' },
+  branding:         { label: 'Branding',                icon: '✨' },
+  illustration:     { label: 'Illustration',            icon: '🖌️' },
+  content_writing:  { label: 'Content Writing',         icon: '✍️' },
+  video_editing:    { label: 'Video Editing',           icon: '🎬' },
+  photography:      { label: 'Photography',             icon: '📷' },
+  social_media:     { label: 'Social Media Management', icon: '📲' },
+  research:         { label: 'Research & Analysis',     icon: '🔬' },
+  lab_skills:       { label: 'Laboratory Skills',       icon: '🧪' },
+  technical_writing:{ label: 'Technical Writing',       icon: '📝' },
+}
+
+function resolveSkills(ids: string[]) {
+  return ids.map(id => ALL_SKILLS[id]).filter(Boolean) as { label: string; icon: string }[]
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,14 +143,23 @@ const PROFILE_TASKS = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
-  const student = EMPTY_STUDENT
+  const { profile } = useUser()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
+  // Toggle: show or hide GPA (only relevant if student entered it)
+  const [gpaVisible, setGpaVisible] = useState(true)
 
-  const initials = student.fullName
-    .split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  // Map skill IDs → { label, icon } for display
+  const generalSkills = resolveSkills(profile.generalSkills)
+  const majorSkills   = resolveSkills(profile.majorSkills)
 
-  const gpaNum = parseFloat(student.gpa)
-  const isHighGpa = gpaNum >= 3.5
+  const initials = profile.fullName
+    ? profile.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : '?'
+
+  const gpaNum    = parseFloat(profile.gpa)
+  const isHighGpa = !isNaN(gpaNum) && gpaNum >= 3.5
+  const hasGpa    = !!profile.gpa
+  const showGpa   = hasGpa && gpaVisible
 
   return (
     <div style={S.page}>
@@ -109,7 +178,7 @@ export default function ProfilePage() {
             <Link to="/students" style={S.navLink}>Students</Link>
             <Link to="/projects" style={S.navLink}>Projects</Link>
           </div>
-          {student.isOwnProfile && (
+          {profile.isOwnProfile && (
             <Link to="/edit-profile" style={S.editNavBtn}>
               <Edit3 size={13} /> Edit Profile
             </Link>
@@ -119,8 +188,8 @@ export default function ProfilePage() {
 
       {/* ── COVER BANNER ── */}
       <div style={S.coverBanner}>
-        {student.coverImage
-          ? <img src={student.coverImage} style={S.coverImg} alt="cover" />
+        {profile.coverImage
+          ? <img src={profile.coverImage} style={S.coverImg} alt="cover" />
           : <div style={S.coverGradient}>
               {/* Decorative tech grid lines */}
               <div style={S.coverGrid} />
@@ -132,7 +201,7 @@ export default function ProfilePage() {
               </div>
             </div>
         }
-        {student.isOwnProfile && (
+        {profile.isOwnProfile && (
           <button style={S.changeCoverBtn}>
             <Camera size={13} /> Change Cover
           </button>
@@ -150,13 +219,13 @@ export default function ProfilePage() {
             {/* Avatar — pulled up over cover */}
             <div style={S.avatarRow}>
               <div style={{ position: 'relative' as const }}>
-                {student.profilePic
-                  ? <img src={student.profilePic} style={S.avatarImg} alt={student.fullName} />
+                {profile.profilePic
+                  ? <img src={profile.profilePic} style={S.avatarImg} alt={profile.fullName} />
                   : <div style={S.avatarFallback}>{initials}</div>
                 }
                 <div style={S.onlineDot} />
               </div>
-              {student.isOwnProfile && (
+              {profile.isOwnProfile && (
                 <Link to="/edit-profile" style={S.editAvatarBtn}>
                   <Edit3 size={12} />
                 </Link>
@@ -166,32 +235,42 @@ export default function ProfilePage() {
             {/* Name + tags */}
             <div style={S.profileInfo}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, marginBottom: 4 }}>
-                <h1 style={S.name}>{student.fullName}</h1>
+                <h1 style={S.name}>{profile.fullName}</h1>
               </div>
 
               {/* Role tag */}
               <div style={S.roleTag}>
-                🎯 {student.preferredRole}
+                🎯 {profile.preferredRole}
               </div>
 
-              <p style={S.headline}>{student.major} · {student.academicYear}</p>
+              <p style={S.headline}>{profile.major} · {profile.academicYear}</p>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10 }}>
                 <Building size={11} style={{ opacity: 0.4, flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{student.university}</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{profile.university}</span>
               </div>
 
-              {/* GPA badge */}
+              {/* GPA — always entered, student chooses to show/hide */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ ...S.gpaBadge, background: isHighGpa ? 'rgba(110,231,183,0.1)' : 'rgba(251,191,36,0.1)', borderColor: isHighGpa ? 'rgba(110,231,183,0.3)' : 'rgba(251,191,36,0.3)', color: isHighGpa ? '#6EE7B7' : '#FBBF24' }}>
-                  {isHighGpa ? '🏆' : '⭐'} GPA {student.gpa}
-                </div>
+                {showGpa && (
+                  <div style={{ ...S.gpaBadge, background: isHighGpa ? 'rgba(110,231,183,0.1)' : 'rgba(251,191,36,0.1)', borderColor: isHighGpa ? 'rgba(110,231,183,0.3)' : 'rgba(251,191,36,0.3)', color: isHighGpa ? '#6EE7B7' : '#FBBF24' }}>
+                    {isHighGpa ? '🏆' : '⭐'} GPA {profile.gpa}
+                  </div>
+                )}
+                {profile.isOwnProfile && (
+                  <button
+                    onClick={() => setGpaVisible(v => !v)}
+                    title={gpaVisible ? 'Hide GPA from profile' : 'Show GPA on profile'}
+                    style={{ ...S.gpaToggleBtn, color: gpaVisible ? '#6EE7B7' : 'rgba(255,255,255,0.25)' }}>
+                    {gpaVisible ? '👁 Visible' : '👁 Hidden'}
+                  </button>
+                )}
               </div>
 
-              {student.lookingFor && (
+              {profile.lookingFor && (
                 <div style={S.lookingBadge}>
                   <span style={S.greenPulse} />
-                  Open to: {student.lookingFor}
+                  Open to: {profile.lookingFor}
                 </div>
               )}
             </div>
@@ -199,13 +278,13 @@ export default function ProfilePage() {
             {/* Stats */}
             <div style={S.statsRow}>
               <div style={S.statItem}>
-                <span style={S.statNum}>{student.generalSkills.length + student.majorSkills.length}</span>
+                <span style={S.statNum}>{generalSkills.length + majorSkills.length}</span>
                 <span style={S.statLabel}>Skills</span>
               </div>
               <div style={S.statDivider} />
               <div style={S.statItem}>
-                <span style={S.statNum}>{student.gpa}</span>
-                <span style={S.statLabel}>GPA</span>
+                <span style={S.statNum}>0</span>
+                <span style={S.statLabel}>Connections</span>
               </div>
               <div style={S.statDivider} />
               <div style={S.statItem}>
@@ -215,7 +294,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Buttons */}
-            {!student.isOwnProfile ? (
+            {!profile.isOwnProfile ? (
               <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                 <button style={S.btnConnect}><UserPlus size={13} /> Connect</button>
                 <button style={S.btnMessage}><MessageCircle size={13} /> Message</button>
@@ -237,11 +316,12 @@ export default function ProfilePage() {
             <h3 style={S.cardTitle}><GraduationCap size={14} style={{ color: '#6EE7B7' }} /> Academic Info</h3>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 9 }}>
               {[
-                { label: 'Student ID', value: student.studentId },
-                { label: 'Faculty', value: student.faculty },
-                { label: 'Major', value: student.major },
-                { label: 'Year', value: student.academicYear },
-                { label: 'GPA', value: `${student.gpa} / 4.0`, highlight: true },
+                { label: 'Student ID', value: profile.studentId },
+                { label: 'Faculty', value: profile.faculty },
+                { label: 'Major', value: profile.major },
+                { label: 'Year', value: profile.academicYear },
+                // GPA row only shown if student chose to enter it
+                ...(showGpa ? [{ label: 'GPA', value: `${profile.gpa} / 4.0`, highlight: true }] : []),
               ].map(row => (
                 <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontWeight: 500, flexShrink: 0 }}>{row.label}</span>
@@ -252,23 +332,23 @@ export default function ProfilePage() {
           </div>
 
           {/* Links */}
-          {(student.github || student.linkedin || student.portfolio) && (
+          {(profile.github || profile.linkedin || profile.portfolio) && (
             <div style={S.card}>
               <h3 style={S.cardTitle}><Globe size={14} style={{ color: '#6EE7B7' }} /> Links</h3>
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                {student.github && (
-                  <a href={`https://${student.github}`} target="_blank" rel="noreferrer" style={S.linkItem}>
-                    <Github size={13} /> {student.github}
+                {profile.github && (
+                  <a href={`https://${profile.github}`} target="_blank" rel="noreferrer" style={S.linkItem}>
+                    <Github size={13} /> {profile.github}
                   </a>
                 )}
-                {student.linkedin && (
-                  <a href={`https://${student.linkedin}`} target="_blank" rel="noreferrer" style={S.linkItem}>
-                    <Linkedin size={13} /> {student.linkedin}
+                {profile.linkedin && (
+                  <a href={`https://${profile.linkedin}`} target="_blank" rel="noreferrer" style={S.linkItem}>
+                    <Linkedin size={13} /> {profile.linkedin}
                   </a>
                 )}
-                {student.portfolio && (
-                  <a href={`https://${student.portfolio}`} target="_blank" rel="noreferrer" style={S.linkItem}>
-                    <Globe size={13} /> {student.portfolio}
+                {profile.portfolio && (
+                  <a href={`https://${profile.portfolio}`} target="_blank" rel="noreferrer" style={S.linkItem}>
+                    <Globe size={13} /> {profile.portfolio}
                   </a>
                 )}
               </div>
@@ -276,17 +356,17 @@ export default function ProfilePage() {
           )}
 
           {/* Profile Strength */}
-          {student.isOwnProfile && (
+          {profile.isOwnProfile && (
             <div style={S.card}>
               <h3 style={S.cardTitle}><CheckCircle2 size={14} style={{ color: '#6EE7B7' }} /> Profile Strength</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
                 <div style={S.progressTrack}>
-                  <div style={{ ...S.progressFill, width: `${student.completeness}%` }} />
+                  <div style={{ ...S.progressFill, width: `${profile.completeness}%` }} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#6EE7B7', minWidth: 34 }}>{student.completeness}%</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#6EE7B7', minWidth: 34 }}>{profile.completeness}%</span>
               </div>
               <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', margin: '0 0 12px' }}>
-                {student.completeness >= 80 ? '🔥 Strong profile!' : 'Complete your profile to get better matches'}
+                {profile.completeness >= 80 ? '🔥 Strong profile!' : 'Complete your profile to get better matches'}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 9 }}>
                 {PROFILE_TASKS.map(task => (
@@ -329,32 +409,32 @@ export default function ProfilePage() {
           {/* ── OVERVIEW ── */}
           {activeTab === 'overview' && (
             <>
-              {student.bio && (
+              {profile.bio && (
                 <Section title="About" icon={<BookOpen size={14} />}>
-                  <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.75, margin: 0 }}>{student.bio}</p>
+                  <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.75, margin: 0 }}>{profile.bio}</p>
                 </Section>
               )}
 
               <Section title="Work Style" icon={<Briefcase size={14} />}>
                 <div style={S.workGrid}>
-                  <WorkItem icon="🎯" label="Preferred Role" value={student.preferredRole} />
-                  <WorkItem icon="⏰" label="Weekly Availability" value={student.availability} />
+                  <WorkItem icon="🎯" label="Preferred Role" value={profile.preferredRole} />
+                  <WorkItem icon="⏰" label="Weekly Availability" value={profile.availability} />
                   <WorkItem icon="🔄" label="Team Preference" value="Flexible — can lead or contribute" />
-                  <WorkItem icon="🔍" label="Looking For" value={student.lookingFor} />
+                  <WorkItem icon="🔍" label="Looking For" value={profile.lookingFor} />
                 </div>
               </Section>
 
-              {student.tools.length > 0 && (
+              {profile.tools.length > 0 && (
                 <Section title="Tools & Technologies" icon={<Award size={14} />}>
                   <div style={S.chipsWrap}>
-                    {student.tools.map(t => <span key={t} style={S.toolChip}>{t}</span>)}
+                    {profile.tools.map((t: string) => <span key={t} style={S.toolChip}>{t}</span>)}
                   </div>
                 </Section>
               )}
 
               <Section title="Languages" icon={<Globe size={14} />}>
                 <div style={S.chipsWrap}>
-                  {student.languages.map(l => <span key={l} style={S.langChip}>{l}</span>)}
+                  {profile.languages.map((l: string) => <span key={l} style={S.langChip}>{l}</span>)}
                 </div>
               </Section>
 
@@ -392,12 +472,12 @@ export default function ProfilePage() {
             <>
               <Section title="General Skills" icon={<Users size={14} />}>
                 <div style={S.skillCardsGrid}>
-                  {student.generalSkills.map((sk, i) => <SkillCard key={i} skill={sk} color="#6EE7B7" />)}
+                  {generalSkills.map((sk, i) => <SkillCard key={i} skill={sk} color="#6EE7B7" />)}
                 </div>
               </Section>
               <Section title="Major Skills" icon={<Star size={14} />}>
                 <div style={S.skillCardsGrid}>
-                  {student.majorSkills.map((sk, i) => <SkillCard key={i} skill={sk} color="#A78BFA" />)}
+                  {majorSkills.map((sk, i) => <SkillCard key={i} skill={sk} color="#A78BFA" />)}
                 </div>
               </Section>
             </>
@@ -410,11 +490,11 @@ export default function ProfilePage() {
                 <span style={{ fontSize: 44, display: 'block', marginBottom: 12 }}>📂</span>
                 <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: '0 0 6px' }}>No projects yet</p>
                 <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: '0 0 24px', lineHeight: 1.6 }}>
-                  {student.isOwnProfile
+                  {profile.isOwnProfile
                     ? 'Showcase your graduation project or any other work here.'
                     : "This student hasn't added any projects yet."}
                 </p>
-                {student.isOwnProfile && (
+                {profile.isOwnProfile && (
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'center' as const, flexWrap: 'wrap' as const }}>
                     <button style={S.addProjectBtn}>
                       <Plus size={14} /> Add Graduation Project
@@ -522,6 +602,7 @@ const S: Record<string, React.CSSProperties> = {
   roleTag: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'rgba(110,231,183,0.08)', border: '1px solid rgba(110,231,183,0.2)', borderRadius: 8, fontSize: 12, color: '#6EE7B7', fontWeight: 700, margin: '6px 0 8px' },
   headline: { fontSize: 12, color: 'rgba(255,255,255,0.5)', margin: '0 0 6px', fontWeight: 500 },
   gpaBadge: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', border: '1px solid', borderRadius: 20, fontSize: 12, fontWeight: 700 },
+  gpaToggleBtn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
   lookingBadge: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(110,231,183,0.07)', border: '1px solid rgba(110,231,183,0.18)', borderRadius: 20, fontSize: 11, color: '#6EE7B7', fontWeight: 600 },
   greenPulse: { width: 6, height: 6, borderRadius: '50%', background: '#6EE7B7', flexShrink: 0 },
 
