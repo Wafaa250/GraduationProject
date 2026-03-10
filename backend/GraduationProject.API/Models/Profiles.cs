@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic;
 
 namespace GraduationProject.API.Models
 {
@@ -11,10 +12,15 @@ namespace GraduationProject.API.Models
         [Column("id")] public int Id { get; set; }
         [Column("user_id")] public int UserId { get; set; }
         [Column("major")] public string? Major { get; set; }
-        [Column("year")] public int? Year { get; set; }
         [Column("bio")] public string? Bio { get; set; }
+        [Column("student_id")] public string? StudentId { get; set; }
+        [Column("university")] public string? University { get; set; }
+        [Column("faculty")] public string? Faculty { get; set; }
+        [Column("academic_year")] public string? AcademicYear { get; set; }
+        [Column("gpa")] public decimal? Gpa { get; set; }
 
         public User User { get; set; } = null!;
+        public ICollection<StudentSkill> StudentSkills { get; set; } = new List<StudentSkill>();
     }
 
     // ===========================
@@ -59,5 +65,33 @@ namespace GraduationProject.API.Models
         [Column("description")] public string? Description { get; set; }
 
         public User User { get; set; } = null!;
+    }
+
+    // ===========================
+    // SKILL
+    // ===========================
+    [Table("skills")]
+    public class Skill
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("name")] public string Name { get; set; } = string.Empty;
+        [Column("category")] public string? Category { get; set; }
+
+        public ICollection<StudentSkill> StudentSkills { get; set; } = new List<StudentSkill>();
+    }
+
+    // ===========================
+    // STUDENT SKILL
+    // ===========================
+    [Table("student_skills")]
+    public class StudentSkill
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("student_id")] public int StudentId { get; set; }
+        [Column("skill_id")] public int SkillId { get; set; }
+        [Column("level")] public int Level { get; set; } = 1;
+
+        public StudentProfile Student { get; set; } = null!;
+        public Skill Skill { get; set; } = null!;
     }
 }

@@ -1,34 +1,3 @@
-/*using GraduationProject.API.Data;
-using GraduationProject.API.Models;
-using Microsoft.AspNetCore.Mvc;
-
-namespace GraduationProject.API.Controllers
-{
-    [ApiController]
-    [Route("api/[controller]")]
-    public class AuthController : ControllerBase
-    {
-        private readonly ApplicationDbContext _context;
-
-        public AuthController(ApplicationDbContext context)
-        {
-            _context = context;
-        }
-
-        [HttpPost("register")]
-        public IActionResult Register([FromBody] User user)
-        {
-            user.CreatedAt = DateTime.UtcNow;
-
-            _context.Users.Add(user);
-            _context.SaveChanges();
-
-            return Ok(user);
-        }
-    }
-}*/
-
-
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using GraduationProject.API.DTOs;
@@ -41,32 +10,36 @@ namespace GraduationProject.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IStudentRegisterService _studentService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IStudentRegisterService studentService)
         {
             _authService = authService;
+            _studentService = studentService;
         }
 
-        // ===========================
+        // =====================================================
         // POST /api/auth/register/student
-        // ===========================
+        // =====================================================
         [HttpPost("register/student")]
         public async Task<IActionResult> RegisterStudent([FromBody] RegisterStudentDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var (result, error) = await _authService.RegisterStudentAsync(dto);
+            var (result, error) = await _studentService.RegisterAsync(dto);
 
             if (error != null)
-                return Conflict(new { message = error });
+                return error.Contains("already registered")
+                    ? Conflict(new { message = error })
+                    : BadRequest(new { message = error });
 
-            return CreatedAtAction(nameof(RegisterStudent), result);
+            return StatusCode(201, result);
         }
 
-        // ===========================
+        // =====================================================
         // POST /api/auth/register/doctor
-        // ===========================
+        // =====================================================
         [HttpPost("register/doctor")]
         public async Task<IActionResult> RegisterDoctor([FromBody] RegisterDoctorDto dto)
         {
@@ -78,12 +51,12 @@ namespace GraduationProject.API.Controllers
             if (error != null)
                 return Conflict(new { message = error });
 
-            return CreatedAtAction(nameof(RegisterDoctor), result);
+            return StatusCode(201, result);
         }
 
-        // ===========================
+        // =====================================================
         // POST /api/auth/register/company
-        // ===========================
+        // =====================================================
         [HttpPost("register/company")]
         public async Task<IActionResult> RegisterCompany([FromBody] RegisterCompanyDto dto)
         {
@@ -95,12 +68,12 @@ namespace GraduationProject.API.Controllers
             if (error != null)
                 return Conflict(new { message = error });
 
-            return CreatedAtAction(nameof(RegisterCompany), result);
+            return StatusCode(201, result);
         }
 
-        // ===========================
+        // =====================================================
         // POST /api/auth/register/association
-        // ===========================
+        // =====================================================
         [HttpPost("register/association")]
         public async Task<IActionResult> RegisterAssociation([FromBody] RegisterAssociationDto dto)
         {
@@ -112,13 +85,12 @@ namespace GraduationProject.API.Controllers
             if (error != null)
                 return Conflict(new { message = error });
 
-            return CreatedAtAction(nameof(RegisterAssociation), result);
+            return StatusCode(201, result);
         }
 
-        // ===========================
+        // =====================================================
         // POST /api/auth/login
-        // (same endpoint for ALL roles)
-        // ===========================
+        // =====================================================
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
