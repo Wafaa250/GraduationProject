@@ -66,10 +66,19 @@ namespace GraduationProject.API.DTOs
         public decimal? Gpa { get; set; }
 
         // ── Step 4: Skills ───────────────────────────────
+        // الـ roles هي الـ generalSkills (ما يختاره الطالب من specializations)
+        [MinLength(1, ErrorMessage = "Please select at least one role")]
+        public List<string> Roles { get; set; } = new();           // "Frontend Developer", etc.
+
+        public List<string> TechnicalSkills { get; set; } = new(); // "Web Development", etc.
+
+        public List<string> Tools { get; set; } = new();           // "React", "Python", etc.
+
+        // الحقول القديمة — الفرونت بيرسلهم (generalSkills = roles, majorSkills = technicalSkills)
         [MinLength(1, ErrorMessage = "Please select at least one general skill")]
         public List<string> GeneralSkills { get; set; } = new();
 
-        public List<string> MajorSkills { get; set; } = new(); // اختيارية
+        public List<string> MajorSkills { get; set; } = new();
     }
 
     // ===========================
