@@ -32,22 +32,32 @@ namespace GraduationProject.API.Services
         }
 
         // ===========================
-        // REGISTER DOCTOR
+        // REGISTER DOCTOR ✅ محدّث
         // ===========================
         public async Task<(AuthResponseDto? result, string? error)> RegisterDoctorAsync(RegisterDoctorDto dto)
         {
+            // تحقق من الباسورد
+            if (dto.Password != dto.ConfirmPassword)
+                return (null, "Passwords do not match.");
+
             var check = await CheckEmailAsync(dto.Email);
             if (check != null) return (null, check);
 
-            var user = CreateUser(dto.Name, dto.Email, dto.Password, "doctor");
+            // إنشاء الـ User
+            var user = CreateUser(dto.FullName, dto.Email, dto.Password, "doctor");
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
+            // إنشاء الـ DoctorProfile
             var profile = new DoctorProfile
             {
-                UserId = user.Id,
-                Specialization = dto.Specialization,
-                SupervisionCapacity = dto.SupervisionCapacity
+                UserId               = user.Id,
+                Specialization       = dto.Specialization,
+                SupervisionCapacity  = 0,
+                Bio                  = dto.Bio ?? "",
+                University           = dto.University,
+                Faculty              = dto.Faculty,
+                ProfilePictureBase64 = dto.ProfilePictureBase64,
             };
             _db.DoctorProfiles.Add(profile);
             await _db.SaveChangesAsync();
@@ -69,9 +79,9 @@ namespace GraduationProject.API.Services
 
             var profile = new CompanyProfile
             {
-                UserId = user.Id,
+                UserId      = user.Id,
                 CompanyName = dto.CompanyName,
-                Industry = dto.Industry,
+                Industry    = dto.Industry,
                 Description = dto.Description
             };
             _db.CompanyProfiles.Add(profile);
@@ -94,9 +104,9 @@ namespace GraduationProject.API.Services
 
             var profile = new AssociationProfile
             {
-                UserId = user.Id,
+                UserId          = user.Id,
                 AssociationName = dto.AssociationName,
-                Description = dto.Description
+                Description     = dto.Description
             };
             _db.AssociationProfiles.Add(profile);
             await _db.SaveChangesAsync();
@@ -105,7 +115,7 @@ namespace GraduationProject.API.Services
         }
 
         // ===========================
-        // LOGIN (نفسه لكل الـ roles)
+        // LOGIN
         // ===========================
         public async Task<(AuthResponseDto? result, string? error)> LoginAsync(LoginDto dto)
         {
@@ -131,20 +141,20 @@ namespace GraduationProject.API.Services
 
         private static User CreateUser(string name, string email, string password, string role) => new()
         {
-            Name = name.Trim(),
-            Email = email.ToLower().Trim(),
-            Password = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = role,
+            Name      = name.Trim(),
+            Email     = email.ToLower().Trim(),
+            Password  = BCrypt.Net.BCrypt.HashPassword(password),
+            Role      = role,
             CreatedAt = DateTime.UtcNow
         };
 
         private AuthResponseDto BuildResponse(User user, int profileId) => new()
         {
-            Token = GenerateJwtToken(user),
-            Role = user.Role,
-            UserId = user.Id,
-            Name = user.Name,
-            Email = user.Email,
+            Token     = GenerateJwtToken(user),
+            Role      = user.Role,
+            UserId    = user.Id,
+            Name      = user.Name,
+            Email     = user.Email,
             ProfileId = profileId
         };
 
@@ -152,11 +162,11 @@ namespace GraduationProject.API.Services
         {
             return user.Role switch
             {
-                "student" => (await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == user.Id))?.Id ?? 0,
-                "doctor" => (await _db.DoctorProfiles.FirstOrDefaultAsync(d => d.UserId == user.Id))?.Id ?? 0,
-                "company" => (await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.UserId == user.Id))?.Id ?? 0,
+                "student"     => (await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == user.Id))?.Id ?? 0,
+                "doctor"      => (await _db.DoctorProfiles.FirstOrDefaultAsync(d => d.UserId == user.Id))?.Id ?? 0,
+                "company"     => (await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.UserId == user.Id))?.Id ?? 0,
                 "association" => (await _db.AssociationProfiles.FirstOrDefaultAsync(a => a.UserId == user.Id))?.Id ?? 0,
-                _ => 0
+                _             => 0
             };
         }
 
@@ -165,7 +175,7 @@ namespace GraduationProject.API.Services
             var jwtKey = _config["Jwt:Key"]
                 ?? throw new InvalidOperationException("JWT Key missing.");
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var key   = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
@@ -177,10 +187,10 @@ namespace GraduationProject.API.Services
             };
 
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddDays(7),
+                issuer:             _config["Jwt:Issuer"],
+                audience:           _config["Jwt:Audience"],
+                claims:             claims,
+                expires:            DateTime.UtcNow.AddDays(7),
                 signingCredentials: creds
             );
 
