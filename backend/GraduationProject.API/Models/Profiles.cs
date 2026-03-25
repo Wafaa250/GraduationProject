@@ -19,28 +19,23 @@ namespace GraduationProject.API.Models
         [Column("academic_year")] public string? AcademicYear { get; set; }
         [Column("gpa")]           public decimal? Gpa { get; set; }
 
-        // ── حقول الـ profile ─────────────────────────────────────────────────
         [Column("availability")]           public string? Availability { get; set; }
         [Column("looking_for")]            public string? LookingFor { get; set; }
         [Column("github")]                 public string? Github { get; set; }
         [Column("linkedin")]               public string? Linkedin { get; set; }
         [Column("portfolio")]              public string? Portfolio { get; set; }
         [Column("profile_picture_base64")] public string? ProfilePictureBase64 { get; set; }
-        [Column("languages")]              public string? Languages { get; set; }  // JSON array as string
-        [Column("tools")]                  public string? Tools { get; set; }       // JSON array as string
-
-        // ── حقول جديدة من الفرونت (Step 4 في التسجيل) ──────────────────────
-        [Column("roles")]             public string? Roles { get; set; }            // JSON array: ["Frontend Developer", ...]
-        [Column("technical_skills")]  public string? TechnicalSkills { get; set; }  // JSON array: ["Web Development", ...]
-
-        // preferred_role حُذف — استُبدل بـ roles (array)
+        [Column("languages")]              public string? Languages { get; set; }
+        [Column("tools")]                  public string? Tools { get; set; }
+        [Column("roles")]                  public string? Roles { get; set; }
+        [Column("technical_skills")]       public string? TechnicalSkills { get; set; }
 
         public User User { get; set; } = null!;
         public ICollection<StudentSkill> StudentSkills { get; set; } = new List<StudentSkill>();
     }
 
     // ===========================
-    // DOCTOR PROFILE
+    // DOCTOR PROFILE ✅ محدّث
     // ===========================
     [Table("doctor_profiles")]
     public class DoctorProfile
@@ -50,6 +45,11 @@ namespace GraduationProject.API.Models
         [Column("specialization")]        public string? Specialization { get; set; }
         [Column("supervision_capacity")]  public int SupervisionCapacity { get; set; } = 0;
         [Column("bio")]                   public string? Bio { get; set; }
+
+        // ── حقول جديدة ──────────────────────────────────────────────────────
+        [Column("university")]             public string? University { get; set; }
+        [Column("faculty")]                public string? Faculty { get; set; }
+        [Column("profile_picture_base64")] public string? ProfilePictureBase64 { get; set; }
 
         public User User { get; set; } = null!;
     }

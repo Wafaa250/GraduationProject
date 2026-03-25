@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 namespace GraduationProject.API.DTOs
 {
     // ===========================
-    // LOGIN (نفسه لكل الـ roles)
+    // LOGIN
     // ===========================
     public class LoginDto
     {
@@ -17,11 +17,10 @@ namespace GraduationProject.API.DTOs
     }
 
     // ===========================
-    // REGISTER - STUDENT (4 Steps)
+    // REGISTER - STUDENT
     // ===========================
     public class RegisterStudentDto
     {
-        // ── Step 1: Account ──────────────────────────────
         [Required(ErrorMessage = "Full name is required")]
         [MaxLength(100)]
         public string FullName { get; set; } = string.Empty;
@@ -38,9 +37,8 @@ namespace GraduationProject.API.DTOs
         [Required(ErrorMessage = "Please confirm your password")]
         public string ConfirmPassword { get; set; } = string.Empty;
 
-        public string? ProfilePictureBase64 { get; set; } // اختياري
+        public string? ProfilePictureBase64 { get; set; }
 
-        // ── Step 2: Student Info ─────────────────────────
         [Required(ErrorMessage = "Student ID is required")]
         [MaxLength(50)]
         public string StudentId { get; set; } = string.Empty;
@@ -57,42 +55,54 @@ namespace GraduationProject.API.DTOs
         [MaxLength(120)]
         public string Major { get; set; } = string.Empty;
 
-        // ── Step 3: Academic ─────────────────────────────
         [Required(ErrorMessage = "Academic year is required")]
         public string AcademicYear { get; set; } = string.Empty;
-        // "First Year" | "Second Year" | "Third Year" | "Fourth Year" | "Fifth Year"
 
         [Range(0.0, 4.0, ErrorMessage = "GPA must be between 0.0 and 4.0")]
         public decimal? Gpa { get; set; }
 
-        // ── Step 4: Skills ───────────────────────────────
-        // الـ roles هي الـ generalSkills (ما يختاره الطالب من specializations)
         [MinLength(1, ErrorMessage = "Please select at least one role")]
-        public List<string> Roles { get; set; } = new();           // "Frontend Developer", etc.
+        public List<string> Roles { get; set; } = new();
 
-        public List<string> TechnicalSkills { get; set; } = new(); // "Web Development", etc.
+        public List<string> TechnicalSkills { get; set; } = new();
+        public List<string> Tools           { get; set; } = new();
 
-        public List<string> Tools { get; set; } = new();           // "React", "Python", etc.
-
-        // الحقول القديمة — الفرونت بيرسلهم (generalSkills = roles, majorSkills = technicalSkills)
         [MinLength(1, ErrorMessage = "Please select at least one general skill")]
         public List<string> GeneralSkills { get; set; } = new();
-
-        public List<string> MajorSkills { get; set; } = new();
+        public List<string> MajorSkills   { get; set; } = new();
     }
 
     // ===========================
-    // REGISTER - DOCTOR
+    // REGISTER - DOCTOR ✅ محدّث
     // ===========================
     public class RegisterDoctorDto
     {
-        [Required] public string Name { get; set; } = string.Empty;
-        [Required, EmailAddress] public string Email { get; set; } = string.Empty;
-        [Required, MinLength(6)] public string Password { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Full name is required")]
+        [MaxLength(100)]
+        public string FullName { get; set; } = string.Empty;
 
-        public string? Specialization { get; set; }
-        [Range(0, 100)]
-        public int SupervisionCapacity { get; set; } = 0;
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your password")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "University is required")]
+        public string University { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Faculty is required")]
+        public string Faculty { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Specialization is required")]
+        public string Specialization { get; set; } = string.Empty;
+
+        public string? Bio                  { get; set; }
+        public string? ProfilePictureBase64 { get; set; }
     }
 
     // ===========================
@@ -100,12 +110,12 @@ namespace GraduationProject.API.DTOs
     // ===========================
     public class RegisterCompanyDto
     {
-        [Required] public string Name { get; set; } = string.Empty;
+        [Required] public string Name        { get; set; } = string.Empty;
         [Required, EmailAddress] public string Email { get; set; } = string.Empty;
         [Required, MinLength(6)] public string Password { get; set; } = string.Empty;
 
         [Required] public string CompanyName { get; set; } = string.Empty;
-        public string? Industry { get; set; }
+        public string? Industry    { get; set; }
         public string? Description { get; set; }
     }
 
@@ -114,7 +124,7 @@ namespace GraduationProject.API.DTOs
     // ===========================
     public class RegisterAssociationDto
     {
-        [Required] public string Name { get; set; } = string.Empty;
+        [Required] public string Name        { get; set; } = string.Empty;
         [Required, EmailAddress] public string Email { get; set; } = string.Empty;
         [Required, MinLength(6)] public string Password { get; set; } = string.Empty;
 
@@ -123,32 +133,32 @@ namespace GraduationProject.API.DTOs
     }
 
     // ===========================
-    // AUTH RESPONSE - للـ Login وكل الـ Registers
+    // AUTH RESPONSE
     // ===========================
     public class AuthResponseDto
     {
-        public string Token { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
-        public int UserId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public int ProfileId { get; set; }
+        public string Token     { get; set; } = string.Empty;
+        public string Role      { get; set; } = string.Empty;
+        public int    UserId    { get; set; }
+        public string Name      { get; set; } = string.Empty;
+        public string Email     { get; set; } = string.Empty;
+        public int    ProfileId { get; set; }
     }
 
     // ===========================
-    // STUDENT REGISTER RESPONSE (أغنى من AuthResponseDto)
+    // STUDENT REGISTER RESPONSE
     // ===========================
     public class RegisterStudentResponseDto
     {
-        public string Token { get; set; } = string.Empty;
-        public string Role { get; set; } = "student";
-        public int UserId { get; set; }
-        public int ProfileId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string University { get; set; } = string.Empty;
-        public string Faculty { get; set; } = string.Empty;
-        public string Major { get; set; } = string.Empty;
+        public string Token        { get; set; } = string.Empty;
+        public string Role         { get; set; } = "student";
+        public int    UserId       { get; set; }
+        public int    ProfileId    { get; set; }
+        public string Name         { get; set; } = string.Empty;
+        public string Email        { get; set; } = string.Empty;
+        public string University   { get; set; } = string.Empty;
+        public string Faculty      { get; set; } = string.Empty;
+        public string Major        { get; set; } = string.Empty;
         public string AcademicYear { get; set; } = string.Empty;
         public List<string> Skills { get; set; } = new();
     }

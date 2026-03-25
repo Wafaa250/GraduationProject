@@ -9,13 +9,19 @@ namespace GraduationProject.API.Data
             : base(options) { }
 
         // ── DbSets ──────────────────────────────────────────────────────────
-        public DbSet<User> Users => Set<User>();
-        public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
-        public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
-        public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+        public DbSet<User>               Users               => Set<User>();
+        public DbSet<StudentProfile>     StudentProfiles     => Set<StudentProfile>();
+        public DbSet<DoctorProfile>      DoctorProfiles      => Set<DoctorProfile>();
+        public DbSet<CompanyProfile>     CompanyProfiles     => Set<CompanyProfile>();
         public DbSet<AssociationProfile> AssociationProfiles => Set<AssociationProfile>();
-        public DbSet<Skill> Skills => Set<Skill>();
-        public DbSet<StudentSkill> StudentSkills => Set<StudentSkill>();
+        public DbSet<Skill>              Skills              => Set<Skill>();
+        public DbSet<StudentSkill>       StudentSkills       => Set<StudentSkill>();
+
+        // ── Doctor Dashboard ────────────────────────────────────────────────
+        public DbSet<Channel>        Channels        => Set<Channel>();
+        public DbSet<ChannelStudent> ChannelStudents => Set<ChannelStudent>();
+        public DbSet<Team>           Teams           => Set<Team>();
+        public DbSet<TeamMember>     TeamMembers     => Set<TeamMember>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -79,16 +85,65 @@ namespace GraduationProject.API.Data
             {
                 e.ToTable("student_skills");
                 e.HasIndex(ss => new { ss.StudentId, ss.SkillId }).IsUnique();
-
                 e.HasOne(ss => ss.Student)
                  .WithMany(s => s.StudentSkills)
                  .HasForeignKey(ss => ss.StudentId)
                  .OnDelete(DeleteBehavior.Cascade);
-
                 e.HasOne(ss => ss.Skill)
                  .WithMany(s => s.StudentSkills)
                  .HasForeignKey(ss => ss.SkillId)
                  .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ── CHANNEL ──────────────────────────────────────────────────────
+            modelBuilder.Entity<Channel>(e =>
+            {
+                e.ToTable("channels");
+                e.HasIndex(c => c.InviteCode).IsUnique();
+                e.HasOne(c => c.Doctor)
+                 .WithMany()
+                 .HasForeignKey(c => c.DoctorId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── CHANNEL STUDENTS ─────────────────────────────────────────────
+            modelBuilder.Entity<ChannelStudent>(e =>
+            {
+                e.ToTable("channel_students");
+                e.HasIndex(cs => new { cs.ChannelId, cs.StudentId }).IsUnique();
+                e.HasOne(cs => cs.Channel)
+                 .WithMany(c => c.ChannelStudents)
+                 .HasForeignKey(cs => cs.ChannelId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(cs => cs.Student)
+                 .WithMany()
+                 .HasForeignKey(cs => cs.StudentId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── TEAMS ─────────────────────────────────────────────────────────
+            modelBuilder.Entity<Team>(e =>
+            {
+                e.ToTable("teams");
+                e.HasOne(t => t.Channel)
+                 .WithMany(c => c.Teams)
+                 .HasForeignKey(t => t.ChannelId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── TEAM MEMBERS ──────────────────────────────────────────────────
+            modelBuilder.Entity<TeamMember>(e =>
+            {
+                e.ToTable("team_members");
+                e.HasIndex(tm => new { tm.TeamId, tm.StudentId }).IsUnique();
+                e.HasOne(tm => tm.Team)
+                 .WithMany(t => t.TeamMembers)
+                 .HasForeignKey(tm => tm.TeamId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(tm => tm.Student)
+                 .WithMany()
+                 .HasForeignKey(tm => tm.StudentId)
+                 .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
