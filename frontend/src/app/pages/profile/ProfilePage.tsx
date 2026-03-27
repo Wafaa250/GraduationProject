@@ -1,649 +1,347 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-  GraduationCap, Building, BookOpen, Star,
-  Edit3, CheckCircle2, Circle, Award, Users, Briefcase,
-  ChevronRight, Github, Linkedin, Globe,
-  MessageCircle, UserPlus, Zap, Plus, Camera,
+  ArrowLeft, CheckCircle2, Circle, Pencil,
+  MapPin, GraduationCap, BookOpen, Star, Zap
 } from 'lucide-react'
-import { useUser } from '../../../context/UserContext'
-
-// ─── Skill label/icon lookup (same data as registration form) ─────────────────
-
-const ALL_SKILLS: Record<string, { label: string; icon: string }> = {
-  communication:    { label: 'Communication',           icon: '💬' },
-  teamwork:         { label: 'Teamwork',                icon: '🤝' },
-  leadership:       { label: 'Leadership',              icon: '🎯' },
-  problem_solving:  { label: 'Problem Solving',         icon: '🧩' },
-  time_management:  { label: 'Time Management',         icon: '⏰' },
-  critical_thinking:{ label: 'Critical Thinking',       icon: '🧠' },
-  autocad:          { label: 'AutoCAD / CAD Design',    icon: '📐' },
-  circuit_design:   { label: 'Circuit Design',          icon: '⚡' },
-  structural_analysis:{ label: 'Structural Analysis',   icon: '🏗️' },
-  programming_eng:  { label: 'Engineering Programming', icon: '💻' },
-  project_planning: { label: 'Project Planning',        icon: '📋' },
-  matlab:           { label: 'MATLAB / Simulation',     icon: '📈' },
-  '3d_modeling':    { label: '3D Modeling',             icon: '🧊' },
-  materials_science:{ label: 'Materials Science',       icon: '🔩' },
-  energy_systems:   { label: 'Energy Systems',          icon: '🔋' },
-  quality_control:  { label: 'Quality Control',         icon: '✅' },
-  programming:      { label: 'Programming',             icon: '💻' },
-  web_dev:          { label: 'Web Development',         icon: '🌐' },
-  mobile_dev:       { label: 'Mobile Development',      icon: '📱' },
-  ai_ml:            { label: 'AI / Machine Learning',   icon: '🤖' },
-  cyber_security:   { label: 'Cyber Security',          icon: '🔒' },
-  data_analysis:    { label: 'Data Analysis',           icon: '📊' },
-  networking:       { label: 'Networking',              icon: '🔗' },
-  database:         { label: 'Database Management',     icon: '🗄️' },
-  clinical_skills:  { label: 'Clinical Skills',         icon: '🩺' },
-  patient_care:     { label: 'Patient Care',            icon: '❤️' },
-  medical_imaging:  { label: 'Medical Imaging',         icon: '🩻' },
-  lab_diagnostics:  { label: 'Lab Diagnostics',         icon: '🧪' },
-  health_informatics:{ label: 'Health Informatics',     icon: '💊' },
-  anatomy:          { label: 'Anatomy & Physiology',    icon: '🫀' },
-  nutrition_science:{ label: 'Nutrition Science',       icon: '🥗' },
-  rehabilitation:   { label: 'Rehabilitation Therapy',  icon: '🦽' },
-  research_methods: { label: 'Research Methods',        icon: '🔬' },
-  medical_data:     { label: 'Medical Data Analysis',   icon: '📊' },
-  marketing:        { label: 'Marketing',               icon: '📣' },
-  finance:          { label: 'Finance',                 icon: '💰' },
-  entrepreneurship: { label: 'Entrepreneurship',        icon: '🚀' },
-  business_analysis:{ label: 'Business Analysis',       icon: '📈' },
-  project_management:{ label: 'Project Management',     icon: '📋' },
-  graphic_design:   { label: 'Graphic Design',          icon: '🎨' },
-  ui_ux:            { label: 'UI/UX Design',            icon: '🖼️' },
-  branding:         { label: 'Branding',                icon: '✨' },
-  illustration:     { label: 'Illustration',            icon: '🖌️' },
-  content_writing:  { label: 'Content Writing',         icon: '✍️' },
-  video_editing:    { label: 'Video Editing',           icon: '🎬' },
-  photography:      { label: 'Photography',             icon: '📷' },
-  social_media:     { label: 'Social Media Management', icon: '📲' },
-  research:         { label: 'Research & Analysis',     icon: '🔬' },
-  lab_skills:       { label: 'Laboratory Skills',       icon: '🧪' },
-  technical_writing:{ label: 'Technical Writing',       icon: '📝' },
-}
-
-function resolveSkills(ids: string[]) {
-  return ids.map(id => ALL_SKILLS[id]).filter(Boolean) as { label: string; icon: string }[]
-}
+import api from '../../../api/axiosInstance'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface SkillItem { label: string; icon: string }
-
 interface StudentProfile {
-  id: string
-  fullName: string
-  major: string
-  faculty: string
-  university: string
-  studentId: string
-  academicYear: string
-  gpa: string
-  bio: string
-  profilePic: string | null
-  coverImage: string | null
-  lookingFor: string
-  preferredRole: string
-  availability: string
-  languages: string[]
-  tools: string[]
-  generalSkills: SkillItem[]
-  majorSkills: SkillItem[]
-  github: string
-  linkedin: string
-  portfolio: string
-  completeness: number
-  isOwnProfile: boolean
+  name: string
+  email: string
+  role: string
+  university?: string
+  faculty?: string
+  major?: string
+  academicYear?: string
+  gpa?: string
+  generalSkills?: string[]
+  majorSkills?: string[]
+  profilePic?: string | null
 }
-
-type TabType = 'overview' | 'skills' | 'projects'
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-// ─── TODO: GET /api/profile/me ───────────────────────────────────────────────
-const EMPTY_STUDENT: StudentProfile = {
-  id: '',
-  fullName: '',
-  major: '',
-  faculty: '',
-  university: '',
-  studentId: '',
-  academicYear: '',
-  gpa: '',
-  bio: '',
-  profilePic: null,
-  coverImage: null,
-  lookingFor: '',
-  preferredRole: '',
-  availability: '',
-  languages: [],
-  tools: [],
-  generalSkills: [],
-  majorSkills: [],
-  github: '',
-  linkedin: '',
-  portfolio: '',
-  completeness: 0,
-  isOwnProfile: true,
-}
-
-// ─── TODO: GET /api/profile/me/suggested-teammates ───────────────────────────
-const SUGGESTED_TEAMMATES: { id: string; name: string; role: string; major: string; match: number; avatar: string | null }[] = []
-
-// ─── TODO: GET /api/profile/me/completion-tasks ──────────────────────────────
-const PROFILE_TASKS = [
-  { id: '1', label: 'Add a profile picture', done: false, link: '/edit-profile' },
-  { id: '2', label: 'Write a bio', done: false, link: '/edit-profile' },
-  { id: '3', label: 'Add your skills', done: false, link: '/edit-profile' },
-  { id: '4', label: 'Connect GitHub account', done: false, link: '/edit-profile' },
-  { id: '5', label: 'Join a project', done: false, link: '/dashboard' },
-]
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-
 export default function ProfilePage() {
-  const { profile } = useUser()
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
-  // Toggle: show or hide GPA (only relevant if student entered it)
-  const [gpaVisible, setGpaVisible] = useState(true)
+  const navigate = useNavigate()
+  const [user, setUser] = useState<StudentProfile | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Map skill IDs → { label, icon } for display
-  const generalSkills = resolveSkills(profile.generalSkills)
-  const majorSkills   = resolveSkills(profile.majorSkills)
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) { navigate('/login'); return }
 
-  const initials = profile.fullName
-    ? profile.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-    : '?'
+        const res = await api.get('/me')
+        const data = res.data
+        setUser({
+          name: data.name || data.fullName,
+          email: data.email,
+          role: data.role || localStorage.getItem('role') || 'student',
+          university: data.university,
+          faculty: data.faculty,
+          major: data.major,
+          academicYear: data.academicYear,
+          gpa: data.gpa,
+          generalSkills: data.generalSkills || [],
+          majorSkills: data.majorSkills || [],
+          profilePic: data.profilePictureBase64 || null,
+        })
+      } catch {
+        setUser({
+          name: localStorage.getItem('name') || 'Student',
+          email: localStorage.getItem('email') || '',
+          role: localStorage.getItem('role') || 'student',
+          generalSkills: [],
+          majorSkills: [],
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProfile()
+  }, [navigate])
 
-  const gpaNum    = parseFloat(profile.gpa)
-  const isHighGpa = !isNaN(gpaNum) && gpaNum >= 3.5
-  const hasGpa    = !!profile.gpa
-  const showGpa   = hasGpa && gpaVisible
+  const generalSkills = user?.generalSkills || []
+  const majorSkills   = user?.majorSkills   || []
+  const allSkills     = [...generalSkills, ...majorSkills]
+
+  const completeness = Math.min(
+    20 +
+    (user?.university ? 15 : 0) +
+    (user?.major      ? 15 : 0) +
+    (allSkills.length  > 0 ? 20 : 0) +
+    (user?.gpa        ? 10 : 0) +
+    (user?.profilePic ? 20 : 0),
+    100
+  )
+
+  const PROFILE_TASKS = [
+    { id: '1', label: 'Add a profile picture',       done: !!user?.profilePic,                       link: '/edit-profile#basic'  },
+    { id: '2', label: 'Add general skills',           done: generalSkills.length > 0,                 link: '/edit-profile#skills' },
+    { id: '3', label: 'Add major skills',             done: majorSkills.length  > 0,                  link: '/edit-profile#skills' },
+    { id: '4', label: 'Complete academic info',       done: !!user?.major && !!user?.university,       link: '/edit-profile#basic'  },
+    { id: '5', label: 'Add preferred project topics', done: false,                                    link: '/edit-profile#work'   },
+  ]
+
+  // ── Loading ──────────────────────────────────────────────────────────────
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff,#f0f4ff,#faf5ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif' }}>
+      <div style={{ textAlign: 'center' as const }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+        <p style={{ fontSize: 14, color: '#94a3b8', fontWeight: 600 }}>Loading profile...</p>
+      </div>
+    </div>
+  )
 
   return (
     <div style={S.page}>
-      <BgDecor />
+      {/* Bg blobs */}
+      <div style={S.blob1} />
+      <div style={S.blob2} />
 
-      {/* ── NAV ── */}
-      <nav style={S.nav}>
-        <div style={S.navInner}>
-          <Link to="/dashboard" style={S.navLogo}>
-            <span style={{ fontSize: 20, color: '#6EE7B7' }}>⟡</span>
-            <span style={S.navLogoText}>Skill<span style={{ color: '#6EE7B7' }}>Swap</span></span>
-          </Link>
-          <div style={S.navLinks}>
-            <Link to="/dashboard" style={S.navLink}>Dashboard</Link>
-            <Link to="/profile" style={{ ...S.navLink, ...S.navLinkActive }}>Profile</Link>
-            <Link to="/students" style={S.navLink}>Students</Link>
-            <Link to="/projects" style={S.navLink}>Projects</Link>
-          </div>
-          {profile.isOwnProfile && (
-            <Link to="/edit-profile" style={S.editNavBtn}>
-              <Edit3 size={13} /> Edit Profile
-            </Link>
-          )}
-        </div>
-      </nav>
-
-      {/* ── COVER BANNER ── */}
-      <div style={S.coverBanner}>
-        {profile.coverImage
-          ? <img src={profile.coverImage} style={S.coverImg} alt="cover" />
-          : <div style={S.coverGradient}>
-              {/* Decorative tech grid lines */}
-              <div style={S.coverGrid} />
-              <div style={S.coverGlow1} />
-              <div style={S.coverGlow2} />
-              <div style={S.coverBadge}>
-                <Zap size={12} style={{ color: '#6EE7B7' }} />
-                <span>AI-Powered Team Matching</span>
-              </div>
-            </div>
-        }
-        {profile.isOwnProfile && (
-          <button style={S.changeCoverBtn}>
-            <Camera size={13} /> Change Cover
+      {/* ── Top bar ── */}
+      <div style={S.topBar}>
+        <div style={S.topBarInner}>
+          <button onClick={() => navigate('/dashboard')} style={S.backBtn}>
+            <ArrowLeft size={16} />
+            <span>Back to Dashboard</span>
           </button>
-        )}
+        </div>
       </div>
 
-      <div style={S.layout}>
+      <div style={S.content}>
 
-        {/* ── SIDEBAR ── */}
-        <aside style={S.sidebar}>
+        {/* ══════════════════════════════════════
+            1 — HERO: Avatar · Name · Major · University
+        ══════════════════════════════════════ */}
+        <div style={S.heroCard}>
+          {/* Avatar */}
+          <div style={S.avatarWrap}>
+            {user?.profilePic
+              ? <img src={user.profilePic} style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} alt="" />
+              : (
+                <div style={S.avatarFallback}>
+                  {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'ST'}
+                </div>
+              )
+            }
+          </div>
 
-          {/* Profile Card */}
-          <div style={S.card}>
-
-            {/* Avatar — pulled up over cover */}
-            <div style={S.avatarRow}>
-              <div style={{ position: 'relative' as const }}>
-                {profile.profilePic
-                  ? <img src={profile.profilePic} style={S.avatarImg} alt={profile.fullName} />
-                  : <div style={S.avatarFallback}>{initials}</div>
-                }
-                <div style={S.onlineDot} />
-              </div>
-              {profile.isOwnProfile && (
-                <Link to="/edit-profile" style={S.editAvatarBtn}>
-                  <Edit3 size={12} />
-                </Link>
+          {/* Text */}
+          <div style={{ flex: 1 }}>
+            <h1 style={S.heroName}>{user?.name || 'Student'}</h1>
+            <div style={S.heroBadges}>
+              {user?.major && (
+                <span style={S.badge}>
+                  <GraduationCap size={12} /> {user.major}
+                </span>
+              )}
+              {user?.university && (
+                <span style={{ ...S.badge, background: '#faf5ff', border: '1px solid #e9d5ff', color: '#7c3aed' }}>
+                  <MapPin size={12} /> {user.university}
+                </span>
+              )}
+              {user?.academicYear && (
+                <span style={{ ...S.badge, background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a' }}>
+                  <Star size={12} /> {user.academicYear}
+                </span>
               )}
             </div>
+          </div>
+        </div>
 
-            {/* Name + tags */}
-            <div style={S.profileInfo}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, marginBottom: 4 }}>
-                <h1 style={S.name}>{profile.fullName}</h1>
+        <div style={S.mainGrid}>
+          {/* ── LEFT column ── */}
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+
+            {/* ══════════════════════════════════════
+                2 — ACADEMIC INFO
+            ══════════════════════════════════════ */}
+            <div style={S.card}>
+              <div style={S.sectionHeader}>
+                <BookOpen size={15} color="#6366f1" />
+                <h2 style={S.sectionTitle}>Academic Info</h2>
               </div>
-
-              {/* Role tag */}
-              <div style={S.roleTag}>
-                🎯 {profile.preferredRole}
-              </div>
-
-              <p style={S.headline}>{profile.major} · {profile.academicYear}</p>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10 }}>
-                <Building size={11} style={{ opacity: 0.4, flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{profile.university}</span>
-              </div>
-
-              {/* GPA — always entered, student chooses to show/hide */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                {showGpa && (
-                  <div style={{ ...S.gpaBadge, background: isHighGpa ? 'rgba(110,231,183,0.1)' : 'rgba(251,191,36,0.1)', borderColor: isHighGpa ? 'rgba(110,231,183,0.3)' : 'rgba(251,191,36,0.3)', color: isHighGpa ? '#6EE7B7' : '#FBBF24' }}>
-                    {isHighGpa ? '🏆' : '⭐'} GPA {profile.gpa}
+              <div style={S.infoGrid}>
+                {[
+                  { label: 'Email',      value: user?.email,        icon: '📧' },
+                  { label: 'Faculty',    value: user?.faculty,      icon: '🏛️' },
+                  { label: 'Year',       value: user?.academicYear, icon: '📅' },
+                  { label: 'GPA',        value: user?.gpa,          icon: '🎯' },
+                ].map(item => (
+                  <div key={item.label} style={S.infoCell}>
+                    <p style={S.infoCellLabel}>{item.icon} {item.label}</p>
+                    <p style={{ ...S.infoCellValue, color: item.value ? '#0f172a' : '#cbd5e1' }}>
+                      {item.value || '—'}
+                    </p>
                   </div>
-                )}
-                {profile.isOwnProfile && (
-                  <button
-                    onClick={() => setGpaVisible(v => !v)}
-                    title={gpaVisible ? 'Hide GPA from profile' : 'Show GPA on profile'}
-                    style={{ ...S.gpaToggleBtn, color: gpaVisible ? '#6EE7B7' : 'rgba(255,255,255,0.25)' }}>
-                    {gpaVisible ? '👁 Visible' : '👁 Hidden'}
-                  </button>
-                )}
+                ))}
+              </div>
+            </div>
+
+            {/* ══════════════════════════════════════
+                3 — SKILLS
+            ══════════════════════════════════════ */}
+            <div style={S.card}>
+              <div style={S.sectionHeader}>
+                <Zap size={15} color="#a855f7" />
+                <h2 style={S.sectionTitle}>Skills</h2>
+                <Link to="/edit-profile#skills" style={S.inlineEditLink}>+ Add skills</Link>
               </div>
 
-              {profile.lookingFor && (
-                <div style={S.lookingBadge}>
-                  <span style={S.greenPulse} />
-                  Open to: {profile.lookingFor}
+              {allSkills.length === 0 ? (
+                <div style={S.emptySkills}>
+                  <span style={{ fontSize: 28 }}>🧩</span>
+                  <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>No skills added yet</p>
+                  <Link to="/edit-profile#skills" style={S.addSkillsBtn}>Add your skills →</Link>
                 </div>
+              ) : (
+                <>
+                  {generalSkills.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <p style={S.skillGroupLabel}>General Skills</p>
+                      <div style={S.skillsRow}>
+                        {generalSkills.map(s => (
+                          <span key={s} style={S.skillChip}>{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {majorSkills.length > 0 && (
+                    <div>
+                      <p style={S.skillGroupLabel}>Major Skills</p>
+                      <div style={S.skillsRow}>
+                        {majorSkills.map(s => (
+                          <span key={s} style={{ ...S.skillChip, background: '#faf5ff', border: '1px solid #e9d5ff', color: '#7c3aed' }}>{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            {/* Stats */}
-            <div style={S.statsRow}>
-              <div style={S.statItem}>
-                <span style={S.statNum}>{generalSkills.length + majorSkills.length}</span>
-                <span style={S.statLabel}>Skills</span>
-              </div>
-              <div style={S.statDivider} />
-              <div style={S.statItem}>
-                <span style={S.statNum}>0</span>
-                <span style={S.statLabel}>Connections</span>
-              </div>
-              <div style={S.statDivider} />
-              <div style={S.statItem}>
-                <span style={S.statNum}>0</span>
-                <span style={S.statLabel}>Projects</span>
-              </div>
-            </div>
-
-            {/* Buttons */}
-            {!profile.isOwnProfile ? (
-              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                <button style={S.btnConnect}><UserPlus size={13} /> Connect</button>
-                <button style={S.btnMessage}><MessageCircle size={13} /> Message</button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                <Link to="/edit-profile" style={{ ...S.btnMessage, textDecoration: 'none', flex: 1, justifyContent: 'center' as const }}>
-                  <Edit3 size={13} /> Edit Profile
-                </Link>
-                <button style={{ ...S.btnMessage, flex: 1, justifyContent: 'center' as const }}>
-                  <MessageCircle size={13} /> Share
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* Academic Info */}
-          <div style={S.card}>
-            <h3 style={S.cardTitle}><GraduationCap size={14} style={{ color: '#6EE7B7' }} /> Academic Info</h3>
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 9 }}>
-              {[
-                { label: 'Student ID', value: profile.studentId },
-                { label: 'Faculty', value: profile.faculty },
-                { label: 'Major', value: profile.major },
-                { label: 'Year', value: profile.academicYear },
-                // GPA row only shown if student chose to enter it
-                ...(showGpa ? [{ label: 'GPA', value: `${profile.gpa} / 4.0`, highlight: true }] : []),
-              ].map(row => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontWeight: 500, flexShrink: 0 }}>{row.label}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: row.highlight ? '#6EE7B7' : 'rgba(255,255,255,0.8)', textAlign: 'right' as const }}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* ── RIGHT column ── */}
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
 
-          {/* Links */}
-          {(profile.github || profile.linkedin || profile.portfolio) && (
+            {/* ══════════════════════════════════════
+                4 — PROFILE COMPLETENESS
+            ══════════════════════════════════════ */}
             <div style={S.card}>
-              <h3 style={S.cardTitle}><Globe size={14} style={{ color: '#6EE7B7' }} /> Links</h3>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                {profile.github && (
-                  <a href={`https://${profile.github}`} target="_blank" rel="noreferrer" style={S.linkItem}>
-                    <Github size={13} /> {profile.github}
-                  </a>
-                )}
-                {profile.linkedin && (
-                  <a href={`https://${profile.linkedin}`} target="_blank" rel="noreferrer" style={S.linkItem}>
-                    <Linkedin size={13} /> {profile.linkedin}
-                  </a>
-                )}
-                {profile.portfolio && (
-                  <a href={`https://${profile.portfolio}`} target="_blank" rel="noreferrer" style={S.linkItem}>
-                    <Globe size={13} /> {profile.portfolio}
-                  </a>
-                )}
+              <div style={S.sectionHeader}>
+                <CheckCircle2 size={15} color="#6366f1" />
+                <h2 style={S.sectionTitle}>Profile Completeness</h2>
               </div>
-            </div>
-          )}
 
-          {/* Profile Strength */}
-          {profile.isOwnProfile && (
-            <div style={S.card}>
-              <h3 style={S.cardTitle}><CheckCircle2 size={14} style={{ color: '#6EE7B7' }} /> Profile Strength</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+              {/* Progress bar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
                 <div style={S.progressTrack}>
-                  <div style={{ ...S.progressFill, width: `${profile.completeness}%` }} />
+                  <div style={{ ...S.progressFill, width: `${completeness}%` }} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#6EE7B7', minWidth: 34 }}>{profile.completeness}%</span>
+                <span style={S.progressPct}>{completeness}%</span>
               </div>
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', margin: '0 0 12px' }}>
-                {profile.completeness >= 80 ? '🔥 Strong profile!' : 'Complete your profile to get better matches'}
+              <p style={S.progressHint}>
+                {completeness >= 80 ? '🔥 Strong profile — you\'re ready to match!' : 'Complete your profile to unlock better AI matches'}
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 9 }}>
+
+              {/* Checklist */}
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginTop: 16 }}>
                 {PROFILE_TASKS.map(task => (
-                  <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div key={task.id} style={S.taskRow}>
                     {task.done
-                      ? <CheckCircle2 size={14} style={{ color: '#6EE7B7', flexShrink: 0 }} />
-                      : <Circle size={14} style={{ color: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
+                      ? <CheckCircle2 size={16} color="#6366f1" style={{ flexShrink: 0 }} />
+                      : <Circle      size={16} color="#cbd5e1"  style={{ flexShrink: 0 }} />
                     }
-                    <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.65)', textDecoration: task.done ? 'line-through' : 'none', opacity: task.done ? 0.4 : 1 }}>
+                    <span style={{
+                      flex: 1, fontSize: 13, color: '#475569', fontWeight: 500,
+                      textDecoration: task.done ? 'line-through' : 'none',
+                      opacity: task.done ? 0.45 : 1,
+                    }}>
                       {task.label}
                     </span>
                     {!task.done && (
-                      <Link to={task.link} style={{ fontSize: 11, color: '#6EE7B7', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>Do it</Link>
+                      <Link to={task.link} style={S.doItLink}>Do it →</Link>
                     )}
                   </div>
                 ))}
               </div>
-              <Link to="/edit-profile" style={S.completeLink}>
-                Complete your profile <ChevronRight size={11} />
-              </Link>
             </div>
-          )}
-        </aside>
 
-        {/* ── MAIN CONTENT ── */}
-        <main style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
+            {/* ══════════════════════════════════════
+                5 — EDIT PROFILE CTA
+            ══════════════════════════════════════ */}
+            <Link to="/edit-profile" style={S.editCta}>
+              <Pencil size={16} />
+              <span style={{ fontSize: 14, fontWeight: 700 }}>Edit Profile</span>
+            </Link>
 
-          {/* Tabs */}
-          <div style={S.tabs}>
-            {(['overview', 'skills', 'projects'] as TabType[]).map(tab => (
-              <button key={tab}
-                style={{ ...S.tab, ...(activeTab === tab ? S.tabActive : {}) }}
-                onClick={() => setActiveTab(tab)}>
-                {tab === 'overview' ? '📋 Overview' : tab === 'skills' ? '⚡ Skills' : '📁 Projects'}
-                {activeTab === tab && <div style={S.tabUnderline} />}
-              </button>
-            ))}
           </div>
-
-          {/* ── OVERVIEW ── */}
-          {activeTab === 'overview' && (
-            <>
-              {profile.bio && (
-                <Section title="About" icon={<BookOpen size={14} />}>
-                  <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.75, margin: 0 }}>{profile.bio}</p>
-                </Section>
-              )}
-
-              <Section title="Work Style" icon={<Briefcase size={14} />}>
-                <div style={S.workGrid}>
-                  <WorkItem icon="🎯" label="Preferred Role" value={profile.preferredRole} />
-                  <WorkItem icon="⏰" label="Weekly Availability" value={profile.availability} />
-                  <WorkItem icon="🔄" label="Team Preference" value="Flexible — can lead or contribute" />
-                  <WorkItem icon="🔍" label="Looking For" value={profile.lookingFor} />
-                </div>
-              </Section>
-
-              {profile.tools.length > 0 && (
-                <Section title="Tools & Technologies" icon={<Award size={14} />}>
-                  <div style={S.chipsWrap}>
-                    {profile.tools.map((t: string) => <span key={t} style={S.toolChip}>{t}</span>)}
-                  </div>
-                </Section>
-              )}
-
-              <Section title="Languages" icon={<Globe size={14} />}>
-                <div style={S.chipsWrap}>
-                  {profile.languages.map((l: string) => <span key={l} style={S.langChip}>{l}</span>)}
-                </div>
-              </Section>
-
-              {/* ── SUGGESTED TEAMMATES ── */}
-              <Section title="Suggested Teammates" icon={<Zap size={14} />}>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: '0 0 14px' }}>
-                  AI-matched based on your skills and project goals
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                  {SUGGESTED_TEAMMATES.map((tm, i) => (
-                    <div key={tm.id} style={S.teammateRow}>
-                      <div style={{ ...S.tmAvatar, background: i === 0 ? 'linear-gradient(135deg,#6EE7B7,#34D399)' : i === 1 ? 'linear-gradient(135deg,#A78BFA,#7C3AED)' : 'linear-gradient(135deg,#60A5FA,#2563EB)' }}>
-                        {tm.name.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', margin: '0 0 2px' }}>{tm.name}</p>
-                        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: 0 }}>{tm.role} · {tm.major}</p>
-                      </div>
-                      <div style={{ ...S.matchBadge, background: tm.match >= 90 ? 'rgba(110,231,183,0.12)' : 'rgba(167,139,250,0.12)', color: tm.match >= 90 ? '#6EE7B7' : '#A78BFA' }}>
-                        <Zap size={10} /> {tm.match}%
-                      </div>
-                      <Link to={`/student/${tm.id}`} style={S.tmViewBtn}>View</Link>
-                    </div>
-                  ))}
-                </div>
-                <Link to="/dashboard" style={S.seeAllBtn}>
-                  See all suggested teammates <ChevronRight size={12} />
-                </Link>
-              </Section>
-            </>
-          )}
-
-          {/* ── SKILLS ── */}
-          {activeTab === 'skills' && (
-            <>
-              <Section title="General Skills" icon={<Users size={14} />}>
-                <div style={S.skillCardsGrid}>
-                  {generalSkills.map((sk, i) => <SkillCard key={i} skill={sk} color="#6EE7B7" />)}
-                </div>
-              </Section>
-              <Section title="Major Skills" icon={<Star size={14} />}>
-                <div style={S.skillCardsGrid}>
-                  {majorSkills.map((sk, i) => <SkillCard key={i} skill={sk} color="#A78BFA" />)}
-                </div>
-              </Section>
-            </>
-          )}
-
-          {/* ── PROJECTS ── */}
-          {activeTab === 'projects' && (
-            <Section title="Projects" icon={<Briefcase size={14} />}>
-              <div style={{ padding: '32px 20px', textAlign: 'center' as const }}>
-                <span style={{ fontSize: 44, display: 'block', marginBottom: 12 }}>📂</span>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: '0 0 6px' }}>No projects yet</p>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: '0 0 24px', lineHeight: 1.6 }}>
-                  {profile.isOwnProfile
-                    ? 'Showcase your graduation project or any other work here.'
-                    : "This student hasn't added any projects yet."}
-                </p>
-                {profile.isOwnProfile && (
-                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' as const, flexWrap: 'wrap' as const }}>
-                    <button style={S.addProjectBtn}>
-                      <Plus size={14} /> Add Graduation Project
-                    </button>
-                    <Link to="/dashboard" style={S.exploreBtn}>
-                      Explore Projects →
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </Section>
-          )}
-        </main>
+        </div>
       </div>
+
+      <style>{`a { text-decoration: none; } button:hover { opacity: 0.88; }`}</style>
     </div>
-  )
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div style={S.card}>
-      <h3 style={S.cardTitle}><span style={{ color: '#6EE7B7' }}>{icon}</span>{title}</h3>
-      {children}
-    </div>
-  )
-}
-
-function WorkItem({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div style={S.workItem}>
-      <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
-      <div>
-        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: '0 0 3px', textTransform: 'uppercase' as const, letterSpacing: '0.05em', fontWeight: 600 }}>{label}</p>
-        <p style={{ fontSize: 13, color: '#fff', fontWeight: 600, margin: 0 }}>{value}</p>
-      </div>
-    </div>
-  )
-}
-
-function SkillCard({ skill, color }: { skill: SkillItem; color: string }) {
-  return (
-    <div style={{ padding: '14px 12px', border: `1px solid ${color}20`, background: `${color}08`, borderRadius: 12, display: 'flex', flexDirection: 'column' as const, alignItems: 'center' as const, gap: 6 }}>
-      <span style={{ fontSize: 22 }}>{skill.icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 600, color, textAlign: 'center' as const, lineHeight: 1.3 }}>{skill.label}</span>
-      <div style={{ height: 3, background: `${color}15`, borderRadius: 2, overflow: 'hidden', width: '100%', marginTop: 2 }}>
-        <div style={{ height: '100%', width: '75%', background: color, borderRadius: 2, opacity: 0.5 }} />
-      </div>
-    </div>
-  )
-}
-
-function BgDecor() {
-  return (
-    <>
-      <div style={{ position: 'fixed' as const, top: -200, right: -200, width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,231,183,0.04) 0%, transparent 70%)', pointerEvents: 'none' as const, zIndex: 0 }} />
-      <div style={{ position: 'fixed' as const, bottom: -200, left: -200, width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(167,139,183,0.04) 0%, transparent 70%)', pointerEvents: 'none' as const, zIndex: 0 }} />
-    </>
   )
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-
 const S: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: 'linear-gradient(160deg, #080d1a 0%, #0d1628 60%, #080d1a 100%)', fontFamily: "'Segoe UI', Tahoma, sans-serif", color: '#fff', paddingBottom: 60 },
+  page:           { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 45%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative', overflow: 'hidden' },
+  blob1:          { position: 'fixed', top: -160, right: -160, width: 520, height: 520, borderRadius: '50%', background: 'radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 },
+  blob2:          { position: 'fixed', bottom: -120, left: -120, width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 },
 
-  // Nav
-  nav: { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(8,13,26,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' },
-  navInner: { maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 20 },
-  navLogo: { display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 },
-  navLogoText: { fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: 0.5 },
-  navLinks: { display: 'flex', gap: 4, flex: 1, justifyContent: 'center' },
-  navLink: { padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.45)', textDecoration: 'none' },
-  navLinkActive: { color: '#fff', background: 'rgba(255,255,255,0.07)' },
-  editNavBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'rgba(110,231,183,0.1)', border: '1px solid rgba(110,231,183,0.25)', borderRadius: 9, color: '#6EE7B7', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 },
+  // top bar
+  topBar:         { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.88)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
+  topBarInner:    { maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  backBtn:        { display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#64748b', fontFamily: 'inherit', padding: 0 },
+  editBtn:        { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: 'none', boxShadow: '0 4px 12px rgba(99,102,241,0.25)' },
 
-  // Cover Banner
-  coverBanner: { position: 'relative', height: 180, overflow: 'hidden' },
-  coverImg: { width: '100%', height: '100%', objectFit: 'cover' },
-  coverGradient: { width: '100%', height: '100%', background: 'linear-gradient(135deg, #0a1628 0%, #0d2040 30%, #0a1a35 60%, #06111f 100%)', position: 'relative', overflow: 'hidden' },
-  coverGrid: { position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(110,231,183,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(110,231,183,0.04) 1px, transparent 1px)', backgroundSize: '40px 40px' },
-  coverGlow1: { position: 'absolute', top: -60, left: '20%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,231,183,0.08) 0%, transparent 70%)', pointerEvents: 'none' },
-  coverGlow2: { position: 'absolute', bottom: -80, right: '15%', width: 250, height: 250, borderRadius: '50%', background: 'radial-gradient(circle, rgba(167,139,250,0.07) 0%, transparent 70%)', pointerEvents: 'none' },
-  coverBadge: { position: 'absolute', bottom: 16, right: 20, display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(110,231,183,0.08)', border: '1px solid rgba(110,231,183,0.2)', borderRadius: 20, fontSize: 11, color: '#6EE7B7', fontWeight: 600 },
-  changeCoverBtn: { position: 'absolute', top: 12, right: 14, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(8px)', fontFamily: 'inherit' },
+  content:        { maxWidth: 900, margin: '0 auto', padding: '32px 24px 60px', position: 'relative', zIndex: 1 },
 
-  // Layout
-  layout: { maxWidth: 1100, margin: '0 auto', padding: '0 24px 0', display: 'grid', gridTemplateColumns: '290px 1fr', gap: 20, alignItems: 'start' },
-  sidebar: { display: 'flex', flexDirection: 'column', gap: 14, position: 'sticky', top: 76, marginTop: -48 },
+  // hero
+  heroCard:       { display: 'flex', alignItems: 'center', gap: 24, padding: '28px 32px', background: 'white', borderRadius: 20, border: '1px solid rgba(99,102,241,0.12)', boxShadow: '0 4px 24px rgba(99,102,241,0.07)', marginBottom: 24 },
+  avatarWrap:     { width: 88, height: 88, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, boxShadow: '0 0 0 4px #eef2ff, 0 4px 16px rgba(99,102,241,0.2)' },
+  avatarFallback: { width: '100%', height: '100%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: 'white' },
+  heroName:       { margin: '0 0 12px', fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px', fontFamily: 'Syne, sans-serif' },
+  heroBadges:     { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  badge:          { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, fontWeight: 600, color: '#6366f1' },
 
-  // Cards
-  card: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, backdropFilter: 'blur(12px)' },
-  cardTitle: { fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase', letterSpacing: '0.07em' },
+  // layout
+  mainGrid:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' },
 
-  // Profile card
-  avatarRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: -38, marginBottom: 12 },
-  avatarImg: { width: 88, height: 88, borderRadius: '50%', border: '4px solid #0d1628', objectFit: 'cover' },
-  avatarFallback: { width: 88, height: 88, borderRadius: '50%', border: '4px solid #0d1628', background: 'linear-gradient(135deg, #6EE7B7, #A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, color: '#0f172a' },
-  onlineDot: { position: 'absolute', bottom: 5, right: 5, width: 13, height: 13, borderRadius: '50%', background: '#6EE7B7', border: '2.5px solid #0d1628' },
-  editAvatarBtn: { width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', color: 'rgba(255,255,255,0.6)', textDecoration: 'none' },
+  // card
+  card:           { background: 'white', borderRadius: 16, padding: '22px', border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(99,102,241,0.04)' },
+  sectionHeader:  { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 },
+  sectionTitle:   { margin: 0, fontSize: 13, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.07em' },
+  inlineEditLink: { marginLeft: 'auto', fontSize: 11, color: '#6366f1', fontWeight: 700, textDecoration: 'none' },
 
-  profileInfo: { marginBottom: 14 },
-  name: { fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 },
-  roleTag: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'rgba(110,231,183,0.08)', border: '1px solid rgba(110,231,183,0.2)', borderRadius: 8, fontSize: 12, color: '#6EE7B7', fontWeight: 700, margin: '6px 0 8px' },
-  headline: { fontSize: 12, color: 'rgba(255,255,255,0.5)', margin: '0 0 6px', fontWeight: 500 },
-  gpaBadge: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', border: '1px solid', borderRadius: 20, fontSize: 12, fontWeight: 700 },
-  gpaToggleBtn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-  lookingBadge: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(110,231,183,0.07)', border: '1px solid rgba(110,231,183,0.18)', borderRadius: 20, fontSize: 11, color: '#6EE7B7', fontWeight: 600 },
-  greenPulse: { width: 6, height: 6, borderRadius: '50%', background: '#6EE7B7', flexShrink: 0 },
+  // academic info grid
+  infoGrid:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
+  infoCell:       { padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' },
+  infoCellLabel:  { margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 4 },
+  infoCellValue:  { margin: 0, fontSize: 13, fontWeight: 700 },
 
-  statsRow: { display: 'flex', alignItems: 'center', padding: '12px 0', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 0 },
-  statItem: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
-  statNum: { fontSize: 17, fontWeight: 800, color: '#fff' },
-  statLabel: { fontSize: 10, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.04em' },
-  statDivider: { width: 1, height: 28, background: 'rgba(255,255,255,0.07)' },
+  // skills
+  emptySkills:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '20px 0', textAlign: 'center' },
+  addSkillsBtn:   { padding: '6px 16px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, fontWeight: 700, color: '#6366f1', textDecoration: 'none' },
+  skillGroupLabel:{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' },
+  skillsRow:      { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  skillChip:      { padding: '5px 13px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, fontWeight: 600, color: '#6366f1' },
 
-  btnConnect: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'linear-gradient(135deg, #6EE7B7, #34D399)', color: '#0f172a', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' },
-  btnMessage: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 9, color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  // completeness
+  progressTrack:  { flex: 1, height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' },
+  progressFill:   { height: '100%', background: 'linear-gradient(90deg,#6366f1,#a855f7)', borderRadius: 4, transition: 'width 0.6s ease' },
+  progressPct:    { fontSize: 16, fontWeight: 800, color: '#6366f1', minWidth: 40 },
+  progressHint:   { margin: 0, fontSize: 12, color: '#94a3b8' },
+  taskRow:        { display: 'flex', alignItems: 'center', gap: 10 },
+  doItLink:       { fontSize: 11, fontWeight: 700, color: '#6366f1', textDecoration: 'none', whiteSpace: 'nowrap' },
 
-  linkItem: { display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6EE7B7', textDecoration: 'none', fontWeight: 500 },
-  progressTrack: { flex: 1, height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', background: 'linear-gradient(90deg, #6EE7B7, #34D399)', borderRadius: 3, transition: 'width 0.6s ease' },
-  completeLink: { display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#6EE7B7', fontWeight: 600, textDecoration: 'none', marginTop: 12 },
-
-  // Tabs
-  tabs: { display: 'flex', gap: 0, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 4, marginTop: 20 },
-  tab: { flex: 1, padding: '9px 16px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderRadius: 9, position: 'relative', transition: 'all 0.2s', fontFamily: 'inherit' },
-  tabActive: { background: 'rgba(255,255,255,0.07)', color: '#fff' },
-  tabUnderline: { position: 'absolute', bottom: 2, left: '50%', transform: 'translateX(-50%)', width: 20, height: 2, background: '#6EE7B7', borderRadius: 1 },
-
-  // Overview
-  workGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
-  workItem: { display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)' },
-  chipsWrap: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  toolChip: { padding: '5px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 20, fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: 500 },
-  langChip: { padding: '5px 12px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 20, fontSize: 12, color: '#FBBF24', fontWeight: 600 },
-
-  // Suggested Teammates
-  teammateRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12 },
-  tmAvatar: { width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#0f172a', flexShrink: 0 },
-  matchBadge: { display: 'inline-flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, flexShrink: 0 },
-  tmViewBtn: { padding: '5px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textDecoration: 'none', flexShrink: 0 },
-  seeAllBtn: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6EE7B7', fontWeight: 600, textDecoration: 'none', marginTop: 12 },
-
-  // Skills
-  skillCardsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 },
-
-  // Projects
-  addProjectBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'linear-gradient(135deg, #6EE7B7, #34D399)', color: '#0f172a', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' },
-  exploreBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 9, color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+  // edit cta
+  editCta:        { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', borderRadius: 14, textDecoration: 'none', boxShadow: '0 4px 16px rgba(99,102,241,0.3)', transition: 'opacity 0.2s' },
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, GraduationCap, Stethoscope, Building2, Users } from 'lucide-react'
+import DoctorRegisterForm from '../forms/DoctorRegisterForm'
 
 // ── Import each role's registration form ──────────────────────────────────────
 import StudentRegisterForm from '../forms/StudentRegisterForm'
@@ -83,8 +84,8 @@ export default function RegisterPage() {
     switch (selectedRole) {
       case 'student':
         return <StudentRegisterForm onBack={handleBack} />
-      case 'doctor':
-        return <ComingSoon role="Doctor / Supervisor" onBack={handleBack} />
+      case 'doctor': return <DoctorRegisterForm onBack={handleBack} />
+
       case 'company':
         return <ComingSoon role="Company" onBack={handleBack} />
       case 'association':

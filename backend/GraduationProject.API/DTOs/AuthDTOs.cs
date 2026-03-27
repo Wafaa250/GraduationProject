@@ -61,9 +61,7 @@ namespace GraduationProject.API.DTOs
         [Range(0.0, 4.0, ErrorMessage = "GPA must be between 0.0 and 4.0")]
         public decimal? Gpa { get; set; }
 
-
         // ── Step 4: Skills ───────────────────────────────
-        // الـ roles هي الـ generalSkills (ما يختاره الطالب من specializations)
         [MinLength(1, ErrorMessage = "Please select at least one role")]
         public List<string> Roles { get; set; } = new();           // "Frontend Developer", etc.
 
@@ -71,25 +69,14 @@ namespace GraduationProject.API.DTOs
 
         public List<string> Tools { get; set; } = new();           // "React", "Python", etc.
 
-        // الحقول القديمة — الفرونت بيرسلهم (generalSkills = roles, majorSkills = technicalSkills)
         [MinLength(1, ErrorMessage = "Please select at least one general skill")]
         public List<string> GeneralSkills { get; set; } = new();
 
         public List<string> MajorSkills { get; set; } = new();
-
-        [MinLength(1, ErrorMessage = "Please select at least one role")]
-        public List<string> Roles { get; set; } = new();
-
-        public List<string> TechnicalSkills { get; set; } = new();
-        public List<string> Tools           { get; set; } = new();
-
-        [MinLength(1, ErrorMessage = "Please select at least one general skill")]
-        public List<string> GeneralSkills { get; set; } = new();
-        public List<string> MajorSkills   { get; set; } = new();
     }
 
     // ===========================
-    // REGISTER - DOCTOR ✅ محدّث
+    // REGISTER - DOCTOR
     // ===========================
     public class RegisterDoctorDto
     {

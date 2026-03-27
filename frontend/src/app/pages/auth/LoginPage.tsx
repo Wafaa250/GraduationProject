@@ -1,20 +1,46 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowRight, Mail, Lock } from 'lucide-react'
-
+import api from '../../../api/axiosInstance'
 export default function LoginPage() {
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
+    setApiError(null)
 
-    // مؤقتاً فقط
-    console.log({ email, password })
+    try {
+      const response = await api.post('/auth/login', { email, password })
+      const result = response.data
 
-    // لاحقاً:
-    // login API
+      // ✅ حفظ التوكن والمعلومات
+      localStorage.setItem('token', result.token)
+      localStorage.setItem('userId', result.userId.toString())
+      localStorage.setItem('role', result.role)
+      localStorage.setItem('name', result.name)
+      localStorage.setItem('email', result.email)
+
+      // ✅ التوجيه حسب الـ role
+
+        if (result.role === 'student') navigate('/dashboard')
+else if (result.role === 'doctor') navigate('/doctor-dashboard')
+        else if (result.role === 'company') navigate('/company/dashboard')
+        else navigate('/dashboard')
+
+    } catch (error: any) {
+      const msg =
+        error.response?.data?.message ||
+        'Invalid email or password. Please try again.'
+      setApiError(msg)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -66,7 +92,6 @@ export default function LoginPage() {
             <h1 className="text-3xl font-extrabold text-slate-900 mb-2" style={{ fontFamily: 'Syne, sans-serif' }}>
               Welcome back 👋
             </h1>
-
             <p className="text-slate-500 text-sm">
               Sign in to continue building your dream team
             </p>
@@ -80,10 +105,8 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Email Address
               </label>
-
               <div className="relative">
                 <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-
                 <input
                   type="email"
                   value={email}
@@ -97,12 +120,10 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-slate-700">
                   Password
                 </label>
-
                 <Link
                   to="/forgot-password"
                   className="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
@@ -110,10 +131,8 @@ export default function LoginPage() {
                   Forgot password?
                 </Link>
               </div>
-
               <div className="relative">
                 <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -122,7 +141,6 @@ export default function LoginPage() {
                   required
                   className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 focus:bg-white transition-all"
                 />
-
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -131,17 +149,25 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
                 </button>
               </div>
-
             </div>
+
+            {/* ── API Error ── */}
+            {apiError && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
+                ❌ {apiError}
+              </div>
+            )}
 
             {/* Submit */}
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2.5 text-white py-3.5 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all mt-2"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2.5 text-white py-3.5 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg,#4f46e5,#9333ea)' }}
             >
-              Sign In
-              <ArrowRight size={16} strokeWidth={2.5}/>
+              {isLoading ? '⏳ Signing in...' : (
+                <>Sign In <ArrowRight size={16} strokeWidth={2.5}/></>
+              )}
             </button>
 
           </form>
