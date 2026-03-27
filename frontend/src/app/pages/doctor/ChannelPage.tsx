@@ -1,10 +1,112 @@
 // src/app/pages/doctor/ChannelPage.tsx
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Copy, Check, Users, Layers, Plus, Settings } from 'lucide-react'
+import { ArrowLeft, Copy, Check, Users, Layers, FolderOpen, Plus } from 'lucide-react'
 import { CourseChannel } from './data/doctorMockData'
 
-type ChannelTab = 'overview' | 'students' | 'teams' | 'settings'
+type ChannelTab = 'overview' | 'students' | 'projects' | 'settings'
+
+// ── Project types (ready to be filled from API) ──────────────────────────────
+interface Project {
+    id:          string
+    name:        string
+    description: string | null
+    publishDate: string | null   // ISO date string
+    dueDate:     string | null   // ISO date string
+    weight:      number | null   // % of final grade
+    maxTeamSize: number | null
+    teamCount:   number
+    mode:        'students' | 'doctor'
+    skills:      string[]
+}
+
+// ── Project Card ─────────────────────────────────────────────────────────────
+function ProjectCard({ project }: { project: Project }) {
+    const modeLabel  = project.mode === 'doctor' ? 'AI / Doctor' : 'Students choose'
+    const modeColor  = project.mode === 'doctor' ? '#6366f1' : '#10b981'
+    const modeBg     = project.mode === 'doctor' ? '#eef2ff' : '#f0fdf4'
+    const modeBorder = project.mode === 'doctor' ? '#c7d2fe' : '#bbf7d0'
+
+    const fmt = (d: string | null) => d
+        ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        : null
+
+    return (
+        <div style={PC.card}>
+            <div style={PC.accentBar} />
+
+            {/* Mode badge */}
+            <div style={PC.header}>
+                <span style={{ ...PC.modeBadge, background: modeBg, color: modeColor, border: `1px solid ${modeBorder}` }}>
+                    {modeLabel}
+                </span>
+                {project.weight != null && (
+                    <span style={PC.weightBadge}>{project.weight}%</span>
+                )}
+            </div>
+
+            {/* Name */}
+            <h3 style={PC.name}>{project.name}</h3>
+
+            {/* Description */}
+            {project.description && (
+                <p style={PC.desc}>{project.description}</p>
+            )}
+
+            {/* Meta row */}
+            <div style={PC.meta}>
+                {fmt(project.dueDate) && (
+                    <div style={PC.metaItem}>
+                        <span style={PC.metaIcon}>📅</span>
+                        <span style={PC.metaText}>Due {fmt(project.dueDate)}</span>
+                    </div>
+                )}
+                {project.maxTeamSize != null && (
+                    <div style={PC.metaItem}>
+                        <Users size={13} color="#94a3b8" />
+                        <span style={PC.metaText}>Max {project.maxTeamSize} students</span>
+                    </div>
+                )}
+                <div style={PC.metaItem}>
+                    <Users size={13} color="#94a3b8" />
+                    <span style={PC.metaText}>{project.teamCount} Teams</span>
+                </div>
+            </div>
+
+            {/* Skills */}
+            {project.skills.length > 0 && (
+                <div style={PC.skills}>
+                    {project.skills.slice(0, 4).map(sk => (
+                        <span key={sk} style={PC.skillChip}>{sk}</span>
+                    ))}
+                    {project.skills.length > 4 && (
+                        <span style={PC.skillMore}>+{project.skills.length - 4}</span>
+                    )}
+                </div>
+            )}
+
+            <button style={PC.viewBtn}>View Project</button>
+        </div>
+    )
+}
+
+const PC: Record<string, React.CSSProperties> = {
+    card:        { background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, padding: '20px 20px 18px', boxShadow: '0 2px 12px rgba(99,102,241,0.04)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10 },
+    accentBar:   { position: 'absolute', top: 0, left: 0, right: 0, height: 3, borderRadius: '16px 16px 0 0', background: 'linear-gradient(90deg,#6366f1,#a855f7)' },
+    header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    modeBadge:   { fontSize: 10, fontWeight: 700, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 20, textTransform: 'uppercase' as const },
+    weightBadge: { fontSize: 11, fontWeight: 700, color: '#f59e0b', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 20, padding: '2px 8px' },
+    name:        { fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.3px' },
+    desc:        { fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' },
+    meta:        { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const },
+    metaItem:    { display: 'flex', alignItems: 'center', gap: 4 },
+    metaIcon:    { fontSize: 13 },
+    metaText:    { fontSize: 12, color: '#64748b', fontWeight: 500 },
+    skills:      { display: 'flex', flexWrap: 'wrap' as const, gap: 5 },
+    skillChip:   { padding: '3px 9px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 11, color: '#6366f1', fontWeight: 600 },
+    skillMore:   { padding: '3px 9px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 20, fontSize: 11, color: '#94a3b8', fontWeight: 600 },
+    viewBtn:     { marginTop: 4, padding: '8px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' },
+}
 
 interface Props {
     channels: CourseChannel[]
@@ -15,10 +117,58 @@ export default function ChannelPage({ channels }: Props) {
     const navigate = useNavigate()
     const [tab, setTab] = useState<ChannelTab>('overview')
     const [copied, setCopied] = useState(false)
+    const [showCreateProject, setShowCreateProject] = useState(false)
+    const [teamMode, setTeamMode] = useState<'students' | 'doctor'>('students')
+    const [skillInput, setSkillInput] = useState('')
+    const [skills, setSkills] = useState<string[]>([])
+    const [selectedSize, setSelectedSize] = useState<number | null>(null)
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+    // Modal controlled fields
+    const [projectName, setProjectName]         = useState('')
+    const [projectDesc, setProjectDesc]         = useState('')
+    const [publishDate, setPublishDate]         = useState('')
+    const [dueDate, setDueDate]                 = useState('')
+    const [projectWeight, setProjectWeight]     = useState('')
+    // Projects list — will be populated from API later
+    const [projects, setProjects] = useState<Project[]>([])
+
+    const resetModal = () => {
+        setProjectName('')
+        setProjectDesc('')
+        setTeamMode('students')
+        setPublishDate('')
+        setDueDate('')
+        setProjectWeight('')
+        setSelectedSize(null)
+        setSkills([])
+        setSkillInput('')
+        setUploadedFile(null)
+    }
+
+    const handleCreateProject = () => {
+        if (!projectName.trim()) return          // name is required
+
+        // ── Data ready to send to API later ──────────────────────────────
+        const projectData = {
+            name:          projectName.trim(),
+            description:   projectDesc.trim() || null,
+            formationMode: teamMode,
+            publishDate:   publishDate || null,
+            dueDate:       dueDate     || null,
+            weight:        projectWeight ? Number(projectWeight) : null,
+            maxTeamSize:   selectedSize,
+            skills,
+            file:          uploadedFile,
+        }
+        console.log('[ChannelPage] project payload →', projectData)
+        // TODO: await api.post(`/doctor/channels/${channelId}/projects`, projectData)
+
+        resetModal()
+        setShowCreateProject(false)
+    }
 
     const channel = channels.find(c => c.id === channelId)
 
-    // ── Channel not found ──
     if (!channel) {
         return (
             <div style={S.page}>
@@ -39,10 +189,10 @@ export default function ChannelPage({ channels }: Props) {
     }
 
     const tabs: { id: ChannelTab; label: string }[] = [
-        { id: 'overview', label: 'Overview' },
-        { id: 'students', label: 'Students' },
-        { id: 'teams', label: 'Teams' },
-        { id: 'settings', label: 'Settings' },
+        { id: 'overview',  label: 'Overview' },
+        { id: 'students',  label: 'Students' },
+        { id: 'projects',  label: 'Projects' },
+        { id: 'settings',  label: 'Settings' },
     ]
 
     return (
@@ -74,30 +224,17 @@ export default function ChannelPage({ channels }: Props) {
                                 <span style={S.metaItem}>Course Code: <strong>{channel.courseCode}</strong></span>
                                 <span style={S.metaDot}>·</span>
                                 <span style={S.metaItem}><Users size={13} /> {channel.studentsCount} Students</span>
-                                <span style={S.metaDot}>·</span>
-                                <span style={S.metaItem}><Layers size={13} /> {channel.teams.length} Teams</span>
+
                             </div>
                         </div>
                     </div>
 
-                    {/* Actions */}
                     <div style={S.actions}>
                         <div style={S.inviteBox}>
-                            <span style={S.inviteLabel}>Invite Code</span>
-                            <div style={S.codeRow}>
-                                <code style={S.code}>{channel.inviteCode}</code>
-                                <button style={S.copyBtn} onClick={handleCopy}>
-                                    {copied ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
-                                    {copied ? 'Copied!' : 'Copy'}
-                                </button>
-                            </div>
+                          
                         </div>
-                        <button style={S.primaryBtn}>
-                            <Plus size={14} /> Create Team
-                        </button>
-                        <button style={S.ghostBtn}>
-                            <Users size={14} /> Manage Students
-                        </button>
+                    
+                      
                     </div>
                 </div>
 
@@ -115,9 +252,9 @@ export default function ChannelPage({ channels }: Props) {
                                     {channel.studentsCount}
                                 </span>
                             )}
-                            {t.id === 'teams' && (
+                            {t.id === 'projects' && (
                                 <span style={{ ...S.tabCount, ...(tab === t.id ? S.tabCountActive : {}) }}>
-                                    {channel.teams.length}
+                                    0
                                 </span>
                             )}
                         </button>
@@ -130,8 +267,6 @@ export default function ChannelPage({ channels }: Props) {
                     {/* OVERVIEW */}
                     {tab === 'overview' && (
                         <div>
-
-                            {/* Channel Info Panel */}
                             <div style={S.infoPanel}>
                                 <div style={S.infoPanelLeft}>
                                     <div style={S.infoRow}>
@@ -147,19 +282,12 @@ export default function ChannelPage({ channels }: Props) {
                                             <span style={S.infoLabel}>Section</span>
                                             <span style={S.infoValue}>{channel.section}</span>
                                         </div>
-                                        <div style={S.infoItem}>
-                                            <span style={S.infoLabel}>Students</span>
-                                            <span style={S.infoValue}>{channel.studentsCount}</span>
-                                        </div>
-                                        <div style={S.infoItem}>
-                                            <span style={S.infoLabel}>Teams</span>
-                                            <span style={S.infoValue}>{channel.teams.length}</span>
-                                        </div>
+                                       
                                     </div>
                                 </div>
                                 <div style={S.infoDivider} />
                                 <div style={S.infoPanelRight}>
-                                    <span style={S.infoLabel}>Invite Code</span>
+                                  <span style={S.infoLabel}>Invite Code</span>
                                     <div style={S.inviteCodeBox}>
                                         <code style={S.inviteCodeText}>{channel.inviteCode}</code>
                                         <button style={S.inviteCopyBtn} onClick={handleCopy}>
@@ -198,36 +326,9 @@ export default function ChannelPage({ channels }: Props) {
                                 </div>
                             </div>
 
-                            {/* Recent Teams */}
-                            <div style={S.sectionHeader}>
-                                <h2 style={S.sectionTitle}>Recent Teams</h2>
-                                <button style={S.primaryBtn}><Plus size={13} /> Create Team</button>
-                            </div>
-                            {channel.teams.length === 0 ? (
-                                <div style={S.empty}>
-                                    <Layers size={28} color="#c7d2fe" />
-                                    <p style={{ color: '#94a3b8', margin: '10px 0 14px', fontSize: 13 }}>No teams yet</p>
-                                    <button style={S.primaryBtn}><Plus size={13} /> Create First Team</button>
-                                </div>
-                            ) : (
-                                <div style={S.teamsGrid}>
-                                    {channel.teams.slice(0, 3).map(team => (
-                                        <div key={team.id} style={S.teamCard}>
-                                            <h3 style={S.teamName}>{team.name}</h3>
-                                            <p style={S.teamProject}>{team.projectTitle}</p>
-                                            <div style={S.membersRow}>
-                                                {team.members.map(m => (
-                                                    <div key={m.id} style={S.avatar} title={m.name}>{m.avatar}</div>
-                                                ))}
-                                                <span style={S.membersLabel}>{team.members.length} members</span>
-                                            </div>
-                                            <div style={S.skills}>
-                                                {team.skills.map(sk => <span key={sk} style={S.skillChip}>{sk}</span>)}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                          <div style={S.sectionHeader}>
+</div>
+                        
                         </div>
                     )}
 
@@ -272,42 +373,40 @@ export default function ChannelPage({ channels }: Props) {
                         </div>
                     )}
 
-                    {/* TEAMS */}
-                    {tab === 'teams' && (
+                    {/* PROJECTS */}
+                    {tab === 'projects' && (
                         <div>
                             <div style={S.sectionHeader}>
-                                <h2 style={S.sectionTitle}>All Teams</h2>
-                                <button style={S.primaryBtn}><Plus size={13} /> Create Team</button>
+                                <h2 style={S.sectionTitle}>Projects</h2>
+                                {projects.length > 0 && (
+                                    <button style={S.primaryBtn} onClick={() => setShowCreateProject(true)}>
+                                        <Plus size={13} /> Create Project
+                                    </button>
+                                )}
                             </div>
-                            {channel.teams.length === 0 ? (
+
+                            {projects.length === 0 ? (
                                 <div style={S.empty}>
-                                    <Layers size={28} color="#c7d2fe" />
-                                    <p style={{ color: '#94a3b8', margin: '10px 0 14px', fontSize: 13 }}>No teams yet</p>
-                                    <button style={S.primaryBtn}><Plus size={13} /> Create First Team</button>
+                                    <FolderOpen size={28} color="#c7d2fe" />
+                                    <p style={{ color: '#94a3b8', margin: '10px 0 14px', fontSize: 13 }}>
+                                        No projects yet
+                                    </p>
+                                    <button style={S.primaryBtn} onClick={() => setShowCreateProject(true)}>
+                                        <Plus size={13} /> Create Project
+                                    </button>
                                 </div>
                             ) : (
-                                <div style={S.teamsGrid}>
-                                    {channel.teams.map(team => (
-                                        <div key={team.id} style={S.teamCard}>
-                                            <h3 style={S.teamName}>{team.name}</h3>
-                                            <p style={S.teamProject}>{team.projectTitle}</p>
-                                            <div style={S.membersRow}>
-                                                {team.members.map(m => (
-                                                    <div key={m.id} style={S.avatar} title={m.name}>{m.avatar}</div>
-                                                ))}
-                                                <span style={S.membersLabel}>{team.members.length} members</span>
-                                            </div>
-                                            <div style={S.skills}>
-                                                {team.skills.map(sk => <span key={sk} style={S.skillChip}>{sk}</span>)}
-                                            </div>
-                                        </div>
+                                // projects will be rendered here later from API
+                                <div style={S.projectsGrid}>
+                                    {projects.map(p => (
+                                        <ProjectCard key={p.id} project={p} />
                                     ))}
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* SETTINGS */}
+
                     {tab === 'settings' && (
                         <div style={S.settingsWrap}>
                             <h2 style={S.sectionTitle}>Channel Settings</h2>
@@ -320,7 +419,220 @@ export default function ChannelPage({ channels }: Props) {
                 </div>
             </div>
 
-            <style>{`a{text-decoration:none;} button:hover:not(:disabled){opacity:.88;} button:active{transform:scale(.98);}`}</style>
+            {/* CREATE PROJECT MODAL */}
+            {showCreateProject && (
+                <div style={S.modalOverlay} onClick={() => setShowCreateProject(false)}>
+                    <div style={S.modal} onClick={e => e.stopPropagation()}>
+
+                        {/* Modal Header */}
+                        <div style={S.modalHeader}>
+                            <div>
+                                <h2 style={S.modalTitle}>Create Project</h2>
+                                <p style={S.modalSub}>Add a new project to this channel</p>
+                            </div>
+                            <button style={S.modalCloseBtn} onClick={() => setShowCreateProject(false)}>✕</button>
+                        </div>
+
+                        {/* Fields */}
+                        <div style={S.modalBody}>
+
+                            <div style={S.fieldGroup}>
+                                <label style={S.fieldLabel}>Project Name</label>
+                                <input
+                                    style={S.fieldInput}
+                                    type="text"
+                                    placeholder="e.g. Smart Attendance System"
+                                    value={projectName}
+                                    onChange={e => setProjectName(e.target.value)}
+                                />
+                            </div>
+
+                            <div style={S.fieldGroup}>
+                                <label style={S.fieldLabel}>Description <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
+                                <textarea
+                                    style={S.fieldTextarea}
+                                    placeholder="Brief description of the project..."
+                                    rows={3}
+                                    value={projectDesc}
+                                    onChange={e => setProjectDesc(e.target.value)}
+                                />
+                            </div>
+
+                            <div style={S.fieldGroup}>
+                                <label style={S.fieldLabel}>Team Formation Mode</label>
+                                <div style={S.radioGroup}>
+                                    <label style={S.radioOption}>
+                                        <input
+                                            type="radio"
+                                            name="teamMode"
+                                            value="students"
+                                            checked={teamMode === 'students'}
+                                            onChange={() => setTeamMode('students')}
+                                            style={{ accentColor: '#6366f1' }}
+                                        />
+                                        <div>
+                                            <span style={S.radioLabel}>Students choose teams</span>
+                                            <span style={S.radioHint}>Students form their own groups freely</span>
+                                        </div>
+                                    </label>
+                                    <label style={S.radioOption}>
+                                        <input
+                                            type="radio"
+                                            name="teamMode"
+                                            value="doctor"
+                                            checked={teamMode === 'doctor'}
+                                            onChange={() => setTeamMode('doctor')}
+                                            style={{ accentColor: '#6366f1' }}
+                                        />
+                                        <div>
+                                            <span style={S.radioLabel}>Doctor / AI generate teams</span>
+                                            <span style={S.radioHint}>Teams are suggested based on skills</span>
+                                        </div>
+                                    </label>
+                            </div>
+                        </div>
+
+                            {/* Dates row */}
+                            <div style={S.formRow}>
+                                <div style={S.fieldGroup}>
+                                    <label style={S.fieldLabel}>Publish Date <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
+                                    <input style={S.fieldInput} type="date" value={publishDate} onChange={e => setPublishDate(e.target.value)} />
+                                </div>
+                                <div style={S.fieldGroup}>
+                                    <label style={S.fieldLabel}>Due Date <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
+                                    <input style={S.fieldInput} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                                </div>
+                            </div>
+
+                            {/* Weight */}
+                            <div style={S.fieldGroup}>
+                                <label style={S.fieldLabel}>Project Weight <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
+                                <div style={S.weightRow}>
+                                    <input
+                                        style={{ ...S.fieldInput, width: 90 }}
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        placeholder="e.g. 30"
+                                        value={projectWeight}
+                                        onChange={e => setProjectWeight(e.target.value)}
+                                    />
+                                    <span style={S.weightUnit}>% of final grade</span>
+                                </div>
+                            </div>
+
+                            {/* Max Team Size */}
+                            <div style={S.fieldGroup}>
+                                <label style={S.fieldLabel}>Max Team Size</label>
+                                <div style={S.teamSizeRow}>
+                                    {[1, 2, 3, 4, 5, 6].map(n => (
+                                        <button
+                                            key={n}
+                                            type="button"
+                                            style={{
+                                                ...S.sizeChip,
+                                                ...(selectedSize === n ? S.sizeChipActive : {}),
+                                            }}
+                                            onClick={() => setSelectedSize(n)}
+                                        >
+                                            {n}
+                                        </button>
+                                    ))}
+                                    <span style={{ fontSize: 11, color: '#94a3b8', alignSelf: 'center' }}>students</span>
+                                </div>
+                            </div>
+
+                            {/* Required Skills */}
+                            <div style={S.fieldGroup}>
+                                <label style={S.fieldLabel}>Required Skills <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
+                                <div style={S.skillInputRow}>
+                                    <input
+                                        style={{ ...S.fieldInput, flex: 1 }}
+                                        type="text"
+                                        placeholder="e.g. React, Node.js, AI..."
+                                        value={skillInput}
+                                        onChange={e => setSkillInput(e.target.value)}
+                                        onKeyDown={e => {
+                                            if ((e.key === 'Enter' || e.key === ',') && skillInput.trim()) {
+                                                e.preventDefault()
+                                                setSkills(prev => [...prev, skillInput.trim()])
+                                                setSkillInput('')
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        style={S.skillAddBtn}
+                                        onClick={() => {
+                                            if (skillInput.trim()) {
+                                                setSkills(prev => [...prev, skillInput.trim()])
+                                                setSkillInput('')
+                                            }
+                                        }}
+                                    >Add</button>
+                                </div>
+                                {skills.length > 0 && (
+                                    <div style={S.skillTags}>
+                                        {skills.map((sk, i) => (
+                                            <span key={i} style={S.skillTag}>
+                                                {sk}
+                                                <button
+                                                    type="button"
+                                                    style={S.skillRemove}
+                                                    onClick={() => setSkills(prev => prev.filter((_, j) => j !== i))}
+                                                >✕</button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* File Upload */}
+                            <div style={S.fieldGroup}>
+                                <label style={S.fieldLabel}>Attach File <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
+                                <label style={{ ...S.uploadBox, ...(uploadedFile ? S.uploadBoxDone : {}) }}>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.doc,.docx,.zip,image/*"
+                                        style={{ display: 'none' }}
+                                        onChange={e => setUploadedFile(e.target.files?.[0] ?? null)}
+                                    />
+                                    {uploadedFile ? (
+                                        <>
+                                            <span style={S.uploadIcon}>✅</span>
+                                            <span style={{ ...S.uploadText, color: '#10b981' }}>{uploadedFile.name}</span>
+                                            <span style={S.uploadHint}>Click to change file</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span style={S.uploadIcon}>📎</span>
+                                            <span style={S.uploadText}>Choose file or drag here</span>
+                                            <span style={S.uploadHint}>PDF, Word, ZIP, Image</span>
+                                        </>
+                                    )}
+                                </label>
+                            </div>
+
+                        </div>
+
+                        {/* Actions */}
+                        <div style={S.modalFooter}>
+                            <button style={S.cancelBtn} onClick={() => { resetModal(); setShowCreateProject(false) }}>
+                                Cancel
+                            </button>
+                            <button
+                                style={{ ...S.primaryBtn, opacity: projectName.trim() ? 1 : 0.5, cursor: projectName.trim() ? 'pointer' : 'not-allowed' }}
+                                disabled={!projectName.trim()}
+                                onClick={handleCreateProject}
+                            >
+                                <Plus size={13} /> Create Project
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`a{text-decoration:none;} button:hover:not(:disabled){opacity:.88;} button:active{transform:scale(.98);} input::placeholder,textarea::placeholder{color:#94a3b8;} input:focus,textarea:focus{outline:none;border-color:#6366f1!important;} textarea{resize:vertical;}`}</style>
         </div>
     )
 }
@@ -406,4 +718,47 @@ const S: Record<string, React.CSSProperties> = {
     inviteCodeText: { fontFamily: 'monospace', fontSize: 15, fontWeight: 800, color: '#0f172a', flex: 1, letterSpacing: '.04em' },
     inviteCopyBtn: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#6366f1', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 7, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const },
     inviteHint: { fontSize: 11, color: '#94a3b8', margin: 0 },
+
+    modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.45)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 200, padding: 16 },
+    modal:        { background: 'white', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,.15)', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' as const, fontFamily: 'DM Sans, sans-serif' },
+    modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '22px 24px 0' },
+    modalTitle:   { fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 3px', fontFamily: 'Syne, sans-serif' },
+    modalSub:     { fontSize: 12, color: '#94a3b8', margin: 0 },
+    modalCloseBtn:{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, border: '1px solid #e2e8f0', background: 'none', color: '#64748b', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' },
+    modalBody:    { padding: '20px 24px', display: 'flex', flexDirection: 'column' as const, gap: 16 },
+    modalFooter:  { display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '0 24px 22px' },
+
+    fieldGroup:   { display: 'flex', flexDirection: 'column' as const, gap: 6 },
+    fieldLabel:   { fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '.06em' },
+    fieldInput:   { padding: '9px 12px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 9, fontSize: 13, color: '#0f172a', fontFamily: 'inherit' },
+    fieldTextarea:{ padding: '9px 12px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 9, fontSize: 13, color: '#0f172a', fontFamily: 'inherit', lineHeight: 1.5 },
+
+    radioGroup:   { display: 'flex', flexDirection: 'column' as const, gap: 8 },
+    radioOption:  { display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 10, cursor: 'pointer' },
+    radioLabel:   { display: 'block', fontSize: 13, fontWeight: 600, color: '#0f172a' },
+    radioHint:    { display: 'block', fontSize: 11, color: '#94a3b8', marginTop: 2 },
+
+    cancelBtn:    { padding: '9px 18px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 9, color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+
+    formRow:      { display: 'flex', gap: 12 },
+    weightRow:    { display: 'flex', alignItems: 'center', gap: 10 },
+    weightUnit:   { fontSize: 13, color: '#64748b', fontWeight: 500 },
+
+    teamSizeRow:  { display: 'flex', gap: 6, flexWrap: 'wrap' as const },
+    sizeChip:     { padding: '6px 14px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', fontFamily: 'inherit' },
+    sizeChipActive: { background: '#eef2ff', border: '1.5px solid #6366f1', color: '#6366f1' },
+
+    skillInputRow:{ display: 'flex', gap: 8 },
+    skillAddBtn:  { padding: '9px 14px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 9, fontSize: 12, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const },
+    skillTags:    { display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginTop: 6 },
+    skillTag:     { display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, fontWeight: 600, color: '#6366f1' },
+    skillRemove:  { background: 'none', border: 'none', cursor: 'pointer', color: '#a5b4fc', fontSize: 10, padding: 0, lineHeight: 1, fontFamily: 'inherit' },
+
+    uploadBox:    { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, padding: '18px', background: '#f8fafc', border: '1.5px dashed #c7d2fe', borderRadius: 10, cursor: 'pointer', textAlign: 'center' as const },
+    uploadBoxDone:{ background: '#f0fdf4', border: '1.5px dashed #86efac' },
+    uploadIcon:   { fontSize: 20 },
+    uploadText:   { fontSize: 13, fontWeight: 600, color: '#64748b' },
+    uploadHint:   { fontSize: 11, color: '#94a3b8' },
+
+    projectsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
 }
