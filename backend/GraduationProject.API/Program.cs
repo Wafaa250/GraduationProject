@@ -42,6 +42,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 
+// File storage — swap implementation here to change storage backend
+// Local disk (current) → later replace with Cloudinary/S3 without touching controllers
+builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
 // ===========================
 // CORS - React Frontend
 // ===========================
@@ -120,6 +124,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowReact");
+app.UseStaticFiles(); // serves wwwroot/uploads/* for uploaded project files
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
@@ -127,5 +132,3 @@ app.MapControllers();
 
 
 app.Run();
-
-

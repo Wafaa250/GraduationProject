@@ -1,3 +1,5 @@
+// Data/ApplicationDbContext.cs
+// CHANGED: added DbSet<Project>, Project entity config, Team→Project FK
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Models;
 
@@ -20,6 +22,7 @@ namespace GraduationProject.API.Data
         // ── Doctor Dashboard ────────────────────────────────────────────────
         public DbSet<Channel>        Channels        => Set<Channel>();
         public DbSet<ChannelStudent> ChannelStudents => Set<ChannelStudent>();
+        public DbSet<Project>        Projects        => Set<Project>();   // NEW
         public DbSet<Team>           Teams           => Set<Team>();
         public DbSet<TeamMember>     TeamMembers     => Set<TeamMember>();
 
@@ -121,6 +124,16 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // ── PROJECTS ─────────────────────────────────────────────────────  NEW
+            modelBuilder.Entity<Project>(e =>
+            {
+                e.ToTable("projects");
+                e.HasOne(p => p.Channel)
+                 .WithMany()                        // Channel doesn't need a Projects nav prop
+                 .HasForeignKey(p => p.ChannelId)
+                 .OnDelete(DeleteBehavior.Cascade); // حذف القناة → حذف مشاريعها
+            });
+
             // ── TEAMS ─────────────────────────────────────────────────────────
             modelBuilder.Entity<Team>(e =>
             {
@@ -129,6 +142,13 @@ namespace GraduationProject.API.Data
                  .WithMany(c => c.Teams)
                  .HasForeignKey(t => t.ChannelId)
                  .OnDelete(DeleteBehavior.Cascade);
+
+                // NEW: team → project (nullable FK)
+                e.HasOne(t => t.Project)
+                 .WithMany(p => p.Teams)
+                 .HasForeignKey(t => t.ProjectId)
+                 .OnDelete(DeleteBehavior.SetNull)  // حذف المشروع → project_id يصير null
+                 .IsRequired(false);
             });
 
             // ── TEAM MEMBERS ──────────────────────────────────────────────────

@@ -35,7 +35,7 @@ export default function CreateChannelModal({ onClose, onSubmit }: Props) {
         <div style={S.header}>
           <div>
             <h2 style={S.title}>Create Channel</h2>
-            <p style={S.sub}>Set up a new course or graduation project channel</p>
+            <p style={S.sub}>Set up a new course or graduation channel</p>
           </div>
           <button style={S.closeBtn} onClick={onClose}><X size={16} /></button>
         </div>
@@ -48,7 +48,7 @@ export default function CreateChannelModal({ onClose, onSubmit }: Props) {
                 Course Channel
               </button>
               <button type="button" style={{ ...S.toggleBtn, ...(type === 'graduation' ? S.toggleBtnActive : {}) }} onClick={() => setType('graduation')}>
-                Graduation Project
+                Graduation Channel
               </button>
             </div>
           </div>
@@ -74,6 +74,19 @@ export default function CreateChannelModal({ onClose, onSubmit }: Props) {
                 <label style={S.label}>Section</label>
                 <input style={S.input} placeholder="e.g. Section A" value={section} onChange={e => setSection(e.target.value)} />
               </div>
+            </div>
+          )}
+
+          {type === 'graduation' && (
+            <div style={S.formGroup}>
+              <label style={S.label}>Project Code</label>
+              <input
+                style={S.input}
+                placeholder="e.g. GP-2025-01"
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                required
+              />
             </div>
           )}
 

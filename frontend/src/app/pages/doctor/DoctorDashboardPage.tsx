@@ -81,10 +81,7 @@ export default function DoctorDashboardPage() {
           </div>
           <div style={S.heroStats}>
             {[
-              { label: 'COURSES',  value: stats.totalCourses,      icon: <BookOpen size={14} color="#6366f1" />,      color: '#6366f1' },
-              { label: 'PROJECTS', value: stats.totalGradProjects,  icon: <GraduationCap size={14} color="#f59e0b" />, color: '#f59e0b' },
-              { label: 'STUDENTS', value: stats.totalStudents,      icon: <Users size={14} color="#10b981" />,         color: '#10b981' },
-              { label: 'TEAMS',    value: stats.activeTeams,        icon: <Layers size={14} color="#0ea5e9" />,        color: '#0ea5e9' },
+              { label: 'COURSES', value: stats.totalCourses, icon: <BookOpen size={14} color="#6366f1" />, color: '#6366f1' },
             ].map(s => (
               <div key={s.label} style={S.statCard}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
@@ -102,7 +99,7 @@ export default function DoctorDashboardPage() {
           <div style={S.tabs}>
             {(['overview','courses','graduation'] as Tab[]).map(t => (
               <button key={t} style={{ ...S.tab, ...(tab === t ? S.tabActive : {}) }} onClick={() => setTab(t)}>
-                {t === 'overview' ? 'Overview' : t === 'courses' ? 'Course Channels' : 'Graduation Projects'}
+                {t === 'overview' ? 'Overview' : t === 'courses' ? 'Course Channels' : 'Graduation Channels'}
               </button>
             ))}
           </div>
@@ -148,21 +145,21 @@ export default function DoctorDashboardPage() {
           </section>
         )}
 
-        {/* Graduation Projects */}
+        {/* Graduation Channels */}
         {(tab === 'overview' || tab === 'graduation') && (
           <section style={S.section}>
             <div style={S.sectionHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <GraduationCap size={16} color="#f59e0b" />
-                <h2 style={S.sectionTitle}>Graduation Projects</h2>
+                <h2 style={S.sectionTitle}>Graduation Channels</h2>
                 <span style={S.sectionCount}>{filteredGrad.length}</span>
               </div>
             </div>
             {filteredGrad.length === 0 ? (
               <div style={S.empty}>
                 <GraduationCap size={32} color="#fde68a" />
-                <p style={{ color: '#94a3b8', margin: '10px 0 16px', fontSize: 14 }}>No graduation projects yet. Create your first project to start supervising students.</p>
-                <button style={S.emptyBtn} onClick={() => setShowCreate(true)}><Plus size={13} /> Create Graduation Project</button>
+                <p style={{ color: '#94a3b8', margin: '10px 0 16px', fontSize: 14 }}>No graduation channels yet. Create your first channel to start supervising students.</p>
+                <button style={S.emptyBtn} onClick={() => setShowCreate(true)}><Plus size={13} /> Create Graduation Channel</button>
               </div>
             ) : (
               <div style={S.grid}>
