@@ -23,34 +23,36 @@ interface StudentProfile {
   profilePic?: string | null
 }
 
-// ─── Placeholder data ─────────────────────────────────────────────────────────
-const DUMMY_TEAMMATES: SuggestedTeammate[] = [
-  { userId: 1, profileId: 1, name: 'Ahmad Khaled', major: 'Computer Engineering', university: 'An-Najah University', academicYear: 'Third Year', profilePicture: null, skills: ['React', 'AI', 'Python'], matchScore: 87 },
-  { userId: 2, profileId: 2, name: 'Sara Nasser', major: 'Software Engineering', university: 'Birzeit University', academicYear: 'Fourth Year', profilePicture: null, skills: ['Node.js', 'ML', 'TypeScript'], matchScore: 79 },
-  { userId: 3, profileId: 3, name: 'Omar Hasan', major: 'Data Science', university: 'Palestine Polytechnic', academicYear: 'Third Year', profilePicture: null, skills: ['Python', 'Data Analysis', 'SQL'], matchScore: 72 },
-]
+interface RecommendedProject {
+  id:             number
+  title:          string          // maps to project.name from API
+  description:    string | null
+  lookingFor:     string[]        // maps to project.requiredSkills
+  matchScore:     number          // placeholder until AI scoring is ready
+  maxTeamSize:    number | null
+  dueDate:        string | null
+  formationMode:  'students' | 'doctor'
+}
 
-const DUMMY_PROJECTS = [
-  { id: 1, title: 'AI Medical Diagnosis System', lookingFor: ['Frontend Developer', 'AI Specialist'], matchScore: 82 },
-  { id: 2, title: 'Blockchain Voting System', lookingFor: ['Backend Developer', 'Security Expert'], matchScore: 76 },
-  { id: 3, title: 'Smart Agriculture IoT', lookingFor: ['Mobile Developer', 'Data Analyst'], matchScore: 68 },
-]
+interface Application {
+  id: number
+  project: string
+  status: string
+}
 
-const DUMMY_APPLICATIONS = [
-  { id: 1, project: 'AI Health System', status: 'Pending' },
-  { id: 2, project: 'Smart Parking App', status: 'Accepted' },
-]
+interface Invitation {
+  id: number
+  project: string
+  invitedBy: string
+}
 
-const DUMMY_INVITATIONS = [
-  { id: 1, project: 'Smart Agriculture Project', invitedBy: 'Ahmad' },
-]
-
-const BROWSE_PROJECTS = [
-  { id: 1, title: 'AI Medical Diagnosis System', desc: 'Build an AI-powered tool to assist doctors in diagnosing diseases from medical images.', tags: ['AI', 'Python', 'Healthcare'], lookingFor: ['Frontend Developer', 'AI Specialist'], match: 82, supervisor: 'Dr. Ali Hassan', open: true },
-  { id: 2, title: 'Blockchain Voting System', desc: 'A secure, transparent voting platform built on blockchain technology for student elections.', tags: ['Blockchain', 'Node.js', 'Security'], lookingFor: ['Backend Developer', 'Security Expert'], match: 76, supervisor: 'Dr. Sara Nour', open: true },
-  { id: 3, title: 'Smart Agriculture IoT', desc: 'IoT sensors + mobile app to help farmers monitor crops and soil conditions in real time.', tags: ['IoT', 'Mobile', 'Data'], lookingFor: ['Mobile Developer', 'Data Analyst'], match: 68, supervisor: 'Dr. Khaled Omar', open: false },
-  { id: 4, title: 'E-Learning Accessibility Platform', desc: 'Improving accessibility features for online education tools for students with disabilities.', tags: ['React', 'UX', 'Accessibility'], lookingFor: ['UX Designer', 'Frontend Developer'], match: 61, supervisor: 'Dr. Mona Saad', open: true },
-]
+// ── Graduation Project ────────────────────────────────────────────────────────
+interface GradProject {
+  name:        string
+  description: string
+  skills:      string[]   // parsed from comma-separated input
+  teamSize:    number
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DashboardPage() {
@@ -61,7 +63,14 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [teammates, setTeammates] = useState<SuggestedTeammate[]>([])
   const [notifOpen, setNotifOpen] = useState(false)
-  const [invitations, setInvitations] = useState(DUMMY_INVITATIONS)
+
+  // TODO: replace with backend API later
+  const [invitations, setInvitations] = useState<Invitation[]>([])
+  // TODO: replace with backend API later
+  const [recommendedProjects, setRecommendedProjects] = useState<RecommendedProject[]>([])
+  // TODO: replace with backend API later
+  const [applications, setApplications] = useState<Application[]>([])
+
   const [inviteLoading, setInviteLoading] = useState<number | null>(null)
   const [inviteMsg, setInviteMsg] = useState<{ id: number; msg: string; ok: boolean } | null>(null)
 
@@ -78,6 +87,18 @@ export default function DashboardPage() {
 
   // ── Join Channel modal ──
   const [joinChannelOpen, setJoinChannelOpen] = useState(false)
+
+  // ── Graduation Project ────────────────────────────────────────────────────
+  // TODO: connect to backend later
+  const [gradProject, setGradProject]         = useState<GradProject | null>(null)
+  const [gradModalOpen, setGradModalOpen]     = useState(false)
+  const [gradForm, setGradForm]               = useState({ name: '', description: '', skills: '', teamSize: '' })
+  const [gradFormError, setGradFormError]     = useState<string | null>(null)
+  // TODO: connect to backend later — invited teammates for graduation project
+  const [gradTeammates, setGradTeammates]     = useState<SuggestedTeammate[]>([])
+  const [addTeammatesOpen, setAddTeammatesOpen] = useState(false)
+
+  // TODO: eligibility will be handled by backend later
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -106,18 +127,23 @@ export default function DashboardPage() {
 
         try {
           const dashData = await getDashboardSummary()
-          setTeammates(dashData.suggestedTeammates?.length > 0 ? dashData.suggestedTeammates : DUMMY_TEAMMATES)
+          // TODO: replace with backend API later — suggestedTeammates from /api/dashboard/summary
+          setTeammates(dashData.suggestedTeammates?.length > 0 ? dashData.suggestedTeammates : [])
         } catch {
-          setTeammates(DUMMY_TEAMMATES)
+          // TODO: replace with backend API later
+          setTeammates([])
         }
       } catch {
+        // API failed — use only what's available in localStorage, no hardcoded defaults
         setUser({
-          name: localStorage.getItem('name') || 'Student',
-          email: localStorage.getItem('email') || '',
-          role: localStorage.getItem('role') || 'student',
-          generalSkills: [], majorSkills: [],
+          name:          localStorage.getItem('name')  ?? undefined as any,
+          email:         localStorage.getItem('email') ?? '',
+          role:          localStorage.getItem('role')  ?? 'student',
+          generalSkills: [],
+          majorSkills:   [],
         })
-        setTeammates(DUMMY_TEAMMATES)
+        // TODO: replace with backend API later
+        setTeammates([])
       } finally {
         setLoading(false)
       }
@@ -125,7 +151,65 @@ export default function DashboardPage() {
     fetchData()
   }, [navigate])
 
+  // ── Fetch projects from student's joined channels ─────────────────────────
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        // TODO: connect to AI recommendations later
+        // Fetches projects from all channels the student has joined
+        // Replace with: GET /api/student/recommended-projects when endpoint is ready
+        const channelsRes = await api.get('/channels/my')
+        const channels: { id: number }[] = channelsRes.data
+
+        // Fetch projects for each joined channel in parallel
+        const projectArrays = await Promise.all(
+          channels.map((ch) =>
+            api.get(`/channels/${ch.id}/projects`)
+              .then(r => r.data)
+              .catch(() => [])
+          )
+        )
+
+        // Flatten + map API shape → RecommendedProject shape
+        const mapped: RecommendedProject[] = projectArrays
+          .flat()
+          .map((p: any) => ({
+            id:            p.id,
+            title:         p.name,
+            description:   p.description   ?? null,
+            lookingFor:    p.requiredSkills ?? [],
+            matchScore:    0,    // TODO: connect to AI recommendations later
+            maxTeamSize:   p.maxTeamSize    ?? null,
+            dueDate:       p.dueDate        ?? null,
+            formationMode: p.formationMode  ?? 'students',
+          }))
+
+        setRecommendedProjects(mapped)
+      } catch {
+        // Silently fail — empty state is shown when projects is []
+        setRecommendedProjects([])
+      }
+    }
+    fetchProjects()
+  }, [])
+
   const handleLogout = () => { localStorage.clear(); navigate('/login') }
+
+  const handleGradSubmit = () => {
+    if (!gradForm.name.trim()) { setGradFormError('Project name is required.'); return }
+    const size = parseInt(gradForm.teamSize)
+    if (!gradForm.teamSize || isNaN(size) || size < 1) { setGradFormError('Please enter a valid team size.'); return }
+    // TODO: connect to backend later — POST /api/graduation-projects
+    setGradProject({
+      name:        gradForm.name.trim(),
+      description: gradForm.description.trim(),
+      skills:      gradForm.skills.split(',').map(s => s.trim()).filter(Boolean),
+      teamSize:    size,
+    })
+    setGradForm({ name: '', description: '', skills: '', teamSize: '' })
+    setGradFormError(null)
+    setGradModalOpen(false)
+  }
 
   const handleInvite = async (id: number, action: 'accept' | 'decline') => {
     setInviteLoading(id)
@@ -241,7 +325,7 @@ export default function DashboardPage() {
             <Link to="/profile" style={S.navAvatar}>
               {user?.profilePic
                 ? <img src={user.profilePic} style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} alt="" />
-                : <div style={S.navAvatarFallback}>{user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'ST'}</div>
+                : <div style={S.navAvatarFallback}>{user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}</div>
               }
             </Link>
           </div>
@@ -254,7 +338,7 @@ export default function DashboardPage() {
         <div style={S.hero}>
           <div style={S.heroLeft}>
             <p style={S.greetingText}>{greeting} 👋</p>
-            <h1 style={S.heroName}>Welcome back, <span style={S.heroNameAccent}>{user?.name?.split(' ')[0] || 'Student'}</span></h1>
+            <h1 style={S.heroName}>Welcome back, <span style={S.heroNameAccent}>{user?.name?.split(' ')[0]}</span></h1>
             <p style={S.heroSub}>{[user?.major, user?.academicYear, user?.university].filter(Boolean).join(' · ') || 'Complete your profile to get started'}</p>
             <div style={S.heroSkills}>
               {allSkills.length > 0
@@ -285,10 +369,12 @@ export default function DashboardPage() {
 
           <div style={S.heroStats}>
             {[
-              { icon: <Users size={18} />, label: 'Suggested Teammates', value: teammates.length > 0 ? `${teammates.length}` : '—' },
-              { icon: <Briefcase size={18} />, label: 'Matched Projects',  value: `${DUMMY_PROJECTS.length}` },
-              { icon: <Trophy size={18} />,  label: 'Best Match',          value: teammates.length > 0 ? `${teammates[0].matchScore}%` : '—' },
-              { icon: <UserPlus size={18} />, label: 'Team Invitations',   value: `${DUMMY_INVITATIONS.length}` },
+              { icon: <Users size={18} />,    label: 'Suggested Teammates', value: teammates.length > 0 ? `${teammates.length}` : '—' },
+              // TODO: replace with backend API later — real matched projects count
+              { icon: <Briefcase size={18} />, label: 'Matched Projects',   value: recommendedProjects.length > 0 ? `${recommendedProjects.length}` : '—' },
+              { icon: <Trophy size={18} />,    label: 'Best Match',          value: teammates.length > 0 ? `${teammates[0].matchScore}%` : '—' },
+              // TODO: replace with backend API later — real invitations count
+              { icon: <UserPlus size={18} />,  label: 'Team Invitations',    value: invitations.length > 0 ? `${invitations.length}` : '—' },
             ].map(stat => (
               <div key={stat.label} style={S.statCard}>
                 <div style={S.statIcon}>{stat.icon}</div>
@@ -359,14 +445,22 @@ export default function DashboardPage() {
                 <h3 style={S.cardTitle}><Briefcase size={15} color="#6366f1" /> My Applications</h3>
                 <Link to="/projects" style={S.cardAction}>See all <ChevronRight size={12} /></Link>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-                {DUMMY_APPLICATIONS.map(app => (
-                  <div key={app.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{app.project}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: app.status === 'Accepted' ? '#dcfce7' : '#fef9c3', color: app.status === 'Accepted' ? '#16a34a' : '#a16207' }}>{app.status}</span>
-                  </div>
-                ))}
-              </div>
+              {/* TODO: replace with backend API later — GET /api/student/applications */}
+              {applications.length === 0 ? (
+                <div style={S.emptyState}>
+                  <span style={{ fontSize: 24 }}>📋</span>
+                  <p style={S.emptyDesc}>No applications yet</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                  {applications.map(app => (
+                    <div key={app.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{app.project}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: app.status === 'Accepted' ? '#dcfce7' : '#fef9c3', color: app.status === 'Accepted' ? '#16a34a' : '#a16207' }}>{app.status}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Team Invitations */}
@@ -405,6 +499,124 @@ export default function DashboardPage() {
                     )}
                   </div>
                 ))
+              )}
+            </div>
+
+            {/* ── My Graduation Project ── */}
+            {/* TODO: connect to backend later */}
+            <div style={S.card}>
+              <div style={S.cardHeader}>
+                <h3 style={S.cardTitle}>🎓 My Graduation Project</h3>
+                {!gradProject && (
+                  <button onClick={() => setGradModalOpen(true)} style={S.cardActionBtn}>
+                    + Create <ChevronRight size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* No project yet */}
+              {!gradProject && (
+                <div style={S.emptyState}>
+                  <span style={{ fontSize: 24 }}>📝</span>
+                  <p style={S.emptyTitle}>No project yet</p>
+                  <p style={S.emptyDesc}>You haven't created your graduation project yet</p>
+                  <button
+                    onClick={() => setGradModalOpen(true)}
+                    style={{ marginTop: 8, padding: '7px 16px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Create Graduation Project
+                  </button>
+                </div>
+              )}
+
+              {/* Project card */}
+              {gradProject && (
+                <div style={{ padding: '14px', background: 'linear-gradient(135deg,rgba(99,102,241,0.05),rgba(168,85,247,0.05))', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>{gradProject.name}</p>
+                    <button onClick={() => { setGradProject(null); setGradTeammates([]) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 12, fontFamily: 'inherit', padding: 0 }}>✕</button>
+                  </div>
+                  {gradProject.description && (
+                    <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 8px', lineHeight: 1.5 }}>{gradProject.description}</p>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <Users size={12} color="#94a3b8" />
+                    <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>Partners: {gradProject.teamSize}</span>
+                  </div>
+                  {gradProject.skills.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 10 }}>
+                      {gradProject.skills.map(sk => <span key={sk} style={S.skillChipSm}>{sk}</span>)}
+                    </div>
+                  )}
+
+                  {/* ── Team Members ── */}
+                  {(gradTeammates.length > 0 || user) && (
+                    <div style={{ marginTop: 12, borderTop: '1px solid rgba(99,102,241,0.12)', paddingTop: 12 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.06em', margin: '0 0 8px' }}>
+                        Team Members · {1 + gradTeammates.length} / {Number(gradProject.teamSize) + 1}
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7 }}>
+
+                        {/* Owner — current user */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', background: 'white', border: '1px solid rgba(99,102,241,0.18)', borderRadius: 10 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 }}>
+                            {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{user?.name || '—'}</span>
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', borderRadius: 20, letterSpacing: '0.04em' }}>Leader</span>
+                            </div>
+                            <span style={{ fontSize: 11, color: '#94a3b8' }}>{user?.major || '—'}</span>
+                          </div>
+                          {allSkills.slice(0, 2).map(sk => (
+                            <span key={sk} style={S.skillChipSm}>{sk}</span>
+                          ))}
+                        </div>
+
+                        {/* Invited teammates */}
+                        {gradTeammates.map(t => (
+                          <div key={t.userId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 }}>
+                              {t.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>{t.name}</p>
+                              <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.major}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const }}>
+                              {t.skills.slice(0, 2).map(sk => (
+                                <span key={sk} style={S.skillChipSm}>{sk}</span>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => setGradTeammates(prev => prev.filter(x => x.userId !== t.userId))}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', fontSize: 13, padding: 0, lineHeight: 1, fontFamily: 'inherit', flexShrink: 0 }}
+                            >✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add Teammates button */}
+                  {(() => {
+                    const teamFull = gradTeammates.length >= Number(gradProject.teamSize)
+                    return teamFull ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <CheckCircle2 size={13} color="#10b981" />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#10b981' }}>Team is complete</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setAddTeammatesOpen(true)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: 'white', border: '1.5px solid #c7d2fe', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >
+                        <UserPlus size={12} /> Add Teammates
+                      </button>
+                    )
+                  })()}
+                </div>
               )}
             </div>
 
@@ -492,26 +704,49 @@ export default function DashboardPage() {
                   <h3 style={S.cardTitle}><Briefcase size={15} color="#a855f7" /> Recommended Projects</h3>
                   <Link to="/projects" style={S.cardAction}>See all <ChevronRight size={12} /></Link>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
-                  {DUMMY_PROJECTS.map(p => (
-                    <div key={p.id} style={S.projectCard}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 6px' }}>{p.title}</p>
-                        <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px', fontWeight: 500 }}>Looking for:</p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
-                          {p.lookingFor.map(r => <span key={r} style={{ ...S.skillChipSm, background: '#faf5ff', color: '#a855f7', borderColor: '#e9d5ff' }}>{r}</span>)}
+                {/* TODO: replace with backend API later — GET /api/student/recommended-projects */}
+                {recommendedProjects.length === 0 ? (
+                  <div style={S.emptyState}>
+                    <span style={{ fontSize: 28 }}>📁</span>
+                    <p style={S.emptyTitle}>No recommendations yet</p>
+                    <p style={S.emptyDesc}>Join a channel or add skills to get project recommendations</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+                    {recommendedProjects.map(p => (
+                      <div key={p.id} style={S.projectCard}>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>{p.title}</p>
+                          {/* Deadline + team size meta */}
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginBottom: 6 }}>
+                            {p.dueDate && (
+                              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+                                📅 {new Date(p.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
+                            {p.maxTeamSize != null && (
+                              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+                                👥 Max {p.maxTeamSize} students
+                              </span>
+                            )}
+                          </div>
+                          {p.lookingFor.length > 0 && (
+                            <>
+                              <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 6px', fontWeight: 500 }}>Looking for:</p>
+                              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                                {p.lookingFor.map(r => <span key={r} style={{ ...S.skillChipSm, background: '#faf5ff', color: '#a855f7', borderColor: '#e9d5ff' }}>{r}</span>)}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                          {/* TODO: connect to AI recommendations later — matchScore will be real */}
+                          <button onClick={() => navigate(`/projects/${p.id}`)} style={{ ...S.btnSm, background: 'linear-gradient(135deg,#a855f7,#6366f1)', color: 'white', border: 'none' }}>View Project</button>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-                        <div style={{ ...S.matchBadge, background: '#faf5ff', border: '1px solid #e9d5ff' }}>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: '#a855f7' }}>{p.matchScore}%</span>
-                          <span style={{ fontSize: 10, color: '#a855f7', fontWeight: 600 }}>Match</span>
-                        </div>
-                        <button onClick={() => navigate(`/projects/${p.id}`)} style={{ ...S.btnSm, background: 'linear-gradient(135deg,#a855f7,#6366f1)', color: 'white', border: 'none' }}>View Project</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -591,8 +826,15 @@ export default function DashboardPage() {
             </div>
 
             {/* Project List */}
+            {/* TODO: connect to AI recommendations later — matchScore will be real */}
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
-              {BROWSE_PROJECTS.map(project => (
+              {recommendedProjects.length === 0 ? (
+                <div style={S.emptyState}>
+                  <span style={{ fontSize: 32 }}>📁</span>
+                  <p style={S.emptyTitle}>No projects available yet</p>
+                  <p style={S.emptyDesc}>Projects from your channels will appear here once published by your doctor.</p>
+                </div>
+              ) : recommendedProjects.map(project => (
                 <div
                   key={project.id}
                   style={{ padding: '16px', background: '#f8fafc', borderRadius: 14, border: '1px solid #e2e8f0', transition: 'border-color 0.2s' }}
@@ -601,49 +843,39 @@ export default function DashboardPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ flex: 1 }}>
-                      {/* Title + Open/Full badge */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{project.title}</p>
-                        <span style={{
-                          padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700,
-                          background: project.open ? '#dcfce7' : '#fee2e2',
-                          color: project.open ? '#16a34a' : '#dc2626'
-                        }}>
-                          {project.open ? 'Open' : 'Full'}
-                        </span>
-                      </div>
-                      <p style={{ margin: '0 0 6px', fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{project.desc}</p>
-                      <p style={{ margin: '0 0 8px', fontSize: 11, color: '#94a3b8' }}>👨‍🏫 {project.supervisor}</p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 8 }}>
-                        {project.tags.map(t => <span key={t} style={S.skillChipSm}>{t}</span>)}
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, alignItems: 'center' }}>
-                        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginRight: 2 }}>Looking for:</span>
-                        {project.lookingFor.map(r => (
-                          <span key={r} style={{ ...S.skillChipSm, background: '#faf5ff', color: '#a855f7', borderColor: '#e9d5ff' }}>{r}</span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Match + Apply */}
-                    <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-                      <div style={{
-                        ...S.matchBadge,
-                        background: project.match >= 80 ? '#f0fdf4' : '#faf5ff',
-                        border: `1px solid ${project.match >= 80 ? '#bbf7d0' : '#e9d5ff'}`
-                      }}>
-                        <span style={{ fontSize: 14, fontWeight: 800, color: project.match >= 80 ? '#16a34a' : '#a855f7' }}>{project.match}%</span>
-                        <span style={{ fontSize: 9, color: project.match >= 80 ? '#16a34a' : '#a855f7', fontWeight: 600 }}>Match</span>
-                      </div>
-                      {project.open ? (
-                        <button
-                          onClick={() => alert(`Applied to "${project.title}"!`)}
-                          style={{ padding: '6px 14px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const }}>
-                          Apply Now
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 600 }}>Team full</span>
+                      <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{project.title}</p>
+                      {/* Description */}
+                      {project.description && (
+                        <p style={{ margin: '0 0 6px', fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{project.description}</p>
                       )}
+                      {/* Deadline + team size */}
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+                        {project.dueDate && (
+                          <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+                            📅 Due {new Date(project.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        )}
+                        {project.maxTeamSize != null && (
+                          <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+                            👥 Max {project.maxTeamSize} students
+                          </span>
+                        )}
+                      </div>
+                      {project.lookingFor.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, alignItems: 'center' }}>
+                          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginRight: 2 }}>Looking for:</span>
+                          {project.lookingFor.map(r => (
+                            <span key={r} style={{ ...S.skillChipSm, background: '#faf5ff', color: '#a855f7', borderColor: '#e9d5ff' }}>{r}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                      <button
+                        onClick={() => navigate(`/projects/${project.id}`)}
+                        style={{ padding: '6px 14px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const }}>
+                        View Project
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -668,6 +900,192 @@ export default function DashboardPage() {
           onClose={() => setJoinChannelOpen(false)}
           onJoined={(name) => console.log('Joined channel:', name)}
         />
+      )}
+
+      {/* ── Create Graduation Project Modal ── */}
+      {/* TODO: connect to backend later */}
+      {gradModalOpen && (
+        <div style={S.modalOverlay} onClick={() => { setGradModalOpen(false); setGradFormError(null) }}>
+          <div style={S.modalBox} onClick={e => e.stopPropagation()}>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0f172a', fontFamily: 'Syne, sans-serif' }}>
+                🎓 Create Graduation Project
+              </h3>
+              <button onClick={() => { setGradModalOpen(false); setGradFormError(null) }} style={S.modalCloseBtn}>
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Project Name */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+                Project Name <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                style={S.modalInput}
+                placeholder="e.g. Smart Health Monitoring System"
+                value={gradForm.name}
+                onChange={e => setGradForm(p => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+
+            {/* Description */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+                Description
+              </label>
+              <textarea
+                rows={3}
+                style={{ ...S.modalInput, resize: 'vertical' as const, lineHeight: 1.5 }}
+                placeholder="Brief description of your project..."
+                value={gradForm.description}
+                onChange={e => setGradForm(p => ({ ...p, description: e.target.value }))}
+              />
+            </div>
+
+            {/* Required Skills */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+                Required Skills <span style={{ color: '#94a3b8', fontWeight: 400, textTransform: 'none' as const }}>(comma separated)</span>
+              </label>
+              <input
+                style={S.modalInput}
+                placeholder="e.g. React, Python, Machine Learning"
+                value={gradForm.skills}
+                onChange={e => setGradForm(p => ({ ...p, skills: e.target.value }))}
+              />
+            </div>
+
+            {/* Partners / Team Size */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+                Number of Partners <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setGradForm(p => ({ ...p, teamSize: String(n) }))}
+                    style={{
+                      width: 42, height: 42, borderRadius: 10, fontSize: 14, fontWeight: 700,
+                      cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid',
+                      borderColor:  gradForm.teamSize === String(n) ? '#6366f1' : '#e2e8f0',
+                      background:   gradForm.teamSize === String(n) ? '#eef2ff'  : '#f8fafc',
+                      color:        gradForm.teamSize === String(n) ? '#6366f1'  : '#64748b',
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>
+                  {gradForm.teamSize ? `${gradForm.teamSize} partner${gradForm.teamSize === '1' ? '' : 's'}` : 'Select'}
+                </span>
+              </div>
+            </div>
+
+            {/* Error */}
+            {gradFormError && (
+              <div style={{ padding: '9px 12px', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 8, fontSize: 13, color: '#ef4444', fontWeight: 500, marginBottom: 14 }}>
+                ❌ {gradFormError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => { setGradModalOpen(false); setGradFormError(null) }} style={S.modalCancelBtn}>
+                Cancel
+              </button>
+              <button
+                onClick={handleGradSubmit}
+                style={{ padding: '9px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Create Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Teammates Modal ── */}
+      {/* TODO: connect to backend later — replace teammates list with real search API */}
+      {addTeammatesOpen && (
+        <div style={S.modalOverlay} onClick={() => setAddTeammatesOpen(false)}>
+          <div style={{ ...S.modalBox, width: 520, maxHeight: '80vh', overflowY: 'auto' as const }} onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              <div>
+                <h3 style={{ margin: '0 0 2px', fontSize: 17, fontWeight: 800, color: '#0f172a', fontFamily: 'Syne, sans-serif' }}>
+                  👥 Add Teammates
+                </h3>
+                <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
+                  {gradTeammates.length} / {gradProject?.teamSize ?? '—'} partners selected
+                </p>
+              </div>
+              <button onClick={() => setAddTeammatesOpen(false)} style={S.modalCloseBtn}>
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Teammates list */}
+            {teammates.length === 0 ? (
+              <div style={S.emptyState}>
+                <span style={{ fontSize: 28 }}>🔍</span>
+                <p style={S.emptyTitle}>No suggestions yet</p>
+                <p style={S.emptyDesc}>Complete your profile to get teammate suggestions</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                {teammates.map(t => {
+                  const isInvited = gradTeammates.some(x => x.userId === t.userId)
+                  const isFull    = gradTeammates.length >= Number(gradProject?.teamSize ?? 99)
+                  return (
+                    <div key={t.userId} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', background: isInvited ? '#f5f3ff' : '#f8fafc', border: `1px solid ${isInvited ? '#c7d2fe' : '#e2e8f0'}`, borderRadius: 12 }}>
+                      {/* Avatar */}
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: 'white', flexShrink: 0 }}>
+                        {t.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      </div>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>{t.name}</p>
+                        <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 6px' }}>{t.major}</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                          {t.skills.slice(0, 3).map(sk => (
+                            <span key={sk} style={S.skillChipSm}>{sk}</span>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Invite / Remove button */}
+                      {isInvited ? (
+                        <button
+                          onClick={() => setGradTeammates(prev => prev.filter(x => x.userId !== t.userId))}
+                          style={{ padding: '5px 12px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+                        >
+                          Remove
+                        </button>
+                      ) : (
+                        <button
+                          disabled={isFull}
+                          onClick={() => setGradTeammates(prev => [...prev, t])}
+                          style={{ padding: '5px 12px', background: isFull ? '#f1f5f9' : 'linear-gradient(135deg,#6366f1,#a855f7)', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, color: isFull ? '#94a3b8' : 'white', cursor: isFull ? 'not-allowed' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+                        >
+                          {isFull ? 'Team full' : 'Invite'}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+              <button onClick={() => setAddTeammatesOpen(false)} style={{ padding: '9px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <style>{`
@@ -712,12 +1130,12 @@ const S: Record<string, React.CSSProperties> = {
   notifItem:          { fontSize: 13, color: '#475569', padding: '10px 16px', borderBottom: '1px solid #f8fafc', cursor: 'pointer' },
   content:            { maxWidth: 1200, margin: '0 auto', padding: '28px 24px 60px', position: 'relative', zIndex: 1 },
   hero:               { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, marginBottom: 24, padding: '24px 28px', background: 'white', border: '1px solid rgba(99,102,241,0.12)', borderRadius: 20, boxShadow: '0 4px 24px rgba(99,102,241,0.06)' },
-  heroLeft:           { flex: 1 },
+  heroLeft:           { flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-start' },
   greetingText:       { fontSize: 13, color: '#94a3b8', margin: '0 0 4px', fontWeight: 500 },
-  heroName:           { fontSize: 28, fontWeight: 800, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.5px', fontFamily: 'Syne, sans-serif' },
-  heroNameAccent:     { background: 'linear-gradient(135deg,#6366f1,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-  heroSub:            { fontSize: 13, color: '#64748b', margin: '0 0 12px' },
-  heroSkills:         { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  heroName:           { fontSize: 28, fontWeight: 800, color: '#0f172a', margin: '0 0 6px', letterSpacing: '-0.5px', fontFamily: 'Syne, sans-serif', display: 'block', lineHeight: 1.2 },
+  heroNameAccent:     { background: 'linear-gradient(135deg,#6366f1,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: 'inline' },
+  heroSub:            { fontSize: 13, color: '#64748b', margin: '0 0 12px', display: 'block' },
+  heroSkills:         { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
   skillChip:          { padding: '4px 12px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 11, color: '#6366f1', fontWeight: 600 },
   heroBtn:            { padding: '8px 16px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 },
   heroStats:          { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flexShrink: 0 },
