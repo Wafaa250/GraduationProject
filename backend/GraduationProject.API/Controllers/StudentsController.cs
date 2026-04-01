@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -38,17 +40,20 @@ namespace GraduationProject.API.Controllers
             if (userIdClaim == null) return Unauthorized();
             var userId = int.Parse(userIdClaim);
 
-            // مهارات الطالب الحالي لحساب الـ matchScore
-            var mySkills = await _db.StudentSkills
-                .Where(ss => ss.Student.UserId == userId)
-                .Select(ss => ss.Skill.Name)
-                .ToListAsync();
+            // ✅ اقرأ مهارات الطالب الحالي من JSON fields مش من StudentSkills
+            var myProfile = await _db.StudentProfiles
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            var myIds = myProfile != null
+                ? SkillHelper.ParseIntList(myProfile.Roles)
+                    .Concat(SkillHelper.ParseIntList(myProfile.TechnicalSkills))
+                    .Concat(SkillHelper.ParseIntList(myProfile.Tools))
+                    .ToList()
+                : new List<int>();
 
             // جلب كل الطلاب ما عدا الحالي
             var query = _db.StudentProfiles
                 .Include(s => s.User)
-                .Include(s => s.StudentSkills)
-                    .ThenInclude(ss => ss.Skill)
                 .Where(s => s.UserId != userId);
 
             // فلتر بالجامعة
@@ -59,9 +64,24 @@ namespace GraduationProject.API.Controllers
             if (!string.IsNullOrEmpty(major))
                 query = query.Where(s => s.Major != null && s.Major == major);
 
-            // فلتر بالمهارة
+            // ✅ فلتر بالمهارة من Skills table عبر JSON ids
             if (!string.IsNullOrEmpty(skill))
-                query = query.Where(s => s.StudentSkills.Any(ss => ss.Skill.Name == skill));
+            {
+                var matchingSkill = await _db.Skills.FirstOrDefaultAsync(s => s.Name == skill);
+                if (matchingSkill != null)
+                {
+                    var idStr = matchingSkill.Id.ToString();
+                    query = query.Where(s =>
+                        (s.Roles           != null && s.Roles.Contains(idStr)) ||
+                        (s.TechnicalSkills != null && s.TechnicalSkills.Contains(idStr)) ||
+                        (s.Tools           != null && s.Tools.Contains(idStr)));
+                }
+                else
+                {
+                    // مهارة غير موجودة في الـ DB → لا تُرجع نتائج
+                    return Ok(new List<object>());
+                }
+            }
 
             // بحث بالاسم
             if (!string.IsNullOrEmpty(search))
@@ -69,36 +89,47 @@ namespace GraduationProject.API.Controllers
 
             var students = await query.ToListAsync();
 
-            var result = students.Select(s =>
+            var result = new List<object>();
+
+            foreach (var s in students)
             {
-                var theirSkills = s.StudentSkills.Select(ss => ss.Skill.Name).ToList();
+                // ✅ اقرأ مهاراتهم من JSON fields
+                var theirIds = SkillHelper.ParseIntList(s.Roles)
+                    .Concat(SkillHelper.ParseIntList(s.TechnicalSkills))
+                    .Concat(SkillHelper.ParseIntList(s.Tools))
+                    .ToList();
 
                 // حساب الـ matchScore
-                var commonSkills = mySkills.Intersect(theirSkills).Count();
-                var complementary = theirSkills.Except(mySkills).Count();
-                var matchScore = (int)(
-                    (commonSkills * 0.6 / System.Math.Max(mySkills.Count, 1) * 100) +
-                    (complementary * 0.4 / System.Math.Max(theirSkills.Count, 1) * 100)
+                var common        = myIds.Intersect(theirIds).Count();
+                var complementary = theirIds.Except(myIds).Count();
+                var matchScore    = (int)(
+                    (common        * 0.6 / Math.Max(myIds.Count,    1) * 100) +
+                    (complementary * 0.4 / Math.Max(theirIds.Count, 1) * 100)
                 );
-                matchScore = System.Math.Min(matchScore, 100);
+                matchScore = Math.Min(matchScore, 100);
 
-                return new
+                // ✅ جلب أسماء الـ roles للعرض (أول 4)
+                var roleIds      = SkillHelper.ParseIntList(s.Roles).Take(4).ToList();
+                var displayNames = await _db.Skills
+                    .Where(sk => roleIds.Contains(sk.Id))
+                    .Select(sk => sk.Name)
+                    .ToListAsync();
+
+                result.Add(new
                 {
-                    userId = s.UserId,
-                    profileId = s.Id,
-                    name = s.User.Name,
-                    university = s.University ?? "",
-                    major = s.Major ?? "",
-                    academicYear = s.AcademicYear ?? "",
-                    skills = theirSkills.Take(4).ToList(),
+                    userId         = s.UserId,
+                    profileId      = s.Id,
+                    name           = s.User.Name,
+                    university     = s.University   ?? "",
+                    major          = s.Major        ?? "",
+                    academicYear   = s.AcademicYear ?? "",
+                    skills         = displayNames,
                     matchScore,
                     profilePicture = s.ProfilePictureBase64,
-                };
-            })
-            .OrderByDescending(s => s.matchScore)
-            .ToList();
+                });
+            }
 
-            return Ok(result);
+            return Ok(result.OrderByDescending(s => ((dynamic)s).matchScore).ToList());
         }
 
         // =====================================================
@@ -114,7 +145,7 @@ namespace GraduationProject.API.Controllers
 
             // صلاحية: الطالب نفسه أو doctor
             var isDoctor = role == "doctor";
-            var isSelf = role == "student" && currentUserId == userId;
+            var isSelf   = role == "student" && currentUserId == userId;
 
             if (!isDoctor && !isSelf)
                 return Forbid();
@@ -128,55 +159,55 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Student profile not found." });
 
             // IDs → أسماء
-            var roles = await SkillHelper.IdsJsonToNames(_db, profile.Roles);
+            var roles           = await SkillHelper.IdsJsonToNames(_db, profile.Roles);
             var technicalSkills = await SkillHelper.IdsJsonToNames(_db, profile.TechnicalSkills);
-            var tools = await SkillHelper.IdsJsonToNames(_db, profile.Tools);
+            var tools           = await SkillHelper.IdsJsonToNames(_db, profile.Tools);
 
             // حساب الـ matchScore (بس إذا الطالب الحالي مش نفسه)
             int? matchScore = null;
             if (role == "student" && currentUserId != userId)
             {
                 var myIds = SkillHelper.ParseIntList(
-                                   (await _db.StudentProfiles
-                                       .FirstOrDefaultAsync(s => s.UserId == currentUserId))?.Roles);
+                    (await _db.StudentProfiles
+                        .FirstOrDefaultAsync(s => s.UserId == currentUserId))?.Roles);
                 var theirIds = SkillHelper.ParseIntList(profile.Roles);
 
-                var common = myIds.Intersect(theirIds).Count();
+                var common        = myIds.Intersect(theirIds).Count();
                 var complementary = theirIds.Except(myIds).Count();
                 matchScore = (int)(
-                    (common * 0.6 / System.Math.Max(myIds.Count, 1) * 100) +
-                    (complementary * 0.4 / System.Math.Max(theirIds.Count, 1) * 100)
+                    (common        * 0.6 / Math.Max(myIds.Count,    1) * 100) +
+                    (complementary * 0.4 / Math.Max(theirIds.Count, 1) * 100)
                 );
-                matchScore = System.Math.Min(matchScore.Value, 100);
+                matchScore = Math.Min(matchScore.Value, 100);
             }
 
             return Ok(new
             {
-                userId = profile.UserId,
-                profileId = profile.Id,
-                name = profile.User.Name,
-                email = profile.User.Email,
-                studentId = profile.StudentId ?? "",
-                university = profile.University ?? "",
-                faculty = profile.Faculty ?? "",
-                major = profile.Major ?? "",
-                academicYear = profile.AcademicYear ?? "",
-                gpa = profile.Gpa,
-                bio = profile.Bio ?? "",
-                availability = profile.Availability ?? "",
-                lookingFor = profile.LookingFor ?? "",
-                github = profile.Github ?? "",
-                linkedin = profile.Linkedin ?? "",
-                portfolio = profile.Portfolio ?? "",
+                userId               = profile.UserId,
+                profileId            = profile.Id,
+                name                 = profile.User.Name,
+                email                = profile.User.Email,
+                studentId            = profile.StudentId   ?? "",
+                university           = profile.University  ?? "",
+                faculty              = profile.Faculty     ?? "",
+                major                = profile.Major       ?? "",
+                academicYear         = profile.AcademicYear ?? "",
+                gpa                  = profile.Gpa,
+                bio                  = profile.Bio         ?? "",
+                availability         = profile.Availability ?? "",
+                lookingFor           = profile.LookingFor  ?? "",
+                github               = profile.Github      ?? "",
+                linkedin             = profile.Linkedin    ?? "",
+                portfolio            = profile.Portfolio   ?? "",
                 profilePictureBase64 = profile.ProfilePictureBase64,
-                languages = SkillHelper.ParseStringList(profile.Languages),
+                languages            = SkillHelper.ParseStringList(profile.Languages),
                 roles,
                 technicalSkills,
                 tools,
                 // للتوافق مع الفرونت
                 generalSkills = roles,
-                majorSkills = technicalSkills,
-                matchScore,          // null لو doctor أو نفس الطالب
+                majorSkills   = technicalSkills,
+                matchScore,
             });
         }
 
@@ -206,14 +237,13 @@ namespace GraduationProject.API.Controllers
                 profile.User.Name = dto.FullName.Trim();
 
             // ── Profile fields ────────────────────────────────────────────────
-            if (dto.Bio != null) profile.Bio = dto.Bio;
-            if (dto.Availability != null) profile.Availability = dto.Availability;
-            if (dto.LookingFor != null) profile.LookingFor = dto.LookingFor;
-            if (dto.Github != null) profile.Github = dto.Github;
-            if (dto.Linkedin != null) profile.Linkedin = dto.Linkedin;
-            if (dto.Portfolio != null) profile.Portfolio = dto.Portfolio;
-            if (dto.ProfilePictureBase64 != null)
-                profile.ProfilePictureBase64 = dto.ProfilePictureBase64;
+            if (dto.Bio                  != null) profile.Bio                  = dto.Bio;
+            if (dto.Availability         != null) profile.Availability         = dto.Availability;
+            if (dto.LookingFor           != null) profile.LookingFor           = dto.LookingFor;
+            if (dto.Github               != null) profile.Github               = dto.Github;
+            if (dto.Linkedin             != null) profile.Linkedin             = dto.Linkedin;
+            if (dto.Portfolio            != null) profile.Portfolio            = dto.Portfolio;
+            if (dto.ProfilePictureBase64 != null) profile.ProfilePictureBase64 = dto.ProfilePictureBase64;
 
             // ── Languages ─────────────────────────────────────────────────────
             if (dto.Languages != null)

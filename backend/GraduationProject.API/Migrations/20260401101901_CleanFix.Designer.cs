@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260324123047_AddChannelsAndTeams")]
-    partial class AddChannelsAndTeams
+    [Migration("20260401101901_CleanFix")]
+    partial class CleanFix
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -53,89 +53,6 @@ namespace GraduationProject.API.Migrations
                         .IsUnique();
 
                     b.ToTable("association_profiles", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.Channel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Color")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("color");
-
-                    b.Property<string>("CourseCode")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("course_code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("DoctorId")
-                        .HasColumnType("integer")
-                        .HasColumnName("doctor_id");
-
-                    b.Property<string>("InviteCode")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("invite_code");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Section")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("section");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DoctorId");
-
-                    b.HasIndex("InviteCode")
-                        .IsUnique();
-
-                    b.ToTable("channels", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.ChannelStudent", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ChannelId")
-                        .HasColumnType("integer")
-                        .HasColumnName("channel_id");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("joined_at");
-
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("student_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("ChannelId", "StudentId")
-                        .IsUnique();
-
-                    b.ToTable("channel_students", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.CompanyProfile", b =>
@@ -332,6 +249,83 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("student_profiles", (string)null);
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.StudentProject", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("owner_id");
+
+                    b.Property<int>("PartnersCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("partners_count");
+
+                    b.Property<string>("RequiredSkills")
+                        .HasColumnType("text")
+                        .HasColumnName("required_skills");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId")
+                        .IsUnique();
+
+                    b.ToTable("graduation_projects", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentProjectMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("joined_at");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("integer")
+                        .HasColumnName("project_id");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StudentId");
+
+                    b.HasIndex("ProjectId", "StudentId")
+                        .IsUnique();
+
+                    b.ToTable("graduation_project_members", (string)null);
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.StudentSkill", b =>
                 {
                     b.Property<int>("Id")
@@ -361,71 +355,6 @@ namespace GraduationProject.API.Migrations
                         .IsUnique();
 
                     b.ToTable("student_skills", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.Team", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ChannelId")
-                        .HasColumnType("integer")
-                        .HasColumnName("channel_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
-                    b.Property<string>("ProjectTitle")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("project_title");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChannelId");
-
-                    b.ToTable("teams", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.TeamMember", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("joined_at");
-
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("student_id");
-
-                    b.Property<int>("TeamId")
-                        .HasColumnType("integer")
-                        .HasColumnName("team_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("TeamId", "StudentId")
-                        .IsUnique();
-
-                    b.ToTable("team_members", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.User", b =>
@@ -480,36 +409,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.Channel", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.DoctorProfile", "Doctor")
-                        .WithMany()
-                        .HasForeignKey("DoctorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Doctor");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.ChannelStudent", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.Channel", "Channel")
-                        .WithMany("ChannelStudents")
-                        .HasForeignKey("ChannelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Channel");
-
-                    b.Navigation("Student");
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.CompanyProfile", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.User", "User")
@@ -543,6 +442,36 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.StudentProject", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentProjectMember", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.StudentProject", "Project")
+                        .WithMany("Members")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Student");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.StudentSkill", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.Skill", "Skill")
@@ -562,43 +491,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Student");
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.Team", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.Channel", "Channel")
-                        .WithMany("Teams")
-                        .HasForeignKey("ChannelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Channel");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.TeamMember", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.Team", "Team")
-                        .WithMany("TeamMembers")
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Student");
-
-                    b.Navigation("Team");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.Channel", b =>
-                {
-                    b.Navigation("ChannelStudents");
-
-                    b.Navigation("Teams");
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.Skill", b =>
                 {
                     b.Navigation("StudentSkills");
@@ -609,9 +501,9 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("StudentSkills");
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.Team", b =>
+            modelBuilder.Entity("GraduationProject.API.Models.StudentProject", b =>
                 {
-                    b.Navigation("TeamMembers");
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.User", b =>
