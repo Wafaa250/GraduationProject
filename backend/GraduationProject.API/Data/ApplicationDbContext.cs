@@ -10,16 +10,16 @@ namespace GraduationProject.API.Data
             : base(options) { }
 
         // ── Core Entities ────────────────────────────────────────────────────
-        public DbSet<User>               Users               => Set<User>();
-        public DbSet<StudentProfile>     StudentProfiles     => Set<StudentProfile>();
-        public DbSet<DoctorProfile>      DoctorProfiles      => Set<DoctorProfile>();
-        public DbSet<CompanyProfile>     CompanyProfiles     => Set<CompanyProfile>();
+        public DbSet<User> Users => Set<User>();
+        public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
+        public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
+        public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
         public DbSet<AssociationProfile> AssociationProfiles => Set<AssociationProfile>();
-        public DbSet<Skill>              Skills              => Set<Skill>();
-        public DbSet<StudentSkill>       StudentSkills       => Set<StudentSkill>();
+        public DbSet<Skill> Skills => Set<Skill>();
+        public DbSet<StudentSkill> StudentSkills => Set<StudentSkill>();
 
         // ── Student Graduation Projects ──────────────────────────────────────
-        public DbSet<StudentProject>       StudentProjects       => Set<StudentProject>();
+        public DbSet<StudentProject> StudentProjects => Set<StudentProject>();
         public DbSet<StudentProjectMember> StudentProjectMembers => Set<StudentProjectMember>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -113,8 +113,17 @@ namespace GraduationProject.API.Data
             {
                 e.ToTable("graduation_project_members");
 
-                // كل طالب ما يكون عضو بنفس المشروع مرتين
-                e.HasIndex(m => new { m.ProjectId, m.StudentId }).IsUnique();
+                // Unique constraint: a student cannot join the same project twice
+                e.HasIndex(m => new { m.ProjectId, m.StudentId })
+                 .IsUnique()
+                 .HasDatabaseName("ix_graduation_project_members_project_student");
+
+                // Role column: "leader" | "member" — backend-only, defaults to "member"
+                e.Property(m => m.Role)
+                 .HasColumnName("role")
+                 .HasMaxLength(20)
+                 .HasDefaultValue("member")
+                 .IsRequired();
 
                 e.HasOne(m => m.Project)
                  .WithMany(p => p.Members)
