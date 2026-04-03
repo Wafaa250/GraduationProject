@@ -21,6 +21,7 @@ namespace GraduationProject.API.Data
         // ── Student Graduation Projects ──────────────────────────────────────
         public DbSet<StudentProject> StudentProjects => Set<StudentProject>();
         public DbSet<StudentProjectMember> StudentProjectMembers => Set<StudentProjectMember>();
+        public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -134,6 +135,42 @@ namespace GraduationProject.API.Data
                  .WithMany()
                  .HasForeignKey(m => m.StudentId)
                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── PROJECT INVITATIONS ───────────────────────────────────────────────────
+            modelBuilder.Entity<ProjectInvitation>(e =>
+            {
+                e.ToTable("project_invitations");
+
+                e.Property(i => i.Status)
+                 .HasColumnName("status")
+                 .HasMaxLength(20)
+                 .HasDefaultValue("pending")
+                 .IsRequired();
+
+                // Index for query performance (project inbox, receiver inbox)
+                // NOT unique — same (project, receiver) pair can have multiple rows
+                // over time (e.g. rejected → new invite later is valid)
+                // Duplicate pending invites are prevented in application logic instead.
+                e.HasIndex(i => new { i.ProjectId, i.ReceiverId })
+                 .HasDatabaseName("ix_project_invitations_project_receiver");
+
+                // Project deleted → cascade delete its invitations
+                e.HasOne(i => i.Project)
+                 .WithMany(p => p.Invitations)
+                 .HasForeignKey(i => i.ProjectId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                // Restrict to avoid multiple cascade paths from student_profiles
+                e.HasOne(i => i.Sender)
+                 .WithMany()
+                 .HasForeignKey(i => i.SenderId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(i => i.Receiver)
+                 .WithMany()
+                 .HasForeignKey(i => i.ReceiverId)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

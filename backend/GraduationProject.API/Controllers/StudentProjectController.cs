@@ -372,6 +372,81 @@ namespace GraduationProject.API.Controllers
             return Ok(new { message = "You have left the project team." });
         }
 
+        // =====================================================================
+        // POST /api/graduation-projects/{projectId}/invite/{receiverId}
+        // Send an invitation to a student to join the project.
+        // Only the project owner can send invites.
+        // =====================================================================
+        [HttpPost("{projectId:int}/invite/{receiverId:int}")]
+        public async Task<IActionResult> SendInvitation(int projectId, int receiverId)
+        {
+            var senderProfile = await GetStudentProfileAsync();
+            if (senderProfile == null)
+                return Forbid();
+
+            // ── 1. Project exists ─────────────────────────────────────────────
+            var project = await _db.StudentProjects
+                .Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            // ── 2. Current user is the owner ──────────────────────────────────
+            if (project.OwnerId != senderProfile.Id)
+                return StatusCode(403, new { message = "Not authorized." });
+
+            // ── 3. Receiver exists and is not the owner ───────────────────────
+            var receiverExists = await _db.StudentProfiles
+                .AnyAsync(s => s.Id == receiverId);
+
+            if (!receiverExists)
+                return NotFound(new { message = "Receiver not found." });
+
+            if (receiverId == senderProfile.Id)
+                return BadRequest(new { message = "You cannot invite yourself." });
+
+            // ── 4. Project is not full ────────────────────────────────────────
+            // TotalCapacity = PartnersCount + 1 (leader slot included)
+            if (project.Members.Count >= project.PartnersCount + 1)
+                return BadRequest(new { message = "Project is full." });
+
+            // ── 5. Receiver is not already a member ───────────────────────────
+            var alreadyMember = project.Members.Any(m => m.StudentId == receiverId);
+            if (alreadyMember)
+                return BadRequest(new { message = "User already a member." });
+
+            // ── 6. No existing pending invitation ────────────────────────────
+            var pendingExists = await _db.ProjectInvitations
+                .AnyAsync(i =>
+                    i.ProjectId == projectId &&
+                    i.ReceiverId == receiverId &&
+                    i.Status == "pending");
+
+            if (pendingExists)
+                return Conflict(new { message = "Invitation already sent." });
+
+            // ── 7. Create invitation ──────────────────────────────────────────
+            var invitation = new ProjectInvitation
+            {
+                ProjectId = projectId,
+                SenderId = senderProfile.Id,
+                ReceiverId = receiverId,
+                Status = "pending",
+                CreatedAt = DateTime.UtcNow,
+                RespondedAt = null
+            };
+
+            _db.ProjectInvitations.Add(invitation);
+            await _db.SaveChangesAsync();
+
+            return StatusCode(201, new
+            {
+                message = "Invitation sent successfully.",
+                invitationId = invitation.Id
+            });
+        }
+
         // ── Private Helpers ───────────────────────────────────────────────────
 
         /// <summary>

@@ -25,6 +25,7 @@ namespace GraduationProject.API.Models
         // Navigation
         public StudentProfile Owner { get; set; } = null!;
         public ICollection<StudentProjectMember> Members { get; set; } = new List<StudentProjectMember>();
+        public ICollection<ProjectInvitation> Invitations { get; set; } = new List<ProjectInvitation>();
     }
 
     [Table("graduation_project_members")]
@@ -44,5 +45,25 @@ namespace GraduationProject.API.Models
         // Navigation
         public StudentProject Project { get; set; } = null!;
         public StudentProfile Student { get; set; } = null!;
+    }
+
+    [Table("project_invitations")]
+    public class ProjectInvitation
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("project_id")] public int ProjectId { get; set; }  // StudentProject.Id
+        [Column("sender_id")] public int SenderId { get; set; }  // StudentProfile.Id
+        [Column("receiver_id")] public int ReceiverId { get; set; }  // StudentProfile.Id
+
+        // "pending" | "accepted" | "rejected" | "cancelled" | "expired"
+        [Column("status")] public string Status { get; set; } = "pending";
+
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Column("responded_at")] public DateTime? RespondedAt { get; set; }  // null until acted on
+
+        // Navigation
+        public StudentProject Project { get; set; } = null!;
+        public StudentProfile Sender { get; set; } = null!;
+        public StudentProfile Receiver { get; set; } = null!;
     }
 }
