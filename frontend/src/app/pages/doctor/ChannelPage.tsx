@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Copy, Check, Users, Layers, FolderOpen, Plus } from 'lucide-react'
-import { CourseChannel } from './data/doctorMockData'
 
 type ChannelTab = 'overview' | 'students' | 'projects' | 'settings'
 

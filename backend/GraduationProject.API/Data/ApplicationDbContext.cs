@@ -1,3 +1,4 @@
+// Data/ApplicationDbContext.cs
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Models;
 
@@ -8,20 +9,19 @@ namespace GraduationProject.API.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options) { }
 
-        // ── DbSets ──────────────────────────────────────────────────────────
-        public DbSet<User>               Users               => Set<User>();
-        public DbSet<StudentProfile>     StudentProfiles     => Set<StudentProfile>();
-        public DbSet<DoctorProfile>      DoctorProfiles      => Set<DoctorProfile>();
-        public DbSet<CompanyProfile>     CompanyProfiles     => Set<CompanyProfile>();
+        // ── Core Entities ────────────────────────────────────────────────────
+        public DbSet<User> Users => Set<User>();
+        public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
+        public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
+        public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
         public DbSet<AssociationProfile> AssociationProfiles => Set<AssociationProfile>();
-        public DbSet<Skill>              Skills              => Set<Skill>();
-        public DbSet<StudentSkill>       StudentSkills       => Set<StudentSkill>();
+        public DbSet<Skill> Skills => Set<Skill>();
+        public DbSet<StudentSkill> StudentSkills => Set<StudentSkill>();
 
-        // ── Doctor Dashboard ────────────────────────────────────────────────
-        public DbSet<Channel>        Channels        => Set<Channel>();
-        public DbSet<ChannelStudent> ChannelStudents => Set<ChannelStudent>();
-        public DbSet<Team>           Teams           => Set<Team>();
-        public DbSet<TeamMember>     TeamMembers     => Set<TeamMember>();
+        // ── Student Graduation Projects ──────────────────────────────────────
+        public DbSet<StudentProject> StudentProjects => Set<StudentProject>();
+        public DbSet<StudentProjectMember> StudentProjectMembers => Set<StudentProjectMember>();
+        public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -95,55 +95,82 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // ── CHANNEL ──────────────────────────────────────────────────────
-            modelBuilder.Entity<Channel>(e =>
+            // ── STUDENT GRADUATION PROJECTS ───────────────────────────────────
+            modelBuilder.Entity<StudentProject>(e =>
             {
-                e.ToTable("channels");
-                e.HasIndex(c => c.InviteCode).IsUnique();
-                e.HasOne(c => c.Doctor)
+                e.ToTable("graduation_projects");
+
+                // كل طالب ما عنده غير مشروع تخرج واحد كـ owner
+                e.HasIndex(p => p.OwnerId).IsUnique();
+
+                e.HasOne(p => p.Owner)
                  .WithMany()
-                 .HasForeignKey(c => c.DoctorId)
+                 .HasForeignKey(p => p.OwnerId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // ── CHANNEL STUDENTS ─────────────────────────────────────────────
-            modelBuilder.Entity<ChannelStudent>(e =>
+            // ── STUDENT GRADUATION PROJECT MEMBERS ───────────────────────────
+            modelBuilder.Entity<StudentProjectMember>(e =>
             {
-                e.ToTable("channel_students");
-                e.HasIndex(cs => new { cs.ChannelId, cs.StudentId }).IsUnique();
-                e.HasOne(cs => cs.Channel)
-                 .WithMany(c => c.ChannelStudents)
-                 .HasForeignKey(cs => cs.ChannelId)
+                e.ToTable("graduation_project_members");
+
+                // Unique constraint: a student cannot join the same project twice
+                e.HasIndex(m => new { m.ProjectId, m.StudentId })
+                 .IsUnique()
+                 .HasDatabaseName("ix_graduation_project_members_project_student");
+
+                // Role column: "leader" | "member" — backend-only, defaults to "member"
+                e.Property(m => m.Role)
+                 .HasColumnName("role")
+                 .HasMaxLength(20)
+                 .HasDefaultValue("member")
+                 .IsRequired();
+
+                e.HasOne(m => m.Project)
+                 .WithMany(p => p.Members)
+                 .HasForeignKey(m => m.ProjectId)
                  .OnDelete(DeleteBehavior.Cascade);
-                e.HasOne(cs => cs.Student)
+
+                e.HasOne(m => m.Student)
                  .WithMany()
-                 .HasForeignKey(cs => cs.StudentId)
+                 .HasForeignKey(m => m.StudentId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // ── TEAMS ─────────────────────────────────────────────────────────
-            modelBuilder.Entity<Team>(e =>
+            // ── PROJECT INVITATIONS ───────────────────────────────────────────────────
+            modelBuilder.Entity<ProjectInvitation>(e =>
             {
-                e.ToTable("teams");
-                e.HasOne(t => t.Channel)
-                 .WithMany(c => c.Teams)
-                 .HasForeignKey(t => t.ChannelId)
-                 .OnDelete(DeleteBehavior.Cascade);
-            });
+                e.ToTable("project_invitations");
 
-            // ── TEAM MEMBERS ──────────────────────────────────────────────────
-            modelBuilder.Entity<TeamMember>(e =>
-            {
-                e.ToTable("team_members");
-                e.HasIndex(tm => new { tm.TeamId, tm.StudentId }).IsUnique();
-                e.HasOne(tm => tm.Team)
-                 .WithMany(t => t.TeamMembers)
-                 .HasForeignKey(tm => tm.TeamId)
+                e.Property(i => i.Status)
+                 .HasColumnName("status")
+                 .HasMaxLength(20)
+                 .HasDefaultValue("pending")
+                 .IsRequired();
+
+                // Index for query performance (project inbox, receiver inbox)
+                // NOT unique — same (project, receiver) pair can have multiple rows
+                // over time (e.g. rejected → new invite later is valid)
+                // Duplicate pending invites are prevented in application logic instead.
+                e.HasIndex(i => new { i.ProjectId, i.ReceiverId })
+                 .HasDatabaseName("ix_project_invitations_project_receiver");
+
+                // Project deleted → cascade delete its invitations
+                e.HasOne(i => i.Project)
+                 .WithMany(p => p.Invitations)
+                 .HasForeignKey(i => i.ProjectId)
                  .OnDelete(DeleteBehavior.Cascade);
-                e.HasOne(tm => tm.Student)
+
+                // Restrict to avoid multiple cascade paths from student_profiles
+                e.HasOne(i => i.Sender)
                  .WithMany()
-                 .HasForeignKey(tm => tm.StudentId)
-                 .OnDelete(DeleteBehavior.Cascade);
+                 .HasForeignKey(i => i.SenderId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(i => i.Receiver)
+                 .WithMany()
+                 .HasForeignKey(i => i.ReceiverId)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

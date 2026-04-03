@@ -11,35 +11,43 @@ import EditProfilePage from "./pages/profile/EditProfilePage";
 import DoctorDashboardPage from "./pages/doctor/DoctorDashboardPage";
 import ChannelPageWrapper from "./pages/doctor/ChannelPageWrapper";
 
+
+import StudentsPage from "./pages/students/StudentsPage";
+import StudentProfilePage from "./pages/students/StudentProfilePage";
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem('token')
-  if (!token) return <Navigate to="/login" replace />
-  return <>{children}</>
+    const token = localStorage.getItem('token')
+    if (!token) return <Navigate to="/login" replace />
+    return <>{children}</>
 }
 
 export default function App() {
-  return (
-    <UserProvider>
-      <DoctorProvider>
-        <Routes>
-          {/* Public */}
-          <Route path="/"             element={<LandingPage />} />
-          <Route path="/login"        element={<LoginPage />} />
-          <Route path="/register"     element={<RegisterPage />} />
+    return (
+        <UserProvider>
+            <DoctorProvider>
+                <Routes>
+                    {/* Public */}
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
 
-          {/* Protected – Student */}
-          <Route path="/dashboard"    element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-          <Route path="/profile"      element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/edit-profile" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
+                    {/* Protected – Student */}
+                    <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                    <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+                    <Route path="/edit-profile" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
 
-          {/* Protected – Doctor */}
-          <Route path="/doctor-dashboard"           element={<ProtectedRoute><DoctorDashboardPage /></ProtectedRoute>} />
-          <Route path="/doctor/channels/:channelId" element={<ProtectedRoute><ChannelPageWrapper /></ProtectedRoute>} />
+                    {/* Protected – Doctor */}
+                    <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardPage /></ProtectedRoute>} />
+                    <Route path="/doctor/channels/:channelId" element={<ProtectedRoute><ChannelPageWrapper /></ProtectedRoute>} />
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </DoctorProvider>
-    </UserProvider>
-  );
+                    {/* ✅ التعديل تبعك */}
+                    <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
+                    <Route path="/students/:userId" element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>} />
+
+                    {/* Catch-all */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </DoctorProvider>
+        </UserProvider>
+    );
 }
