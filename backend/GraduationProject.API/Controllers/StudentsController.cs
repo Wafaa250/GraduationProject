@@ -34,7 +34,8 @@ namespace GraduationProject.API.Controllers
             [FromQuery] string? skill,
             [FromQuery] string? university,
             [FromQuery] string? major,
-            [FromQuery] string? search)
+            [FromQuery] string? search,
+            [FromQuery] bool availableOnly = false)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userIdClaim == null) return Unauthorized();
@@ -86,6 +87,24 @@ namespace GraduationProject.API.Controllers
             // بحث بالاسم
             if (!string.IsNullOrEmpty(search))
                 query = query.Where(s => s.User.Name.Contains(search));
+
+            // فلتر الطلاب المتاحين فقط (ما عندهم مشروع كـ owner أو member)
+            if (availableOnly)
+            {
+                // IDs of students who own a project
+                var ownerIds = await _db.StudentProjects
+                    .Select(p => p.OwnerId)
+                    .ToListAsync();
+
+                // IDs of students who are members in any project
+                var memberIds = await _db.StudentProjectMembers
+                    .Select(m => m.StudentId)
+                    .ToListAsync();
+
+                var unavailableIds = ownerIds.Union(memberIds).ToHashSet();
+
+                query = query.Where(s => !unavailableIds.Contains(s.Id));
+            }
 
             var students = await query.ToListAsync();
 
