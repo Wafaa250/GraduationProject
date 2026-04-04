@@ -84,4 +84,38 @@ namespace GraduationProject.API.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
+
+    // ── Available Student (for invite browsing) ───────────────────────────────
+    public class ProjectAvailableStudentDto
+    {
+        public int StudentId { get; set; }        // StudentProfile.Id
+        public int UserId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Major { get; set; } = string.Empty;
+        public string University { get; set; } = string.Empty;
+        public string AcademicYear { get; set; } = string.Empty;
+        public string? ProfilePicture { get; set; }
+        public List<string> Skills { get; set; } = new();
+        public int MatchScore { get; set; }
+
+        // ── Caller-aware status flags ─────────────────────────────────────────
+        /// <summary>True when this student is already a member of the project.</summary>
+        public bool IsMember { get; set; }
+
+        /// <summary>True when a pending invitation has already been sent to this student.</summary>
+        public bool HasPendingInvite { get; set; }
+
+        /// <summary>True when this student is the project owner.</summary>
+        public bool IsOwner { get; set; }
+
+        /// <summary>True when the project has no remaining seats.</summary>
+        public bool IsProjectFull { get; set; }
+
+        /// <summary>
+        /// Computed convenience flag.
+        /// True when the caller can send an invite to this student:
+        /// not a member, no pending invite, not the owner, and project is not full.
+        /// </summary>
+        public bool CanInvite { get; set; }
+    }
 }
