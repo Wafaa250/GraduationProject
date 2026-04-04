@@ -666,11 +666,11 @@ export default function DashboardPage() {
                                         by {gradProject.ownerName}
                                     </p>
 
-                                    {/* Members count — total capacity = partnersCount + 1 */}
+                                    {/* Members count — owner is included in currentMembers by backend */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                                         <Users size={12} color="#94a3b8" />
                                         <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
-                                            {gradProject.currentMembers} / {gradProject.partnersCount + 1} members
+                                            {gradProject.currentMembers + 1} / {gradProject.partnersCount + 1} members
                                             {gradProject.isFull && <span style={{ marginLeft: 6, color: '#10b981', fontWeight: 700 }}>· Full ✓</span>}
                                         </span>
                                     </div>
@@ -685,7 +685,7 @@ export default function DashboardPage() {
                                     {/* Team Members from API */}
                                     <div style={{ marginTop: 12, borderTop: '1px solid rgba(99,102,241,0.12)', paddingTop: 12 }}>
                                         <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.06em', margin: '0 0 8px' }}>
-                                            Team · {gradProject.currentMembers} / {gradProject.partnersCount + 1}
+                                            Team · {gradProject.currentMembers + 1} / {gradProject.partnersCount + 1}
                                         </p>
                                         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7 }}>
                                             {/* Members from API — includes leader + all members.

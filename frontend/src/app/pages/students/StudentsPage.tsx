@@ -32,9 +32,11 @@ export default function StudentsPage() {
   const [university,  setUniversity]  = useState('')
   const [major,       setMajor]       = useState('')
   const [skill,       setSkill]       = useState('')
-  const [isTeamFull,  setIsTeamFull]  = useState(false)
-  const [invitingId,  setInvitingId]  = useState<number | null>(null)
-  const [toast,       setToast]       = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [isTeamFull,    setIsTeamFull]    = useState(false)
+  const [invitingId,    setInvitingId]    = useState<number | null>(null)
+  const [toast,         setToast]         = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [currentMembers, setCurrentMembers] = useState<number>(0)
+  const [partnersCount,  setPartnersCount]  = useState<number>(0)
 
   // ── Toast helper ──────────────────────────────────────────────────────────
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -42,11 +44,27 @@ export default function StudentsPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // ── Team full check ───────────────────────────────────────────────────────
+  // ── Fetch real project capacity from backend ──────────────────────────────
   useEffect(() => {
-    const occupiedCount = students.filter(s => s.isMember || s.hasPendingInvite).length
-    setIsTeamFull(occupiedCount >= 4)
-  }, [students])
+    if (!projectId) return
+    api.get(`/graduation-projects/${projectId}`)
+      .then(res => {
+        const p = res.data
+        const cm: number = p.currentMembers ?? 0
+        const pc: number = p.partnersCount  ?? 0
+        setCurrentMembers(cm)
+        setPartnersCount(pc)
+        setIsTeamFull(pc > 0 && cm >= pc)
+      })
+      .catch(() => {/* non-critical — invite button remains enabled */})
+  }, [projectId])
+
+  // ── Re-evaluate team full whenever currentMembers updates after an invite ──
+  useEffect(() => {
+    if (partnersCount > 0) {
+      setIsTeamFull(currentMembers >= partnersCount)
+    }
+  }, [currentMembers, partnersCount])
 
   // ── Invite handler ───────────────────────────────────────────────────────
   const handleInvite = async (student: Student) => {
@@ -63,6 +81,7 @@ export default function StudentsPage() {
         )
       )
       showToast('Invitation sent')
+      setCurrentMembers(prev => prev + 1)
     } catch (err: any) {
       const msg: string = err?.response?.data?.message || 'Failed to send invitation.'
       showToast(msg, 'error')
