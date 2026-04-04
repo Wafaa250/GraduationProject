@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import api from '../../../api/axiosInstance'
 import { getDashboardSummary, SuggestedTeammate } from '../../../api/dashboardApi'
+import { getReceivedInvitations } from '../../../api/invitationsApi'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
@@ -46,26 +47,35 @@ interface Invitation {
     invitedBy: string
 }
 
-// يطابق StudentProjectResponseDto من الباك
+// Matches StudentProjectResponseDto from the backend
+interface GradProjectMember {
+    studentId: number
+    userId: number
+    name: string
+    email: string
+    university: string
+    major: string
+    profilePicture: string | null
+    role: 'leader' | 'member'
+    joinedAt: string
+}
+
 interface GradProject {
     id: number
+    ownerId: number
+    ownerUserId: number
+    ownerName: string
     name: string
     description: string | null
     requiredSkills: string[]
     partnersCount: number
     currentMembers: number
     isFull: boolean
-    role: 'owner' | 'member'
-    members: {
-        studentId: number
-        userId: number
-        name: string
-        email: string
-        university: string
-        major: string
-        profilePicture: string | null
-        joinedAt: string
-    }[]
+    isOwner: boolean
+    remainingSeats: number
+    members: GradProjectMember[]
+    createdAt: string
+    updatedAt: string
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -77,6 +87,7 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true)
     const [teammates, setTeammates] = useState<SuggestedTeammate[]>([])
     const [notifOpen, setNotifOpen] = useState(false)
+    const [pendingCount, setPendingCount] = useState(0)
     const [invitations, setInvitations] = useState<Invitation[]>([])
     const [recommendedProjects, setRecommendedProjects] = useState<RecommendedProject[]>([])
     const [applications, setApplications] = useState<Application[]>([])
@@ -103,42 +114,62 @@ export default function DashboardPage() {
     const hour = new Date().getHours()
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-    // helper مشترك — يُعاد استخدامه بعد كل عملية تغيّر المشروع
+    // ── fetchInvitations: reusable, callable manually or by effects ──────────
+    // Extracted so it can be triggered on:
+    //   1. Initial load (inside fetchData)
+    //   2. Page focus / visibility change (window event)
+    //   3. After accept/reject actions (handleInvite calls it)
+    const fetchInvitations = useCallback(async () => {
+        try {
+            const received = await getReceivedInvitations()
+            const pendingOnly = received
+                .filter(i => i.status?.toLowerCase() === 'pending')
+                .map(i => ({
+                    id:        i.invitationId,
+                    project:   i.projectName,
+                    invitedBy: i.senderName,
+                }))
+            setInvitations(pendingOnly)
+            setPendingCount(pendingOnly.length)
+        } catch { /* non-critical */ }
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Re-fetch invitations when the tab becomes visible again
+    // (covers the case: user sends invite on StudentsPage → switches back)
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                fetchInvitations()
+            }
+        }
+        document.addEventListener('visibilitychange', onVisible)
+        return () => document.removeEventListener('visibilitychange', onVisible)
+    }, [fetchInvitations])
+
+    // Auto-refresh invitations every 10 seconds
+    useEffect(() => {
+        const interval = setInterval(fetchInvitations, 10_000)
+        return () => clearInterval(interval)
+    }, [fetchInvitations])
+
+    // Single call to GET /api/graduation-projects/my
+    // Returns { role, project } — project is null when student has no affiliation
     const refetchGradProject = useCallback(async () => {
         try {
             setGradLoading(true)
-            const dashRes = await api.get('/dashboard/my-project')
-            const dashData = dashRes.data   // DashboardProjectDto | null
-
-            if (!dashData) {
-                setGradProject(null)
-                return
+            const res = await api.get('/graduation-projects/my')
+            // res.data = { role: 'owner'|'member'|null, project: GradProject|null }
+            const project: GradProject | null = res.data?.project ?? null
+            setGradProject(project)
+        } catch (err: any) {
+            if (err?.response?.status === 401 || err?.response?.status === 403) {
+                navigate('/login')
             }
-
-            const fullRes = await api.get('/graduation-projects/my')
-            const fullData = fullRes.data   // { role, project }
-
-            if (fullData?.project) {
-                setGradProject({
-                    id: fullData.project.id,
-                    name: fullData.project.name,
-                    description: fullData.project.description ?? null,
-                    requiredSkills: fullData.project.requiredSkills ?? [],
-                    partnersCount: fullData.project.partnersCount,
-                    currentMembers: fullData.project.currentMembers,
-                    isFull: fullData.project.isFull,
-                    role: dashData.role,
-                    members: fullData.project.members ?? [],
-                })
-            } else {
-                setGradProject(null)
-            }
-        } catch {
             setGradProject(null)
         } finally {
             setGradLoading(false)
         }
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [navigate]) // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const fetchData = async () => {
@@ -169,11 +200,11 @@ export default function DashboardPage() {
                     setTeammates([])
                 }
 
-                // ── جلب مشروع التخرج عند بدء التحميل ────────────────────────────
-                // يستخدم GET /dashboard/my-project أولاً (سريع)
-                // ثم GET /graduation-projects/my للتفاصيل الكاملة
-                // refetchGradProject() معرّفة أسفل وتعيد نفس المنطق
+                // Fetch graduation project — GET /api/graduation-projects/my
                 await refetchGradProject()
+
+                // Fetch invitations via shared helper
+                await fetchInvitations()
 
             } catch {
                 setUser({
@@ -189,7 +220,7 @@ export default function DashboardPage() {
             }
         }
         fetchData()
-    }, [navigate, refetchGradProject])
+    }, [navigate, refetchGradProject, fetchInvitations])
 
     // ── Fetch projects from joined channels ───────────────────────────────────
     useEffect(() => {
@@ -245,20 +276,10 @@ export default function DashboardPage() {
                 requiredSkills: skills,
                 partnersCount: size,
             })
-            const created = res.data
-            setGradProject({
-                id: created.id,
-                name: created.name,
-                description: created.description ?? null,
-                requiredSkills: created.requiredSkills ?? skills,
-                partnersCount: created.partnersCount,
-                currentMembers: created.currentMembers ?? 0,
-                isFull: created.isFull ?? false,
-                role: 'owner',
-                members: created.members ?? [],
-            })
+            // Refetch from GET endpoint — guarantees isOwner/remainingSeats are populated
             setGradForm({ name: '', description: '', skills: '', teamSize: '' })
             setGradModalOpen(false)
+            await refetchGradProject()
         } catch (err: any) {
             const msg = err?.response?.data?.message || 'Failed to create project. Please try again.'
             setGradFormError(msg)
@@ -301,16 +322,23 @@ export default function DashboardPage() {
         }
     }
 
-    const handleInvite = async (id: number, action: 'accept' | 'decline') => {
+    const handleInvite = async (id: number, action: 'accept' | 'reject') => {
         setInviteLoading(id)
         setInviteMsg(null)
         try {
             await api.post(`/invitations/${id}/${action}`)
-            setInvitations(prev => prev.filter(i => i.id !== id))
-            setInviteMsg({ id, msg: action === 'accept' ? '✅ Invitation accepted!' : '❌ Invitation declined.', ok: action === 'accept' })
-        } catch {
-            setInvitations(prev => prev.filter(i => i.id !== id))
-            setInviteMsg({ id, msg: action === 'accept' ? '✅ Accepted!' : 'Declined.', ok: action === 'accept' })
+            // Optimistic: remove from list immediately, then re-fetch for accuracy
+            setInvitations(prev => {
+                const updated = prev.filter(i => i.id !== id)
+                setPendingCount(updated.length)
+                return updated
+            })
+            setInviteMsg({ id, msg: action === 'accept' ? '✅ Invitation accepted!' : '❌ Invitation rejected.', ok: action === 'accept' })
+            // Re-fetch to sync any server-side changes (e.g. expired invitations)
+            await fetchInvitations()
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || (action === 'accept' ? 'Failed to accept.' : 'Failed to reject.')
+            setInviteMsg({ id, msg, ok: false })
         } finally {
             setInviteLoading(null)
             setTimeout(() => setInviteMsg(null), 3000)
@@ -373,14 +401,23 @@ export default function DashboardPage() {
                     <div style={S.navActions}>
                         <div style={{ position: 'relative' as const }}>
                             <button style={S.navBtn} onClick={() => setNotifOpen(o => !o)}>
-                                <Bell size={17} /><span style={S.notifDot} />
+                                <Bell size={17} />
+                                {pendingCount > 0 && (
+                                    <span style={S.inviteBadge}>{pendingCount > 9 ? '9+' : pendingCount}</span>
+                                )}
                             </button>
                             {notifOpen && (
                                 <div style={S.notifDropdown}>
                                     <p style={S.notifTitle}>🔔 Notifications</p>
-                                    <div style={S.notifItem}>Ahmad invited you to join a project</div>
-                                    <div style={S.notifItem}>New project matches your skills</div>
-                                    <div style={S.notifItem}>Your profile was viewed 3 times</div>
+                                    {invitations.length === 0 ? (
+                                        <div style={S.notifItem}>No new notifications</div>
+                                    ) : (
+                                        invitations.slice(0, 5).map(inv => (
+                                            <div key={inv.id} style={{ ...S.notifItem, cursor: 'default' }}>
+                                                <strong>{inv.invitedBy}</strong> invited you to join <strong>{inv.project}</strong>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -546,7 +583,7 @@ export default function DashboardPage() {
                                                     style={{ flex: 1, padding: '7px', background: inviteLoading === inv.id ? '#e2e8f0' : 'linear-gradient(135deg,#6366f1,#a855f7)', color: inviteLoading === inv.id ? '#94a3b8' : 'white', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: inviteLoading === inv.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                                                     {inviteLoading === inv.id ? '⏳' : '✅ Accept'}
                                                 </button>
-                                                <button disabled={inviteLoading === inv.id} onClick={() => handleInvite(inv.id, 'decline')}
+                                                <button disabled={inviteLoading === inv.id} onClick={() => handleInvite(inv.id, 'reject')}
                                                     style={{ flex: 1, padding: '7px', background: 'white', color: '#64748b', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: inviteLoading === inv.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                                                     ✕ Decline
                                                 </button>
@@ -596,11 +633,11 @@ export default function DashboardPage() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                                         <div>
                                             <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 3px' }}>{gradProject.name}</p>
-                                            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', background: gradProject.role === 'owner' ? 'linear-gradient(135deg,#6366f1,#a855f7)' : '#e0e7ff', color: gradProject.role === 'owner' ? 'white' : '#6366f1', borderRadius: 20 }}>
-                                                {gradProject.role === 'owner' ? '👑 Owner' : '👥 Member'}
+                                            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', background: gradProject.isOwner ? 'linear-gradient(135deg,#6366f1,#a855f7)' : '#e0e7ff', color: gradProject.isOwner ? 'white' : '#6366f1', borderRadius: 20 }}>
+                                                {gradProject.isOwner ? '👑 Owner' : '👥 Member'}
                                             </span>
                                         </div>
-                                        {gradProject.role === 'owner' ? (
+                                        {gradProject.isOwner ? (
                                             <button onClick={handleDeleteProject}
                                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 11, fontFamily: 'inherit', padding: '2px 6px', borderRadius: 6 }}>
                                                 🗑 Delete
@@ -611,6 +648,12 @@ export default function DashboardPage() {
                                                 Leave
                                             </button>
                                         )}
+                                        {/* Remaining seats — only shown when not full */}
+                                        {!gradProject.isFull && (
+                                            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 20 }}>
+                                                {gradProject.remainingSeats} seat{gradProject.remainingSeats !== 1 ? 's' : ''} left
+                                            </span>
+                                        )}
                                     </div>
 
                                     {/* Description */}
@@ -618,11 +661,16 @@ export default function DashboardPage() {
                                         <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 8px', lineHeight: 1.5 }}>{gradProject.description}</p>
                                     )}
 
-                                    {/* Partners count */}
+                                    {/* Owner name */}
+                                    <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px', fontWeight: 500 }}>
+                                        by {gradProject.ownerName}
+                                    </p>
+
+                                    {/* Members count — total capacity = partnersCount + 1 */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                                         <Users size={12} color="#94a3b8" />
                                         <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
-                                            {gradProject.currentMembers} / {gradProject.partnersCount} partners
+                                            {gradProject.currentMembers} / {gradProject.partnersCount + 1} members
                                             {gradProject.isFull && <span style={{ marginLeft: 6, color: '#10b981', fontWeight: 700 }}>· Full ✓</span>}
                                         </span>
                                     </div>
@@ -637,48 +685,68 @@ export default function DashboardPage() {
                                     {/* Team Members from API */}
                                     <div style={{ marginTop: 12, borderTop: '1px solid rgba(99,102,241,0.12)', paddingTop: 12 }}>
                                         <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.06em', margin: '0 0 8px' }}>
-                                            Team · {1 + gradProject.members.length} / {gradProject.partnersCount + 1}
+                                            Team · {gradProject.currentMembers} / {gradProject.partnersCount + 1}
                                         </p>
                                         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7 }}>
-                                            {/* Current user (owner or member indicator) */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', background: 'white', border: '1px solid rgba(99,102,241,0.18)', borderRadius: 10 }}>
-                                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 }}>
-                                                    {user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
-                                                </div>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                                        <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{user?.name || '—'}</span>
-                                                        <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', borderRadius: 20 }}>
-                                                            {gradProject.role === 'owner' ? 'Leader' : 'You'}
-                                                        </span>
-                                                    </div>
-                                                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{user?.major || '—'}</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Members from API */}
-                                            {gradProject.members.map(m => (
-                                                <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10 }}>
-                                                    <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-                                                        {m.profilePicture
-                                                            ? <img src={m.profilePicture} style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} alt="" />
-                                                            : <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white' }}>
-                                                                {m.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                                            {/* Members from API — includes leader + all members.
+                                                Backend always includes the owner as role="leader".
+                                                We iterate members[] directly — no hardcoded row needed. */}
+                                            {gradProject.members.length === 0 ? (
+                                                <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>No members yet.</p>
+                                            ) : gradProject.members.map(m => {
+                                                const isLeader = m.role === 'leader'
+                                                return (
+                                                    <div key={m.userId} style={{
+                                                        display: 'flex', alignItems: 'center', gap: 10,
+                                                        padding: '9px 11px', borderRadius: 10,
+                                                        background: isLeader ? 'white' : '#f8fafc',
+                                                        border: isLeader ? '1px solid rgba(99,102,241,0.2)' : '1px solid #e2e8f0',
+                                                    }}>
+                                                        {/* Avatar */}
+                                                        <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+                                                            {m.profilePicture
+                                                                ? <img src={m.profilePicture} style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} alt="" />
+                                                                : <div style={{
+                                                                    width: '100%', height: '100%',
+                                                                    background: isLeader
+                                                                        ? 'linear-gradient(135deg,#6366f1,#a855f7)'
+                                                                        : 'linear-gradient(135deg,#a855f7,#ec4899)',
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                    fontSize: 11, fontWeight: 800, color: 'white'
+                                                                }}>
+                                                                    {m.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                        {/* Info */}
+                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                                                                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{m.name}</span>
+                                                                {/* Role badge — only shown for leader */}
+                                                                {isLeader && (
+                                                                    <span style={{
+                                                                        fontSize: 9, fontWeight: 700,
+                                                                        padding: '1px 6px',
+                                                                        background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+                                                                        color: 'white', borderRadius: 20
+                                                                    }}>
+                                                                        Leader
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        }
+                                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                                                                {m.major || m.university || '—'}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>{m.name}</p>
-                                                        <span style={{ fontSize: 11, color: '#94a3b8' }}>{m.major || m.university}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                )
+                                            })}
                                         </div>
                                     </div>
 
                                     {/* Add Teammates — owner only, project not full */}
-                                    {gradProject.role === 'owner' && !gradProject.isFull && (
-                                        <button onClick={() => setAddTeammatesOpen(true)}
+                                    {gradProject.isOwner && !gradProject.isFull && (
+                                        <button onClick={() => navigate(`/students?projectId=${gradProject.id}`)}
                                             style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10, padding: '6px 12px', background: 'white', border: '1.5px solid #c7d2fe', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit' }}>
                                             <UserPlus size={12} /> Browse Students to Join
                                         </button>
@@ -1051,7 +1119,14 @@ export default function DashboardPage() {
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                             <button onClick={() => setAddTeammatesOpen(false)} style={S.modalCancelBtn}>Close</button>
                             <button
-                                onClick={() => { navigate('/students'); setAddTeammatesOpen(false) }}
+                                onClick={() => {
+                                    // Pass projectId so StudentsPage knows which project to link against
+                                    const dest = gradProject
+                                        ? `/students?projectId=${gradProject.id}`
+                                        : '/students'
+                                    navigate(dest)
+                                    setAddTeammatesOpen(false)
+                                }}
                                 style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                                 Browse All Students →
                             </button>
@@ -1095,6 +1170,7 @@ const S: Record<string, React.CSSProperties> = {
     navActions: { display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' },
     navBtn: { width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', borderRadius: 8, position: 'relative', textDecoration: 'none' },
     notifDot: { position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: '#6366f1', border: '1.5px solid #f8f7ff' },
+    inviteBadge: { position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #f8f7ff', fontSize: 9, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' },
     navAvatar: { width: 34, height: 34, borderRadius: '50%', overflow: 'hidden', cursor: 'pointer', marginLeft: 4, textDecoration: 'none', flexShrink: 0 },
     navAvatarFallback: { width: '100%', height: '100%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff' },
     notifDropdown: { position: 'absolute', top: 44, right: 0, width: 280, background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.1)', zIndex: 200, overflow: 'hidden' },
