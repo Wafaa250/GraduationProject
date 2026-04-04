@@ -131,10 +131,109 @@ namespace GraduationProject.API.Controllers
             {
                 projectId = project.Id,
                 currentMembers = members.Count,
-                totalCapacity = project.PartnersCount,                              // ✅ إزالة + 1
-                remainingSeats = Math.Max(0, project.PartnersCount - members.Count), // ✅ إزالة + 1
+                totalCapacity = project.PartnersCount,
+                remainingSeats = Math.Max(0, project.PartnersCount - members.Count),
                 members
             });
+        }
+
+        // =====================================================================
+        // GET /api/graduation-projects/{projectId}/available-students
+        // Returns all students with their invite status for a specific project.
+        // Only the project owner can access.
+        // =====================================================================
+        [HttpGet("{projectId:int}/available-students")]
+        public async Task<IActionResult> GetAvailableStudents(int projectId)
+        {
+            var owner = await GetStudentProfileAsync();
+            if (owner == null) return Forbid();
+
+            // ── 1. Project exists + load members ─────────────────────────────
+            var project = await _db.StudentProjects
+                .Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            // ── 2. Current user is the owner ──────────────────────────────────
+            if (project.OwnerId != owner.Id)
+                return StatusCode(403, new { message = "Not authorized." });
+
+            // ── 3. Load all students except the owner ─────────────────────────
+            var allStudents = await _db.StudentProfiles
+                .Include(s => s.User)
+                .Where(s => s.UserId != owner.UserId)
+                .ToListAsync();
+
+            // ── 4. Load all pending invitations for this project ─────────────
+            var pendingInviteReceiverIds = await _db.ProjectInvitations
+                .Where(i => i.ProjectId == projectId && i.Status == "pending")
+                .Select(i => i.ReceiverId)
+                .ToListAsync();
+
+            // ── 5. Pre-compute reusable values ────────────────────────────────
+            var memberIds = project.Members.Select(m => m.StudentId).ToHashSet();
+            var isProjectFull = project.Members.Count >= project.PartnersCount;
+
+            // Owner's skill IDs for matchScore calculation
+            var ownerIds = SkillHelper.ParseIntList(owner.Roles)
+                .Concat(SkillHelper.ParseIntList(owner.TechnicalSkills))
+                .Concat(SkillHelper.ParseIntList(owner.Tools))
+                .ToList();
+
+            // ── 6. Map each student to DTO ────────────────────────────────────
+            var result = new List<ProjectAvailableStudentDto>();
+
+            foreach (var s in allStudents)
+            {
+                var isMember = memberIds.Contains(s.Id);
+                var hasPendingInvite = pendingInviteReceiverIds.Contains(s.Id);
+                var isOwnerStudent = s.Id == project.OwnerId;
+
+                // MatchScore — same logic as StudentsController
+                var theirIds = SkillHelper.ParseIntList(s.Roles)
+                    .Concat(SkillHelper.ParseIntList(s.TechnicalSkills))
+                    .Concat(SkillHelper.ParseIntList(s.Tools))
+                    .ToList();
+
+                var common = ownerIds.Intersect(theirIds).Count();
+                var complementary = theirIds.Except(ownerIds).Count();
+                var matchScore = (int)(
+                    (common * 0.6 / Math.Max(ownerIds.Count, 1) * 100) +
+                    (complementary * 0.4 / Math.Max(theirIds.Count, 1) * 100)
+                );
+                matchScore = Math.Min(matchScore, 100);
+
+                // Display names for up to 4 roles
+                var roleIds = SkillHelper.ParseIntList(s.Roles).Take(4).ToList();
+                var displayNames = await _db.Skills
+                    .Where(sk => roleIds.Contains(sk.Id))
+                    .Select(sk => sk.Name)
+                    .ToListAsync();
+
+                var canInvite = !isMember && !hasPendingInvite && !isOwnerStudent && !isProjectFull;
+
+                result.Add(new ProjectAvailableStudentDto
+                {
+                    StudentId = s.Id,
+                    UserId = s.UserId,
+                    Name = s.User.Name,
+                    Major = s.Major ?? "",
+                    University = s.University ?? "",
+                    AcademicYear = s.AcademicYear ?? "",
+                    ProfilePicture = s.ProfilePictureBase64,
+                    Skills = displayNames,
+                    MatchScore = matchScore,
+                    IsMember = isMember,
+                    HasPendingInvite = hasPendingInvite,
+                    IsOwner = isOwnerStudent,
+                    IsProjectFull = isProjectFull,
+                    CanInvite = canInvite,
+                });
+            }
+
+            return Ok(result.OrderByDescending(s => s.MatchScore).ToList());
         }
 
         // =====================================================================
@@ -278,7 +377,7 @@ namespace GraduationProject.API.Controllers
             if (conflict != null) return conflict;
 
             // TotalCapacity = PartnersCount (owner counts as one of the members)
-            if (project.Members.Count >= project.PartnersCount)              // ✅ إزالة + 1
+            if (project.Members.Count >= project.PartnersCount)
                 return BadRequest(new { message = "This project's team is already full." });
 
             _db.StudentProjectMembers.Add(new StudentProjectMember
@@ -353,7 +452,7 @@ namespace GraduationProject.API.Controllers
                 return BadRequest(new { message = "You cannot invite yourself." });
 
             // TotalCapacity = PartnersCount (owner counts as one of the members)
-            if (project.Members.Count >= project.PartnersCount)              // ✅ إزالة + 1
+            if (project.Members.Count >= project.PartnersCount)
                 return BadRequest(new { message = "Project is full." });
 
             var alreadyMember = project.Members.Any(m => m.StudentId == receiverId);
@@ -434,7 +533,7 @@ namespace GraduationProject.API.Controllers
         private static StudentProjectResponseDto MapToDto(StudentProject p, int? callerProfileId)
         {
             var members = p.Members?.ToList() ?? new();
-            var totalCapacity = p.PartnersCount;                              // ✅ إزالة + 1
+            var totalCapacity = p.PartnersCount;
             var currentCount = members.Count;
 
             return new StudentProjectResponseDto
