@@ -122,8 +122,8 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Project not found." });
 
             // ── 5. Project is not full ────────────────────────────────────────
-            // TotalCapacity = PartnersCount + 1 (leader slot included)
-            if (project.Members.Count >= project.PartnersCount + 1)
+            // TotalCapacity = PartnersCount (owner counts as one of the members)
+            if (project.Members.Count >= project.PartnersCount)              // ✅ إزالة + 1
                 return BadRequest(new { message = "Project is full." });
 
             // ── 6. Student is not already a member ───────────────────────────
