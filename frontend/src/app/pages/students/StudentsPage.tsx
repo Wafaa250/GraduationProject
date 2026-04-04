@@ -32,11 +32,10 @@ export default function StudentsPage() {
   const [university,  setUniversity]  = useState('')
   const [major,       setMajor]       = useState('')
   const [skill,       setSkill]       = useState('')
-  const [isTeamFull,    setIsTeamFull]    = useState(false)
-  const [invitingId,    setInvitingId]    = useState<number | null>(null)
-  const [toast,         setToast]         = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [currentMembers, setCurrentMembers] = useState<number>(0)
-  const [partnersCount,  setPartnersCount]  = useState<number>(0)
+  const [isTeamFull,  setIsTeamFull]  = useState(false)
+  const [invitingId,  setInvitingId]  = useState<number | null>(null)
+  const [toast,       setToast]       = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [projectName, setProjectName] = useState<string | null>(null)
 
   // ── Toast helper ──────────────────────────────────────────────────────────
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -44,27 +43,17 @@ export default function StudentsPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // ── Fetch real project capacity from backend ──────────────────────────────
+  // ── Fetch project info (name + isFull) from backend ─────────────────────
   useEffect(() => {
     if (!projectId) return
     api.get(`/graduation-projects/${projectId}`)
       .then(res => {
         const p = res.data
-        const cm: number = p.currentMembers ?? 0
-        const pc: number = p.partnersCount  ?? 0
-        setCurrentMembers(cm)
-        setPartnersCount(pc)
-        setIsTeamFull(pc > 0 && cm >= pc)
+        setProjectName(p.name ?? null)
+        setIsTeamFull(p.isFull ?? false)
       })
-      .catch(() => {/* non-critical — invite button remains enabled */})
+      .catch(() => {/* non-critical */})
   }, [projectId])
-
-  // ── Re-evaluate team full whenever currentMembers updates after an invite ──
-  useEffect(() => {
-    if (partnersCount > 0) {
-      setIsTeamFull(currentMembers >= partnersCount)
-    }
-  }, [currentMembers, partnersCount])
 
   // ── Invite handler ───────────────────────────────────────────────────────
   const handleInvite = async (student: Student) => {
@@ -81,7 +70,6 @@ export default function StudentsPage() {
         )
       )
       showToast('Invitation sent')
-      setCurrentMembers(prev => prev + 1)
     } catch (err: any) {
       const msg: string = err?.response?.data?.message || 'Failed to send invitation.'
       showToast(msg, 'error')
@@ -97,18 +85,42 @@ export default function StudentsPage() {
   const fetchStudents = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (search)     params.set('search',     search)
-      if (university) params.set('university', university)
-      if (major)      params.set('major',      major)
-      if (skill)      params.set('skill',      skill)
-      // When browsing for a project, only show students who have no project yet
-      if (projectId)  params.set('availableOnly', 'true')
-      const res = await api.get(`/students?${params.toString()}`)
-      setStudents(res.data)
+      // When projectId is present, use the dedicated endpoint that returns
+      // isMember / hasPendingInvite / matchScore per student for this project
+      if (projectId) {
+        const params = new URLSearchParams()
+        if (search)     params.set('search',     search)
+        if (university) params.set('university', university)
+        if (major)      params.set('major',      major)
+        if (skill)      params.set('skill',      skill)
+        const res = await api.get(`/graduation-projects/${projectId}/available-students?${params.toString()}`)
+        // Map ProjectAvailableStudentDto → Student interface
+        setStudents(res.data.map((s: any) => ({
+          userId:           s.userId,
+          profileId:        s.studentId,
+          name:             s.name,
+          university:       s.university,
+          major:            s.major,
+          academicYear:     s.academicYear,
+          skills:           s.skills,
+          matchScore:       s.matchScore,
+          profilePicture:   s.profilePicture,
+          isMember:         s.isMember,
+          hasPendingInvite: s.hasPendingInvite,
+        })))
+      } else {
+        // Generic browse — no project context
+        const params = new URLSearchParams()
+        if (search)     params.set('search',     search)
+        if (university) params.set('university', university)
+        if (major)      params.set('major',      major)
+        if (skill)      params.set('skill',      skill)
+        const res = await api.get(`/students?${params.toString()}`)
+        setStudents(res.data)
+      }
     } catch { setStudents([]) }
     finally  { setLoading(false) }
-  }, [search, university, major, skill])
+  }, [search, university, major, skill, projectId])
 
   useEffect(() => {
     const t = setTimeout(fetchStudents, 300)
@@ -177,7 +189,7 @@ export default function StudentsPage() {
               <div style={S.projectBanner}>
                 <Users size={12} color="#6366f1" />
                 <span>
-                  Browsing for <strong>Project #{projectId}</strong>
+                  Browsing for <strong>{projectName ?? `Project #${projectId}`}</strong>
                   {' '}— share your project link so students can join
                 </span>
               </div>
