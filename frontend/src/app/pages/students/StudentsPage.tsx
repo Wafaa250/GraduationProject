@@ -1,52 +1,55 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, ArrowLeft, SlidersHorizontal, X, Users, Star } from 'lucide-react'
 import api from '../../../api/axiosInstance'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { sendInvitation } from '../../../api/invitationsApi'
 
 interface Student {
-  userId:         number
-  profileId:      number
-  name:           string
-  university:     string
-  major:          string
-  academicYear:   string
-  skills:         string[]
-  matchScore:     number
-  profilePicture: string | null
+  userId: number; profileId: number; name: string; university: string
+  major: string; academicYear: string; skills: string[]
+  matchScore: number; profilePicture: string | null
 }
-
-interface Filters {
-  universities: string[]
-  majors:       string[]
-  skills:       string[]
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+interface Filters { universities: string[]; majors: string[]; skills: string[] }
 
 export default function StudentsPage() {
   const navigate = useNavigate()
 
-  const [students, setStudents]       = useState<Student[]>([])
-  const [filters, setFilters]         = useState<Filters>({ universities: [], majors: [], skills: [] })
-  const [loading, setLoading]         = useState(true)
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  // Read projectId from URL: /students?projectId=5
+  // Set by DashboardPage "Browse Students to Join" button.
+  // null when page opened directly.
+  const [searchParams] = useSearchParams()
+  const projectId: number | null = searchParams.get('projectId')
+    ? Number(searchParams.get('projectId'))
+    : null
 
-  // Active filter values
+  // ── Invite state ─────────────────────────────────────────────────────────
+  // Tracks profileIds that have a pending invitation in this session.
+  const [pendingInvites, setPendingInvites] = useState<number[]>([])
+
+  const handleInvite = async (student: Student) => {
+    if (!projectId) return
+    try {
+      await sendInvitation(projectId, student.profileId)
+      setPendingInvites(prev => [...prev, student.profileId])
+    } catch (err: any) {
+      const msg: string = err?.response?.data?.message || 'Failed to send invitation.'
+      alert(msg)
+    }
+  }
+
+  const [students, setStudents]       = useState<Student[]>([])
+  const [filters,  setFilters]        = useState<Filters>({ universities: [], majors: [], skills: [] })
+  const [loading,  setLoading]        = useState(true)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [search,     setSearch]     = useState('')
   const [university, setUniversity] = useState('')
   const [major,      setMajor]      = useState('')
   const [skill,      setSkill]      = useState('')
 
-  // ── جلب الفلاتر المتاحة عند التحميل ──────────────────────────────────────
   useEffect(() => {
-    api.get('/students/filters')
-      .then(res => setFilters(res.data))
-      .catch(() => {})
+    api.get('/students/filters').then(res => setFilters(res.data)).catch(() => {})
   }, [])
 
-  // ── جلب الطلاب مع الفلاتر ────────────────────────────────────────────────
   const fetchStudents = useCallback(async () => {
     setLoading(true)
     try {
@@ -55,28 +58,20 @@ export default function StudentsPage() {
       if (university) params.set('university', university)
       if (major)      params.set('major',      major)
       if (skill)      params.set('skill',      skill)
-
+      // When browsing for a project, only show students who have no project yet
+      if (projectId)  params.set('availableOnly', 'true')
       const res = await api.get(`/students?${params.toString()}`)
       setStudents(res.data)
-    } catch {
-      setStudents([])
-    } finally {
-      setLoading(false)
-    }
+    } catch { setStudents([]) }
+    finally  { setLoading(false) }
   }, [search, university, major, skill])
 
   useEffect(() => {
-    const timer = setTimeout(fetchStudents, 300) // debounce الـ search
-    return () => clearTimeout(timer)
+    const t = setTimeout(fetchStudents, 300)
+    return () => clearTimeout(t)
   }, [fetchStudents])
 
-  const clearFilters = () => {
-    setSearch('')
-    setUniversity('')
-    setMajor('')
-    setSkill('')
-  }
-
+  const clearFilters = () => { setSearch(''); setUniversity(''); setMajor(''); setSkill('') }
   const hasActiveFilters = search || university || major || skill
   const activeCount = [university, major, skill].filter(Boolean).length
 
@@ -84,7 +79,7 @@ export default function StudentsPage() {
     <div style={S.page}>
       <BgDecor />
 
-      {/* ── NAV ── */}
+      {/* NAV */}
       <nav style={S.nav}>
         <div style={S.navInner}>
           <button onClick={() => navigate('/dashboard')} style={S.backBtn}>
@@ -107,129 +102,81 @@ export default function StudentsPage() {
 
       <div style={S.content}>
 
-        {/* ── HEADER ── */}
+        {/* HEADER */}
         <div style={S.header}>
           <div>
             <h1 style={S.title}>Browse Students</h1>
             <p style={S.subtitle}>
               {loading ? 'Loading...' : `${students.length} student${students.length !== 1 ? 's' : ''} found`}
               {hasActiveFilters && ' · Filters active'}
+              {projectId && !loading && ' · Showing available only'}
             </p>
+            {/* Project context banner — only shown when projectId is present */}
+            {projectId && (
+              <div style={S.projectBanner}>
+                <Users size={12} color="#6366f1" />
+                <span>
+                  Browsing for <strong>Project #{projectId}</strong>
+                  {' '}— share your project link so students can join
+                </span>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {hasActiveFilters && (
-              <button onClick={clearFilters} style={S.clearBtn}>
-                <X size={13} /> Clear all
-              </button>
+              <button onClick={clearFilters} style={S.clearBtn}><X size={13} /> Clear all</button>
             )}
             <button
               onClick={() => setFiltersOpen(o => !o)}
               style={{ ...S.filterToggle, ...(filtersOpen ? S.filterToggleActive : {}) }}
             >
-              <SlidersHorizontal size={14} />
-              Filters
-              {activeCount > 0 && (
-                <span style={S.filterBadge}>{activeCount}</span>
-              )}
+              <SlidersHorizontal size={14} /> Filters
+              {activeCount > 0 && <span style={S.filterBadge}>{activeCount}</span>}
             </button>
           </div>
         </div>
 
-        {/* ── SEARCH ── */}
+        {/* SEARCH */}
         <div style={S.searchWrap}>
           <Search size={15} style={S.searchIcon} />
-          <input
-            style={S.searchInput}
-            placeholder="Search by name..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+          <input style={S.searchInput} placeholder="Search by name..."
+            value={search} onChange={e => setSearch(e.target.value)} />
           {search && (
-            <button onClick={() => setSearch('')} style={S.searchClear}>
-              <X size={13} />
-            </button>
+            <button onClick={() => setSearch('')} style={S.searchClear}><X size={13} /></button>
           )}
         </div>
 
-        {/* ── FILTER PANEL ── */}
+        {/* FILTER PANEL */}
         {filtersOpen && (
           <div style={S.filterPanel}>
             <div style={S.filterGrid}>
-
-              {/* University */}
-              <div>
-                <label style={S.filterLabel}>University</label>
-                <select
-                  style={S.select}
-                  value={university}
-                  onChange={e => setUniversity(e.target.value)}
-                >
-                  <option value="">All universities</option>
-                  {filters.universities.map(u => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Major */}
-              <div>
-                <label style={S.filterLabel}>Major</label>
-                <select
-                  style={S.select}
-                  value={major}
-                  onChange={e => setMajor(e.target.value)}
-                >
-                  <option value="">All majors</option>
-                  {filters.majors.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Skill */}
-              <div>
-                <label style={S.filterLabel}>Skill</label>
-                <select
-                  style={S.select}
-                  value={skill}
-                  onChange={e => setSkill(e.target.value)}
-                >
-                  <option value="">All skills</option>
-                  {filters.skills.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-
+              {[
+                { label: 'University', value: university, set: setUniversity, opts: filters.universities, ph: 'All universities' },
+                { label: 'Major',      value: major,      set: setMajor,      opts: filters.majors,        ph: 'All majors'      },
+                { label: 'Skill',      value: skill,      set: setSkill,      opts: filters.skills,        ph: 'All skills'      },
+              ].map(f => (
+                <div key={f.label}>
+                  <label style={S.filterLabel}>{f.label}</label>
+                  <select style={S.select} value={f.value} onChange={e => f.set(e.target.value)}>
+                    <option value="">{f.ph}</option>
+                    {f.opts.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* ── ACTIVE FILTER CHIPS ── */}
+        {/* ACTIVE CHIPS */}
         {hasActiveFilters && (
           <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 16 }}>
-            {university && (
-              <span style={S.chip}>
-                🏛 {university}
-                <button onClick={() => setUniversity('')} style={S.chipX}>×</button>
-              </span>
-            )}
-            {major && (
-              <span style={S.chip}>
-                📚 {major}
-                <button onClick={() => setMajor('')} style={S.chipX}>×</button>
-              </span>
-            )}
-            {skill && (
-              <span style={S.chip}>
-                ⚡ {skill}
-                <button onClick={() => setSkill('')} style={S.chipX}>×</button>
-              </span>
-            )}
+            {university && <span style={S.chip}>🏛 {university}<button onClick={() => setUniversity('')} style={S.chipX}>×</button></span>}
+            {major      && <span style={S.chip}>📚 {major}<button onClick={() => setMajor('')} style={S.chipX}>×</button></span>}
+            {skill      && <span style={S.chip}>⚡ {skill}<button onClick={() => setSkill('')} style={S.chipX}>×</button></span>}
           </div>
         )}
 
-        {/* ── STUDENTS GRID ── */}
+        {/* STUDENTS */}
         {loading ? (
           <div style={S.loadingWrap}>
             <div style={S.spinner} />
@@ -240,30 +187,60 @@ export default function StudentsPage() {
             <span style={{ fontSize: 40 }}>🔍</span>
             <p style={{ fontSize: 16, fontWeight: 700, color: '#475569', margin: '8px 0 4px' }}>No students found</p>
             <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>Try adjusting your filters or search</p>
-            {hasActiveFilters && (
-              <button onClick={clearFilters} style={{ ...S.clearBtn, marginTop: 12 }}>
-                Clear filters
-              </button>
-            )}
           </div>
-        ) : (
-          <div style={S.grid}>
-            {students.map(student => (
-              <StudentCard
-                key={student.userId}
-                student={student}
-                onView={() => navigate(`/students/${student.userId}`)}
-              />
-            ))}
-          </div>
-        )}
+        ) : (() => {
+          // ── Split into recommended (≥60) and others (<60) ─────────────────
+          const recommended = students.filter(s => s.matchScore >= 60)
+          const others      = students.filter(s => s.matchScore < 60)
 
+          const renderCard = (s: Student) => (
+            <StudentCard
+              key={s.userId}
+              student={s}
+              onView={() => navigate(`/students/${s.userId}`)}
+              onInvite={projectId ? () => handleInvite(s) : undefined}
+              isPending={pendingInvites.includes(s.profileId)}
+            />
+          )
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 28 }}>
+
+              {/* ── Recommended Teammates ── */}
+              <section>
+                <div style={S.sectionHeader}>
+                  <span style={S.sectionTitle}>⭐ Recommended Teammates</span>
+                  <span style={S.sectionCount}>{recommended.length} students</span>
+                </div>
+                {recommended.length === 0 ? (
+                  <div style={S.sectionEmpty}>
+                    No students with a high match score yet.
+                  </div>
+                ) : (
+                  <div style={S.grid}>{recommended.map(renderCard)}</div>
+                )}
+              </section>
+
+              {/* ── Other Students ── */}
+              {others.length > 0 && (
+                <section>
+                  <div style={S.sectionHeader}>
+                    <span style={S.sectionTitle}>👥 Other Students</span>
+                    <span style={S.sectionCount}>{others.length} students</span>
+                  </div>
+                  <div style={S.grid}>{others.map(renderCard)}</div>
+                </section>
+              )}
+
+            </div>
+          )
+        })()}
       </div>
 
       <style>{`
         select:focus, input:focus { outline: none; border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         .student-card { animation: fadeUp 0.3s ease forwards; }
         .student-card:hover { transform: translateY(-2px) !important; box-shadow: 0 8px 28px rgba(99,102,241,0.12) !important; }
       `}</style>
@@ -271,72 +248,47 @@ export default function StudentsPage() {
   )
 }
 
-// ─── Student Card ─────────────────────────────────────────────────────────────
-
-function StudentCard({ student, onView }: { student: Student; onView: () => void }) {
-  const initials = student.name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-
-  const scoreColor =
-    student.matchScore >= 70 ? '#16a34a' :
-    student.matchScore >= 40 ? '#d97706' : '#64748b'
-
-  const scoreBg =
-    student.matchScore >= 70 ? '#f0fdf4' :
-    student.matchScore >= 40 ? '#fffbeb' : '#f8fafc'
-
-  const scoreBorder =
-    student.matchScore >= 70 ? '#bbf7d0' :
-    student.matchScore >= 40 ? '#fde68a' : '#e2e8f0'
+function StudentCard({
+  student,
+  onView,
+  onInvite,
+  isPending = false,
+}: {
+  student:    Student
+  onView:     () => void
+  onInvite?:  () => void
+  isPending?: boolean
+}) {
+  const initials = student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  const scoreColor = student.matchScore >= 70 ? '#16a34a' : student.matchScore >= 40 ? '#d97706' : '#64748b'
+  const scoreBg    = student.matchScore >= 70 ? '#f0fdf4' : student.matchScore >= 40 ? '#fffbeb' : '#f8fafc'
+  const scoreBorder= student.matchScore >= 70 ? '#bbf7d0' : student.matchScore >= 40 ? '#fde68a' : '#e2e8f0'
 
   return (
     <div className="student-card" style={S.card}>
-      {/* Match score badge */}
       {student.matchScore > 0 && (
         <div style={{ ...S.scoreBadge, background: scoreBg, border: `1px solid ${scoreBorder}`, color: scoreColor }}>
           <Star size={10} fill={scoreColor} />
           <span style={{ fontSize: 11, fontWeight: 800 }}>{student.matchScore}%</span>
         </div>
       )}
-
-      {/* Avatar */}
       <div style={S.avatarWrap}>
-        {student.profilePicture ? (
-          <img
-            src={student.profilePicture}
-            alt={student.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: '50%' }}
-          />
-        ) : (
-          <div style={S.avatarFallback}>{initials}</div>
-        )}
+        {student.profilePicture
+          ? <img src={student.profilePicture} alt={student.name} style={{ width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: '50%' }} />
+          : <div style={S.avatarFallback}>{initials}</div>
+        }
       </div>
-
-      {/* Info */}
       <div style={{ flex: 1 }}>
-        <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>
-          {student.name}
-        </p>
-        <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 2px', fontWeight: 500 }}>
-          {student.major || '—'}
-        </p>
+        <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>{student.name}</p>
+        <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 2px', fontWeight: 500 }}>{student.major || '—'}</p>
         {student.university && (
           <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>
-            🏛 {student.university}
-            {student.academicYear && ` · ${student.academicYear}`}
+            🏛 {student.university}{student.academicYear && ` · ${student.academicYear}`}
           </p>
         )}
-
-        {/* Skills */}
         {student.skills.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
-            {student.skills.slice(0, 4).map(sk => (
-              <span key={sk} style={S.skillChip}>{sk}</span>
-            ))}
+            {student.skills.slice(0, 4).map(sk => <span key={sk} style={S.skillChip}>{sk}</span>)}
             {student.skills.length > 4 && (
               <span style={{ ...S.skillChip, background: '#f8fafc', color: '#94a3b8', borderColor: '#e2e8f0' }}>
                 +{student.skills.length - 4}
@@ -345,16 +297,17 @@ function StudentCard({ student, onView }: { student: Student; onView: () => void
           </div>
         )}
       </div>
-
-      {/* Action */}
-      <button onClick={onView} style={S.viewBtn}>
-        View Profile
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, alignSelf: 'center' as const, flexShrink: 0 }}>
+        <button onClick={onView} style={S.viewBtn}>View Profile</button>
+        {onInvite && (
+          isPending
+            ? <button disabled style={{ ...S.addBtn, background: '#e2e8f0', color: '#94a3b8', cursor: 'default' }}>⏳ Pending</button>
+            : <button onClick={onInvite} style={S.addBtn}>+ Invite</button>
+        )}
+      </div>
     </div>
   )
 }
-
-// ─── Background ───────────────────────────────────────────────────────────────
 
 function BgDecor() {
   return (
@@ -365,13 +318,11 @@ function BgDecor() {
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const S: Record<string, React.CSSProperties> = {
   page:              { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative' },
   nav:               { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
   navInner:          { maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 58, display: 'flex', alignItems: 'center', gap: 12 },
-  navLogo:           { display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flex: 1, justifyContent: 'center' },
+  navLogo:           { display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' },
   logoIcon:          { width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   logoText:          { fontSize: 16, fontWeight: 800, color: '#0f172a', fontFamily: 'Syne, sans-serif' },
   logoAccent:        { background: 'linear-gradient(135deg,#6366f1,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
@@ -379,29 +330,36 @@ const S: Record<string, React.CSSProperties> = {
   content:           { maxWidth: 1100, margin: '0 auto', padding: '28px 24px 60px', position: 'relative', zIndex: 1 },
   header:            { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 },
   title:             { fontSize: 26, fontWeight: 800, color: '#0f172a', margin: '0 0 4px', fontFamily: 'Syne, sans-serif', letterSpacing: '-0.5px' },
-  subtitle:          { fontSize: 13, color: '#94a3b8', margin: 0, fontWeight: 500 },
+  subtitle:          { fontSize: 13, color: '#94a3b8', margin: '0 0 6px', fontWeight: 500 },
+  projectBanner:     { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, color: '#4338ca', fontWeight: 500 },
   clearBtn:          { display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: 'white', border: '1.5px solid #fca5a5', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#ef4444', cursor: 'pointer', fontFamily: 'inherit' },
   filterToggle:      { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 9, fontSize: 12, fontWeight: 700, color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', position: 'relative' as const },
   filterToggleActive:{ background: '#eef2ff', borderColor: '#c7d2fe', color: '#6366f1' },
   filterBadge:       { position: 'absolute' as const, top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   searchWrap:        { position: 'relative' as const, marginBottom: 14 },
   searchIcon:        { position: 'absolute' as const, left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' as const },
-  searchInput:       { width: '100%', padding: '11px 40px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, fontSize: 14, color: '#0f172a', boxSizing: 'border-box' as const, fontFamily: 'inherit', transition: 'all 0.2s' },
+  searchInput:       { width: '100%', padding: '11px 40px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, fontSize: 14, color: '#0f172a', boxSizing: 'border-box' as const, fontFamily: 'inherit' },
   searchClear:       { position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' },
-  filterPanel:       { background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 14, padding: '18px 20px', marginBottom: 14, boxShadow: '0 4px 16px rgba(99,102,241,0.06)' },
+  filterPanel:       { background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 14, padding: '18px 20px', marginBottom: 14 },
   filterGrid:        { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 },
   filterLabel:       { display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.06em' },
   select:            { width: '100%', padding: '9px 12px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 9, fontSize: 13, color: '#334155', cursor: 'pointer', fontFamily: 'inherit', boxSizing: 'border-box' as const },
   chip:              { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, color: '#6366f1', fontWeight: 600 },
   chipX:             { background: 'none', border: 'none', cursor: 'pointer', color: '#a5b4fc', fontSize: 14, lineHeight: 1, padding: 0, fontFamily: 'inherit' },
   grid:              { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 14 },
-  card:              { display: 'flex', alignItems: 'flex-start', gap: 14, padding: '18px', background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, boxShadow: '0 2px 8px rgba(99,102,241,0.04)', position: 'relative' as const, transition: 'all 0.2s', cursor: 'default' },
+  card:              { display: 'flex', alignItems: 'flex-start', gap: 14, padding: '18px', background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, boxShadow: '0 2px 8px rgba(99,102,241,0.04)', position: 'relative' as const, transition: 'all 0.2s' },
   scoreBadge:        { position: 'absolute' as const, top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 20 },
   avatarWrap:        { width: 48, height: 48, borderRadius: '50%', flexShrink: 0, overflow: 'hidden' },
   avatarFallback:    { width: '100%', height: '100%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: 'white' },
   skillChip:         { padding: '3px 9px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 10, color: '#6366f1', fontWeight: 600 },
-  viewBtn:           { marginLeft: 'auto', flexShrink: 0, padding: '7px 14px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', alignSelf: 'center' as const },
+  viewBtn:           { padding: '7px 14px', background: 'white', border: '1.5px solid #e2e8f0', color: '#6366f1', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const },
+  addBtn:            { padding: '7px 14px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const },
+  addSuccess:        { padding: '5px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 9, fontSize: 11, fontWeight: 700, color: '#16a34a', textAlign: 'center' as const },
   loadingWrap:       { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '80px 0' },
   spinner:           { width: 32, height: 32, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' },
   emptyWrap:         { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '80px 0', textAlign: 'center' as const },
+  sectionHeader:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionTitle:      { fontSize: 13, fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.06em' },
+  sectionCount:      { fontSize: 12, color: '#94a3b8', fontWeight: 500 },
+  sectionEmpty:      { padding: '20px 16px', background: '#f8fafc', border: '1px dashed #e2e8f0', borderRadius: 12, fontSize: 13, color: '#94a3b8', textAlign: 'center' as const },
 }

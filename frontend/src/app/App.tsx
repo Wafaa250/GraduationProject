@@ -13,7 +13,8 @@ import ChannelPageWrapper from "./pages/doctor/ChannelPageWrapper";
 
 
 import StudentsPage from "./pages/students/StudentsPage";
-import StudentProfilePage from "./pages/students/StudentProfilePage";
+import StudentProfilePage from "./pages/students/StudentProfilePage"
+import ReceivedInvitationsPage from "./pages/invitations/ReceivedInvitationsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem('token')
@@ -43,6 +44,7 @@ export default function App() {
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
                     <Route path="/students/:userId" element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>} />
+                    <Route path="/invitations" element={<ProtectedRoute><ReceivedInvitationsPage /></ProtectedRoute>} />
 
                     {/* Catch-all */}
                     <Route path="*" element={<Navigate to="/" replace />} />
