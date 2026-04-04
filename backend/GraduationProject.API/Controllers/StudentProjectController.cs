@@ -34,9 +34,6 @@ namespace GraduationProject.API.Controllers
         // =====================================================================
         // GET /api/graduation-projects
         // Project Discovery — returns all projects for browsing and search.
-        //
-        // [AI HOOK] Future: inject AI-ranked recommendations based on
-        //           the current student's skills and profile before returning.
         // =====================================================================
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -48,9 +45,6 @@ namespace GraduationProject.API.Controllers
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
-
-            // [AI HOOK] Replace or augment the ordered list here with
-            //           AI-ranked results once the matching service is ready.
 
             return Ok(projects.Select(p => MapToDto(p, callerProfileId)));
         }
@@ -65,7 +59,6 @@ namespace GraduationProject.API.Controllers
             var student = await GetStudentProfileAsync();
             if (student == null) return Forbid();
 
-            // Check if the student owns a project
             var ownedProject = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
@@ -74,7 +67,6 @@ namespace GraduationProject.API.Controllers
             if (ownedProject != null)
                 return Ok(new { role = "owner", project = MapToDto(ownedProject, student.Id) });
 
-            // Check if the student is a team member in another project
             var membership = await _db.StudentProjectMembers
                 .Include(m => m.Project)
                     .ThenInclude(p => p.Owner).ThenInclude(o => o.User)
@@ -85,16 +77,11 @@ namespace GraduationProject.API.Controllers
             if (membership != null)
                 return Ok(new { role = "member", project = MapToDto(membership.Project, student.Id) });
 
-            // Student has no project affiliation
             return Ok(new { role = (string?)null, project = (object?)null });
         }
 
         // =====================================================================
         // GET /api/graduation-projects/{id}
-        // Project Workspace — returns full details for a single project.
-        //
-        // [AI HOOK] Future: attach AI-generated suggestions here, such as
-        //           recommended team members or similar projects.
         // =====================================================================
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
@@ -109,16 +96,11 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // [AI HOOK] Attach AI insights to the response here (e.g., team
-            //           compatibility score, suggested collaborators) when ready.
-
             return Ok(MapToDto(project, callerProfileId));
         }
 
         // =====================================================================
         // GET /api/graduation-projects/{id}/members
-        // Returns the member list for a single project.
-        // Useful for frontend components that only need the team, not full details.
         // =====================================================================
         [HttpGet("{id:int}/members")]
         public async Task<IActionResult> GetMembers(int id)
@@ -149,8 +131,8 @@ namespace GraduationProject.API.Controllers
             {
                 projectId = project.Id,
                 currentMembers = members.Count,
-                totalCapacity = project.PartnersCount + 1,
-                remainingSeats = Math.Max(0, project.PartnersCount + 1 - members.Count),
+                totalCapacity = project.PartnersCount,                              // ✅ إزالة + 1
+                remainingSeats = Math.Max(0, project.PartnersCount - members.Count), // ✅ إزالة + 1
                 members
             });
         }
@@ -158,11 +140,7 @@ namespace GraduationProject.API.Controllers
         // =====================================================================
         // POST /api/graduation-projects
         // Create a new project — students only.
-        // Each student may own exactly one project at a time.
-        //
-        // After the project is saved, the owner is automatically inserted as
-        // the first member with Role = "leader".  This keeps the Members list
-        // consistent: every project always has its owner inside the team.
+        // Owner is automatically inserted as the first member with Role = "leader".
         // =====================================================================
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateStudentProjectDto dto)
@@ -189,10 +167,8 @@ namespace GraduationProject.API.Controllers
             };
 
             _db.StudentProjects.Add(project);
-            await _db.SaveChangesAsync();  // project.Id is now available
+            await _db.SaveChangesAsync();
 
-            // ── Auto-insert owner as leader ───────────────────────────────────
-            // Guard: skip if the record already exists (idempotency safety).
             var leaderExists = await _db.StudentProjectMembers
                 .AnyAsync(m => m.ProjectId == project.Id && m.StudentId == project.OwnerId);
 
@@ -208,7 +184,6 @@ namespace GraduationProject.API.Controllers
                 await _db.SaveChangesAsync();
             }
 
-            // Reload full navigation properties for response mapping
             await _db.Entry(project).Reference(p => p.Owner).LoadAsync();
             await _db.Entry(project.Owner).Reference(o => o.User).LoadAsync();
             await _db.Entry(project).Collection(p => p.Members).Query()
@@ -220,7 +195,6 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // PUT /api/graduation-projects/{id}
-        // Update project details — project owner only.
         // =====================================================================
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateStudentProjectDto dto)
@@ -255,8 +229,6 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // DELETE /api/graduation-projects/{id}
-        // Delete a project and its entire team — project owner only.
-        // (Cascade delete on graduation_project_members handles member cleanup.)
         // =====================================================================
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
@@ -281,20 +253,6 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // POST /api/graduation-projects/{id}/join
-        // Join a project as a team member.
-        //
-        // Validation order (each returns a distinct error):
-        //   1. Caller must be a student
-        //   2. Project must exist
-        //   3. Owner cannot join their own project
-        //   4. Student must not already be a member of THIS project
-        //   5. Student must not own or be a member of ANY other project
-        //   6. Project must not be full (capacity = PartnersCount + 1)
-        //
-        // On success: returns the updated CurrentMembers count.
-        //
-        // [AI HOOK] Future: validate AI-based team compatibility before allowing
-        //           the join, or surface a compatibility score to the student.
         // =====================================================================
         [HttpPost("{id:int}/join")]
         public async Task<IActionResult> Join(int id)
@@ -309,21 +267,18 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // 1. Owner cannot join their own project
             if (project.OwnerId == student.Id)
                 return BadRequest(new { message = "You cannot join your own project as a member." });
 
-            // 2. Already a member of THIS specific project
             var alreadyInThisProject = project.Members.Any(m => m.StudentId == student.Id);
             if (alreadyInThisProject)
                 return BadRequest(new { message = "You are already a member of this project." });
 
-            // 3. Owns or is a member of any other project
             var conflict = await CheckProjectConflict(student.Id);
             if (conflict != null) return conflict;
 
-            // 4. Project is full — capacity = PartnersCount + 1 (leader slot included)
-            if (project.Members.Count >= project.PartnersCount + 1)
+            // TotalCapacity = PartnersCount (owner counts as one of the members)
+            if (project.Members.Count >= project.PartnersCount)              // ✅ إزالة + 1
                 return BadRequest(new { message = "This project's team is already full." });
 
             _db.StudentProjectMembers.Add(new StudentProjectMember
@@ -336,7 +291,7 @@ namespace GraduationProject.API.Controllers
 
             await _db.SaveChangesAsync();
 
-            var updatedCount = project.Members.Count + 1; // +1 for the just-added member
+            var updatedCount = project.Members.Count + 1;
             return Ok(new
             {
                 message = "Successfully joined the project team.",
@@ -346,9 +301,6 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // DELETE /api/graduation-projects/{id}/leave
-        // Leave a project team — Role = "member" only.
-        //
-        // The project owner (leader) cannot leave — they must delete the project.
         // =====================================================================
         [HttpDelete("{id:int}/leave")]
         public async Task<IActionResult> Leave(int id)
@@ -362,7 +314,6 @@ namespace GraduationProject.API.Controllers
             if (membership == null)
                 return NotFound(new { message = "You are not a member of this project." });
 
-            // Owner/leader cannot leave — they must delete the project instead
             if (membership.Role == "leader")
                 return BadRequest(new { message = "Project owner cannot leave the project. Delete the project instead." });
 
@@ -374,8 +325,6 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // POST /api/graduation-projects/{projectId}/invite/{receiverId}
-        // Send an invitation to a student to join the project.
-        // Only the project owner can send invites.
         // =====================================================================
         [HttpPost("{projectId:int}/invite/{receiverId:int}")]
         public async Task<IActionResult> SendInvitation(int projectId, int receiverId)
@@ -384,7 +333,6 @@ namespace GraduationProject.API.Controllers
             if (senderProfile == null)
                 return Forbid();
 
-            // ── 1. Project exists ─────────────────────────────────────────────
             var project = await _db.StudentProjects
                 .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
@@ -392,11 +340,9 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // ── 2. Current user is the owner ──────────────────────────────────
             if (project.OwnerId != senderProfile.Id)
                 return StatusCode(403, new { message = "Not authorized." });
 
-            // ── 3. Receiver exists and is not the owner ───────────────────────
             var receiverExists = await _db.StudentProfiles
                 .AnyAsync(s => s.Id == receiverId);
 
@@ -406,17 +352,14 @@ namespace GraduationProject.API.Controllers
             if (receiverId == senderProfile.Id)
                 return BadRequest(new { message = "You cannot invite yourself." });
 
-            // ── 4. Project is not full ────────────────────────────────────────
-            // TotalCapacity = PartnersCount + 1 (leader slot included)
-            if (project.Members.Count >= project.PartnersCount + 1)
+            // TotalCapacity = PartnersCount (owner counts as one of the members)
+            if (project.Members.Count >= project.PartnersCount)              // ✅ إزالة + 1
                 return BadRequest(new { message = "Project is full." });
 
-            // ── 5. Receiver is not already a member ───────────────────────────
             var alreadyMember = project.Members.Any(m => m.StudentId == receiverId);
             if (alreadyMember)
                 return BadRequest(new { message = "User already a member." });
 
-            // ── 6. No existing pending invitation ────────────────────────────
             var pendingExists = await _db.ProjectInvitations
                 .AnyAsync(i =>
                     i.ProjectId == projectId &&
@@ -426,7 +369,6 @@ namespace GraduationProject.API.Controllers
             if (pendingExists)
                 return Conflict(new { message = "Invitation already sent." });
 
-            // ── 7. Create invitation ──────────────────────────────────────────
             var invitation = new ProjectInvitation
             {
                 ProjectId = projectId,
@@ -449,10 +391,6 @@ namespace GraduationProject.API.Controllers
 
         // ── Private Helpers ───────────────────────────────────────────────────
 
-        /// <summary>
-        /// Resolves the full StudentProfile for the authenticated user.
-        /// Returns null if the caller is not a student.
-        /// </summary>
         private async Task<StudentProfile?> GetStudentProfileAsync()
         {
             if (AuthorizationHelper.GetRole(User) != "student") return null;
@@ -460,11 +398,6 @@ namespace GraduationProject.API.Controllers
             return await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == userId);
         }
 
-        /// <summary>
-        /// Returns the StudentProfile.Id of the authenticated user,
-        /// or null if the caller is not a student (e.g. doctor, company, admin).
-        /// Used to populate IsOwner in MapToDto without requiring a full profile load.
-        /// </summary>
         private async Task<int?> GetCurrentStudentProfileIdAsync()
         {
             if (AuthorizationHelper.GetRole(User) != "student") return null;
@@ -475,11 +408,6 @@ namespace GraduationProject.API.Controllers
             return profile?.Id;
         }
 
-        /// <summary>
-        /// Ensures a student is not already affiliated with any project
-        /// (neither as an owner nor as a team member).
-        /// Returns a conflict IActionResult if a violation is found, otherwise null.
-        /// </summary>
         private async Task<IActionResult?> CheckProjectConflict(int studentId)
         {
             var ownsProject = await _db.StudentProjects
@@ -498,23 +426,15 @@ namespace GraduationProject.API.Controllers
         /// <summary>
         /// Maps a StudentProject entity to its response DTO.
         ///
-        /// IsFull / capacity logic:
-        ///   PartnersCount   = number of NON-owner partners allowed.
-        ///   TotalCapacity   = PartnersCount + 1  (leader occupies one slot)
-        ///   IsFull          = CurrentMembers >= TotalCapacity
-        ///   RemainingSeats  = max(0, TotalCapacity - CurrentMembers)
-        ///
-        /// IsOwner:
-        ///   Compared against callerProfileId (StudentProfile.Id).
-        ///   Null-safe — non-student callers simply get IsOwner = false.
-        ///
-        /// Role:
-        ///   Each member's Role comes directly from the DB ("leader" | "member").
+        /// Capacity logic:
+        ///   PartnersCount  = total team size (owner included)
+        ///   IsFull         = CurrentMembers >= PartnersCount
+        ///   RemainingSeats = max(0, PartnersCount - CurrentMembers)
         /// </summary>
         private static StudentProjectResponseDto MapToDto(StudentProject p, int? callerProfileId)
         {
             var members = p.Members?.ToList() ?? new();
-            var totalCapacity = p.PartnersCount + 1;           // +1 for the leader slot
+            var totalCapacity = p.PartnersCount;                              // ✅ إزالة + 1
             var currentCount = members.Count;
 
             return new StudentProjectResponseDto
@@ -542,7 +462,7 @@ namespace GraduationProject.API.Controllers
                     University = m.Student?.University ?? "",
                     Major = m.Student?.Major ?? "",
                     ProfilePicture = m.Student?.ProfilePictureBase64,
-                    Role = m.Role,   // "leader" | "member" from DB
+                    Role = m.Role,
                     JoinedAt = m.JoinedAt,
                 }).ToList(),
                 CreatedAt = p.CreatedAt,
