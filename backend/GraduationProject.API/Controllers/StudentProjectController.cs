@@ -101,10 +101,14 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // GET /api/graduation-projects/{id}/members
+        // Returns full team data with caller-aware management flags.
+        // Accessible by any authenticated student (not owner-only).
         // =====================================================================
         [HttpGet("{id:int}/members")]
         public async Task<IActionResult> GetMembers(int id)
         {
+            var callerProfile = await GetStudentProfileAsync();
+
             var project = await _db.StudentProjects
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -112,7 +116,21 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
+            // ── Caller-aware flags ────────────────────────────────────────────
+            var isOwner = callerProfile != null && project.OwnerId == callerProfile.Id;
+            var isLeader = callerProfile != null && project.Members
+                .Any(m => m.StudentId == callerProfile.Id && m.Role == "leader");
+
+            // ── Capacity ──────────────────────────────────────────────────────
+            var totalCapacity = project.PartnersCount;
+            var currentMembers = project.Members.Count;
+            var remainingSeats = Math.Max(0, totalCapacity - currentMembers);
+            var isFull = currentMembers >= totalCapacity;
+
+            // ── Members list — leader first, then by joinedAt ─────────────────
             var members = (project.Members ?? new List<StudentProjectMember>())
+                .OrderBy(m => m.Role == "leader" ? 0 : 1)
+                .ThenBy(m => m.JoinedAt)
                 .Select(m => new StudentProjectMemberDto
                 {
                     StudentId = m.StudentId,
@@ -130,9 +148,12 @@ namespace GraduationProject.API.Controllers
             return Ok(new
             {
                 projectId = project.Id,
-                currentMembers = members.Count,
-                totalCapacity = project.PartnersCount,
-                remainingSeats = Math.Max(0, project.PartnersCount - members.Count),
+                currentMembers,
+                totalCapacity,
+                remainingSeats,
+                isFull,
+                isOwner,
+                isLeader,
                 members
             });
         }
@@ -149,7 +170,6 @@ namespace GraduationProject.API.Controllers
             var owner = await GetStudentProfileAsync();
             if (owner == null) return Forbid();
 
-            // ── 1. Project exists + load members ─────────────────────────────
             var project = await _db.StudentProjects
                 .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
@@ -157,33 +177,27 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // ── 2. Current user is the owner ──────────────────────────────────
             if (project.OwnerId != owner.Id)
                 return StatusCode(403, new { message = "Not authorized." });
 
-            // ── 3. Load all students except the owner ─────────────────────────
             var allStudents = await _db.StudentProfiles
                 .Include(s => s.User)
                 .Where(s => s.UserId != owner.UserId)
                 .ToListAsync();
 
-            // ── 4. Load pending invite receiver IDs for this project ──────────
             var pendingInviteReceiverIds = await _db.ProjectInvitations
                 .Where(i => i.ProjectId == projectId && i.Status == "pending")
                 .Select(i => i.ReceiverId)
                 .ToListAsync();
 
-            // ── 5. Pre-compute reusable values ────────────────────────────────
             var memberIds = project.Members.Select(m => m.StudentId).ToHashSet();
             var isProjectFull = project.Members.Count >= project.PartnersCount;
 
-            // Owner's skill IDs for matchScore calculation
             var ownerIds = SkillHelper.ParseIntList(owner.Roles)
                 .Concat(SkillHelper.ParseIntList(owner.TechnicalSkills))
                 .Concat(SkillHelper.ParseIntList(owner.Tools))
                 .ToList();
 
-            // ── 6. Map each student to DTO ────────────────────────────────────
             var result = new List<ProjectAvailableStudentDto>();
 
             foreach (var s in allStudents)
@@ -192,7 +206,6 @@ namespace GraduationProject.API.Controllers
                 var hasPendingInvite = pendingInviteReceiverIds.Contains(s.Id);
                 var isOwnerStudent = s.Id == project.OwnerId;
 
-                // MatchScore — same logic as StudentsController
                 var theirIds = SkillHelper.ParseIntList(s.Roles)
                     .Concat(SkillHelper.ParseIntList(s.TechnicalSkills))
                     .Concat(SkillHelper.ParseIntList(s.Tools))
@@ -206,7 +219,6 @@ namespace GraduationProject.API.Controllers
                 );
                 matchScore = Math.Min(matchScore, 100);
 
-                // Display names for up to 4 roles
                 var roleIds = SkillHelper.ParseIntList(s.Roles).Take(4).ToList();
                 var displayNames = await _db.Skills
                     .Where(sk => roleIds.Contains(sk.Id))
@@ -242,12 +254,6 @@ namespace GraduationProject.API.Controllers
         // Returns students ranked by how well their skills match the project
         // required skills — NOT based on owner similarity.
         //
-        // Improvements over basic version:
-        //   - Skill names loaded once (no N+1 queries)
-        //   - Graceful fallback when project has no required skills (score = 50)
-        //   - No hard filter on matchScore > 0 (weaker matches stay at bottom)
-        //   - Result capped at top 20 for performance
-        //
         // [AI HOOK] Future: replace or augment this rule-based score with a
         //           real AI model that considers experience, availability, etc.
         // =====================================================================
@@ -257,7 +263,6 @@ namespace GraduationProject.API.Controllers
             var owner = await GetStudentProfileAsync();
             if (owner == null) return Forbid();
 
-            // ── 1. Project exists + load members ─────────────────────────────
             var project = await _db.StudentProjects
                 .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
@@ -265,33 +270,25 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // ── 2. Current user is the owner ──────────────────────────────────
             if (project.OwnerId != owner.Id)
                 return StatusCode(403, new { message = "Not authorized." });
 
-            // ── 3. Convert project required skill names → IDs ─────────────────
             var projectSkillIds = await GetProjectSkillIdsAsync(project.RequiredSkills);
             var hasRequirements = projectSkillIds.Count > 0;
 
-            // ── 4. Load all students except the owner ─────────────────────────
             var allStudents = await _db.StudentProfiles
                 .Include(s => s.User)
                 .Where(s => s.UserId != owner.UserId)
                 .ToListAsync();
 
-            // ── 5. Load pending invite receiver IDs for this project ──────────
             var pendingInviteReceiverIds = await _db.ProjectInvitations
                 .Where(i => i.ProjectId == projectId && i.Status == "pending")
                 .Select(i => i.ReceiverId)
                 .ToListAsync();
 
-            // ── 6. Pre-compute reusable values ────────────────────────────────
             var memberIds = project.Members.Select(m => m.StudentId).ToHashSet();
             var isProjectFull = project.Members.Count >= project.PartnersCount;
 
-            // ── 7. Load ALL skill names once — avoids N+1 queries ─────────────
-            // Collect every role ID across all students in a single pass,
-            // then fetch all names in one query instead of one per student.
             var allRoleIds = allStudents
                 .SelectMany(s => SkillHelper.ParseIntList(s.Roles).Take(4))
                 .Distinct()
@@ -301,7 +298,6 @@ namespace GraduationProject.API.Controllers
                 .Where(sk => allRoleIds.Contains(sk.Id))
                 .ToDictionaryAsync(sk => sk.Id, sk => sk.Name);
 
-            // ── 8. Map each student → score based on PROJECT skills ───────────
             var result = new List<ProjectAvailableStudentDto>();
 
             foreach (var s in allStudents)
@@ -310,16 +306,11 @@ namespace GraduationProject.API.Controllers
                 var hasPendingInvite = pendingInviteReceiverIds.Contains(s.Id);
                 var isOwnerStudent = s.Id == project.OwnerId;
 
-                // Student skill IDs from all three JSON fields
                 var studentSkillIds = SkillHelper.ParseIntList(s.Roles)
                     .Concat(SkillHelper.ParseIntList(s.TechnicalSkills))
                     .Concat(SkillHelper.ParseIntList(s.Tools))
                     .ToHashSet();
 
-                // matchScore logic:
-                //   - If project has requirements → common / required * 100
-                //   - If project has no requirements → neutral score 50
-                //     (project is open to anyone, show all students as browsable)
                 int matchScore;
                 if (hasRequirements)
                 {
@@ -332,7 +323,6 @@ namespace GraduationProject.API.Controllers
                     matchScore = 50;
                 }
 
-                // Resolve display names from the pre-loaded map (no DB call here)
                 var displayNames = SkillHelper.ParseIntList(s.Roles)
                     .Take(4)
                     .Where(id => skillNameMap.ContainsKey(id))
@@ -360,7 +350,6 @@ namespace GraduationProject.API.Controllers
                 });
             }
 
-            // Sort descending by matchScore, cap at top 20
             return Ok(result
                 .OrderByDescending(s => s.MatchScore)
                 .Take(20)
@@ -552,6 +541,109 @@ namespace GraduationProject.API.Controllers
 
             return Ok(new { message = "You have left the project team." });
         }
+
+        // =====================================================================
+        // DELETE /api/graduation-projects/{projectId}/members/{memberId}
+        // Remove a member from the project team — leader only.
+        // memberId = StudentProfile.Id
+        // =====================================================================
+        [HttpDelete("{projectId:int}/members/{memberId:int}")]
+        public async Task<IActionResult> RemoveMember(int projectId, int memberId)
+        {
+            var caller = await GetStudentProfileAsync();
+            if (caller == null) return Forbid();
+
+            // ── 1. Project exists ─────────────────────────────────────────────
+            var project = await _db.StudentProjects
+                .Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            // ── 2. Current user is the leader ─────────────────────────────────
+            var callerMembership = project.Members
+                .FirstOrDefault(m => m.StudentId == caller.Id);
+
+            if (callerMembership?.Role != "leader")
+                return StatusCode(403, new { message = "Not authorized. Only the project leader can remove members." });
+
+            // ── 3. Leader cannot remove themselves ────────────────────────────
+            if (memberId == caller.Id)
+                return BadRequest(new { message = "You cannot remove yourself from the project." });
+
+            // ── 4. Target member exists in this project ───────────────────────
+            var target = project.Members.FirstOrDefault(m => m.StudentId == memberId);
+
+            if (target == null)
+                return NotFound(new { message = "Member not found in this project." });
+
+            // ── 5. Remove member ──────────────────────────────────────────────
+            _db.StudentProjectMembers.Remove(target);
+            await _db.SaveChangesAsync();
+
+            // Count from DB after save — reliable, reflects real state
+            var updatedCount = await _db.StudentProjectMembers
+                .CountAsync(m => m.ProjectId == projectId);
+
+            return Ok(new
+            {
+                message = "Member removed successfully.",
+                currentMembers = updatedCount
+            });
+        }
+
+
+        // =====================================================================
+        // PUT /api/graduation-projects/{projectId}/change-leader/{memberId}
+        // Transfer leadership to another team member — current leader only.
+        // memberId = StudentProfile.Id of the new leader
+        // =====================================================================
+        [HttpPut("{projectId:int}/change-leader/{memberId:int}")]
+        public async Task<IActionResult> ChangeLeader(int projectId, int memberId)
+        {
+            var caller = await GetStudentProfileAsync();
+            if (caller == null) return Forbid();
+
+            // ── 1. Project exists + load members ─────────────────────────────
+            var project = await _db.StudentProjects
+                .Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            // ── 2. Current user is the leader ─────────────────────────────────
+            var callerMembership = project.Members
+                .FirstOrDefault(m => m.StudentId == caller.Id);
+
+            if (callerMembership?.Role != "leader")
+                return StatusCode(403, new { message = "Not authorized. Only the project leader can transfer leadership." });
+
+            // ── 3. Cannot assign leader to yourself ───────────────────────────
+            if (memberId == caller.Id)
+                return BadRequest(new { message = "You are already the leader." });
+
+            // ── 4. Target member exists in this project ───────────────────────
+            var targetMembership = project.Members
+                .FirstOrDefault(m => m.StudentId == memberId);
+
+            if (targetMembership == null)
+                return NotFound(new { message = "Member not found in this project." });
+
+            // ── 5. Transfer leadership — exactly one leader after update ──────
+            callerMembership.Role = "member";
+            targetMembership.Role = "leader";
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Leader updated successfully.",
+                newLeaderId = memberId
+            });
+        }
+
 
         // =====================================================================
         // POST /api/graduation-projects/{projectId}/invite/{receiverId}
