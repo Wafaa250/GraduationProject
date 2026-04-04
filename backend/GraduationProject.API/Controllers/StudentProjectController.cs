@@ -140,6 +140,7 @@ namespace GraduationProject.API.Controllers
         // =====================================================================
         // GET /api/graduation-projects/{projectId}/available-students
         // Returns all students with their invite status for a specific project.
+        // Matching based on owner skills similarity.
         // Only the project owner can access.
         // =====================================================================
         [HttpGet("{projectId:int}/available-students")]
@@ -166,7 +167,7 @@ namespace GraduationProject.API.Controllers
                 .Where(s => s.UserId != owner.UserId)
                 .ToListAsync();
 
-            // ── 4. Load all pending invitations for this project ─────────────
+            // ── 4. Load pending invite receiver IDs for this project ──────────
             var pendingInviteReceiverIds = await _db.ProjectInvitations
                 .Where(i => i.ProjectId == projectId && i.Status == "pending")
                 .Select(i => i.ReceiverId)
@@ -234,6 +235,136 @@ namespace GraduationProject.API.Controllers
             }
 
             return Ok(result.OrderByDescending(s => s.MatchScore).ToList());
+        }
+
+        // =====================================================================
+        // GET /api/graduation-projects/{projectId}/recommended-students
+        // Returns students ranked by how well their skills match the project
+        // required skills — NOT based on owner similarity.
+        //
+        // Improvements over basic version:
+        //   - Skill names loaded once (no N+1 queries)
+        //   - Graceful fallback when project has no required skills (score = 50)
+        //   - No hard filter on matchScore > 0 (weaker matches stay at bottom)
+        //   - Result capped at top 20 for performance
+        //
+        // [AI HOOK] Future: replace or augment this rule-based score with a
+        //           real AI model that considers experience, availability, etc.
+        // =====================================================================
+        [HttpGet("{projectId:int}/recommended-students")]
+        public async Task<IActionResult> GetRecommendedStudents(int projectId)
+        {
+            var owner = await GetStudentProfileAsync();
+            if (owner == null) return Forbid();
+
+            // ── 1. Project exists + load members ─────────────────────────────
+            var project = await _db.StudentProjects
+                .Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            // ── 2. Current user is the owner ──────────────────────────────────
+            if (project.OwnerId != owner.Id)
+                return StatusCode(403, new { message = "Not authorized." });
+
+            // ── 3. Convert project required skill names → IDs ─────────────────
+            var projectSkillIds = await GetProjectSkillIdsAsync(project.RequiredSkills);
+            var hasRequirements = projectSkillIds.Count > 0;
+
+            // ── 4. Load all students except the owner ─────────────────────────
+            var allStudents = await _db.StudentProfiles
+                .Include(s => s.User)
+                .Where(s => s.UserId != owner.UserId)
+                .ToListAsync();
+
+            // ── 5. Load pending invite receiver IDs for this project ──────────
+            var pendingInviteReceiverIds = await _db.ProjectInvitations
+                .Where(i => i.ProjectId == projectId && i.Status == "pending")
+                .Select(i => i.ReceiverId)
+                .ToListAsync();
+
+            // ── 6. Pre-compute reusable values ────────────────────────────────
+            var memberIds = project.Members.Select(m => m.StudentId).ToHashSet();
+            var isProjectFull = project.Members.Count >= project.PartnersCount;
+
+            // ── 7. Load ALL skill names once — avoids N+1 queries ─────────────
+            // Collect every role ID across all students in a single pass,
+            // then fetch all names in one query instead of one per student.
+            var allRoleIds = allStudents
+                .SelectMany(s => SkillHelper.ParseIntList(s.Roles).Take(4))
+                .Distinct()
+                .ToList();
+
+            var skillNameMap = await _db.Skills
+                .Where(sk => allRoleIds.Contains(sk.Id))
+                .ToDictionaryAsync(sk => sk.Id, sk => sk.Name);
+
+            // ── 8. Map each student → score based on PROJECT skills ───────────
+            var result = new List<ProjectAvailableStudentDto>();
+
+            foreach (var s in allStudents)
+            {
+                var isMember = memberIds.Contains(s.Id);
+                var hasPendingInvite = pendingInviteReceiverIds.Contains(s.Id);
+                var isOwnerStudent = s.Id == project.OwnerId;
+
+                // Student skill IDs from all three JSON fields
+                var studentSkillIds = SkillHelper.ParseIntList(s.Roles)
+                    .Concat(SkillHelper.ParseIntList(s.TechnicalSkills))
+                    .Concat(SkillHelper.ParseIntList(s.Tools))
+                    .ToHashSet();
+
+                // matchScore logic:
+                //   - If project has requirements → common / required * 100
+                //   - If project has no requirements → neutral score 50
+                //     (project is open to anyone, show all students as browsable)
+                int matchScore;
+                if (hasRequirements)
+                {
+                    var commonCount = projectSkillIds.Count(id => studentSkillIds.Contains(id));
+                    matchScore = (int)Math.Min(
+                        (double)commonCount / projectSkillIds.Count * 100, 100);
+                }
+                else
+                {
+                    matchScore = 50;
+                }
+
+                // Resolve display names from the pre-loaded map (no DB call here)
+                var displayNames = SkillHelper.ParseIntList(s.Roles)
+                    .Take(4)
+                    .Where(id => skillNameMap.ContainsKey(id))
+                    .Select(id => skillNameMap[id])
+                    .ToList();
+
+                var canInvite = !isMember && !hasPendingInvite && !isOwnerStudent && !isProjectFull;
+
+                result.Add(new ProjectAvailableStudentDto
+                {
+                    StudentId = s.Id,
+                    UserId = s.UserId,
+                    Name = s.User.Name,
+                    Major = s.Major ?? "",
+                    University = s.University ?? "",
+                    AcademicYear = s.AcademicYear ?? "",
+                    ProfilePicture = s.ProfilePictureBase64,
+                    Skills = displayNames,
+                    MatchScore = matchScore,
+                    IsMember = isMember,
+                    HasPendingInvite = hasPendingInvite,
+                    IsOwner = isOwnerStudent,
+                    IsProjectFull = isProjectFull,
+                    CanInvite = canInvite,
+                });
+            }
+
+            // Sort descending by matchScore, cap at top 20
+            return Ok(result
+                .OrderByDescending(s => s.MatchScore)
+                .Take(20)
+                .ToList());
         }
 
         // =====================================================================
@@ -520,6 +651,27 @@ namespace GraduationProject.API.Controllers
                 return Conflict(new { message = "You are already a member of another project." });
 
             return null;
+        }
+
+        /// <summary>
+        /// Converts a JSON array of skill name strings (from StudentProject.RequiredSkills)
+        /// into a list of skill IDs from the Skills table.
+        /// Returns empty list if RequiredSkills is null or empty.
+        /// </summary>
+        private async Task<List<int>> GetProjectSkillIdsAsync(string? requiredSkillsJson)
+        {
+            if (string.IsNullOrEmpty(requiredSkillsJson))
+                return new List<int>();
+
+            var skillNames = JsonSerializer.Deserialize<List<string>>(requiredSkillsJson) ?? new();
+
+            if (skillNames.Count == 0)
+                return new List<int>();
+
+            return await _db.Skills
+                .Where(sk => skillNames.Contains(sk.Name))
+                .Select(sk => sk.Id)
+                .ToListAsync();
         }
 
         /// <summary>
