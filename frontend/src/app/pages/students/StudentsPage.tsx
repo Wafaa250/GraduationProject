@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, ArrowLeft, SlidersHorizontal, X, Users, Star } from 'lucide-react'
+import { Search, ArrowLeft, SlidersHorizontal, X, Users } from 'lucide-react'
 import api from '../../../api/axiosInstance'
 import { sendInvitation } from '../../../api/invitationsApi'
 
@@ -8,6 +8,7 @@ interface Student {
   userId: number; profileId: number; name: string; university: string
   major: string; academicYear: string; skills: string[]
   matchScore: number; profilePicture: string | null
+  isMember: boolean; hasPendingInvite: boolean
 }
 interface Filters { universities: string[]; majors: string[]; skills: string[] }
 
@@ -22,29 +23,53 @@ export default function StudentsPage() {
     ? Number(searchParams.get('projectId'))
     : null
 
-  // ── Invite state ─────────────────────────────────────────────────────────
-  // Tracks profileIds that have a pending invitation in this session.
-  const [pendingInvites, setPendingInvites] = useState<number[]>([])
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [students,    setStudents]    = useState<Student[]>([])
+  const [filters,     setFilters]     = useState<Filters>({ universities: [], majors: [], skills: [] })
+  const [loading,     setLoading]     = useState(true)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [search,      setSearch]      = useState('')
+  const [university,  setUniversity]  = useState('')
+  const [major,       setMajor]       = useState('')
+  const [skill,       setSkill]       = useState('')
+  const [isTeamFull,  setIsTeamFull]  = useState(false)
+  const [invitingId,  setInvitingId]  = useState<number | null>(null)
+  const [toast,       setToast]       = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  const handleInvite = async (student: Student) => {
-    if (!projectId) return
-    try {
-      await sendInvitation(projectId, student.profileId)
-      setPendingInvites(prev => [...prev, student.profileId])
-    } catch (err: any) {
-      const msg: string = err?.response?.data?.message || 'Failed to send invitation.'
-      alert(msg)
-    }
+  // ── Toast helper ──────────────────────────────────────────────────────────
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
   }
 
-  const [students, setStudents]       = useState<Student[]>([])
-  const [filters,  setFilters]        = useState<Filters>({ universities: [], majors: [], skills: [] })
-  const [loading,  setLoading]        = useState(true)
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const [search,     setSearch]     = useState('')
-  const [university, setUniversity] = useState('')
-  const [major,      setMajor]      = useState('')
-  const [skill,      setSkill]      = useState('')
+  // ── Team full check ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const occupiedCount = students.filter(s => s.isMember || s.hasPendingInvite).length
+    setIsTeamFull(occupiedCount >= 4)
+  }, [students])
+
+  // ── Invite handler ───────────────────────────────────────────────────────
+  const handleInvite = async (student: Student) => {
+    if (!projectId) return
+    if (isTeamFull || student.isMember || student.hasPendingInvite) return
+    setInvitingId(student.profileId)
+    try {
+      await sendInvitation(projectId, student.profileId)
+      setStudents(prev =>
+        prev.map(s =>
+          s.profileId === student.profileId
+            ? { ...s, hasPendingInvite: true }
+            : s
+        )
+      )
+      showToast('Invitation sent')
+    } catch (err: any) {
+      const msg: string = err?.response?.data?.message || 'Failed to send invitation.'
+      showToast(msg, 'error')
+    } finally {
+      setInvitingId(null)
+    }
+  }
 
   useEffect(() => {
     api.get('/students/filters').then(res => setFilters(res.data)).catch(() => {})
@@ -102,6 +127,23 @@ export default function StudentsPage() {
 
       <div style={S.content}>
 
+        {/* TOAST */}
+        {toast && (
+          <div style={{
+            position: 'fixed', bottom: 28, right: 28, zIndex: 999,
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '12px 20px', borderRadius: 12,
+            background: toast.type === 'success' ? '#f0fdf4' : '#fef2f2',
+            border: `1px solid ${toast.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+            color: toast.type === 'success' ? '#16a34a' : '#dc2626',
+            fontSize: 13, fontWeight: 600,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            animation: 'fadeUp 0.25s ease',
+          }}>
+            {toast.type === 'success' ? '✅' : '❌'} {toast.message}
+          </div>
+        )}
+
         {/* HEADER */}
         <div style={S.header}>
           <div>
@@ -119,6 +161,17 @@ export default function StudentsPage() {
                   Browsing for <strong>Project #{projectId}</strong>
                   {' '}— share your project link so students can join
                 </span>
+              </div>
+            )}
+            {/* Team Full banner */}
+            {projectId && isTeamFull && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                marginTop: 8, padding: '5px 12px',
+                background: '#fef2f2', border: '1px solid #fecaca',
+                borderRadius: 20, fontSize: 12, color: '#dc2626', fontWeight: 600,
+              }}>
+                🚫 Team is full — no more invitations can be sent
               </div>
             )}
           </div>
@@ -189,9 +242,10 @@ export default function StudentsPage() {
             <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>Try adjusting your filters or search</p>
           </div>
         ) : (() => {
-          // ── Split into recommended (≥60) and others (<60) ─────────────────
-          const recommended = students.filter(s => s.matchScore >= 60)
-          const others      = students.filter(s => s.matchScore < 60)
+          // ── Sort by matchScore desc, then split ───────────────────────────
+          const sorted      = [...students].sort((a, b) => b.matchScore - a.matchScore)
+          const recommended = sorted.filter(s => s.matchScore >= 60)
+          const others      = sorted.filter(s => s.matchScore < 60)
 
           const renderCard = (s: Student) => (
             <StudentCard
@@ -199,17 +253,18 @@ export default function StudentsPage() {
               student={s}
               onView={() => navigate(`/students/${s.userId}`)}
               onInvite={projectId ? () => handleInvite(s) : undefined}
-              isPending={pendingInvites.includes(s.profileId)}
+              isTeamFull={isTeamFull}
+              isSending={invitingId === s.profileId}
             />
           )
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 28 }}>
 
-              {/* ── Recommended Teammates ── */}
+              {/* ── Best Matches ── */}
               <section>
                 <div style={S.sectionHeader}>
-                  <span style={S.sectionTitle}>⭐ Recommended Teammates</span>
+                  <span style={S.sectionTitle}>⭐ Best Matches for Your Project</span>
                   <span style={S.sectionCount}>{recommended.length} students</span>
                 </div>
                 {recommended.length === 0 ? (
@@ -252,23 +307,32 @@ function StudentCard({
   student,
   onView,
   onInvite,
-  isPending = false,
+  isTeamFull = false,
+  isSending  = false,
 }: {
-  student:    Student
-  onView:     () => void
-  onInvite?:  () => void
-  isPending?: boolean
+  student:      Student
+  onView:       () => void
+  onInvite?:    () => void
+  isTeamFull?:  boolean
+  isSending?:   boolean
 }) {
-  const initials = student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-  const scoreColor = student.matchScore >= 70 ? '#16a34a' : student.matchScore >= 40 ? '#d97706' : '#64748b'
-  const scoreBg    = student.matchScore >= 70 ? '#f0fdf4' : student.matchScore >= 40 ? '#fffbeb' : '#f8fafc'
-  const scoreBorder= student.matchScore >= 70 ? '#bbf7d0' : student.matchScore >= 40 ? '#fde68a' : '#e2e8f0'
+  const initials    = student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  const scoreColor  = student.matchScore >= 70 ? '#16a34a' : student.matchScore >= 40 ? '#d97706' : '#64748b'
+  const scoreBg     = student.matchScore >= 70 ? '#f0fdf4' : student.matchScore >= 40 ? '#fffbeb' : '#f8fafc'
+  const scoreBorder = student.matchScore >= 70 ? '#bbf7d0' : student.matchScore >= 40 ? '#fde68a' : '#e2e8f0'
+  const isStrong    = student.matchScore >= 70
+  const cardStyle   = isStrong
+    ? { ...S.card, border: '1.5px solid #86efac', boxShadow: '0 2px 12px rgba(22,163,74,0.10)' }
+    : S.card
 
   return (
-    <div className="student-card" style={S.card}>
+    <div className="student-card" style={cardStyle}>
       {student.matchScore > 0 && (
-        <div style={{ ...S.scoreBadge, background: scoreBg, border: `1px solid ${scoreBorder}`, color: scoreColor }}>
-          <Star size={10} fill={scoreColor} />
+        <div
+          title="Matched based on shared skills"
+          style={{ ...S.scoreBadge, background: scoreBg, border: `1px solid ${scoreBorder}`, color: scoreColor, cursor: 'default' }}
+        >
+          <span style={{ fontSize: 10 }}>⭐</span>
           <span style={{ fontSize: 11, fontWeight: 800 }}>{student.matchScore}%</span>
         </div>
       )}
@@ -300,8 +364,14 @@ function StudentCard({
       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, alignSelf: 'center' as const, flexShrink: 0 }}>
         <button onClick={onView} style={S.viewBtn}>View Profile</button>
         {onInvite && (
-          isPending
+          isSending
+            ? <button disabled style={{ ...S.addBtn, opacity: 0.7, cursor: 'default' }}>Sending...</button>
+            : student.isMember
+            ? <button disabled style={{ ...S.addBtn, background: '#e2e8f0', color: '#94a3b8', cursor: 'default' }}>👤 Member</button>
+            : student.hasPendingInvite
             ? <button disabled style={{ ...S.addBtn, background: '#e2e8f0', color: '#94a3b8', cursor: 'default' }}>⏳ Pending</button>
+            : isTeamFull
+            ? <button disabled style={{ ...S.addBtn, background: '#e2e8f0', color: '#94a3b8', cursor: 'default' }}>🚫 Team Full</button>
             : <button onClick={onInvite} style={S.addBtn}>+ Invite</button>
         )}
       </div>
