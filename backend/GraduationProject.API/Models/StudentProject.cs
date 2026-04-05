@@ -16,16 +16,22 @@ namespace GraduationProject.API.Models
         // JSON array of strings e.g. ["React","Python"]
         [Column("required_skills")] public string? RequiredSkills { get; set; }
 
-        // عدد الشركاء المطلوبين (غير الأونر) — 0 يعني solo
+        // عدد الشركاء المطلوبين (الأونر مشمول) — 0 يعني solo
         [Column("partners_count")] public int PartnersCount { get; set; } = 0;
+
+        // ── Supervisor ───────────────────────────────────────────────────────
+        // Null until a doctor accepts a supervision request
+        [Column("supervisor_id")] public int? SupervisorId { get; set; }  // DoctorProfile.Id
 
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("updated_at")] public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation
         public StudentProfile Owner { get; set; } = null!;
+        public DoctorProfile? Supervisor { get; set; }
         public ICollection<StudentProjectMember> Members { get; set; } = new List<StudentProjectMember>();
         public ICollection<ProjectInvitation> Invitations { get; set; } = new List<ProjectInvitation>();
+        public ICollection<SupervisorRequest> SupervisorRequests { get; set; } = new List<SupervisorRequest>();
     }
 
     [Table("graduation_project_members")]
@@ -59,11 +65,31 @@ namespace GraduationProject.API.Models
         [Column("status")] public string Status { get; set; } = "pending";
 
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        [Column("responded_at")] public DateTime? RespondedAt { get; set; }  // null until acted on
+        [Column("responded_at")] public DateTime? RespondedAt { get; set; }
 
         // Navigation
         public StudentProject Project { get; set; } = null!;
         public StudentProfile Sender { get; set; } = null!;
         public StudentProfile Receiver { get; set; } = null!;
+    }
+
+    [Table("supervisor_requests")]
+    public class SupervisorRequest
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("project_id")] public int ProjectId { get; set; }  // StudentProject.Id
+        [Column("doctor_id")] public int DoctorId { get; set; }  // DoctorProfile.Id
+        [Column("sender_id")] public int SenderId { get; set; }  // StudentProfile.Id (leader)
+
+        // "pending" | "accepted" | "rejected"
+        [Column("status")] public string Status { get; set; } = "pending";
+
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Column("responded_at")] public DateTime? RespondedAt { get; set; }
+
+        // Navigation
+        public StudentProject Project { get; set; } = null!;
+        public DoctorProfile Doctor { get; set; } = null!;
+        public StudentProfile Sender { get; set; } = null!;
     }
 }

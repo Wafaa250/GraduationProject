@@ -22,6 +22,7 @@ namespace GraduationProject.API.Data
         public DbSet<StudentProject> StudentProjects => Set<StudentProject>();
         public DbSet<StudentProjectMember> StudentProjectMembers => Set<StudentProjectMember>();
         public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
+        public DbSet<SupervisorRequest> SupervisorRequests => Set<SupervisorRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -107,6 +108,14 @@ namespace GraduationProject.API.Data
                  .WithMany()
                  .HasForeignKey(p => p.OwnerId)
                  .OnDelete(DeleteBehavior.Cascade);
+
+                // Supervisor is optional — set when doctor accepts a request
+                // Restrict: deleting a doctor does not delete the project
+                e.HasOne(p => p.Supervisor)
+                 .WithMany()
+                 .HasForeignKey(p => p.SupervisorId)
+                 .IsRequired(false)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
 
             // ── STUDENT GRADUATION PROJECT MEMBERS ───────────────────────────
@@ -114,12 +123,10 @@ namespace GraduationProject.API.Data
             {
                 e.ToTable("graduation_project_members");
 
-                // Unique constraint: a student cannot join the same project twice
                 e.HasIndex(m => new { m.ProjectId, m.StudentId })
                  .IsUnique()
                  .HasDatabaseName("ix_graduation_project_members_project_student");
 
-                // Role column: "leader" | "member" — backend-only, defaults to "member"
                 e.Property(m => m.Role)
                  .HasColumnName("role")
                  .HasMaxLength(20)
@@ -137,7 +144,7 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // ── PROJECT INVITATIONS ───────────────────────────────────────────────────
+            // ── PROJECT INVITATIONS ───────────────────────────────────────────
             modelBuilder.Entity<ProjectInvitation>(e =>
             {
                 e.ToTable("project_invitations");
@@ -151,7 +158,7 @@ namespace GraduationProject.API.Data
                 // Index for query performance (project inbox, receiver inbox)
                 // NOT unique — same (project, receiver) pair can have multiple rows
                 // over time (e.g. rejected → new invite later is valid)
-                // Duplicate pending invites are prevented in application logic instead.
+                // Duplicate pending invites are prevented in application logic.
                 e.HasIndex(i => new { i.ProjectId, i.ReceiverId })
                  .HasDatabaseName("ix_project_invitations_project_receiver");
 
@@ -170,6 +177,43 @@ namespace GraduationProject.API.Data
                 e.HasOne(i => i.Receiver)
                  .WithMany()
                  .HasForeignKey(i => i.ReceiverId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ── SUPERVISOR REQUESTS ───────────────────────────────────────────
+            modelBuilder.Entity<SupervisorRequest>(e =>
+            {
+                e.ToTable("supervisor_requests");
+
+                e.Property(r => r.Status)
+                 .HasColumnName("status")
+                 .HasMaxLength(20)
+                 .HasDefaultValue("pending")
+                 .IsRequired();
+
+                // Index for quick lookup: all requests for a project or a doctor
+                e.HasIndex(r => r.ProjectId)
+                 .HasDatabaseName("ix_supervisor_requests_project");
+
+                e.HasIndex(r => r.DoctorId)
+                 .HasDatabaseName("ix_supervisor_requests_doctor");
+
+                // Project deleted → cascade delete its supervisor requests
+                e.HasOne(r => r.Project)
+                 .WithMany(p => p.SupervisorRequests)
+                 .HasForeignKey(r => r.ProjectId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                // Restrict: deleting a doctor does not delete the request history
+                e.HasOne(r => r.Doctor)
+                 .WithMany()
+                 .HasForeignKey(r => r.DoctorId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                // Restrict: deleting a student does not delete the request history
+                e.HasOne(r => r.Sender)
+                 .WithMany()
+                 .HasForeignKey(r => r.SenderId)
                  .OnDelete(DeleteBehavior.Restrict);
             });
         }
