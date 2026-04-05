@@ -46,6 +46,9 @@ export interface UserProfile {
   // Meta
   isOwnProfile: boolean
   completeness: number
+
+  // Auth
+  role: string
 }
 
 // ─── Default empty profile ────────────────────────────────────────────────────
@@ -74,6 +77,7 @@ export const EMPTY_PROFILE: UserProfile = {
   portfolio: '',
   isOwnProfile: true,
   completeness: 0,
+  role: '',
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -127,6 +131,7 @@ function mapApiToProfile(data: any): UserProfile {
 
     isOwnProfile: true,
     completeness: 0,
+    role: data.role || localStorage.getItem('role') || '',
   }
 
   mapped.completeness = calcCompleteness(mapped)
