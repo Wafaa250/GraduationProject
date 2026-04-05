@@ -55,6 +55,14 @@ namespace GraduationProject.API.DTOs
         public DateTime JoinedAt { get; set; }
     }
 
+    // 🟢 NEW: Supervisor DTO
+    public class SupervisorDto
+    {
+        public int DoctorId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Specialization { get; set; }
+    }
+
     // ── Response ──────────────────────────────────────────────────────────────
     public class StudentProjectResponseDto
     {
@@ -79,6 +87,9 @@ namespace GraduationProject.API.DTOs
         /// RemainingSeats = TotalCapacity - CurrentMembers  (min 0).
         /// </summary>
         public int RemainingSeats { get; set; }
+
+        // 🟢 NEW: Supervisor info
+        public SupervisorDto? Supervisor { get; set; }
 
         public List<StudentProjectMemberDto> Members { get; set; } = new();
         public DateTime CreatedAt { get; set; }
