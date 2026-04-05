@@ -43,6 +43,7 @@ namespace GraduationProject.API.Controllers
             var projects = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor).ThenInclude(s => s.User)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
@@ -62,6 +63,7 @@ namespace GraduationProject.API.Controllers
             var ownedProject = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(p => p.OwnerId == student.Id);
 
             if (ownedProject != null)
@@ -72,6 +74,8 @@ namespace GraduationProject.API.Controllers
                     .ThenInclude(p => p.Owner).ThenInclude(o => o.User)
                 .Include(m => m.Project)
                     .ThenInclude(p => p.Members).ThenInclude(mem => mem.Student).ThenInclude(s => s.User)
+                .Include(m => m.Project)
+                    .ThenInclude(p => p.Supervisor).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(m => m.StudentId == student.Id);
 
             if (membership != null)
@@ -91,6 +95,7 @@ namespace GraduationProject.API.Controllers
             var project = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
@@ -408,6 +413,7 @@ namespace GraduationProject.API.Controllers
             await _db.Entry(project).Collection(p => p.Members).Query()
                 .Include(m => m.Student).ThenInclude(s => s.User)
                 .LoadAsync();
+            await _db.Entry(project).Reference(p => p.Supervisor).LoadAsync();
 
             return StatusCode(201, MapToDto(project, student.Id));
         }
@@ -424,6 +430,7 @@ namespace GraduationProject.API.Controllers
             var project = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
@@ -714,6 +721,7 @@ namespace GraduationProject.API.Controllers
         // GET /api/graduation-projects/{projectId}/recommended-supervisors
         // Returns doctors ranked by how well they match project required skills.
         // =====================================================================
+
         [HttpGet("{projectId:int}/recommended-supervisors")]
         public async Task<IActionResult> GetRecommendedSupervisors(int projectId)
         {
@@ -727,18 +735,21 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // ── 2. Only leader can access (optional but better UX) ───────────
+            // ── 2. Only leader ───────────────────────────────────────────────
             var isLeader = await _db.StudentProjectMembers
                 .AnyAsync(m => m.ProjectId == projectId && m.StudentId == caller.Id && m.Role == "leader");
 
             if (!isLeader)
                 return StatusCode(403, new { message = "Only project leader can view recommended supervisors." });
 
-            // ── 3. Get project skill IDs ─────────────────────────────────────
-            var projectSkillIds = await GetProjectSkillIdsAsync(project.RequiredSkills);
-            var hasRequirements = projectSkillIds.Count > 0;
+            // ── 3. Extract project skills (strings) ──────────────────────────
+            var projectSkills = project.RequiredSkills != null
+                ? JsonSerializer.Deserialize<List<string>>(project.RequiredSkills) ?? new()
+                : new();
 
-            // ── 4. Load all doctors ──────────────────────────────────────────
+            var hasSkills = projectSkills.Count > 0;
+
+            // ── 4. Load doctors ──────────────────────────────────────────────
             var doctors = await _db.DoctorProfiles
                 .Include(d => d.User)
                 .ToListAsync();
@@ -747,15 +758,18 @@ namespace GraduationProject.API.Controllers
 
             foreach (var d in doctors)
             {
-                // نفترض إن الدكتور عنده تخصص محفوظ كـ JSON مثل الطلاب
-                var doctorSkillIds = SkillHelper.ParseIntList(d.Specialization ?? "");
+                int matchScore = 0;
 
-                int matchScore;
-                if (hasRequirements)
+                if (hasSkills && !string.IsNullOrEmpty(d.Specialization))
                 {
-                    var common = projectSkillIds.Count(id => doctorSkillIds.Contains(id));
+                    var specialization = d.Specialization.ToLower();
+
+                    var common = projectSkills.Count(skill =>
+                        specialization.Contains(skill.ToLower())
+                    );
+
                     matchScore = (int)Math.Min(
-                        (double)common / projectSkillIds.Count * 100, 100);
+                        (double)common / projectSkills.Count * 100, 100);
                 }
                 else
                 {
@@ -776,7 +790,6 @@ namespace GraduationProject.API.Controllers
                 .Take(20)
                 .ToList());
         }
-
         // =====================================================================
         // POST /api/supervisor-requests/{id}/accept
         // Accept supervision request — doctor only.
@@ -1104,6 +1117,15 @@ namespace GraduationProject.API.Controllers
                 IsFull = currentCount >= totalCapacity,
                 IsOwner = callerProfileId.HasValue && p.OwnerId == callerProfileId.Value,
                 RemainingSeats = Math.Max(0, totalCapacity - currentCount),
+
+                // 🔥 الجديد
+                Supervisor = p.Supervisor != null ? new SupervisorDto
+                {
+                    DoctorId = p.Supervisor.Id,
+                    Name = p.Supervisor.User.Name,
+                    Specialization = p.Supervisor.Specialization
+                } : null,
+
                 Members = members.Select(m => new StudentProjectMemberDto
                 {
                     StudentId = m.StudentId,
@@ -1116,9 +1138,11 @@ namespace GraduationProject.API.Controllers
                     Role = m.Role,
                     JoinedAt = m.JoinedAt,
                 }).ToList(),
+
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt,
             };
         }
     }
+}
 }
