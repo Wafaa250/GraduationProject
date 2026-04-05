@@ -593,7 +593,6 @@ namespace GraduationProject.API.Controllers
             });
         }
 
-
         // =====================================================================
         // PUT /api/graduation-projects/{projectId}/change-leader/{memberId}
         // Transfer leadership to another team member — current leader only.
@@ -644,7 +643,316 @@ namespace GraduationProject.API.Controllers
             });
         }
 
+        // =====================================================================
+        // POST /api/graduation-projects/{projectId}/request-supervisor/{doctorId}
+        // Send a supervision request to a doctor — leader only.
+        // =====================================================================
+        [HttpPost("{projectId:int}/request-supervisor/{doctorId:int}")]
+        public async Task<IActionResult> RequestSupervisor(int projectId, int doctorId)
+        {
+            var caller = await GetStudentProfileAsync();
+            if (caller == null) return Forbid();
 
+            // ── 1. Project exists + load members ─────────────────────────────
+            var project = await _db.StudentProjects
+                .Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            // ── 2. Current user is the leader ─────────────────────────────────
+            var callerMembership = project.Members
+                .FirstOrDefault(m => m.StudentId == caller.Id);
+
+            if (callerMembership?.Role != "leader")
+                return StatusCode(403, new { message = "Not authorized. Only the project leader can send supervision requests." });
+
+            // ── 3. Doctor exists ──────────────────────────────────────────────
+            var doctorExists = await _db.DoctorProfiles
+                .AnyAsync(d => d.Id == doctorId);
+
+            if (!doctorExists)
+                return NotFound(new { message = "Doctor not found." });
+
+            // ── 4. Project does not already have a supervisor ─────────────────
+            if (project.SupervisorId != null)
+                return BadRequest(new { message = "This project already has a supervisor." });
+
+            // ── 5. No existing pending request for same project + doctor ──────
+            var pendingExists = await _db.SupervisorRequests
+                .AnyAsync(r =>
+                    r.ProjectId == projectId &&
+                    r.DoctorId == doctorId &&
+                    r.Status == "pending");
+
+            if (pendingExists)
+                return Conflict(new { message = "A pending supervision request already exists for this doctor." });
+
+            // ── 6. Create request ─────────────────────────────────────────────
+            var request = new SupervisorRequest
+            {
+                ProjectId = projectId,
+                DoctorId = doctorId,
+                SenderId = caller.Id,
+                Status = "pending",
+                CreatedAt = DateTime.UtcNow,
+                RespondedAt = null
+            };
+
+            _db.SupervisorRequests.Add(request);
+            await _db.SaveChangesAsync();
+
+            return StatusCode(201, new
+            {
+                message = "Supervisor request sent successfully.",
+                requestId = request.Id
+            });
+        }
+
+        // =====================================================================
+        // GET /api/graduation-projects/{projectId}/recommended-supervisors
+        // Returns doctors ranked by how well they match project required skills.
+        // =====================================================================
+        [HttpGet("{projectId:int}/recommended-supervisors")]
+        public async Task<IActionResult> GetRecommendedSupervisors(int projectId)
+        {
+            var caller = await GetStudentProfileAsync();
+            if (caller == null) return Forbid();
+
+            // ── 1. Project exists ────────────────────────────────────────────
+            var project = await _db.StudentProjects
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            // ── 2. Only leader can access (optional but better UX) ───────────
+            var isLeader = await _db.StudentProjectMembers
+                .AnyAsync(m => m.ProjectId == projectId && m.StudentId == caller.Id && m.Role == "leader");
+
+            if (!isLeader)
+                return StatusCode(403, new { message = "Only project leader can view recommended supervisors." });
+
+            // ── 3. Get project skill IDs ─────────────────────────────────────
+            var projectSkillIds = await GetProjectSkillIdsAsync(project.RequiredSkills);
+            var hasRequirements = projectSkillIds.Count > 0;
+
+            // ── 4. Load all doctors ──────────────────────────────────────────
+            var doctors = await _db.DoctorProfiles
+                .Include(d => d.User)
+                .ToListAsync();
+
+            var result = new List<object>();
+
+            foreach (var d in doctors)
+            {
+                // نفترض إن الدكتور عنده تخصص محفوظ كـ JSON مثل الطلاب
+                var doctorSkillIds = SkillHelper.ParseIntList(d.Specialization ?? "");
+
+                int matchScore;
+                if (hasRequirements)
+                {
+                    var common = projectSkillIds.Count(id => doctorSkillIds.Contains(id));
+                    matchScore = (int)Math.Min(
+                        (double)common / projectSkillIds.Count * 100, 100);
+                }
+                else
+                {
+                    matchScore = 50;
+                }
+
+                result.Add(new
+                {
+                    doctorId = d.Id,
+                    name = d.User.Name,
+                    specialization = d.Specialization,
+                    matchScore
+                });
+            }
+
+            return Ok(result
+                .OrderByDescending(d => ((dynamic)d).matchScore)
+                .Take(20)
+                .ToList());
+        }
+
+        // =====================================================================
+        // POST /api/supervisor-requests/{id}/accept
+        // Accept supervision request — doctor only.
+        // =====================================================================
+        [HttpPost("/api/supervisor-requests/{id:int}/accept")]
+        public async Task<IActionResult> AcceptSupervisorRequest(int id)
+        {
+            // ── 1. Check role ────────────────────────────────────────────────
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can accept requests." });
+
+            var userId = AuthorizationHelper.GetUserId(User);
+
+            // ── 2. Get doctor profile ────────────────────────────────────────
+            var doctor = await _db.DoctorProfiles
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            // ── 3. Get request + project ─────────────────────────────────────
+            var request = await _db.SupervisorRequests
+                .Include(r => r.Project)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+                return NotFound(new { message = "Request not found." });
+
+            // ── 4. Ensure this request belongs to this doctor ────────────────
+            if (request.DoctorId != doctor.Id)
+                return StatusCode(403, new { message = "Not authorized for this request." });
+
+            // ── 5. Ensure still pending ─────────────────────────────────────
+            if (request.Status != "pending")
+                return BadRequest(new { message = "This request has already been processed." });
+
+            // ── 6. Project must NOT already have supervisor ─────────────────
+            if (request.Project.SupervisorId != null)
+                return BadRequest(new { message = "This project already has a supervisor." });
+
+            // ── 7. Assign supervisor ────────────────────────────────────────
+            request.Project.SupervisorId = doctor.Id;
+
+            // ── 8. Accept current request ───────────────────────────────────
+            request.Status = "accepted";
+            request.RespondedAt = DateTime.UtcNow;
+
+            // ── 9. Reject other pending requests for SAME project only ──────
+            var otherRequests = await _db.SupervisorRequests
+                .Where(r => r.ProjectId == request.ProjectId
+                         && r.Status == "pending"
+                         && r.Id != request.Id) // 🔥 مهم
+                .ToListAsync();
+
+            foreach (var r in otherRequests)
+            {
+                r.Status = "rejected";
+                r.RespondedAt = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Supervisor assigned successfully.",
+                supervisorId = doctor.Id,
+                projectId = request.ProjectId
+            });
+        }
+
+
+        // =====================================================================
+        // POST /api/supervisor-requests/{id}/reject
+        // Reject supervision request — doctor only.
+        // =====================================================================
+        [HttpPost("/api/supervisor-requests/{id:int}/reject")]
+        public async Task<IActionResult> RejectSupervisorRequest(int id)
+        {
+            // ── 1. Check role ────────────────────────────────────────────────
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can reject requests." });
+
+            var userId = AuthorizationHelper.GetUserId(User);
+
+            // ── 2. Get doctor profile ────────────────────────────────────────
+            var doctor = await _db.DoctorProfiles
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            // ── 3. Get request ───────────────────────────────────────────────
+            var request = await _db.SupervisorRequests
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+                return NotFound(new { message = "Request not found." });
+
+            // ── 4. Ensure request belongs to doctor ──────────────────────────
+            if (request.DoctorId != doctor.Id)
+                return StatusCode(403, new { message = "Not authorized for this request." });
+
+            // ── 5. Ensure still pending ─────────────────────────────────────
+            if (request.Status != "pending")
+                return BadRequest(new { message = "This request has already been processed." });
+
+            // ── 6. Reject request ────────────────────────────────────────────
+            request.Status = "rejected";
+            request.RespondedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Supervisor request rejected successfully."
+            });
+        }
+
+        // =====================================================================
+        // GET /api/graduation-projects/doctors/me/requests
+        // Returns all supervisor requests for the logged-in doctor.
+        // =====================================================================
+        [HttpGet("/api/doctors/me/requests")]
+        public async Task<IActionResult> GetDoctorRequests()
+        {
+            // ── 1. Check role ────────────────────────────────────────────────
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can access this endpoint." });
+
+            var userId = AuthorizationHelper.GetUserId(User);
+
+            // ── 2. Get doctor profile ────────────────────────────────────────
+            var doctor = await _db.DoctorProfiles
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            // ── 3. Fetch requests with related data (NO N+1) ─────────────────
+            var requests = await _db.SupervisorRequests
+                .Where(r => r.DoctorId == doctor.Id)
+                .Include(r => r.Project)
+                .Include(r => r.Sender).ThenInclude(s => s.User)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            // ── 4. Map to clean response ─────────────────────────────────────
+            var result = requests.Select(r => new
+            {
+                requestId = r.Id,
+
+                project = new
+                {
+                    projectId = r.ProjectId,
+                    name = r.Project.Name,
+                    description = r.Project.Description,
+                    requiredSkills = r.Project.RequiredSkills != null
+                        ? JsonSerializer.Deserialize<List<string>>(r.Project.RequiredSkills)
+                        : new List<string>()
+                },
+
+                sender = new
+                {
+                    studentId = r.SenderId,
+                    name = r.Sender.User.Name,
+                    major = r.Sender.Major,
+                    university = r.Sender.University
+                },
+
+                status = r.Status,
+                createdAt = r.CreatedAt,
+                respondedAt = r.RespondedAt
+            });
+
+            return Ok(result);
+        }
         // =====================================================================
         // POST /api/graduation-projects/{projectId}/invite/{receiverId}
         // =====================================================================
