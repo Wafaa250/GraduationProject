@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
     Bell, Search, Settings, ChevronRight, Users,
@@ -8,6 +8,8 @@ import {
 import api from '../../../api/axiosInstance'
 import { getDashboardSummary, SuggestedTeammate } from '../../../api/dashboardApi'
 import { getReceivedInvitations } from '../../../api/invitationsApi'
+import type { GradProject, GradProjectMember } from '../../../api/gradProjectApi'
+import { removeProjectMember, changeProjectLeader } from '../../../api/gradProjectApi'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
@@ -47,37 +49,6 @@ interface Invitation {
     invitedBy: string
 }
 
-// Matches StudentProjectResponseDto from the backend
-interface GradProjectMember {
-    studentId: number
-    userId: number
-    name: string
-    email: string
-    university: string
-    major: string
-    profilePicture: string | null
-    role: 'leader' | 'member'
-    joinedAt: string
-}
-
-interface GradProject {
-    id: number
-    ownerId: number
-    ownerUserId: number
-    ownerName: string
-    name: string
-    description: string | null
-    requiredSkills: string[]
-    partnersCount: number
-    currentMembers: number
-    isFull: boolean
-    isOwner: boolean
-    remainingSeats: number
-    members: GradProjectMember[]
-    createdAt: string
-    updatedAt: string
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DashboardPage() {
     const navigate = useNavigate()
@@ -93,6 +64,13 @@ export default function DashboardPage() {
     const [applications, setApplications] = useState<Application[]>([])
     const [inviteLoading, setInviteLoading] = useState<number | null>(null)
     const [inviteMsg, setInviteMsg] = useState<{ id: number; msg: string; ok: boolean } | null>(null)
+
+    // Toast for member-removal feedback — cleared automatically after 3 s
+    const [removeMsg, setRemoveMsg] = useState<{ msg: string; ok: boolean } | null>(null)
+
+    // Per-member loading state and toast for the Make Leader action
+    const [promotingId, setPromotingId] = useState<number | null>(null)
+    const [leaderMsg, setLeaderMsg] = useState<{ msg: string; ok: boolean } | null>(null)
 
     // ─── Modal States ─────────────────────────────────────────────────────────
     const [editInfoOpen, setEditInfoOpen] = useState(false)
@@ -110,6 +88,27 @@ export default function DashboardPage() {
     const [gradSubmitting, setGradSubmitting] = useState(false)
     const [gradTeammates, setGradTeammates] = useState<SuggestedTeammate[]>([])
     const [addTeammatesOpen, setAddTeammatesOpen] = useState(false)
+    const [removingId, setRemovingId] = useState<number | null>(null)
+
+    // Role the current user holds in their project — comes from GET /my envelope.
+    // Kept separately from gradProject so it survives the same optimistic-update
+    // pattern used for teamMembers / currentMembers / isFull.
+const [myRole, setMyRole] = useState<'owner' | 'leader' | 'member' | null>(null)
+    // Auth-layer userId from GET /me — stored in a ref so refetchGradProject can
+    // read the latest value without needing it as a useCallback dependency.
+    const myUserIdRef = React.useRef<number | null>(null)
+
+    // StudentProfile.Id of the currently logged-in user — derived once
+    // teamMembers are loaded by matching myUserIdRef against member.userId.
+    // Used to suppress the Remove button on the current user's own row.
+    const [myStudentId, setMyStudentId] = useState<number | null>(null)
+
+    // ── Team members — owned separately so mutations don't require a full
+    //    gradProject refetch. Initialized from gradProject on first load.
+    //    Source of truth for the team members list UI.
+    const [teamMembers, setTeamMembers] = useState<GradProjectMember[]>([])
+    const [currentMembers, setCurrentMembers] = useState(0)
+    const [isFull, setIsFull] = useState(false)
 
     const hour = new Date().getHours()
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -160,12 +159,40 @@ export default function DashboardPage() {
             const res = await api.get('/graduation-projects/my')
             // res.data = { role: 'owner'|'member'|null, project: GradProject|null }
             const project: GradProject | null = res.data?.project ?? null
+            const role: 'owner' | 'member' | null = res.data?.role ?? null
             setGradProject(project)
+            setMyRole(role)
+
+            // Seed the independent team-member state from the project payload.
+            // The /my endpoint already embeds members via MapToDto, so no extra
+            // fetch is needed on first load.
+            if (project) {
+                const members = project.members ?? []
+                setTeamMembers(members)
+                setCurrentMembers(project.currentMembers ?? 0)
+                setIsFull(project.isFull ?? false)
+
+                // Find the current user's own StudentProfile.Id by matching their
+                // auth userId (captured from /me) against the member list.
+                // This is used purely to hide the Remove button on their own row.
+                const myRow = members.find(m => m.userId === myUserIdRef.current)
+                setMyStudentId(myRow?.studentId ?? null)
+            } else {
+                setTeamMembers([])
+                setCurrentMembers(0)
+                setIsFull(false)
+                setMyStudentId(null)
+            }
         } catch (err: any) {
             if (err?.response?.status === 401 || err?.response?.status === 403) {
                 navigate('/login')
             }
             setGradProject(null)
+            setMyRole(null)
+            setTeamMembers([])
+            setCurrentMembers(0)
+            setIsFull(false)
+            setMyStudentId(null)
         } finally {
             setGradLoading(false)
         }
@@ -179,6 +206,7 @@ export default function DashboardPage() {
 
                 const profileRes = await api.get('/me')
                 const data = profileRes.data
+                myUserIdRef.current = data.id ?? null
                 setUser({
                     name: data.name || data.fullName,
                     email: data.email,
@@ -312,6 +340,75 @@ export default function DashboardPage() {
         }
     }
 
+    const handleRemoveMember = async (memberStudentId: number) => {
+        if (!gradProject) return
+
+        setRemovingId(memberStudentId)
+        setRemoveMsg(null)
+        try {
+            // Uses the typed API function — DELETE /graduation-projects/:id/members/:memberId
+            // Response: { message, currentMembers } where currentMembers is the
+            // authoritative post-deletion count from the DB.
+            const result = await removeProjectMember(gradProject.id, memberStudentId)
+
+            // Update team state from the backend's real count, not a local guess
+            const updatedCount = result.currentMembers
+            setTeamMembers(prev => prev.filter(m => m.studentId !== memberStudentId))
+            setCurrentMembers(updatedCount)
+            setIsFull(updatedCount >= gradProject.partnersCount)
+
+            setRemoveMsg({ msg: '✓ Member removed.', ok: true })
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Failed to remove member.'
+            setRemoveMsg({ msg, ok: false })
+        } finally {
+            setRemovingId(null)
+            setTimeout(() => setRemoveMsg(null), 3000)
+        }
+    }
+
+    const handleMakeLeader = async (memberStudentId: number) => {
+    if (!gradProject) return
+
+    setPromotingId(memberStudentId)
+    setLeaderMsg(null)
+
+    try {
+        // PUT /graduation-projects/:id/change-leader/:memberId
+        // Backend swaps roles atomically: exactly one leader at all times.
+        await changeProjectLeader(gradProject.id, memberStudentId)
+
+        // 🔥 Update team members (optimistic UI)
+        setTeamMembers(prev =>
+            prev.map(m => {
+                if (m.studentId === memberStudentId)
+                    return { ...m, role: 'leader' as const }
+
+                if (m.role === 'leader')
+                    return { ...m, role: 'member' as const }
+
+                return m
+            })
+        )
+
+        // 🔥 FIX: update current user role
+        if (memberStudentId === myStudentId) {
+            setMyRole('leader')
+        } else {
+            setMyRole('member')
+        }
+
+        setLeaderMsg({ msg: '✓ Leader updated.', ok: true })
+
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || 'Failed to change leader.'
+        setLeaderMsg({ msg, ok: false })
+    } finally {
+        setPromotingId(null)
+        setTimeout(() => setLeaderMsg(null), 3000)
+    }
+}
+
 
     const handleJoinProject = async (projectId: number) => {
         try {
@@ -321,30 +418,40 @@ export default function DashboardPage() {
             alert(err?.response?.data?.message || 'Failed to join project.')
         }
     }
+const handleInvite = async (id: number, action: 'accept' | 'reject') => {
+    setInviteLoading(id)
+    setInviteMsg(null)
 
-    const handleInvite = async (id: number, action: 'accept' | 'reject') => {
-        setInviteLoading(id)
-        setInviteMsg(null)
-        try {
-            await api.post(`/invitations/${id}/${action}`)
-            // Optimistic: remove from list immediately, then re-fetch for accuracy
-            setInvitations(prev => {
-                const updated = prev.filter(i => i.id !== id)
-                setPendingCount(updated.length)
-                return updated
-            })
-            setInviteMsg({ id, msg: action === 'accept' ? '✅ Invitation accepted!' : '❌ Invitation rejected.', ok: action === 'accept' })
-            // Re-fetch to sync any server-side changes (e.g. expired invitations)
-            await fetchInvitations()
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || (action === 'accept' ? 'Failed to accept.' : 'Failed to reject.')
-            setInviteMsg({ id, msg, ok: false })
-        } finally {
-            setInviteLoading(null)
-            setTimeout(() => setInviteMsg(null), 3000)
+    try {
+        await api.post(`/invitations/${id}/${action}`)
+
+        setInvitations(prev => {
+            const updated = prev.filter(i => i.id !== id)
+            setPendingCount(updated.length)
+            return updated
+        })
+
+        setInviteMsg({
+            id,
+            msg: action === 'accept' ? '✅ Invitation accepted!' : '❌ Invitation rejected.',
+            ok: action === 'accept'
+        })
+
+        await fetchInvitations()
+
+        // ✅ الحل هون
+        if (action === 'accept') {
+            await refetchGradProject()
         }
-    }
 
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || (action === 'accept' ? 'Failed to accept.' : 'Failed to reject.')
+        setInviteMsg({ id, msg, ok: false })
+    } finally {
+        setInviteLoading(null)
+        setTimeout(() => setInviteMsg(null), 3000)
+    }
+}
     const openEditInfo = () => {
         setEditInfoOpen(true)
     }
@@ -360,6 +467,20 @@ export default function DashboardPage() {
         20 + (user?.university ? 15 : 0) + (user?.major ? 15 : 0) +
         (allSkills.length > 0 ? 20 : 0) + (user?.gpa ? 10 : 0) + (user?.profilePic ? 20 : 0), 100
     )
+
+    // ── Team management permission ────────────────────────────────────────────
+    // true  → show Remove / Make Leader buttons on non-leader member rows.
+    // false → member rows are read-only (regular member, or no project).
+    //
+    // Currently granted to:
+    //   - 'owner'  — the project creator (always has full control)
+    //   - 'leader' — a designated team lead (backend allows them to manage too)
+    //
+    // myRole comes directly from the GET /my response envelope, so it never
+    // requires scanning teamMembers to find the current user.
+
+
+
 
     const PROFILE_TASKS = [
         { id: '1', label: 'Add a profile picture', done: !!user?.profilePic, link: '/edit-profile#basic' },
@@ -648,12 +769,6 @@ export default function DashboardPage() {
                                                 Leave
                                             </button>
                                         )}
-                                        {/* Remaining seats — only shown when not full */}
-                                        {!gradProject.isFull && (
-                                            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 20 }}>
-                                                {gradProject.remainingSeats} seat{gradProject.remainingSeats !== 1 ? 's' : ''} left
-                                            </span>
-                                        )}
                                     </div>
 
                                     {/* Description */}
@@ -663,101 +778,88 @@ export default function DashboardPage() {
 
                                     {/* Owner name */}
                                     <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px', fontWeight: 500 }}>
-                                        by {gradProject.ownerName}
+                                        by {gradProject.ownerName ?? '—'}
                                     </p>
 
-                                    {/* Members count — owner is included in currentMembers by backend */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                                        <Users size={12} color="#94a3b8" />
-                                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
-                                            {gradProject.currentMembers + 1} / {gradProject.partnersCount + 1} members
-                                            {gradProject.isFull && <span style={{ marginLeft: 6, color: '#10b981', fontWeight: 700 }}>· Full ✓</span>}
-                                        </span>
-                                    </div>
-
                                     {/* Required skills */}
-                                    {gradProject.requiredSkills.length > 0 && (
+                                    {(gradProject.requiredSkills ?? []).length > 0 && (
                                         <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 10 }}>
-                                            {gradProject.requiredSkills.map((sk: string) => <span key={sk} style={S.skillChipSm}>{sk}</span>)}
+                                            {(gradProject.requiredSkills ?? []).map((sk: string) => <span key={sk} style={S.skillChipSm}>{sk}</span>)}
                                         </div>
                                     )}
 
-                                    {/* Team Members from API */}
+                                    {/* ── Team Members ── */}
                                     <div style={{ marginTop: 12, borderTop: '1px solid rgba(99,102,241,0.12)', paddingTop: 12 }}>
-                                        <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.06em', margin: '0 0 8px' }}>
-                                            Team · {gradProject.currentMembers + 1} / {gradProject.partnersCount + 1}
-                                        </p>
-                                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7 }}>
-                                            {/* Members from API — includes leader + all members.
-                                                Backend always includes the owner as role="leader".
-                                                We iterate members[] directly — no hardcoded row needed. */}
-                                            {gradProject.members.length === 0 ? (
-                                                <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>No members yet.</p>
-                                            ) : gradProject.members.map(m => {
-                                                const isLeader = m.role === 'leader'
-                                                return (
-                                                    <div key={m.userId} style={{
-                                                        display: 'flex', alignItems: 'center', gap: 10,
-                                                        padding: '9px 11px', borderRadius: 10,
-                                                        background: isLeader ? 'white' : '#f8fafc',
-                                                        border: isLeader ? '1px solid rgba(99,102,241,0.2)' : '1px solid #e2e8f0',
-                                                    }}>
-                                                        {/* Avatar */}
-                                                        <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-                                                            {m.profilePicture
-                                                                ? <img src={m.profilePicture} style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} alt="" />
-                                                                : <div style={{
-                                                                    width: '100%', height: '100%',
-                                                                    background: isLeader
-                                                                        ? 'linear-gradient(135deg,#6366f1,#a855f7)'
-                                                                        : 'linear-gradient(135deg,#a855f7,#ec4899)',
-                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                    fontSize: 11, fontWeight: 800, color: 'white'
-                                                                }}>
-                                                                    {m.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-                                                                </div>
-                                                            }
-                                                        </div>
-                                                        {/* Info */}
-                                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                                                                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{m.name}</span>
-                                                                {/* Role badge — only shown for leader */}
-                                                                {isLeader && (
-                                                                    <span style={{
-                                                                        fontSize: 9, fontWeight: 700,
-                                                                        padding: '1px 6px',
-                                                                        background: 'linear-gradient(135deg,#6366f1,#a855f7)',
-                                                                        color: 'white', borderRadius: 20
-                                                                    }}>
-                                                                        Leader
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                                                                {m.major || m.university || '—'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
 
-                                    {/* Add Teammates — owner only, project not full */}
-                                    {gradProject.isOwner && !gradProject.isFull && (
-                                        <button onClick={() => navigate(`/students?projectId=${gradProject.id}`)}
-                                            style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10, padding: '6px 12px', background: 'white', border: '1.5px solid #c7d2fe', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                            <UserPlus size={12} /> Browse Students to Join
-                                        </button>
-                                    )}
-
-                                    {gradProject.isFull && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
-                                            <CheckCircle2 size={13} color="#10b981" />
-                                            <span style={{ fontSize: 11, fontWeight: 600, color: '#10b981' }}>Team is complete</span>
+                                        {/* Header: label + count + full badge */}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                <Users size={12} color="#6366f1" />
+                                                <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                                                    Team
+                                                </span>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                {/* Count pill — always visible */}
+                                                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe', borderRadius: 20 }}>
+                                                    {currentMembers} / {gradProject.partnersCount}
+                                                </span>
+                                                {/* Full badge — replaces "X seats left" when team is complete */}
+                                                {isFull
+                                                    ? <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', borderRadius: 20 }}>✓ Full</span>
+                                                    : <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8' }}>
+                                                        {Math.max(0, gradProject.partnersCount - currentMembers)} seat{Math.max(0, gradProject.partnersCount - currentMembers) !== 1 ? 's' : ''} open
+                                                      </span>
+                                                }
+                                            </div>
                                         </div>
-                                    )}
+
+                                        {/* Member rows */}
+                                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                                            {teamMembers.length === 0 ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8 }}>
+                                                    <Users size={13} color="#cbd5e1" />
+                                                    <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>No members yet — invite students to join</span>
+                                                </div>
+                                            ) : teamMembers.map(m => (
+                                                <TeamMemberRow
+                                                    key={m.studentId}
+                                                    member={m}
+                                                    
+canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
+                                                    isSelf={myStudentId !== null && m.studentId === myStudentId}
+                                                    isRemoving={removingId === m.studentId}
+                                                    onRemove={() => handleRemoveMember(m.studentId)}
+                                                    isPromoting={promotingId === m.studentId}
+                                                    onMakeLeader={() => handleMakeLeader(m.studentId)}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {/* Inline action feedback — removal or leader change */}
+                                        {(removeMsg || leaderMsg) && (
+                                            <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, color: (removeMsg ?? leaderMsg)!.ok ? '#16a34a' : '#ef4444' }}>
+                                                {(removeMsg ?? leaderMsg)!.msg}
+                                            </p>
+                                        )}
+
+                                        {/* Footer: browse button (owner, not full) or complete notice */}
+                                        {gradProject.isOwner && !isFull && (
+                                            <button
+                                                onClick={() => navigate(`/students?projectId=${gradProject.id}`)}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10, padding: '6px 12px', background: 'white', border: '1.5px solid #c7d2fe', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit' }}
+                                            >
+                                                <UserPlus size={12} /> Browse Students to Join
+                                            </button>
+                                        )}
+                                        {isFull && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10 }}>
+                                                <CheckCircle2 size={13} color="#10b981" />
+                                                <span style={{ fontSize: 11, fontWeight: 600, color: '#10b981' }}>Team is complete</span>
+                                            </div>
+                                        )}
+
+                                    </div>{/* end team section */}
                                 </div>
                             )}
                         </div>
@@ -1145,6 +1247,103 @@ export default function DashboardPage() {
     )
 }
 
+// ─── TeamMemberRow ────────────────────────────────────────────────────────────
+// Renders a single team member as a clean horizontal row.
+//
+// canManageTeam — when true, non-leader rows show Remove + Make Leader buttons.
+// isSelf        — true when this row belongs to the currently logged-in user.
+//                 Hides the Remove button on their own row regardless of role.
+// isRemoving    — disables Remove and fades the row while DELETE is in flight.
+// onRemove      — called on Remove click; handler lives in DashboardPage.
+// isPromoting   — disables Make Leader while PUT is in flight for this member.
+// onMakeLeader  — called on Make Leader click; handler lives in DashboardPage.
+//
+// Leader rows never show action buttons regardless of canManageTeam.
+interface TeamMemberRowProps {
+    member: GradProjectMember
+    canManageTeam: boolean
+    isSelf: boolean
+    isRemoving: boolean
+    onRemove: () => void
+    isPromoting: boolean
+    onMakeLeader: () => void
+}
+function TeamMemberRow({ member: m, canManageTeam, isSelf, isRemoving, onRemove, isPromoting, onMakeLeader }: TeamMemberRowProps) {
+    const isLeader    = m.role === 'leader'
+    // Actions area is shown only when the manager can act AND the row is not the
+    // leader row. Individual buttons may still be hidden (e.g. Remove for self).
+    const showActions = canManageTeam && !isLeader
+    const canRemove   = showActions && !isSelf
+    const isBusy      = isRemoving || isPromoting
+    const initials    = m.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+
+    return (
+        <div style={{
+            ...S.memberRow,
+            ...(isLeader ? S.memberRowLeader : S.memberRowMember),
+            opacity: isBusy ? 0.5 : 1,
+        }}>
+            {/* Left: avatar + text */}
+            <div style={S.memberLeft}>
+
+                {/* Avatar */}
+                <div style={{
+                    ...S.memberAvatarWrap,
+                    boxShadow: isLeader ? '0 0 0 2px #a5b4fc' : 'none',
+                }}>
+                    {m.profilePicture
+                        ? <img src={m.profilePicture} alt={m.name} style={S.memberAvatarImg} />
+                        : <div style={isLeader ? S.memberAvatarFallbackLeader : S.memberAvatarFallbackMember}>
+                            {initials}
+                          </div>
+                    }
+                </div>
+
+                {/* Name + sub-line */}
+                <div style={S.memberText}>
+                    <div style={S.memberNameRow}>
+                        <span style={S.memberName}>{m.name}</span>
+                        <span style={isLeader ? S.memberBadgeLeader : S.memberBadgeMember}>
+                            {isLeader ? '👑 Leader' : 'Member'}
+                        </span>
+                        {isSelf && (
+                            <span style={S.memberBadgeSelf}>You</span>
+                        )}
+                    </div>
+                    <span style={S.memberSub}>
+                        {m.major || m.university || '—'}
+                    </span>
+                </div>
+
+            </div>
+
+            {/* Right: actions — only for non-leader rows when canManageTeam */}
+            {showActions && (
+                <div style={S.memberActions}>
+                    {canRemove && (
+                        <button
+    onClick={onRemove}
+    disabled={isBusy}
+    style={{
+        ...S.memberBtnRemove,
+        cursor: isBusy ? 'not-allowed' : 'pointer',
+        opacity: isBusy ? 0.5 : 1,
+        padding: '4px 5px',   // 👈 أصغر
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+    }}
+>
+    {isRemoving ? '…' : '🗑'}
+</button>
+                    )}
+                    
+                </div>
+            )}
+        </div>
+    )
+}
+
 // ─── Background decoration ────────────────────────────────────────────────────
 function BgDecor() {
     return (
@@ -1223,4 +1422,29 @@ const S: Record<string, React.CSSProperties> = {
     modalInput: { width: '100%', padding: '10px 13px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 13, color: '#0f172a', boxSizing: 'border-box', fontFamily: 'inherit', background: '#f8fafc' },
     modalCloseBtn: { width: 32, height: 32, borderRadius: 8, border: '1.5px solid #e2e8f0', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' },
     modalCancelBtn: { padding: '9px 22px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: 'white', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+    // ── Team member row ───────────────────────────────────────────────────────
+    memberRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '9px 11px', borderRadius: 10, boxSizing: 'border-box' as const, transition: 'opacity 0.2s' },
+    memberRowLeader: { background: '#eef2ff', border: '1px solid rgba(99,102,241,0.25)' },
+    memberRowMember: { background: '#f8fafc', border: '1px solid #e2e8f0' },
+    memberLeft: { display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
+    memberAvatarWrap: { width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 },
+    memberAvatarImg: { width: '100%', height: '100%', objectFit: 'cover' as const },
+    memberAvatarFallbackLeader: { width: '100%', height: '100%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white' },
+    memberAvatarFallbackMember: { width: '100%', height: '100%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white' },
+    memberText: { flex: 1, minWidth: 0, overflow: 'hidden' },
+    memberNameRow: { display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 },
+    memberName: { fontSize: 13, fontWeight: 800, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
+    memberBadgeLeader: { flexShrink: 0, fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white' },
+    memberBadgeMember: { flexShrink: 0, fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' },
+    memberBadgeSelf: { flexShrink: 0, fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' },
+    memberSub: { fontSize: 11, color: '#94a3b8', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
+   memberActions: {
+    display: 'flex',
+    gap: 4,
+    flexShrink: 0,
+    alignItems: 'center',
+    marginLeft: 'auto'   // 🔥 هذا أهم تعديل
+},
+    memberBtnRemove: { padding: '4px 10px', fontSize: 11, fontWeight: 700, borderRadius: 6, border: '1px solid #fecaca', background: '#fff1f2', color: '#ef4444', fontFamily: 'inherit' },
+    memberBtnLeader: { padding: '4px 10px', fontSize: 11, fontWeight: 700, borderRadius: 6, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#6366f1', fontFamily: 'inherit' },
 }
