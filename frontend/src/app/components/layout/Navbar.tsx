@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
+import { useUser } from "../../../context/UserContext";
 
 export function Navbar() {
+  const { profile } = useUser()
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -31,6 +34,17 @@ export function Navbar() {
           >
             How It Works
           </a>
+
+          {/* Doctor Requests — visible to doctors only */}
+          {profile.role === 'doctor' && (
+            <Link
+              to="/doctor/requests"
+              className="text-sm font-medium text-slate-600 hover:text-purple-600 transition-colors px-4 py-2"
+            >
+              Supervisor Requests
+            </Link>
+          )}
+
           <Link
             to="/login"
             className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors px-4 py-2"

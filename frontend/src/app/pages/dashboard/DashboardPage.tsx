@@ -10,6 +10,11 @@ import { getDashboardSummary, SuggestedTeammate } from '../../../api/dashboardAp
 import { getReceivedInvitations } from '../../../api/invitationsApi'
 import type { GradProject, GradProjectMember } from '../../../api/gradProjectApi'
 import { removeProjectMember, changeProjectLeader } from '../../../api/gradProjectApi'
+import {
+    getRecommendedSupervisors,
+    requestSupervisor,
+    type Supervisor,
+} from '../../../api/supervisorApi'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
@@ -110,8 +115,30 @@ const [myRole, setMyRole] = useState<'owner' | 'leader' | 'member' | null>(null)
     const [currentMembers, setCurrentMembers] = useState(0)
     const [isFull, setIsFull] = useState(false)
 
+    const [showSupervisors, setShowSupervisors] = useState(false)
+    const [supervisors, setSupervisors] = useState<Supervisor[]>([])
+    const [loadingSup, setLoadingSup] = useState(false)
+    const [requestingSupervisorId, setRequestingSupervisorId] = useState<number | null>(null)
+    const [supervisorMsg, setSupervisorMsg] = useState<{ msg: string; ok: boolean } | null>(null)
+    const [localSupervisor, setLocalSupervisor] = useState<{
+        name: string
+        specialization: string
+    } | null>(null)
+
     const hour = new Date().getHours()
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+
+    // ── Restore supervisor from localStorage on project load ──────────────────
+    useEffect(() => {
+        if (!gradProject) return
+
+        const saved = localStorage.getItem(`project_supervisor_${gradProject.id}`)
+        if (saved) {
+            setLocalSupervisor(JSON.parse(saved))
+        } else {
+            setLocalSupervisor(null)
+        }
+    }, [gradProject])
 
     // ── fetchInvitations: reusable, callable manually or by effects ──────────
     // Extracted so it can be triggered on:
@@ -452,6 +479,62 @@ const handleInvite = async (id: number, action: 'accept' | 'reject') => {
         setTimeout(() => setInviteMsg(null), 3000)
     }
 }
+    const handleFindSupervisors = async () => {
+        if (!gradProject) return
+
+        setSupervisorMsg(null)
+
+        try {
+            setLoadingSup(true)
+            const data = await getRecommendedSupervisors(gradProject.id)
+            setSupervisors(data)
+            setShowSupervisors(true)
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Failed to load supervisors.'
+            setSupervisorMsg({ msg, ok: false })
+        } finally {
+            setLoadingSup(false)
+        }
+    }
+
+    const handleRequestSupervisor = async (doctorId: number) => {
+        if (!gradProject || requestingSupervisorId) return
+
+        setRequestingSupervisorId(doctorId)
+        setSupervisorMsg(null)
+
+        try {
+            const result = await requestSupervisor(gradProject.id, doctorId)
+
+            // Find the requested supervisor's info from the list
+            const chosenSupervisor = supervisors.find(s => s.doctorId === doctorId)
+            if (chosenSupervisor) {
+                const supData = {
+                    name: chosenSupervisor.name,
+                    specialization: chosenSupervisor.specialization || '',
+                }
+                localStorage.setItem(
+                    `project_supervisor_${gradProject.id}`,
+                    JSON.stringify(supData)
+                )
+                setLocalSupervisor(supData)
+            }
+
+            setSupervisorMsg({
+                msg: result?.message || 'Supervisor request sent successfully.',
+                ok: true,
+            })
+
+            setTimeout(() => setSupervisorMsg(null), 3000)
+            setShowSupervisors(false)
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Failed to send supervisor request.'
+            setSupervisorMsg({ msg, ok: false })
+        } finally {
+            setRequestingSupervisorId(null)
+        }
+    }
+
     const openEditInfo = () => {
         setEditInfoOpen(true)
     }
@@ -860,6 +943,83 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
                                         )}
 
                                     </div>{/* end team section */}
+
+                                    {/* ── Supervisor Section ── */}
+                                    <div style={{ marginTop: 14, borderTop: '1px solid rgba(99,102,241,0.12)', paddingTop: 12 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                            <div>
+                                                <p style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px' }}>
+                                                    Supervisor
+                                                </p>
+                                                {localSupervisor ? (
+                                                    <div>
+                                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>
+                                                            {localSupervisor.name}
+                                                        </p>
+                                                        <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>
+                                                            {localSupervisor.specialization}
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
+                                                        No supervisor assigned yet
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {!localSupervisor && (myRole === 'owner' || myRole === 'leader') && (
+                                                <button
+                                                    onClick={handleFindSupervisors}
+                                                    disabled={loadingSup}
+                                                    style={{
+                                                        padding: '6px 12px',
+                                                        background: 'white',
+                                                        border: '1.5px solid #c7d2fe',
+                                                        borderRadius: 8,
+                                                        color: '#6366f1',
+                                                        fontSize: 11,
+                                                        fontWeight: 700,
+                                                        cursor: loadingSup ? 'not-allowed' : 'pointer',
+                                                        fontFamily: 'inherit',
+                                                        opacity: loadingSup ? 0.6 : 1,
+                                                    }}
+                                                >
+                                                    {loadingSup ? 'Loading...' : 'Find Supervisor'}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {supervisorMsg && (
+                                            <p style={{ margin: '10px 0 0', fontSize: 12, fontWeight: 600, color: supervisorMsg.ok ? '#16a34a' : '#ef4444' }}>
+                                                {supervisorMsg.msg}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* ── Open Project Button ── */}
+                                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(99,102,241,0.12)' }}>
+                                        <button
+                                            onClick={() => navigate(`/project/${gradProject.id}`)}
+                                            style={{
+                                                width: '100%',
+                                                padding: '9px 0',
+                                                background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: 10,
+                                                fontSize: 13,
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                fontFamily: 'inherit',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: 6,
+                                            }}
+                                        >
+                                            🚀 Open Project Workspace
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -1233,6 +1393,79 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
                                 Browse All Students →
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {showSupervisors && (
+                <div style={S.modalOverlay} onClick={() => setShowSupervisors(false)}>
+                    <div style={{ ...S.modalBox, width: 520 }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0f172a', fontFamily: 'Syne, sans-serif' }}>
+                                🎓 Recommended Supervisors
+                            </h3>
+                            <button onClick={() => setShowSupervisors(false)} style={S.modalCloseBtn}>
+                                <X size={15} />
+                            </button>
+                        </div>
+
+                        {supervisors.length === 0 ? (
+                            <div style={S.emptyState}>
+                                <span style={{ fontSize: 28 }}>🧑‍🏫</span>
+                                <p style={S.emptyTitle}>No supervisors found</p>
+                                <p style={S.emptyDesc}>No suitable supervisors are available for this project right now.</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 360, overflowY: 'auto' }}>
+                                {supervisors.map(s => (
+                                    <div
+                                        key={s.doctorId}
+                                        style={{
+                                            padding: '12px 14px',
+                                            background: '#f8fafc',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: 12,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: 12,
+                                        }}
+                                    >
+                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                            <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                                                {s.name}
+                                            </p>
+                                            <p style={{ margin: '0 0 4px', fontSize: 11, color: '#64748b' }}>
+                                                {s.specialization || 'No specialization'}
+                                            </p>
+                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>
+                                                Match: {s.matchScore}%
+                                            </span>
+                                        </div>
+
+                                        <button
+                                            onClick={() => handleRequestSupervisor(s.doctorId)}
+                                            disabled={requestingSupervisorId === s.doctorId}
+                                            style={{
+                                                padding: '6px 12px',
+                                                background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: 8,
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                cursor: requestingSupervisorId === s.doctorId ? 'not-allowed' : 'pointer',
+                                                fontFamily: 'inherit',
+                                                opacity: requestingSupervisorId === s.doctorId ? 0.6 : 1,
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            {requestingSupervisorId === s.doctorId ? 'Sending...' : 'Request'}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
