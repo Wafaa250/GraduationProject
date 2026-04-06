@@ -63,6 +63,15 @@ namespace GraduationProject.API.DTOs
         public string? Specialization { get; set; }
     }
 
+    /// <summary>Recommended supervisors ranked by skill match.</summary>
+    public class RecommendedSupervisorDto
+    {
+        public int DoctorId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Specialization { get; set; } = string.Empty;
+        public int MatchScore { get; set; }
+    }
+
     // ── Response ──────────────────────────────────────────────────────────────
     public class StudentProjectResponseDto
     {
