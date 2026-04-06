@@ -1,5 +1,5 @@
 // src/app/components/student/JoinChannelModal.tsx
-import { useState } from 'react'
+import { useState, type CSSProperties, type FormEvent } from 'react'
 import { X, Loader, CheckCircle } from 'lucide-react'
 import api from '../../api/axiosInstance'
 
@@ -14,7 +14,7 @@ export default function JoinChannelModal({ onClose, onJoined }: Props) {
   const [error, setError]     = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -88,7 +88,7 @@ export default function JoinChannelModal({ onClose, onJoined }: Props) {
   )
 }
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
   overlay:    { position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.45)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 200, padding: 16 },
   modal:      { background: 'white', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,.15)', width: '100%', maxWidth: 420 },
   header:     { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '22px 24px 0' },

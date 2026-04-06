@@ -1,5 +1,5 @@
 // src/app/pages/doctor/ProjectWorkspacePage.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type CSSProperties, type ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Users, Brain, CheckCircle2, Sparkles, UserCheck, Loader } from 'lucide-react'
 import api from '../../../api/axiosInstance'
@@ -99,7 +99,7 @@ export default function ProjectWorkspacePage() {
         ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         : null
 
-    const workspaceTabs: { id: WorkspaceTab; label: string; icon: React.ReactNode }[] = [
+    const workspaceTabs: { id: WorkspaceTab; label: string; icon: ReactNode }[] = [
         { id: 'overview',    label: 'Overview',       icon: <Brain size={13} /> },
         { id: 'suggestions', label: 'AI Suggestions', icon: <Sparkles size={13} /> },
         { id: 'team',        label: 'Team',           icon: <Users size={13} /> },
@@ -378,7 +378,7 @@ function initials(name: string) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function InfoSection({ title, children }: { title: string; children: React.ReactNode }) {
+function InfoSection({ title, children }: { title: string; children: ReactNode }) {
     return (
         <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: '18px 22px', boxShadow: '0 2px 8px rgba(99,102,241,0.04)' }}>
             <h3 style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 12px' }}>
@@ -389,7 +389,7 @@ function InfoSection({ title, children }: { title: string; children: React.React
     )
 }
 
-function StatPill({ icon, value, label, color }: { icon: React.ReactNode; value: number; label: string; color: string }) {
+function StatPill({ icon, value, label, color }: { icon: ReactNode; value: number; label: string; color: string }) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, gap: 3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -422,7 +422,7 @@ function BgDecor() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
     page:          { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative' },
     centered:      { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' },
     nav:           { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },

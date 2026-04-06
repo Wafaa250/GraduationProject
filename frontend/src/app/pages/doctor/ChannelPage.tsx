@@ -1,5 +1,5 @@
 // src/app/pages/doctor/ChannelPage.tsx
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Copy, Check, Users, Layers, FolderOpen, Plus } from 'lucide-react'
 
@@ -89,7 +89,7 @@ function ProjectCard({ project }: { project: Project }) {
     )
 }
 
-const PC: Record<string, React.CSSProperties> = {
+const PC: Record<string, CSSProperties> = {
     card:        { background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, padding: '20px 20px 18px', boxShadow: '0 2px 12px rgba(99,102,241,0.04)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10 },
     accentBar:   { position: 'absolute', top: 0, left: 0, right: 0, height: 3, borderRadius: '16px 16px 0 0', background: 'linear-gradient(90deg,#6366f1,#a855f7)' },
     header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -645,7 +645,7 @@ function BgDecor() {
     )
 }
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
     page: { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative' },
     nav: { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
     navInner: { maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 12 },

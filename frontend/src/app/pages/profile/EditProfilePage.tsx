@@ -1,4 +1,4 @@
-import { useState, useRef, ChangeEvent, useEffect } from 'react'
+import { useState, useRef, ChangeEvent, useEffect, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Camera, Github, Linkedin, Globe, CheckCircle2 } from 'lucide-react'
 import { useUser } from "../../../context/UserContext"
@@ -414,7 +414,7 @@ export default function EditProfilePage() {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function FormSection({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
+function FormSection({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
   return (
     <div style={S.formSection}>
       <div style={S.formSectionHeader}>
@@ -426,7 +426,7 @@ function FormSection({ title, sub, children }: { title: string; sub: string; chi
   )
 }
 
-function Field({ label, required = false, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
       <label style={S.fieldLabel}>{label} {required && <span style={{ color: '#ef4444' }}>*</span>}</label>
@@ -445,7 +445,7 @@ function BgDecor() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
   page:              { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', paddingBottom: 80 },
   nav:               { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.88)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
   navInner:          { maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 62, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },

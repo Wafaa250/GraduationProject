@@ -1,4 +1,4 @@
-import { useState, useRef, ChangeEvent, ReactNode } from 'react'
+import { useState, useRef, ChangeEvent, ReactNode, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../../api/axiosInstance'
 
@@ -380,7 +380,7 @@ function Blobs() {
   )
 }
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
   page:       { minHeight: '100vh', background: 'linear-gradient(155deg,#f0f9ff 0%,#e0f2fe 40%,#f0fdfa 100%)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '40px 20px 60px', fontFamily: 'DM Sans, sans-serif', position: 'relative', overflow: 'hidden' },
   wrap:       { width: '100%', maxWidth: 600, position: 'relative', zIndex: 1 },
   logoRow:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 24 },
