@@ -996,30 +996,6 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
                                         )}
                                     </div>
 
-                                    {/* ── Open Project Button ── */}
-                                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(99,102,241,0.12)' }}>
-                                        <button
-                                            onClick={() => navigate(`/project/${gradProject.id}`)}
-                                            style={{
-                                                width: '100%',
-                                                padding: '9px 0',
-                                                background: 'linear-gradient(135deg,#6366f1,#a855f7)',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: 10,
-                                                fontSize: 13,
-                                                fontWeight: 700,
-                                                cursor: 'pointer',
-                                                fontFamily: 'inherit',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                gap: 6,
-                                            }}
-                                        >
-                                            🚀 Open Project Workspace
-                                        </button>
-                                    </div>
                                 </div>
                             )}
                         </div>
