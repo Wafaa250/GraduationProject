@@ -44,7 +44,7 @@ namespace GraduationProject.API.Controllers
             var projects = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
-                .Include(p => p.Supervisor).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor!).ThenInclude(s => s.User)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
@@ -64,7 +64,7 @@ namespace GraduationProject.API.Controllers
             var ownedProject = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
-                .Include(p => p.Supervisor).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor!).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(p => p.OwnerId == student.Id);
 
             if (ownedProject != null)
@@ -76,7 +76,7 @@ namespace GraduationProject.API.Controllers
                 .Include(m => m.Project)
                     .ThenInclude(p => p.Members).ThenInclude(mem => mem.Student).ThenInclude(s => s.User)
                 .Include(m => m.Project)
-                    .ThenInclude(p => p.Supervisor).ThenInclude(s => s.User)
+                    .ThenInclude(p => p.Supervisor!).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(m => m.StudentId == student.Id);
 
             if (membership != null)
@@ -96,7 +96,7 @@ namespace GraduationProject.API.Controllers
             var project = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
-                .Include(p => p.Supervisor).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor!).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
@@ -237,7 +237,7 @@ namespace GraduationProject.API.Controllers
                 {
                     StudentId = s.Id,
                     UserId = s.UserId,
-                    Name = s.User.Name,
+                    Name = s.User?.Name ?? "",
                     Major = s.Major ?? "",
                     University = s.University ?? "",
                     AcademicYear = s.AcademicYear ?? "",
@@ -341,7 +341,7 @@ namespace GraduationProject.API.Controllers
                 {
                     StudentId = s.Id,
                     UserId = s.UserId,
-                    Name = s.User.Name,
+                    Name = s.User?.Name ?? "",
                     Major = s.Major ?? "",
                     University = s.University ?? "",
                     AcademicYear = s.AcademicYear ?? "",
@@ -410,7 +410,9 @@ namespace GraduationProject.API.Controllers
             }
 
             await _db.Entry(project).Reference(p => p.Owner).LoadAsync();
-            await _db.Entry(project.Owner).Reference(o => o.User).LoadAsync();
+            var ownerNav = project.Owner;
+            if (ownerNav != null)
+                await _db.Entry(ownerNav).Reference(o => o.User).LoadAsync();
             await _db.Entry(project).Collection(p => p.Members).Query()
                 .Include(m => m.Student).ThenInclude(s => s.User)
                 .LoadAsync();
@@ -431,7 +433,7 @@ namespace GraduationProject.API.Controllers
             var project = await _db.StudentProjects
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
-                .Include(p => p.Supervisor).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor!).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
@@ -778,12 +780,13 @@ namespace GraduationProject.API.Controllers
             if (request.Status != "pending")
                 return BadRequest(new { message = "This request has already been processed." });
 
-            if (request.Project.SupervisorId != null)
+            if (request.Project?.SupervisorId != null)
                 return BadRequest(new { message = "This project already has a supervisor." });
 
             request.Status = "accepted";
             request.RespondedAt = DateTime.UtcNow;
-            request.Project.SupervisorId = request.DoctorId;
+            if (request.Project != null)
+                request.Project.SupervisorId = request.DoctorId;
 
             var otherRequests = await _db.SupervisorRequests
                 .Where(r => r.ProjectId == request.ProjectId
@@ -870,19 +873,19 @@ namespace GraduationProject.API.Controllers
                 project = new
                 {
                     projectId = r.ProjectId,
-                    name = r.Project.Name,
-                    description = r.Project.Description,
-                    requiredSkills = r.Project.RequiredSkills != null
-                        ? JsonSerializer.Deserialize<List<string>>(r.Project.RequiredSkills)
+                    name = r.Project?.Name ?? "",
+                    description = r.Project?.Description,
+                    requiredSkills = r.Project?.RequiredSkills is { } reqJson
+                        ? JsonSerializer.Deserialize<List<string>>(reqJson) ?? new List<string>()
                         : new List<string>()
                 },
 
                 sender = new
                 {
                     studentId = r.SenderId,
-                    name = r.Sender.User.Name,
-                    major = r.Sender.Major,
-                    university = r.Sender.University
+                    name = r.Sender?.User?.Name ?? "",
+                    major = r.Sender?.Major ?? "",
+                    university = r.Sender?.University ?? ""
                 },
 
                 status = r.Status,
@@ -1051,12 +1054,11 @@ namespace GraduationProject.API.Controllers
                 IsOwner = callerProfileId.HasValue && p.OwnerId == callerProfileId.Value,
                 RemainingSeats = Math.Max(0, totalCapacity - currentCount),
 
-                // 🔥 الجديد
                 Supervisor = p.Supervisor != null ? new SupervisorDto
                 {
-                    DoctorId = p.Supervisor.Id,
-                    Name = p.Supervisor.User.Name,
-                    Specialization = p.Supervisor.Specialization
+                    DoctorId = p.Supervisor?.Id ?? 0,
+                    Name = p.Supervisor?.User?.Name ?? "",
+                    Specialization = p.Supervisor?.Specialization ?? ""
                 } : null,
 
                 Members = members.Select(m => new StudentProjectMemberDto
