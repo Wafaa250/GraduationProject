@@ -1,4 +1,4 @@
-import { useState, useRef, ReactNode, ChangeEvent } from 'react'
+import { useState, useRef, ReactNode, ChangeEvent, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from "../../../context/UserContext"
 import { registerStudent } from '../../../api/authApi'
@@ -392,7 +392,7 @@ function Blobs() {
   )
 }
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
   page:          {minHeight:'100vh',background:'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)',display:'flex',justifyContent:'center',alignItems:'flex-start',padding:'40px 20px 60px',fontFamily:'DM Sans, sans-serif',position:'relative',overflow:'hidden'},
   wrap:          {width:'100%',maxWidth:680,position:'relative',zIndex:1},
   logoRow:       {display:'flex',alignItems:'center',justifyContent:'center',gap:10,marginBottom:24},

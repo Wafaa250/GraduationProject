@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
     Bell, Search, Settings, ChevronRight, Users,
@@ -1156,7 +1156,7 @@ function BgDecor() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
     page: { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative' },
     nav: { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.88)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
     navInner: { maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 62, display: 'flex', alignItems: 'center', gap: 16 },

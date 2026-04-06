@@ -1,5 +1,5 @@
 // src/app/pages/invitations/ReceivedInvitationsPage.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Inbox, CheckCircle2, XCircle } from 'lucide-react'
 import {
@@ -263,7 +263,7 @@ function BgDecor() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
   page:        { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative' },
   nav:         { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
   navInner:    { maxWidth: 760, margin: '0 auto', padding: '0 24px', height: 58, display: 'flex', alignItems: 'center', gap: 16 },

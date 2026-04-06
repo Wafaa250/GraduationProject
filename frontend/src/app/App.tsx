@@ -1,4 +1,5 @@
 // src/app/App.tsx
+import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { UserProvider } from '../context/UserContext';
 import { DoctorProvider } from './pages/doctor/DoctorContext';
@@ -16,7 +17,7 @@ import StudentProfilePage from "./pages/students/StudentProfilePage"
 import ReceivedInvitationsPage from "./pages/invitations/ReceivedInvitationsPage";
 import ProjectWorkspacePage from "./pages/doctor/ProjectWorkspacePage";
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token')
     if (!token) return <Navigate to="/login" replace />
     return <>{children}</>
