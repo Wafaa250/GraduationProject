@@ -23,6 +23,7 @@ namespace GraduationProject.API.Data
         public DbSet<StudentProjectMember> StudentProjectMembers => Set<StudentProjectMember>();
         public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
         public DbSet<SupervisorRequest> SupervisorRequests => Set<SupervisorRequest>();
+        public DbSet<SupervisorCancellationRequest> SupervisorCancellationRequests => Set<SupervisorCancellationRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -211,6 +212,43 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Restrict);
 
                 // Restrict: deleting a student does not delete the request history
+                e.HasOne(r => r.Sender)
+                 .WithMany()
+                 .HasForeignKey(r => r.SenderId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ── SUPERVISOR CANCELLATION REQUESTS ──────────────────────────────
+            modelBuilder.Entity<SupervisorCancellationRequest>(e =>
+            {
+                e.ToTable("supervisor_cancellation_requests");
+
+                e.Property(r => r.Status)
+                 .HasColumnName("status")
+                 .HasMaxLength(20)
+                 .HasDefaultValue("pending")
+                 .IsRequired();
+
+                // Index for quick lookup: all cancellation requests for project or doctor
+                e.HasIndex(r => r.ProjectId)
+                 .HasDatabaseName("ix_supervisor_cancellation_requests_project");
+
+                e.HasIndex(r => r.DoctorId)
+                 .HasDatabaseName("ix_supervisor_cancellation_requests_doctor");
+
+                // Project deleted -> cascade delete its cancellation requests
+                e.HasOne(r => r.Project)
+                 .WithMany(p => p.SupervisorCancellationRequests)
+                 .HasForeignKey(r => r.ProjectId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                // Restrict: deleting a doctor does not delete request history
+                e.HasOne(r => r.Doctor)
+                 .WithMany()
+                 .HasForeignKey(r => r.DoctorId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                // Restrict: deleting a student does not delete request history
                 e.HasOne(r => r.Sender)
                  .WithMany()
                  .HasForeignKey(r => r.SenderId)
