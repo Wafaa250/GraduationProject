@@ -186,9 +186,12 @@ namespace GraduationProject.API.Controllers
             if (project.OwnerId != owner.Id)
                 return StatusCode(403, new { message = "Not authorized." });
 
+            var ownerMajor = owner.Major;
             var allStudents = await _db.StudentProfiles
                 .Include(s => s.User)
-                .Where(s => s.UserId != owner.UserId)
+                .Where(s => s.UserId != owner.UserId &&
+                            s.Major != null && ownerMajor != null &&
+                            s.Major.ToLower() == ownerMajor.ToLower())
                 .ToListAsync();
 
             var pendingInviteReceiverIds = await _db.ProjectInvitations
@@ -282,9 +285,12 @@ namespace GraduationProject.API.Controllers
             var projectSkillIds = await GetProjectSkillIdsAsync(project.RequiredSkills);
             var hasRequirements = projectSkillIds.Count > 0;
 
+            var ownerMajor = owner.Major;
             var allStudents = await _db.StudentProfiles
                 .Include(s => s.User)
-                .Where(s => s.UserId != owner.UserId)
+                .Where(s => s.UserId != owner.UserId &&
+                            s.Major != null && ownerMajor != null &&
+                            s.Major.ToLower() == ownerMajor.ToLower())
                 .ToListAsync();
 
             var pendingInviteReceiverIds = await _db.ProjectInvitations

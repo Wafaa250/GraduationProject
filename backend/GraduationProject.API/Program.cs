@@ -1,6 +1,8 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using GraduationProject.API.Data;
@@ -43,6 +45,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
 
 // ===========================
 // CORS - ✅ مرة وحدة بس
@@ -94,6 +97,14 @@ builder.Services.AddSwaggerGen(c =>
 // BUILD
 // ===========================
 var app = builder.Build();
+
+// OpenAI: read from appsettings*, user secrets, or environment (e.g. OpenAI__ApiKey → OpenAI:ApiKey).
+if (string.IsNullOrWhiteSpace(app.Configuration["OpenAI:ApiKey"]))
+{
+    var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("OpenAI");
+    log.LogWarning(
+        "OpenAI:ApiKey is not configured. Set it in appsettings.Development.json, user secrets, or environment variable OpenAI__ApiKey. AI ranking will use fallback logic.");
+}
 
 // ✅ CORS أول شي
 app.UseCors("AllowFrontend");
