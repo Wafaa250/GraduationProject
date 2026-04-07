@@ -717,6 +717,57 @@ namespace GraduationProject.API.Controllers
         }
 
         // =====================================================================
+        // POST /api/graduation-projects/{projectId}/request-supervisor-cancel
+        // POST /api/student-projects/{projectId}/request-supervisor-cancel
+        // Send supervisor cancellation request to assigned doctor — leader only.
+        // =====================================================================
+        [HttpPost("{projectId:int}/request-supervisor-cancel")]
+        public async Task<IActionResult> RequestSupervisorCancellation(int projectId)
+        {
+            var caller = await GetStudentProfileAsync();
+            if (caller == null) return Forbid();
+
+            var project = await _db.StudentProjects
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            var isLeader = await _db.StudentProjectMembers
+                .AnyAsync(m => m.ProjectId == projectId && m.StudentId == caller.Id && m.Role == "leader");
+
+            if (!isLeader)
+                return StatusCode(403, new { message = "Not authorized. Only the project leader can send cancellation requests." });
+
+            if (project.SupervisorId == null)
+                return BadRequest(new { message = "This project does not have a supervisor." });
+
+            var pendingExists = await _db.SupervisorCancellationRequests
+                .AnyAsync(r =>
+                    r.ProjectId == projectId &&
+                    r.DoctorId == project.SupervisorId.Value &&
+                    r.Status == "pending");
+
+            if (pendingExists)
+                return BadRequest(new { message = "A pending cancellation request already exists." });
+
+            var request = new SupervisorCancellationRequest
+            {
+                ProjectId = projectId,
+                DoctorId = project.SupervisorId.Value,
+                SenderId = caller.Id,
+                Status = "pending",
+                CreatedAt = DateTime.UtcNow,
+                RespondedAt = null
+            };
+
+            _db.SupervisorCancellationRequests.Add(request);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Cancellation request sent" });
+        }
+
+        // =====================================================================
         // GET /api/graduation-projects/{projectId}/recommended-supervisors
         // GET /api/student-projects/{projectId}/recommended-supervisors
         // Returns doctors ranked by how well they match project required skills.
@@ -894,6 +945,110 @@ namespace GraduationProject.API.Controllers
             });
 
             return Ok(result);
+        }
+
+        // =====================================================================
+        // GET /api/doctors/me/supervisor-cancel-requests
+        // Returns all supervisor cancellation requests for the logged-in doctor.
+        // =====================================================================
+        [HttpGet("/api/doctors/me/supervisor-cancel-requests")]
+        public async Task<IActionResult> GetDoctorSupervisorCancelRequests()
+        {
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can access this endpoint." });
+
+            var doctor = await GetCurrentDoctorProfileAsync();
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            var requests = await _db.SupervisorCancellationRequests
+                .Where(r => r.DoctorId == doctor.Id)
+                .Include(r => r.Project)
+                .Include(r => r.Sender).ThenInclude(s => s.User)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            var result = requests.Select(r => new
+            {
+                requestId = r.Id,
+                projectId = r.ProjectId,
+                projectName = r.Project?.Name ?? "",
+                studentName = r.Sender?.User?.Name ?? "",
+                status = r.Status
+            });
+
+            return Ok(result);
+        }
+
+        // =====================================================================
+        // POST /api/supervisor-cancel-requests/{id}/accept
+        // Accept supervisor cancellation request — doctor only.
+        // =====================================================================
+        [HttpPost("/api/supervisor-cancel-requests/{id:int}/accept")]
+        public async Task<IActionResult> AcceptSupervisorCancelRequest(int id)
+        {
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can accept requests." });
+
+            var doctor = await GetCurrentDoctorProfileAsync();
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            var request = await _db.SupervisorCancellationRequests
+                .Include(r => r.Project)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+                return NotFound(new { message = "Request not found." });
+
+            if (request.DoctorId != doctor.Id)
+                return StatusCode(403, new { message = "Not authorized for this request." });
+
+            if (request.Status != "pending")
+                return BadRequest(new { message = "This request has already been processed." });
+
+            request.Status = "accepted";
+            request.RespondedAt = DateTime.UtcNow;
+            if (request.Project != null)
+                request.Project.SupervisorId = null;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Supervisor removed successfully" });
+        }
+
+        // =====================================================================
+        // POST /api/supervisor-cancel-requests/{id}/reject
+        // Reject supervisor cancellation request — doctor only.
+        // =====================================================================
+        [HttpPost("/api/supervisor-cancel-requests/{id:int}/reject")]
+        public async Task<IActionResult> RejectSupervisorCancelRequest(int id)
+        {
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can reject requests." });
+
+            var doctor = await GetCurrentDoctorProfileAsync();
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            var request = await _db.SupervisorCancellationRequests
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+                return NotFound(new { message = "Request not found." });
+
+            if (request.DoctorId != doctor.Id)
+                return StatusCode(403, new { message = "Not authorized for this request." });
+
+            if (request.Status != "pending")
+                return BadRequest(new { message = "This request has already been processed." });
+
+            request.Status = "rejected";
+            request.RespondedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Cancellation request rejected" });
         }
         // =====================================================================
         // POST /api/graduation-projects/{projectId}/invite/{receiverId}

@@ -32,6 +32,7 @@ namespace GraduationProject.API.Models
         public ICollection<StudentProjectMember> Members { get; set; } = new List<StudentProjectMember>();
         public ICollection<ProjectInvitation> Invitations { get; set; } = new List<ProjectInvitation>();
         public ICollection<SupervisorRequest> SupervisorRequests { get; set; } = new List<SupervisorRequest>();
+        public ICollection<SupervisorCancellationRequest> SupervisorCancellationRequests { get; set; } = new List<SupervisorCancellationRequest>();
     }
 
     [Table("graduation_project_members")]
@@ -75,6 +76,26 @@ namespace GraduationProject.API.Models
 
     [Table("supervisor_requests")]
     public class SupervisorRequest
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("project_id")] public int ProjectId { get; set; }  // StudentProject.Id
+        [Column("doctor_id")] public int DoctorId { get; set; }  // DoctorProfile.Id
+        [Column("sender_id")] public int SenderId { get; set; }  // StudentProfile.Id (leader)
+
+        // "pending" | "accepted" | "rejected"
+        [Column("status")] public string Status { get; set; } = "pending";
+
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Column("responded_at")] public DateTime? RespondedAt { get; set; }
+
+        // Navigation
+        public StudentProject Project { get; set; } = null!;
+        public DoctorProfile Doctor { get; set; } = null!;
+        public StudentProfile Sender { get; set; } = null!;
+    }
+
+    [Table("supervisor_cancellation_requests")]
+    public class SupervisorCancellationRequest
     {
         [Column("id")] public int Id { get; set; }
         [Column("project_id")] public int ProjectId { get; set; }  // StudentProject.Id
