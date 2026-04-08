@@ -823,7 +823,8 @@ const handleInvite = async (id: number, action: 'accept' | 'reject') => {
                             )}
                         </div>
 
-                        {/* My Graduation Project */}
+                        {/* My Graduation Project (moved to AI tabs area) */}
+                        {false && (
                         <div style={S.card}>
                             <div style={S.cardHeader}>
                                 <h3 style={S.cardTitle}>🎓 My Graduation Project</h3>
@@ -1129,6 +1130,7 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
                                 </div>
                             )}
                         </div>
+                        )}
 
                         {/* Recent Activity */}
                         <div style={S.card}>
@@ -1159,10 +1161,320 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
                         <div style={S.filterRow}>
                             {(['all', 'teammates', 'projects'] as const).map(f => (
                                 <button key={f} style={{ ...S.filterBtn, ...(activeFilter === f ? S.filterBtnActive : {}) }} onClick={() => setActiveFilter(f)}>
-                                    {f === 'all' ? '⚡ All Matches' : f === 'teammates' ? '👥 Teammates' : '📁 Projects'}
+                                    {f === 'all'
+                                        ? '⚡ All Matches'
+                                        : f === 'teammates'
+                                        ? '👥 Teammates'
+                                        : '📁 Projects'}
                                 </button>
                             ))}
                         </div>
+
+                        {/* My Graduation Project */}
+                        <div style={{ ...S.card, order: -1 }}>
+                                <div style={S.cardHeader}>
+                                    <h3 style={S.cardTitle}>🎓 My Graduation Project</h3>
+                                    {!gradProject && !gradLoading && (
+                                        <button onClick={() => setGradModalOpen(true)} style={S.cardActionBtn}>
+                                            + Create <ChevronRight size={12} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Loading */}
+                                {gradLoading && (
+                                    <div style={S.emptyState}>
+                                        <p style={{ fontSize: 12, color: '#94a3b8' }}>⏳ Loading...</p>
+                                    </div>
+                                )}
+
+                                {/* No project */}
+                                {!gradLoading && !gradProject && (
+                                    <div style={S.emptyState}>
+                                        <span style={{ fontSize: 24 }}>📝</span>
+                                        <p style={S.emptyTitle}>You don't have a graduation project yet</p>
+                                        <p style={S.emptyDesc}>Create your graduation project and find teammates</p>
+                                        <button onClick={() => setGradModalOpen(true)}
+                                            style={{ marginTop: 8, padding: '7px 16px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                            Create Graduation Project
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Project exists */}
+                                {!gradLoading && gradProject && (
+                                    <div style={{ padding: '14px', background: 'linear-gradient(135deg,rgba(99,102,241,0.05),rgba(168,85,247,0.05))', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 12 }}>
+
+                                        {/* Header: name + role badge + action */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                                            <div>
+                                                <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 3px' }}>{gradProject.name}</p>
+                                                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', background: gradProject.isOwner ? 'linear-gradient(135deg,#6366f1,#a855f7)' : '#e0e7ff', color: gradProject.isOwner ? 'white' : '#6366f1', borderRadius: 20 }}>
+                                                    {gradProject.isOwner ? '👑 Owner' : '👥 Member'}
+                                                </span>
+                                            </div>
+                                            {gradProject.isOwner ? (
+                                                <button onClick={handleDeleteProject}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 11, fontFamily: 'inherit', padding: '2px 6px', borderRadius: 6 }}>
+                                                    🗑 Delete
+                                                </button>
+                                            ) : (
+                                                <button onClick={handleLeaveProject}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 11, fontFamily: 'inherit', padding: '2px 6px', borderRadius: 6 }}>
+                                                    Leave
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Description */}
+                                        {gradProject.description && (
+                                            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 8px', lineHeight: 1.5 }}>{gradProject.description}</p>
+                                        )}
+
+                                        {/* Owner name */}
+                                        <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px', fontWeight: 500 }}>
+                                            by {gradProject.ownerName ?? '—'}
+                                        </p>
+
+                                        {/* Required skills */}
+                                        {(gradProject.requiredSkills ?? []).length > 0 && (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginBottom: 10 }}>
+                                                {(gradProject.requiredSkills ?? []).map((sk: string) => <span key={sk} style={S.skillChipSm}>{sk}</span>)}
+                                            </div>
+                                        )}
+
+                                        {/* ── Team Members ── */}
+                                        <div style={{ marginTop: 12, borderTop: '1px solid rgba(99,102,241,0.12)', paddingTop: 12 }}>
+
+                                            {/* Header: label + count + full badge */}
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                    <Users size={12} color="#6366f1" />
+                                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                                                        Team
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                    {/* Count pill — always visible */}
+                                                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe', borderRadius: 20 }}>
+                                                        {currentMembers} / {gradProject.partnersCount}
+                                                    </span>
+                                                    {/* Full badge — replaces "X seats left" when team is complete */}
+                                                    {isFull
+                                                        ? <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', borderRadius: 20 }}>✓ Full</span>
+                                                        : <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8' }}>
+                                                            {Math.max(0, gradProject.partnersCount - currentMembers)} seat{Math.max(0, gradProject.partnersCount - currentMembers) !== 1 ? 's' : ''} open
+                                                          </span>
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            {/* Member rows */}
+                                            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                                                {teamMembers.length === 0 ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8 }}>
+                                                        <Users size={13} color="#cbd5e1" />
+                                                        <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>No members yet — invite students to join</span>
+                                                    </div>
+                                                ) : teamMembers.map(m => (
+                                                    <TeamMemberRow
+                                                        key={m.studentId}
+                                                        member={m}
+                                                        canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
+                                                        isSelf={myStudentId !== null && m.studentId === myStudentId}
+                                                        isRemoving={removingId === m.studentId}
+                                                        onRemove={() => handleRemoveMember(m.studentId)}
+                                                        isPromoting={promotingId === m.studentId}
+                                                        onMakeLeader={() => handleMakeLeader(m.studentId)}
+                                                    />
+                                                ))}
+                                            </div>
+
+                                            {/* Inline action feedback — removal or leader change */}
+                                            {(removeMsg || leaderMsg) && (
+                                                <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, color: (removeMsg ?? leaderMsg)!.ok ? '#16a34a' : '#ef4444' }}>
+                                                    {(removeMsg ?? leaderMsg)!.msg}
+                                                </p>
+                                            )}
+
+                                            {/* Footer: browse button (owner, not full) or complete notice */}
+                                            {gradProject.isOwner && !isFull && (
+                                                <button
+                                                    onClick={() => navigate(`/students?projectId=${gradProject.id}`)}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10, padding: '6px 12px', background: 'white', border: '1.5px solid #c7d2fe', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit' }}
+                                                >
+                                                    <UserPlus size={12} /> Browse Students to Join
+                                                </button>
+                                            )}
+                                            {isFull && (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 10 }}>
+                                                    <CheckCircle2 size={13} color="#10b981" />
+                                                    <span style={{ fontSize: 11, fontWeight: 600, color: '#10b981' }}>Team is complete</span>
+                                                </div>
+                                            )}
+
+                                        </div>{/* end team section */}
+
+                                        {/* ── Supervisor Section (status from GET /graduation-projects/my) ── */}
+                                        <div style={{ marginTop: 14, borderTop: '1px solid rgba(99,102,241,0.12)', paddingTop: 12 }}>
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                                                <div style={{ minWidth: 0, flex: 1 }}>
+                                                    <p style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>
+                                                        Supervisor
+                                                    </p>
+
+                                                    {supervisionUi.mode === 'assigned' && (
+                                                        <div
+                                                            style={{
+                                                                padding: '12px 14px',
+                                                                background: '#f8fafc',
+                                                                border: '1px solid #e2e8f0',
+                                                                borderRadius: 12,
+                                                            }}
+                                                        >
+                                                            <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>
+                                                                Supervisor:{' '}
+                                                                {formatSupervisorDoctorName(supervisionUi.supervisor.name)}
+                                                            </p>
+                                                            {!!supervisionUi.supervisor.specialization && (
+                                                                <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 6px' }}>
+                                                                    {supervisionUi.supervisor.specialization}
+                                                                </p>
+                                                            )}
+                                                            <p style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', margin: 0 }}>
+                                                                Status: Active supervision
+                                                            </p>
+                                                            {cancellationPending && (
+                                                                <p style={{ fontSize: 11, fontWeight: 600, color: '#b45309', margin: '8px 0 0' }} role="status">
+                                                                    Cancellation pending doctor approval
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {supervisionUi.mode === 'pending' && (
+                                                        <div
+                                                            style={{
+                                                                padding: '12px 14px',
+                                                                background: '#fffbeb',
+                                                                border: '1px solid #fde68a',
+                                                                borderRadius: 12,
+                                                            }}
+                                                            role="status"
+                                                        >
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                                                                <span
+                                                                    style={{
+                                                                        fontSize: 10,
+                                                                        fontWeight: 800,
+                                                                        textTransform: 'uppercase',
+                                                                        letterSpacing: '0.06em',
+                                                                        padding: '3px 8px',
+                                                                        borderRadius: 6,
+                                                                        background: '#fef3c7',
+                                                                        color: '#b45309',
+                                                                        border: '1px solid #fcd34d',
+                                                                    }}
+                                                                >
+                                                                    Pending
+                                                                </span>
+                                                            </div>
+                                                            <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>
+                                                                Supervisor: {formatSupervisorDoctorName(supervisionUi.doctorName)}
+                                                            </p>
+                                                            <p style={{ fontSize: 11, fontWeight: 600, color: '#b45309', margin: 0 }}>
+                                                                Status: Pending doctor approval
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {supervisionUi.mode === 'rejected' && (
+                                                        <div
+                                                            style={{
+                                                                padding: '12px 14px',
+                                                                background: '#fef2f2',
+                                                                border: '1px solid #fecaca',
+                                                                borderRadius: 12,
+                                                            }}
+                                                            role="status"
+                                                        >
+                                                            <p style={{ fontSize: 13, fontWeight: 700, color: '#b91c1c', margin: '0 0 4px' }}>
+                                                                Request rejected
+                                                            </p>
+                                                            <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>
+                                                                You can send a new supervisor request.
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {supervisionUi.mode === 'none' && (
+                                                        <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
+                                                            No supervisor assigned yet
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {(myRole === 'owner' || myRole === 'leader') && supervisionUi.mode !== 'assigned' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleFindSupervisors}
+                                                        disabled={loadingSup || supervisionUi.mode === 'pending'}
+                                                        style={{
+                                                            padding: '6px 12px',
+                                                            background: 'white',
+                                                            border: '1.5px solid #c7d2fe',
+                                                            borderRadius: 8,
+                                                            color: '#6366f1',
+                                                            fontSize: 11,
+                                                            fontWeight: 700,
+                                                            cursor: loadingSup || supervisionUi.mode === 'pending' ? 'not-allowed' : 'pointer',
+                                                            fontFamily: 'inherit',
+                                                            opacity: loadingSup || supervisionUi.mode === 'pending' ? 0.6 : 1,
+                                                            flexShrink: 0,
+                                                        }}
+                                                    >
+                                                        {loadingSup ? 'Loading...' : 'Find Supervisor'}
+                                                    </button>
+                                                )}
+
+                                                {supervisionUi.mode === 'assigned' && (myRole === 'owner' || myRole === 'leader') && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleRequestSupervisorCancellation}
+                                                        disabled={sendingCancellationRequest || cancellationPending}
+                                                        style={{
+                                                            padding: '6px 12px',
+                                                            background: cancellationPending ? '#f8fafc' : 'white',
+                                                            border: '1.5px solid #c7d2fe',
+                                                            borderRadius: 8,
+                                                            color: cancellationPending ? '#64748b' : '#6366f1',
+                                                            fontSize: 11,
+                                                            fontWeight: 700,
+                                                            cursor: sendingCancellationRequest || cancellationPending ? 'not-allowed' : 'pointer',
+                                                            fontFamily: 'inherit',
+                                                            opacity: sendingCancellationRequest || cancellationPending ? 0.7 : 1,
+                                                            flexShrink: 0,
+                                                        }}
+                                                    >
+                                                        {sendingCancellationRequest
+                                                            ? 'Sending...'
+                                                            : cancellationPending
+                                                              ? 'Cancellation pending doctor approval'
+                                                              : 'Send cancellation request'}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {supervisorMsg && (
+                                                <p style={{ margin: '10px 0 0', fontSize: 12, fontWeight: 600, color: supervisorMsg.ok ? '#16a34a' : '#ef4444' }}>
+                                                    {supervisorMsg.msg}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                    </div>
+                                )}
+                            </div>
 
                         {/* Suggested Teammates */}
                         {(activeFilter === 'all' || activeFilter === 'teammates') && (
