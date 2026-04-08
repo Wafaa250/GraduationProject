@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
     Bell, Search, Settings, ChevronRight, Users,
@@ -6,15 +6,32 @@ import {
     Activity, LogOut, UserPlus, Trophy, Sparkles, X
 } from 'lucide-react'
 import api from '../../../api/axiosInstance'
-import { getDashboardSummary, SuggestedTeammate } from '../../../api/dashboardApi'
+import {
+    getDashboardSummary,
+    getGraduationProjectsMyEnvelope,
+    SuggestedTeammate,
+} from '../../../api/dashboardApi'
 import { getReceivedInvitations } from '../../../api/invitationsApi'
 import type { GradProject, GradProjectMember } from '../../../api/gradProjectApi'
 import { removeProjectMember, changeProjectLeader } from '../../../api/gradProjectApi'
 import {
     getRecommendedSupervisors,
     requestSupervisor,
+    requestSupervisorCancellation,
     type Supervisor,
 } from '../../../api/supervisorApi'
+
+function normApiStatus(s?: string | null): string {
+    return s?.toString().trim().toLowerCase() ?? ''
+}
+
+/** Display line for supervisor name with Dr. prefix when appropriate */
+function formatSupervisorDoctorName(raw: string): string {
+    const t = raw.trim()
+    if (!t) return '—'
+    if (/^dr\.?\s/i.test(t)) return t
+    return `Dr. ${t}`
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
@@ -98,7 +115,7 @@ export default function DashboardPage() {
     // Role the current user holds in their project — comes from GET /my envelope.
     // Kept separately from gradProject so it survives the same optimistic-update
     // pattern used for teamMembers / currentMembers / isFull.
-const [myRole, setMyRole] = useState<'owner' | 'leader' | 'member' | null>(null)
+    const [myRole, setMyRole] = useState<'owner' | 'leader' | 'member' | null>(null)
     // Auth-layer userId from GET /me — stored in a ref so refetchGradProject can
     // read the latest value without needing it as a useCallback dependency.
     const myUserIdRef = React.useRef<number | null>(null)
@@ -119,25 +136,33 @@ const [myRole, setMyRole] = useState<'owner' | 'leader' | 'member' | null>(null)
     const [supervisors, setSupervisors] = useState<Supervisor[]>([])
     const [loadingSup, setLoadingSup] = useState(false)
     const [requestingSupervisorId, setRequestingSupervisorId] = useState<number | null>(null)
+    const [sendingCancellationRequest, setSendingCancellationRequest] = useState(false)
     const [supervisorMsg, setSupervisorMsg] = useState<{ msg: string; ok: boolean } | null>(null)
-    const [localSupervisor, setLocalSupervisor] = useState<{
-        name: string
-        specialization: string
-    } | null>(null)
 
     const hour = new Date().getHours()
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-    // ── Restore supervisor from localStorage on project load ──────────────────
-    useEffect(() => {
-        if (!gradProject) return
+    const supervisionUi = useMemo(() => {
+        if (!gradProject) return { mode: 'none' as const }
 
-        const saved = localStorage.getItem(`project_supervisor_${gradProject.id}`)
-        if (saved) {
-            setLocalSupervisor(JSON.parse(saved))
-        } else {
-            setLocalSupervisor(null)
+        if (gradProject.supervisor) {
+            return { mode: 'assigned' as const, supervisor: gradProject.supervisor }
         }
+
+        const sr = normApiStatus(gradProject.supervisorRequestStatus)
+        if (sr === 'rejected') {
+            return { mode: 'rejected' as const }
+        }
+        if (sr === 'pending') {
+            const doctorName = gradProject.pendingSupervisor?.name?.trim() || '—'
+            return { mode: 'pending' as const, doctorName }
+        }
+        return { mode: 'none' as const }
+    }, [gradProject])
+
+    const cancellationPending = useMemo(() => {
+        if (!gradProject?.supervisor) return false
+        return normApiStatus(gradProject.supervisorCancellationRequestStatus) === 'pending'
     }, [gradProject])
 
     // ── fetchInvitations: reusable, callable manually or by effects ──────────
@@ -183,13 +208,9 @@ const [myRole, setMyRole] = useState<'owner' | 'leader' | 'member' | null>(null)
     const refetchGradProject = useCallback(async () => {
         try {
             setGradLoading(true)
-            const res = await api.get('/graduation-projects/my')
-            // res.data = { role: 'owner'|'member'|null, project: GradProject|null }
-            const project: GradProject | null = res.data?.project ?? null
-            const role: 'owner' | 'member' | null = res.data?.role ?? null
-            setGradProject(project)
+            const { project, role } = await getGraduationProjectsMyEnvelope()
+            setGradProject(project ?? null)
             setMyRole(role)
-
             // Seed the independent team-member state from the project payload.
             // The /my endpoint already embeds members via MapToDto, so no extra
             // fetch is needed on first load.
@@ -202,7 +223,8 @@ const [myRole, setMyRole] = useState<'owner' | 'leader' | 'member' | null>(null)
                 // Find the current user's own StudentProfile.Id by matching their
                 // auth userId (captured from /me) against the member list.
                 // This is used purely to hide the Remove button on their own row.
-                const myRow = members.find(m => m.userId === myUserIdRef.current)
+                const myRow = members.find((m: any) => m.userId === myUserIdRef.current)
+
                 setMyStudentId(myRow?.studentId ?? null)
             } else {
                 setTeamMembers([])
@@ -211,7 +233,8 @@ const [myRole, setMyRole] = useState<'owner' | 'leader' | 'member' | null>(null)
                 setMyStudentId(null)
             }
         } catch (err: any) {
-            if (err?.response?.status === 401 || err?.response?.status === 403) {
+            // 403 from /my can be Forbid() (e.g. no student profile) — do not treat as "session expired".
+            if (err?.response?.status === 401) {
                 navigate('/login')
             }
             setGradProject(null)
@@ -504,34 +527,36 @@ const handleInvite = async (id: number, action: 'accept' | 'reject') => {
         setSupervisorMsg(null)
 
         try {
-            const result = await requestSupervisor(gradProject.id, doctorId)
-
-            // Find the requested supervisor's info from the list
-            const chosenSupervisor = supervisors.find(s => s.doctorId === doctorId)
-            if (chosenSupervisor) {
-                const supData = {
-                    name: chosenSupervisor.name,
-                    specialization: chosenSupervisor.specialization || '',
-                }
-                localStorage.setItem(
-                    `project_supervisor_${gradProject.id}`,
-                    JSON.stringify(supData)
-                )
-                setLocalSupervisor(supData)
-            }
-
-            setSupervisorMsg({
-                msg: result?.message || 'Supervisor request sent successfully.',
-                ok: true,
-            })
-
-            setTimeout(() => setSupervisorMsg(null), 3000)
+            await requestSupervisor(gradProject.id, doctorId)
+            setSupervisorMsg(null)
             setShowSupervisors(false)
+            await refetchGradProject()
         } catch (err: any) {
             const msg = err?.response?.data?.message || 'Failed to send supervisor request.'
             setSupervisorMsg({ msg, ok: false })
         } finally {
             setRequestingSupervisorId(null)
+        }
+    }
+
+    const handleRequestSupervisorCancellation = async () => {
+        const cancelBlocked =
+            !gradProject?.supervisor ||
+            sendingCancellationRequest ||
+            normApiStatus(gradProject.supervisorCancellationRequestStatus) === 'pending'
+        if (cancelBlocked) return
+
+        setSendingCancellationRequest(true)
+        setSupervisorMsg(null)
+        try {
+            await requestSupervisorCancellation(gradProject.id)
+            setSupervisorMsg(null)
+            await refetchGradProject()
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Failed to send cancellation request.'
+            setSupervisorMsg({ msg, ok: false })
+        } finally {
+            setSendingCancellationRequest(false)
         }
     }
 
@@ -944,33 +969,110 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
 
                                     </div>{/* end team section */}
 
-                                    {/* ── Supervisor Section ── */}
+                                    {/* ── Supervisor Section (status from GET /graduation-projects/my) ── */}
                                     <div style={{ marginTop: 14, borderTop: '1px solid rgba(99,102,241,0.12)', paddingTop: 12 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                                            <div>
-                                                <p style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                <p style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>
                                                     Supervisor
                                                 </p>
-                                                {localSupervisor ? (
-                                                    <div>
-                                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>
-                                                            {localSupervisor.name}
+
+                                                {supervisionUi.mode === 'assigned' && (
+                                                    <div
+                                                        style={{
+                                                            padding: '12px 14px',
+                                                            background: '#f8fafc',
+                                                            border: '1px solid #e2e8f0',
+                                                            borderRadius: 12,
+                                                        }}
+                                                    >
+                                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>
+                                                            Supervisor:{' '}
+                                                            {formatSupervisorDoctorName(supervisionUi.supervisor.name)}
                                                         </p>
-                                                        <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>
-                                                            {localSupervisor.specialization}
+                                                        {!!supervisionUi.supervisor.specialization && (
+                                                            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 6px' }}>
+                                                                {supervisionUi.supervisor.specialization}
+                                                            </p>
+                                                        )}
+                                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', margin: 0 }}>
+                                                            Status: Active supervision
+                                                        </p>
+                                                        {cancellationPending && (
+                                                            <p style={{ fontSize: 11, fontWeight: 600, color: '#b45309', margin: '8px 0 0' }} role="status">
+                                                                Cancellation pending doctor approval
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {supervisionUi.mode === 'pending' && (
+                                                    <div
+                                                        style={{
+                                                            padding: '12px 14px',
+                                                            background: '#fffbeb',
+                                                            border: '1px solid #fde68a',
+                                                            borderRadius: 12,
+                                                        }}
+                                                        role="status"
+                                                    >
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                                                            <span
+                                                                style={{
+                                                                    fontSize: 10,
+                                                                    fontWeight: 800,
+                                                                    textTransform: 'uppercase',
+                                                                    letterSpacing: '0.06em',
+                                                                    padding: '3px 8px',
+                                                                    borderRadius: 6,
+                                                                    background: '#fef3c7',
+                                                                    color: '#b45309',
+                                                                    border: '1px solid #fcd34d',
+                                                                }}
+                                                            >
+                                                                Pending
+                                                            </span>
+                                                        </div>
+                                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>
+                                                            Supervisor: {formatSupervisorDoctorName(supervisionUi.doctorName)}
+                                                        </p>
+                                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#b45309', margin: 0 }}>
+                                                            Status: Pending doctor approval
                                                         </p>
                                                     </div>
-                                                ) : (
+                                                )}
+
+                                                {supervisionUi.mode === 'rejected' && (
+                                                    <div
+                                                        style={{
+                                                            padding: '12px 14px',
+                                                            background: '#fef2f2',
+                                                            border: '1px solid #fecaca',
+                                                            borderRadius: 12,
+                                                        }}
+                                                        role="status"
+                                                    >
+                                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#b91c1c', margin: '0 0 4px' }}>
+                                                            Request rejected
+                                                        </p>
+                                                        <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>
+                                                            You can send a new supervisor request.
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {supervisionUi.mode === 'none' && (
                                                     <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
                                                         No supervisor assigned yet
                                                     </p>
                                                 )}
                                             </div>
 
-                                            {!localSupervisor && (myRole === 'owner' || myRole === 'leader') && (
+                                            {(myRole === 'owner' || myRole === 'leader') && supervisionUi.mode !== 'assigned' && (
                                                 <button
+                                                    type="button"
                                                     onClick={handleFindSupervisors}
-                                                    disabled={loadingSup}
+                                                    disabled={loadingSup || supervisionUi.mode === 'pending'}
                                                     style={{
                                                         padding: '6px 12px',
                                                         background: 'white',
@@ -979,12 +1081,40 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
                                                         color: '#6366f1',
                                                         fontSize: 11,
                                                         fontWeight: 700,
-                                                        cursor: loadingSup ? 'not-allowed' : 'pointer',
+                                                        cursor: loadingSup || supervisionUi.mode === 'pending' ? 'not-allowed' : 'pointer',
                                                         fontFamily: 'inherit',
-                                                        opacity: loadingSup ? 0.6 : 1,
+                                                        opacity: loadingSup || supervisionUi.mode === 'pending' ? 0.6 : 1,
+                                                        flexShrink: 0,
                                                     }}
                                                 >
                                                     {loadingSup ? 'Loading...' : 'Find Supervisor'}
+                                                </button>
+                                            )}
+
+                                            {supervisionUi.mode === 'assigned' && (myRole === 'owner' || myRole === 'leader') && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRequestSupervisorCancellation}
+                                                    disabled={sendingCancellationRequest || cancellationPending}
+                                                    style={{
+                                                        padding: '6px 12px',
+                                                        background: cancellationPending ? '#f8fafc' : 'white',
+                                                        border: '1.5px solid #c7d2fe',
+                                                        borderRadius: 8,
+                                                        color: cancellationPending ? '#64748b' : '#6366f1',
+                                                        fontSize: 11,
+                                                        fontWeight: 700,
+                                                        cursor: sendingCancellationRequest || cancellationPending ? 'not-allowed' : 'pointer',
+                                                        fontFamily: 'inherit',
+                                                        opacity: sendingCancellationRequest || cancellationPending ? 0.7 : 1,
+                                                        flexShrink: 0,
+                                                    }}
+                                                >
+                                                    {sendingCancellationRequest
+                                                        ? 'Sending...'
+                                                        : cancellationPending
+                                                          ? 'Cancellation pending doctor approval'
+                                                          : 'Send cancellation request'}
                                                 </button>
                                             )}
                                         </div>
@@ -1421,7 +1551,10 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
 
                                         <button
                                             onClick={() => handleRequestSupervisor(s.doctorId)}
-                                            disabled={requestingSupervisorId === s.doctorId}
+                                            disabled={
+                                                requestingSupervisorId === s.doctorId ||
+                                                supervisionUi.mode === 'pending'
+                                            }
                                             style={{
                                                 padding: '6px 12px',
                                                 background: 'linear-gradient(135deg,#6366f1,#a855f7)',
@@ -1430,13 +1563,25 @@ canManageTeam={myRole === 'owner' || myRole === ('leader' as any)}
                                                 borderRadius: 8,
                                                 fontSize: 11,
                                                 fontWeight: 700,
-                                                cursor: requestingSupervisorId === s.doctorId ? 'not-allowed' : 'pointer',
+                                                cursor:
+                                                    requestingSupervisorId === s.doctorId ||
+                                                    supervisionUi.mode === 'pending'
+                                                        ? 'not-allowed'
+                                                        : 'pointer',
                                                 fontFamily: 'inherit',
-                                                opacity: requestingSupervisorId === s.doctorId ? 0.6 : 1,
+                                                opacity:
+                                                    requestingSupervisorId === s.doctorId ||
+                                                    supervisionUi.mode === 'pending'
+                                                        ? 0.6
+                                                        : 1,
                                                 whiteSpace: 'nowrap',
                                             }}
                                         >
-                                            {requestingSupervisorId === s.doctorId ? 'Sending...' : 'Request'}
+                                            {requestingSupervisorId === s.doctorId
+                                                ? 'Sending...'
+                                                : supervisionUi.mode === 'pending'
+                                                  ? 'Pending'
+                                                  : 'Request'}
                                         </button>
                                     </div>
                                 ))}

@@ -53,12 +53,27 @@ export const requestSupervisor = async (
   return res.data
 }
 
+// POST send supervisor cancellation request (leader/owner side)
+export const requestSupervisorCancellation = async (
+  projectId: number
+): Promise<{ message: string }> => {
+  const res = await api.post(
+    `/graduation-projects/${projectId}/request-supervisor-cancel`
+  )
+  return res.data
+}
+
 // ─── Doctor Side ───────────────────────────────────────────
 
-// GET doctor requests
+function asRequestArray(data: unknown): SupervisorRequest[] {
+  if (Array.isArray(data)) return data as SupervisorRequest[]
+  return []
+}
+
+// GET /api/doctors/me/requests — uses shared axios (Bearer token via interceptor)
 export const getDoctorRequests = async (): Promise<SupervisorRequest[]> => {
-  const res = await api.get('/doctors/me/requests')
-  return res.data
+  const res = await api.get<unknown>('/doctors/me/requests')
+  return asRequestArray(res.data)
 }
 
 // Accept
@@ -70,5 +85,30 @@ export const acceptSupervisorRequest = async (id: number) => {
 // Reject
 export const rejectSupervisorRequest = async (id: number) => {
   const res = await api.post(`/supervisor-requests/${id}/reject`)
+  return res.data
+}
+
+export interface SupervisorCancelRequestItem {
+  requestId: number
+  projectId: number
+  projectName: string
+  studentName: string
+  status: string
+}
+
+export const getDoctorSupervisorCancelRequests = async (): Promise<
+  SupervisorCancelRequestItem[]
+> => {
+  const res = await api.get<unknown>('/doctors/me/supervisor-cancel-requests')
+  return Array.isArray(res.data) ? (res.data as SupervisorCancelRequestItem[]) : []
+}
+
+export const acceptSupervisorCancelRequest = async (id: number) => {
+  const res = await api.post(`/supervisor-cancel-requests/${id}/accept`)
+  return res.data
+}
+
+export const rejectSupervisorCancelRequest = async (id: number) => {
+  const res = await api.post(`/supervisor-cancel-requests/${id}/reject`)
   return res.data
 }
