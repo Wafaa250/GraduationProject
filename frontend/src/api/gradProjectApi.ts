@@ -123,6 +123,37 @@ export interface GradProject {
 
   /** ISO-8601 last-updated timestamp. */
   updatedAt?: string
+
+  /**
+   * Assigned supervisor info when a doctor has accepted supervision.
+   * Null/undefined means no supervisor is currently attached.
+   */
+  supervisor?: {
+    doctorId: number
+    name: string
+    specialization: string
+  } | null
+
+  /**
+   * Optional cancellation-request status when exposed by backend responses.
+   * Some API payloads may omit this field.
+   */
+  supervisorCancellationRequestStatus?: 'pending' | 'approved' | 'rejected' | string | null
+
+  /**
+   * Optional: outstanding supervision request status (pending / accepted / rejected).
+   * When absent, the UI may infer state from `supervisor` and recent actions.
+   */
+  supervisorRequestStatus?: 'pending' | 'accepted' | 'rejected' | string | null
+
+  /**
+   * Doctor targeted by a pending supervision request (from backend when status is pending).
+   */
+  pendingSupervisor?: {
+    doctorId: number
+    name: string
+    specialization?: string
+  } | null
 }
 
 // ─── /my endpoint envelope ───────────────────────────────────────────────────
