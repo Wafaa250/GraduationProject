@@ -57,6 +57,7 @@ namespace GraduationProject.API.Services
                 Bio                  = dto.Bio ?? "",
                 University           = dto.University,
                 Faculty              = dto.Faculty,
+                Department           = dto.Department,
                 ProfilePictureBase64 = dto.ProfilePictureBase64,
             };
             _db.DoctorProfiles.Add(profile);
