@@ -51,6 +51,7 @@ namespace GraduationProject.API.Models
         // ── حقول جديدة ──────────────────────────────────────────────────────
         [Column("university")]             public string? University { get; set; }
         [Column("faculty")]                public string? Faculty { get; set; }
+        [Column("department")]             public string Department { get; set; } = string.Empty;
         [Column("profile_picture_base64")] public string? ProfilePictureBase64 { get; set; }
 
         public User User { get; set; } = null!;

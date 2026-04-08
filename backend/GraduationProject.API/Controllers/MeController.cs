@@ -96,6 +96,7 @@ namespace GraduationProject.API.Controllers
                 profileId           = profile.Id,
                 name                = profile.User.Name,
                 email               = profile.User.Email,
+                department          = profile.Department,
                 specialization      = profile.Specialization,
                 supervisionCapacity = profile.SupervisionCapacity,
                 bio                 = profile.Bio
