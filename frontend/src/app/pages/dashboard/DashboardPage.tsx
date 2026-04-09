@@ -36,11 +36,18 @@ import {
 import {
   getRecommendedSupervisors,
   requestSupervisor,
-  sendCancellationRequest,
   type Supervisor,
 } from "../../../api/supervisorApi";
-import { aiApi, type AiSupervisor } from "../../../api/ai";
+import { aiApi } from "../../../api/ai";
 import { getHomePath } from "../../../utils/homeNavigation";
+import {
+  AiSupervisorRecommendations,
+  enrichAiSupervisorsWithRecommended,
+  type AiSupervisionSnapshot,
+  type AiSupervisorCardRequestState,
+  type AiSupervisorRecommendUiState,
+  type EnrichedAiSupervisorRow,
+} from "../../components/project/AiSupervisorRecommendations";
 
 function normApiStatus(s?: string | null): string {
   return s?.toString().trim().toLowerCase() ?? "";
@@ -174,21 +181,15 @@ export default function DashboardPage() {
   const [currentMembers, setCurrentMembers] = useState(0);
   const [isFull, setIsFull] = useState(false);
 
-  const [showSupervisors, setShowSupervisors] = useState(false);
-  const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
-  const [loadingSup, setLoadingSup] = useState(false);
-  const [requestingSupervisorId, setRequestingSupervisorId] = useState<
-    number | null
-  >(null);
-  const [sendingCancellationRequest, setSendingCancellationRequest] =
-    useState(false);
-  const [supervisorMsg, setSupervisorMsg] = useState<{
-    msg: string;
-    ok: boolean;
-  } | null>(null);
-
-  const [aiSupervisors, setAiSupervisors] = useState<AiSupervisor[]>([]);
-  const [loadingAi, setLoadingAi] = useState(false);
+  const [aiRecommendUiState, setAiRecommendUiState] =
+    useState<AiSupervisorRecommendUiState>("idle");
+  const [aiRecommendItems, setAiRecommendItems] = useState<
+    EnrichedAiSupervisorRow[]
+  >([]);
+  const [aiRecommendError, setAiRecommendError] = useState<string | null>(null);
+  const [aiSupervisorCardRequests, setAiSupervisorCardRequests] = useState<
+    Record<number, AiSupervisorCardRequestState>
+  >({});
 
   const hour = new Date().getHours();
   const greeting =
@@ -212,12 +213,33 @@ export default function DashboardPage() {
     return { mode: "none" as const };
   }, [gradProject]);
 
-  const cancellationPending = useMemo(() => {
-    if (!gradProject?.supervisor) return false;
-    return (
-      normApiStatus(gradProject.supervisorCancellationRequestStatus) ===
-      "pending"
+  useEffect(() => {
+    setAiRecommendUiState("idle");
+    setAiRecommendItems([]);
+    setAiRecommendError(null);
+    setAiSupervisorCardRequests({});
+  }, [gradProject?.id]);
+
+  const aiSupervisionSnapshot = useMemo((): AiSupervisionSnapshot => {
+    if (!gradProject) {
+      return {
+        hasAssignedSupervisor: false,
+        requestStatusNorm: "",
+        pendingDoctorId: null,
+      };
+    }
+    const requestStatusNorm = normApiStatus(
+      gradProject.supervisorRequestStatus,
     );
+    const pendingDoctorId =
+      requestStatusNorm === "pending"
+        ? (gradProject.pendingSupervisor?.doctorId ?? null)
+        : null;
+    return {
+      hasAssignedSupervisor: !!gradProject.supervisor,
+      requestStatusNorm,
+      pendingDoctorId,
+    };
   }, [gradProject]);
 
   // ── fetchInvitations: reusable, callable manually or by effects ──────────
@@ -262,54 +284,72 @@ export default function DashboardPage() {
 
   // Single call to GET /api/graduation-projects/my
   // Returns { role, project } — project is null when student has no affiliation
-  const refetchGradProject = useCallback(async () => {
-    try {
-      setGradLoading(true);
-      const { project, role } = await getGraduationProjectsMyEnvelope();
-      setGradProject(project ?? null);
-      setMyRole(role);
-      // Seed the independent team-member state from the project payload.
-      // The /my endpoint already embeds members via MapToDto, so no extra
-      // fetch is needed on first load.
-      if (project) {
-        const members = project.members ?? [];
-        setTeamMembers(members);
-        setCurrentMembers(project.currentMembers ?? 0);
-        setIsFull(project.isFull ?? false);
+  const refetchGradProject = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent === true;
+      try {
+        if (!silent) {
+          setGradLoading(true);
+        }
+        const { project, role } = await getGraduationProjectsMyEnvelope();
+        setGradProject(project ?? null);
+        setMyRole(role);
+        // Seed the independent team-member state from the project payload.
+        // The /my endpoint already embeds members via MapToDto, so no extra
+        // fetch is needed on first load.
+        if (project) {
+          const members = project.members ?? [];
+          setTeamMembers(members);
+          setCurrentMembers(project.currentMembers ?? 0);
+          setIsFull(project.isFull ?? false);
 
-        // Find the current user's own StudentProfile.Id by matching their
-        // auth userId (captured from /me) against the member list.
-        // This is used purely to hide the Remove button on their own row.
-        const myRow = members.find(
-          (m: any) => m.userId === myUserIdRef.current,
-        );
+          // Find the current user's own StudentProfile.Id by matching their
+          // auth userId (captured from /me) against the member list.
+          // This is used purely to hide the Remove button on their own row.
+          const myRow = members.find(
+            (m: any) => m.userId === myUserIdRef.current,
+          );
 
-        setMyStudentId(myRow?.studentId ?? null);
-      } else {
+          setMyStudentId(myRow?.studentId ?? null);
+        } else {
+          setTeamMembers([]);
+          setCurrentMembers(0);
+          setIsFull(false);
+          setMyStudentId(null);
+        }
+      } catch (err: any) {
+        // 403 from /my can be Forbid() (e.g. no student profile) — do not treat as "session expired".
+        if (err?.response?.status === 401) {
+          navigate("/login");
+        }
+        setGradProject(null);
+        setMyRole(null);
         setTeamMembers([]);
         setCurrentMembers(0);
         setIsFull(false);
         setMyStudentId(null);
+      } finally {
+        if (!silent) {
+          setGradLoading(false);
+        }
       }
-    } catch (err: any) {
-      // 403 from /my can be Forbid() (e.g. no student profile) — do not treat as "session expired".
-      if (err?.response?.status === 401) {
-        navigate("/login");
-      }
-      setGradProject(null);
-      setMyRole(null);
-      setTeamMembers([]);
-      setCurrentMembers(0);
-      setIsFull(false);
-      setMyStudentId(null);
-    } finally {
-      setGradLoading(false);
-    }
-  }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+    },
+    [navigate],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    setAiSupervisors([]);
-  }, [gradProject?.id]);
+  /**
+   * After supervisor request mutations: re-fetch GET /graduation-projects/my without
+   * toggling gradLoading (keeps the project card visible), clear optimistic AI card
+   * state so supervisionUi + mergeAiSupervisorCardRequestState follow the server.
+   * A second silent refetch shortly after helps if the first read is briefly stale.
+   */
+  const refreshGradProjectAfterSupervisorRequest = useCallback(async () => {
+    await refetchGradProject({ silent: true });
+    setAiSupervisorCardRequests({});
+    window.setTimeout(() => {
+      void refetchGradProject({ silent: true });
+    }, 450);
+  }, [refetchGradProject]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -590,88 +630,77 @@ export default function DashboardPage() {
       setTimeout(() => setInviteMsg(null), 3000);
     }
   };
-  const handleFindSupervisors = async () => {
-    if (!gradProject) return;
-
-    setSupervisorMsg(null);
-
-    try {
-      setLoadingSup(true);
-      const data = await getRecommendedSupervisors(gradProject.id);
-      setSupervisors(data);
-      setShowSupervisors(true);
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || "Failed to load supervisors.";
-      setSupervisorMsg({ msg, ok: false });
-    } finally {
-      setLoadingSup(false);
-    }
-  };
-
   const handleRecommendSupervisors = useCallback(async () => {
     const projectId = gradProject?.id;
     if (projectId == null) return;
+
+    setAiRecommendUiState("loading");
+    setAiRecommendError(null);
+    setAiRecommendItems([]);
+
     try {
-      setLoadingAi(true);
-      const result = await aiApi.recommendSupervisors(projectId);
-      result.sort((a, b) => b.matchScore - a.matchScore);
-      setAiSupervisors([...result]);
-    } catch (err) {
-      console.error("AI error", err);
-    } finally {
-      setLoadingAi(false);
+      const aiRows = await aiApi.recommendSupervisors(projectId);
+      let recommended: Supervisor[] = [];
+      try {
+        recommended = await getRecommendedSupervisors(projectId);
+      } catch {
+        /* optional: names/specializations when GET recommended list succeeds */
+      }
+      const enriched = enrichAiSupervisorsWithRecommended(aiRows, recommended);
+      setAiRecommendItems(enriched);
+      setAiRecommendUiState(enriched.length === 0 ? "empty" : "success");
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ??
+        "We could not load AI recommendations. Please try again in a moment.";
+      setAiRecommendError(msg);
+      setAiRecommendItems([]);
+      setAiRecommendUiState("error");
     }
   }, [gradProject?.id]);
 
-  const handleRequestSupervisor = async (doctorId: number) => {
-    if (!gradProject || requestingSupervisorId) return;
+  const handleAiRecommendRequestSupervisor = useCallback(
+    async (doctorId: number) => {
+      if (!gradProject) return;
 
-    setRequestingSupervisorId(doctorId);
-    setSupervisorMsg(null);
+      if (gradProject.supervisor) return;
 
-    try {
-      await requestSupervisor(gradProject.id, doctorId);
-      setSupervisorMsg(null);
-      setShowSupervisors(false);
-      await refetchGradProject();
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.message || "Failed to send supervisor request.";
-      setSupervisorMsg({ msg, ok: false });
-    } finally {
-      setRequestingSupervisorId(null);
-    }
-  };
+      const sr = normApiStatus(gradProject.supervisorRequestStatus);
+      if (sr === "pending" && gradProject.pendingSupervisor) {
+        if (gradProject.pendingSupervisor.doctorId !== doctorId) return;
+      }
 
-  const handleSendCancellation = async () => {
-    if (!gradProject?.id) return;
-    const cancelBlocked =
-      !gradProject?.supervisor ||
-      sendingCancellationRequest ||
-      normApiStatus(gradProject.supervisorCancellationRequestStatus) ===
-        "pending";
-    if (cancelBlocked) return;
+      setAiSupervisorCardRequests((prev) => ({
+        ...prev,
+        [doctorId]: { phase: "sending" },
+      }));
 
-    setSendingCancellationRequest(true);
-    setSupervisorMsg(null);
-    try {
-      await sendCancellationRequest(gradProject.id);
-      setSupervisorMsg({
-        msg: "Cancellation request sent successfully",
-        ok: true,
-      });
-      alert("Cancellation request sent successfully");
-      await refetchGradProject();
-    } catch (err: any) {
-      console.error("Failed to send cancellation request", err);
-      const msg =
-        err?.response?.data?.message || "Failed to send cancellation request.";
-      setSupervisorMsg({ msg, ok: false });
-      alert("Failed to send cancellation request");
-    } finally {
-      setSendingCancellationRequest(false);
-    }
-  };
+      try {
+        await requestSupervisor(gradProject.id, doctorId);
+        await refreshGradProjectAfterSupervisorRequest();
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response
+            ?.data?.message || "Failed to send supervisor request.";
+        const lower = msg.toLowerCase();
+        const treatAsPending =
+          lower.includes("pending") ||
+          lower.includes("already") ||
+          lower.includes("exist") ||
+          lower.includes("duplicate");
+        if (treatAsPending) {
+          await refreshGradProjectAfterSupervisorRequest();
+        } else {
+          setAiSupervisorCardRequests((prev) => ({
+            ...prev,
+            [doctorId]: { phase: "error", detail: msg },
+          }));
+        }
+      }
+    },
+    [gradProject, refreshGradProjectAfterSupervisorRequest],
+  );
 
   const openEditInfo = () => {
     setEditInfoOpen(true);
@@ -1729,291 +1758,6 @@ export default function DashboardPage() {
                     </div>
                     {/* end team section */}
 
-                    {/* ── Supervisor Section (status from GET /graduation-projects/my) ── */}
-                    <div
-                      style={{
-                        marginTop: 14,
-                        borderTop: "1px solid rgba(99,102,241,0.12)",
-                        paddingTop: 12,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          justifyContent: "space-between",
-                          gap: 10,
-                        }}
-                      >
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <p
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              color: "#64748b",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
-                              margin: "0 0 8px",
-                            }}
-                          >
-                            Supervisor
-                          </p>
-
-                          {supervisionUi.mode === "assigned" && (
-                            <div
-                              style={{
-                                padding: "12px 14px",
-                                background: "#f8fafc",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: 12,
-                              }}
-                            >
-                              <p
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  color: "#0f172a",
-                                  margin: "0 0 4px",
-                                }}
-                              >
-                                Supervisor:{" "}
-                                {formatSupervisorDoctorName(
-                                  supervisionUi?.supervisor?.name ?? "",
-                                )}
-                              </p>
-                              {!!supervisionUi?.supervisor?.specialization && (
-                                <p
-                                  style={{
-                                    fontSize: 11,
-                                    color: "#94a3b8",
-                                    margin: "0 0 6px",
-                                  }}
-                                >
-                                  {supervisionUi?.supervisor?.specialization ??
-                                    ""}
-                                </p>
-                              )}
-                              <p
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  color: "#16a34a",
-                                  margin: 0,
-                                }}
-                              >
-                                Status: Active supervision
-                              </p>
-                              {cancellationPending && (
-                                <p
-                                  style={{
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    color: "#b45309",
-                                    margin: "8px 0 0",
-                                  }}
-                                  role="status"
-                                >
-                                  Cancellation pending doctor approval
-                                </p>
-                              )}
-                            </div>
-                          )}
-
-                          {supervisionUi.mode === "pending" && (
-                            <div
-                              style={{
-                                padding: "12px 14px",
-                                background: "#fffbeb",
-                                border: "1px solid #fde68a",
-                                borderRadius: 12,
-                              }}
-                              role="status"
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  marginBottom: 8,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: 10,
-                                    fontWeight: 800,
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.06em",
-                                    padding: "3px 8px",
-                                    borderRadius: 6,
-                                    background: "#fef3c7",
-                                    color: "#b45309",
-                                    border: "1px solid #fcd34d",
-                                  }}
-                                >
-                                  Pending
-                                </span>
-                              </div>
-                              <p
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  color: "#0f172a",
-                                  margin: "0 0 4px",
-                                }}
-                              >
-                                Supervisor:{" "}
-                                {formatSupervisorDoctorName(
-                                  supervisionUi?.doctorName ?? "",
-                                )}
-                              </p>
-                              <p
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  color: "#b45309",
-                                  margin: 0,
-                                }}
-                              >
-                                Status: Pending doctor approval
-                              </p>
-                            </div>
-                          )}
-
-                          {supervisionUi.mode === "rejected" && (
-                            <div
-                              style={{
-                                padding: "12px 14px",
-                                background: "#fef2f2",
-                                border: "1px solid #fecaca",
-                                borderRadius: 12,
-                              }}
-                              role="status"
-                            >
-                              <p
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  color: "#b91c1c",
-                                  margin: "0 0 4px",
-                                }}
-                              >
-                                Request rejected
-                              </p>
-                              <p
-                                style={{
-                                  fontSize: 11,
-                                  color: "#64748b",
-                                  margin: 0,
-                                }}
-                              >
-                                You can send a new supervisor request.
-                              </p>
-                            </div>
-                          )}
-
-                          {supervisionUi.mode === "none" && (
-                            <p
-                              style={{
-                                fontSize: 12,
-                                color: "#94a3b8",
-                                margin: 0,
-                              }}
-                            >
-                              No supervisor assigned yet
-                            </p>
-                          )}
-                        </div>
-
-                        {(myRole === "owner" || myRole === "leader") &&
-                          supervisionUi.mode !== "assigned" && (
-                            <button
-                              type="button"
-                              onClick={handleFindSupervisors}
-                              disabled={
-                                loadingSup || supervisionUi.mode === "pending"
-                              }
-                              style={{
-                                padding: "6px 12px",
-                                background: "white",
-                                border: "1.5px solid #c7d2fe",
-                                borderRadius: 8,
-                                color: "#6366f1",
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor:
-                                  loadingSup || supervisionUi.mode === "pending"
-                                    ? "not-allowed"
-                                    : "pointer",
-                                fontFamily: "inherit",
-                                opacity:
-                                  loadingSup || supervisionUi.mode === "pending"
-                                    ? 0.6
-                                    : 1,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {loadingSup ? "Loading..." : "Find Supervisor"}
-                            </button>
-                          )}
-
-                        {supervisionUi.mode === "assigned" &&
-                          (myRole === "owner" || myRole === "leader") && (
-                            <button
-                              type="button"
-                              onClick={handleSendCancellation}
-                              disabled={
-                                sendingCancellationRequest ||
-                                cancellationPending
-                              }
-                              style={{
-                                padding: "6px 12px",
-                                background: cancellationPending
-                                  ? "#f8fafc"
-                                  : "white",
-                                border: "1.5px solid #c7d2fe",
-                                borderRadius: 8,
-                                color: cancellationPending
-                                  ? "#64748b"
-                                  : "#6366f1",
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor:
-                                  sendingCancellationRequest ||
-                                  cancellationPending
-                                    ? "not-allowed"
-                                    : "pointer",
-                                fontFamily: "inherit",
-                                opacity:
-                                  sendingCancellationRequest ||
-                                  cancellationPending
-                                    ? 0.7
-                                    : 1,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {sendingCancellationRequest
-                                ? "Sending..."
-                                : cancellationPending
-                                  ? "Cancellation pending doctor approval"
-                                  : "Send cancellation request"}
-                            </button>
-                          )}
-                      </div>
-
-                      {supervisorMsg && (
-                        <p
-                          style={{
-                            margin: "10px 0 0",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: supervisorMsg?.ok ? "#16a34a" : "#ef4444",
-                          }}
-                        >
-                          {supervisorMsg?.msg ?? ""}
-                        </p>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
@@ -2471,363 +2215,22 @@ export default function DashboardPage() {
                   </div>
                   {/* end team section */}
 
-                  {/* ── Supervisor Section (status from GET /graduation-projects/my) ── */}
-                  <div
-                    style={{
-                      marginTop: 14,
-                      borderTop: "1px solid rgba(99,102,241,0.12)",
-                      paddingTop: 12,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: 10,
-                      }}
-                    >
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <p
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: "#64748b",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                            margin: "0 0 8px",
-                          }}
-                        >
-                          Supervisor
-                        </p>
-
-                        {supervisionUi.mode === "assigned" && (
-                          <div
-                            style={{
-                              padding: "12px 14px",
-                              background: "#f8fafc",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: 12,
-                            }}
-                          >
-                            <p
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 700,
-                                color: "#0f172a",
-                                margin: "0 0 4px",
-                              }}
-                            >
-                              Supervisor:{" "}
-                              {formatSupervisorDoctorName(
-                                supervisionUi?.supervisor?.name ?? "",
-                              )}
-                            </p>
-                            {!!supervisionUi?.supervisor?.specialization && (
-                              <p
-                                style={{
-                                  fontSize: 11,
-                                  color: "#94a3b8",
-                                  margin: "0 0 6px",
-                                }}
-                              >
-                                {supervisionUi?.supervisor?.specialization ??
-                                  ""}
-                              </p>
-                            )}
-                            <p
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: "#16a34a",
-                                margin: 0,
-                              }}
-                            >
-                              Status: Active supervision
-                            </p>
-                            {cancellationPending && (
-                              <p
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  color: "#b45309",
-                                  margin: "8px 0 0",
-                                }}
-                                role="status"
-                              >
-                                Cancellation pending doctor approval
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        {supervisionUi.mode === "pending" && (
-                          <div
-                            style={{
-                              padding: "12px 14px",
-                              background: "#fffbeb",
-                              border: "1px solid #fde68a",
-                              borderRadius: 12,
-                            }}
-                            role="status"
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                marginBottom: 8,
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: 800,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                  padding: "3px 8px",
-                                  borderRadius: 6,
-                                  background: "#fef3c7",
-                                  color: "#b45309",
-                                  border: "1px solid #fcd34d",
-                                }}
-                              >
-                                Pending
-                              </span>
-                            </div>
-                            <p
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 700,
-                                color: "#0f172a",
-                                margin: "0 0 4px",
-                              }}
-                            >
-                              Supervisor:{" "}
-                              {formatSupervisorDoctorName(
-                                supervisionUi?.doctorName ?? "",
-                              )}
-                            </p>
-                            <p
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: "#b45309",
-                                margin: 0,
-                              }}
-                            >
-                              Status: Pending doctor approval
-                            </p>
-                          </div>
-                        )}
-
-                        {supervisionUi.mode === "rejected" && (
-                          <div
-                            style={{
-                              padding: "12px 14px",
-                              background: "#fef2f2",
-                              border: "1px solid #fecaca",
-                              borderRadius: 12,
-                            }}
-                            role="status"
-                          >
-                            <p
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 700,
-                                color: "#b91c1c",
-                                margin: "0 0 4px",
-                              }}
-                            >
-                              Request rejected
-                            </p>
-                            <p
-                              style={{
-                                fontSize: 11,
-                                color: "#64748b",
-                                margin: 0,
-                              }}
-                            >
-                              You can send a new supervisor request.
-                            </p>
-                          </div>
-                        )}
-
-                        {supervisionUi.mode === "none" && (
-                          <p
-                            style={{
-                              fontSize: 12,
-                              color: "#94a3b8",
-                              margin: 0,
-                            }}
-                          >
-                            No supervisor assigned yet
-                          </p>
-                        )}
-                      </div>
-
-                      {(myRole === "owner" || myRole === "leader") &&
-                        supervisionUi.mode !== "assigned" && (
-                          <button
-                            type="button"
-                            onClick={handleFindSupervisors}
-                            disabled={
-                              loadingSup || supervisionUi.mode === "pending"
-                            }
-                            style={{
-                              padding: "6px 12px",
-                              background: "white",
-                              border: "1.5px solid #c7d2fe",
-                              borderRadius: 8,
-                              color: "#6366f1",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor:
-                                loadingSup || supervisionUi.mode === "pending"
-                                  ? "not-allowed"
-                                  : "pointer",
-                              fontFamily: "inherit",
-                              opacity:
-                                loadingSup || supervisionUi.mode === "pending"
-                                  ? 0.6
-                                  : 1,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {loadingSup ? "Loading..." : "Find Supervisor"}
-                          </button>
-                        )}
-
-                      {supervisionUi.mode === "assigned" &&
-                        (myRole === "owner" || myRole === "leader") && (
-                          <button
-                            type="button"
-                            onClick={handleSendCancellation}
-                            disabled={
-                              sendingCancellationRequest || cancellationPending
-                            }
-                            style={{
-                              padding: "6px 12px",
-                              background: cancellationPending
-                                ? "#f8fafc"
-                                : "white",
-                              border: "1.5px solid #c7d2fe",
-                              borderRadius: 8,
-                              color: cancellationPending
-                                ? "#64748b"
-                                : "#6366f1",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor:
-                                sendingCancellationRequest ||
-                                cancellationPending
-                                  ? "not-allowed"
-                                  : "pointer",
-                              fontFamily: "inherit",
-                              opacity:
-                                sendingCancellationRequest ||
-                                cancellationPending
-                                  ? 0.7
-                                  : 1,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {sendingCancellationRequest
-                              ? "Sending..."
-                              : cancellationPending
-                                ? "Cancellation pending doctor approval"
-                                : "Send cancellation request"}
-                          </button>
-                        )}
-                    </div>
-
-                    {supervisorMsg && (
-                      <p
-                        style={{
-                          margin: "10px 0 0",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: supervisorMsg?.ok ? "#16a34a" : "#ef4444",
-                        }}
-                      >
-                        {supervisorMsg?.msg ?? ""}
-                      </p>
-                    )}
-
-                    <div style={{ marginTop: 14 }}>
-                      <button
-                        type="button"
-                        onClick={handleRecommendSupervisors}
-                        disabled={loadingAi}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: 8,
-                          border: "1.5px solid #c7d2fe",
-                          background: loadingAi ? "#e2e8f0" : "white",
-                          color: loadingAi ? "#94a3b8" : "#6366f1",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: loadingAi ? "not-allowed" : "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        {loadingAi ? "Loading..." : "Recommend Supervisors"}
-                      </button>
-                      {aiSupervisors.map((doc, index) => (
-                        <div
-                          key={doc.doctorId}
-                          style={{
-                            border:
-                              index === 0 ? "2px solid #22c55e" : "1px solid #ccc",
-                            padding: 12,
-                            marginTop: 10,
-                            borderRadius: 8,
-                            background: index === 0 ? "#f0fdf4" : "#fff",
-                          }}
-                        >
-                          <h4 style={{ margin: 0 }}>
-                            {index === 0
-                              ? "⭐ Best Match"
-                              : "Recommended Supervisor"}
-                          </h4>
-
-                          <p style={{ margin: "5px 0" }}>
-                            Match Score: <strong>{doc.matchScore}%</strong>
-                          </p>
-
-                          {doc.reason && (
-                            <p style={{ margin: 0, color: "#555" }}>
-                              {doc.reason}
-                            </p>
-                          )}
-
-                          <button
-                            type="button"
-                            style={{
-                              marginTop: 8,
-                              padding: "5px 10px",
-                              borderRadius: 6,
-                              border: "1px solid #c7d2fe",
-                              background: "white",
-                              color: "#6366f1",
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            Request Supervisor
-                          </button>
-                        </div>
-                      ))}
-                      {!loadingAi && aiSupervisors.length === 0 && (
-                        <p style={{ marginTop: 10, color: "#64748b" }}>
-                          No recommendations found
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <AiSupervisorRecommendations
+                    uiState={aiRecommendUiState}
+                    items={aiRecommendItems}
+                    errorMessage={aiRecommendError}
+                    onRecommend={handleRecommendSupervisors}
+                    onRequestSupervisor={handleAiRecommendRequestSupervisor}
+                    cardRequestByDoctor={aiSupervisorCardRequests}
+                    supervisionSnapshot={aiSupervisionSnapshot}
+                    supervisionPending={
+                      supervisionUi.mode === "pending"
+                    }
+                    canTriggerRecommend={
+                      myRole === "owner" || myRole === "leader"
+                    }
+                    formatDoctorName={formatSupervisorDoctorName}
+                  />
                 </div>
               )}
             </div>
@@ -3973,145 +3376,6 @@ export default function DashboardPage() {
                 Browse All Students →
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showSupervisors && (
-        <div style={S.modalOverlay} onClick={() => setShowSupervisors(false)}>
-          <div
-            style={{ ...S.modalBox, width: 520 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 16,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 17,
-                  fontWeight: 800,
-                  color: "#0f172a",
-                  fontFamily: "Syne, sans-serif",
-                }}
-              >
-                🎓 Recommended Supervisors
-              </h3>
-              <button
-                onClick={() => setShowSupervisors(false)}
-                style={S.modalCloseBtn}
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            {supervisors.length === 0 ? (
-              <div style={S.emptyState}>
-                <span style={{ fontSize: 28 }}>🧑‍🏫</span>
-                <p style={S.emptyTitle}>No supervisors found</p>
-                <p style={S.emptyDesc}>
-                  No suitable supervisors are available for this project right
-                  now.
-                </p>
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                  maxHeight: 360,
-                  overflowY: "auto",
-                }}
-              >
-                {supervisors.map((s) => (
-                  <div
-                    key={s.doctorId}
-                    style={{
-                      padding: "12px 14px",
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: 12,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                    }}
-                  >
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <p
-                        style={{
-                          margin: "0 0 4px",
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                        }}
-                      >
-                        {s.name}
-                      </p>
-                      <p
-                        style={{
-                          margin: "0 0 4px",
-                          fontSize: 11,
-                          color: "#64748b",
-                        }}
-                      >
-                        {s.specialization || "No specialization"}
-                      </p>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "#16a34a",
-                        }}
-                      >
-                        Match: {s.matchScore}%
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => handleRequestSupervisor(s.doctorId)}
-                      disabled={
-                        requestingSupervisorId === s.doctorId ||
-                        supervisionUi.mode === "pending"
-                      }
-                      style={{
-                        padding: "6px 12px",
-                        background: "linear-gradient(135deg,#6366f1,#a855f7)",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 8,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        cursor:
-                          requestingSupervisorId === s.doctorId ||
-                          supervisionUi.mode === "pending"
-                            ? "not-allowed"
-                            : "pointer",
-                        fontFamily: "inherit",
-                        opacity:
-                          requestingSupervisorId === s.doctorId ||
-                          supervisionUi.mode === "pending"
-                            ? 0.6
-                            : 1,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {requestingSupervisorId === s.doctorId
-                        ? "Sending..."
-                        : supervisionUi.mode === "pending"
-                          ? "Pending"
-                          : "Request"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       )}
