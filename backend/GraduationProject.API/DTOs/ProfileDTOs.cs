@@ -57,4 +57,22 @@ namespace GraduationProject.API.DTOs
         public List<string>? Roles { get; set; }
         public List<string>? TechnicalSkills { get; set; }
     }
+
+    public class UpdateDoctorProfileDto
+    {
+        public string? FullName { get; set; }
+        public string? Department { get; set; }
+        public string? Faculty { get; set; }
+        public string? Specialization { get; set; }
+
+        public int? YearsOfExperience { get; set; }
+        public string? Linkedin { get; set; }
+        public string? OfficeHours { get; set; }
+
+        public string? Bio { get; set; }
+        public string? ProfilePictureBase64 { get; set; }
+
+        public List<string>? TechnicalSkills { get; set; }
+        public List<string>? ResearchSkills { get; set; }
+    }
 }
