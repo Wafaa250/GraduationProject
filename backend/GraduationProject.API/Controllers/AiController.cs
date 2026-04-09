@@ -182,10 +182,12 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
+            // Allow both the project owner AND the team leader to request recommendations
+            var isOwner = project.OwnerId == caller.Id;
             var isLeader = await _db.StudentProjectMembers
                 .AnyAsync(m => m.ProjectId == request.ProjectId && m.StudentId == caller.Id && m.Role == "leader");
 
-            if (!isLeader)
+            if (!isOwner && !isLeader)
                 return StatusCode(403, new { message = "Only project leader can request AI recommendations." });
 
             var requiredSkillNames = SkillHelper.ParseStringList(project.RequiredSkills);
@@ -194,8 +196,24 @@ namespace GraduationProject.API.Controllers
                 .Select(s => s.Trim())
                 .ToList();
 
+            var student = caller; // already fetched above, no need for a second DB call
+
+
+            // Special case: Computer Engineering students also see Electrical Engineering supervisors.
+            var isComputerEngineeringStudent =
+                string.Equals(student.Major?.Trim(), "Computer Engineering", StringComparison.OrdinalIgnoreCase);
+
             var doctors = await _db.DoctorProfiles
                 .Include(d => d.User)
+                .Where(d =>
+                    !string.IsNullOrEmpty(d.Department) &&
+                    !string.IsNullOrEmpty(student.Major) &&
+                    (
+                        d.Department.ToLower().Contains(student.Major.ToLower()) ||
+                        (isComputerEngineeringStudent &&
+                         d.Department.ToLower().Contains("electrical engineering"))
+                    )
+                )
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -208,6 +226,9 @@ namespace GraduationProject.API.Controllers
                         : requiredSkillsNormalized.Count(skill =>
                             specialization.IndexOf(skill, StringComparison.OrdinalIgnoreCase) >= 0);
 
+                    // If no required skills, give everyone a base score of 50 so AI can rank by bio/specialization.
+                    // If there ARE required skills but a doctor has 0 matches, still include them with score 0
+                    // so the AI can use bio + specialization context to rank properly.
                     var fallbackScore = requiredSkillsNormalized.Count > 0
                         ? (int)Math.Min((double)matchedSkills / requiredSkillsNormalized.Count * 100, 100)
                         : 50;
@@ -222,14 +243,16 @@ namespace GraduationProject.API.Controllers
                         FallbackScore = fallbackScore
                     };
                 })
-                .Where(c => requiredSkillsNormalized.Count == 0 || c.MatchedSkills > 0)
+                // Always include ALL doctors from the same department — AI will rank them.
+                // Do not filter by MatchedSkills here; a doctor can be a good match based on
+                // bio and specialization even if skill keywords don't appear verbatim.
                 .OrderByDescending(c => c.FallbackScore)
                 .ThenBy(c => c.DoctorId)
                 .Take(MaxSupervisorCandidates)
                 .ToList();
 
             if (candidates.Count == 0)
-                return Ok(new List<object>());
+                return NotFound(new { message = "No supervisors found in your department. Make sure doctors have their department set." });
 
             var aiProject = new AiProjectInput
             {

@@ -61,6 +61,7 @@ namespace GraduationProject.API.DTOs
         public int DoctorId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Specialization { get; set; }
+        public string? Department { get; set; }
     }
 
     /// <summary>Recommended supervisors ranked by skill match.</summary>
