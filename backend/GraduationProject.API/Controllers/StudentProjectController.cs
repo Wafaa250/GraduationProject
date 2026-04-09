@@ -798,8 +798,16 @@ namespace GraduationProject.API.Controllers
             if (!isLeader)
                 return StatusCode(403, new { message = "Only project leader can view recommended supervisors." });
 
+            var student = await GetStudentProfileAsync();
+            if (student == null)
+                return Forbid();
+
+           
             var doctors = await _db.DoctorProfiles
                 .Include(d => d.User)
+                .Where(d => d.Department != null &&
+                            student.Major != null &&
+                            d.Department.ToLower() == student.Major.ToLower())
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -1219,7 +1227,8 @@ namespace GraduationProject.API.Controllers
                 {
                     DoctorId = p.Supervisor?.Id ?? 0,
                     Name = p.Supervisor?.User?.Name ?? "",
-                    Specialization = p.Supervisor?.Specialization ?? ""
+                    Specialization = p.Supervisor?.Specialization ?? "",
+                    Department = p.Supervisor?.Department   
                 } : null,
 
                 Members = members.Select(m => new StudentProjectMemberDto

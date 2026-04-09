@@ -212,44 +212,103 @@ namespace GraduationProject.API.Services
             if (string.IsNullOrWhiteSpace(content))
                 return null;
 
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Strategy 1: proper JSON object {"rankedStudents":[...]}
             try
             {
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var wrapped = JsonSerializer.Deserialize<StudentRankingResponse>(content.Trim(), options);
                 if (wrapped?.RankedStudents != null && wrapped.RankedStudents.Count > 0)
                     return wrapped.RankedStudents;
             }
-            catch
+            catch { }
+
+            // Strategy 2: JSON-encoded string (double parse)
+            try
             {
-                // Fallback to null — controller uses rule-based ranking.
+                var inner = JsonSerializer.Deserialize<string>(content, options);
+                if (!string.IsNullOrWhiteSpace(inner))
+                {
+                    var wrapped = JsonSerializer.Deserialize<StudentRankingResponse>(inner, options);
+                    if (wrapped?.RankedStudents != null && wrapped.RankedStudents.Count > 0)
+                        return wrapped.RankedStudents;
+                }
             }
+            catch { }
+
+            // Strategy 3: strip markdown code fences
+            try
+            {
+                var stripped = content.Trim();
+                if (stripped.StartsWith("```"))
+                {
+                    var firstNewline = stripped.IndexOf('\n');
+                    var lastFence = stripped.LastIndexOf("```");
+                    if (firstNewline >= 0 && lastFence > firstNewline)
+                        stripped = stripped.Substring(firstNewline, lastFence - firstNewline).Trim();
+                }
+                var wrapped = JsonSerializer.Deserialize<StudentRankingResponse>(stripped, options);
+                if (wrapped?.RankedStudents != null && wrapped.RankedStudents.Count > 0)
+                    return wrapped.RankedStudents;
+            }
+            catch { }
 
             return null;
         }
 
         private static List<AiRankedDoctorResult>? TryParseRankedSupervisors(string content)
         {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Strategy 1: content is already a proper JSON object {"rankedSupervisors":[...]}
             try
             {
-                var wrapped = JsonSerializer.Deserialize<AiSupervisorsWrappedResponse>(content);
+                var wrapped = JsonSerializer.Deserialize<AiSupervisorsWrappedResponse>(content, options);
                 if (wrapped?.RankedSupervisors != null && wrapped.RankedSupervisors.Count > 0)
                     return wrapped.RankedSupervisors;
             }
-            catch
-            {
-                // Try next parse strategy.
-            }
+            catch { }
 
+            // Strategy 2: content is a JSON-encoded string — OpenAI sometimes returns
+            // the JSON wrapped in an extra string layer: "\"{ \\\"rankedSupervisors\\\": [...] }\""
+            // We deserialize once to get the inner string, then parse that.
             try
             {
-                var directArray = JsonSerializer.Deserialize<List<AiRankedDoctorResult>>(content);
+                var inner = JsonSerializer.Deserialize<string>(content, options);
+                if (!string.IsNullOrWhiteSpace(inner))
+                {
+                    var wrapped = JsonSerializer.Deserialize<AiSupervisorsWrappedResponse>(inner, options);
+                    if (wrapped?.RankedSupervisors != null && wrapped.RankedSupervisors.Count > 0)
+                        return wrapped.RankedSupervisors;
+                }
+            }
+            catch { }
+
+            // Strategy 3: content is a plain JSON array [...] 
+            try
+            {
+                var directArray = JsonSerializer.Deserialize<List<AiRankedDoctorResult>>(content, options);
                 if (directArray != null && directArray.Count > 0)
                     return directArray;
             }
-            catch
+            catch { }
+
+            // Strategy 4: strip markdown code fences if model wrapped response in ```json ... ```
+            try
             {
-                // Ignore and return null.
+                var stripped = content.Trim();
+                if (stripped.StartsWith("```"))
+                {
+                    var firstNewline = stripped.IndexOf('\n');
+                    var lastFence = stripped.LastIndexOf("```");
+                    if (firstNewline >= 0 && lastFence > firstNewline)
+                        stripped = stripped.Substring(firstNewline, lastFence - firstNewline).Trim();
+                }
+                var wrapped = JsonSerializer.Deserialize<AiSupervisorsWrappedResponse>(stripped, options);
+                if (wrapped?.RankedSupervisors != null && wrapped.RankedSupervisors.Count > 0)
+                    return wrapped.RankedSupervisors;
             }
+            catch { }
 
             return null;
         }
