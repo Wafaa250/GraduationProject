@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type CSSProperties } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, ArrowLeft, SlidersHorizontal, X, Users } from 'lucide-react'
 import api from '../../../api/axiosInstance'
+import { getHomePath, navigateHome } from '../../../utils/homeNavigation'
 import { sendInvitation } from '../../../api/invitationsApi'
 
 interface Student {
@@ -138,7 +139,7 @@ export default function StudentsPage() {
       {/* NAV */}
       <nav style={S.nav}>
         <div style={S.navInner}>
-          <button onClick={() => navigate('/dashboard')} style={S.backBtn}>
+          <button onClick={() => navigateHome(navigate)} style={S.backBtn}>
             <ArrowLeft size={15} /> Dashboard
           </button>
           <div style={S.navLogo}>
@@ -150,7 +151,7 @@ export default function StudentsPage() {
             </div>
             <span style={S.logoText}>Skill<span style={S.logoAccent}>Swap</span></span>
           </div>
-          <Link to="/dashboard" style={{ ...S.backBtn, marginLeft: 'auto', textDecoration: 'none' }}>
+          <Link to={getHomePath()} style={{ ...S.backBtn, marginLeft: 'auto', textDecoration: 'none' }}>
             <Users size={14} /> My Dashboard
           </Link>
         </div>

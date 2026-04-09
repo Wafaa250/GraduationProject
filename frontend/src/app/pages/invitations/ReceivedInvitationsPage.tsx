@@ -8,6 +8,7 @@ import {
   rejectInvitation,
   ReceivedInvitation,
 } from '../../../api/invitationsApi'
+import { navigateHome } from '../../../utils/homeNavigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export default function ReceivedInvitationsPage() {
       {/* ── NAV ── */}
       <nav style={S.nav}>
         <div style={S.navInner}>
-          <button onClick={() => navigate('/dashboard')} style={S.backBtn}>
+          <button onClick={() => navigateHome(navigate)} style={S.backBtn}>
             <ArrowLeft size={15} /> Dashboard
           </button>
           <h1 style={S.navTitle}>📬 Team Invitations</h1>
