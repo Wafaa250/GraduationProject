@@ -42,6 +42,7 @@ interface FormState {
   profilePicPreview: string | null
   university: string
   faculty: string
+  departments: string[]
   specialization: string
   bio: string
 }
@@ -61,7 +62,7 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
   const [form, setForm] = useState<FormState>({
     fullName: '', email: '', password: '', confirmPassword: '',
     profilePic: null, profilePicPreview: null,
-    university: '', faculty: '', specialization: '', bio: '',
+    university: '', faculty: '', departments: [''], specialization: '', bio: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -81,6 +82,22 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
 
   const availableFaculties = form.university ? (FACULTIES[form.university] ?? []) : []
 
+  const handleDepartmentChange = (index: number, value: string) => {
+    const updated = [...form.departments]
+    updated[index] = value
+    setForm({ ...form, departments: updated })
+    setErrors((err) => ({ ...err, departments: '' }))
+  }
+
+  const addDepartment = () => {
+    setForm({ ...form, departments: [...form.departments, ''] })
+  }
+
+  const removeDepartment = (index: number) => {
+    const updated = form.departments.filter((_, i) => i !== index)
+    setForm({ ...form, departments: updated })
+  }
+
   const validate = () => {
     const e: Record<string, string> = {}
     if (step === 0) {
@@ -94,6 +111,7 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
     if (step === 1) {
       if (!form.university)     e.university     = 'Please select university'
       if (!form.faculty)        e.faculty        = 'Please select faculty'
+      if (form.departments.some((d) => !d.trim())) e.departments = 'All departments are required'
       if (!form.specialization) e.specialization = 'Please select specialization'
     }
     setErrors(e); return Object.keys(e).length === 0
@@ -103,6 +121,10 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
   const back   = () => setStep(s => s - 1)
 
   const submit = async () => {
+    if (form.departments.some((d) => !d.trim())) {
+      alert('All departments are required')
+      return
+    }
     if (!validate()) return
     setIsLoading(true); setApiError(null)
     try {
@@ -113,6 +135,7 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
         confirmPassword: form.confirmPassword,
         university:      form.university,
         faculty:         form.faculty,
+        department:      form.departments.join(', '),
         specialization:  form.specialization,
         bio:             form.bio,
         profilePictureBase64: form.profilePicPreview,
@@ -153,7 +176,7 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
         <h2 style={S.successH2}>Welcome, Dr. {form.fullName.split(' ')[0]}! 🎓</h2>
         <p style={S.successP}>Your account is ready. Start creating channels for your courses.</p>
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-          <button style={S.btnPrimary} onClick={() => navigate('/doctor/dashboard')}>
+          <button style={S.btnPrimary} onClick={() => navigate('/doctor-dashboard')}>
             Go to Dashboard →
           </button>
           <button style={S.btnOutline} onClick={() => navigate('/login')}>
@@ -265,6 +288,73 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
                 options={UNIVERSITIES} placeholder="Select your university" />
               <SelectField label="Faculty / College" value={form.faculty} onChange={v => set('faculty', v)} error={errors.faculty} required
                 options={availableFaculties} placeholder={form.university ? 'Select your faculty' : 'Select a university first'} disabled={!form.university} />
+              <div style={{ marginBottom: 16 }}>
+                <label style={S.label}>
+                  Departments<span style={{ color: '#ef4444' }}> *</span>
+                </label>
+                {form.departments.map((dep, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      gap: 8,
+                      marginBottom: 8,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Enter department (e.g. Computer Engineering)"
+                      value={dep}
+                      onChange={(e) =>
+                        handleDepartmentChange(index, e.target.value)
+                      }
+                      style={{
+                        ...S.input,
+                        flex: 1,
+                        minWidth: 0,
+                        borderColor: errors.departments ? '#fca5a5' : '#e2e8f0',
+                      }}
+                    />
+                    {form.departments.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeDepartment(index)}
+                        style={{
+                          padding: '10px 14px',
+                          background: 'white',
+                          border: '1.5px solid #e2e8f0',
+                          borderRadius: 10,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          fontWeight: 700,
+                          color: '#64748b',
+                          flexShrink: 0,
+                          lineHeight: 1,
+                        }}
+                      >
+                        -
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addDepartment}
+                  style={{
+                    ...S.picBtn,
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    color: '#2563eb',
+                    marginTop: 4,
+                  }}
+                >
+                  + Add Department
+                </button>
+                {errors.departments && (
+                  <span style={S.error}>{errors.departments}</span>
+                )}
+              </div>
               <SelectField label="Specialization" value={form.specialization} onChange={v => set('specialization', v)} error={errors.specialization} required
                 options={SPECIALIZATIONS} placeholder="Select your specialization" />
 

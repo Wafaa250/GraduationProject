@@ -39,6 +39,8 @@ import {
   sendCancellationRequest,
   type Supervisor,
 } from "../../../api/supervisorApi";
+import { aiApi, type AiSupervisor } from "../../../api/ai";
+import { getHomePath } from "../../../utils/homeNavigation";
 
 function normApiStatus(s?: string | null): string {
   return s?.toString().trim().toLowerCase() ?? "";
@@ -185,6 +187,9 @@ export default function DashboardPage() {
     ok: boolean;
   } | null>(null);
 
+  const [aiSupervisors, setAiSupervisors] = useState<AiSupervisor[]>([]);
+  const [loadingAi, setLoadingAi] = useState(false);
+
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -301,6 +306,10 @@ export default function DashboardPage() {
       setGradLoading(false);
     }
   }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setAiSupervisors([]);
+  }, [gradProject?.id]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -599,6 +608,21 @@ export default function DashboardPage() {
     }
   };
 
+  const handleRecommendSupervisors = useCallback(async () => {
+    const projectId = gradProject?.id;
+    if (projectId == null) return;
+    try {
+      setLoadingAi(true);
+      const result = await aiApi.recommendSupervisors(projectId);
+      result.sort((a, b) => b.matchScore - a.matchScore);
+      setAiSupervisors([...result]);
+    } catch (err) {
+      console.error("AI error", err);
+    } finally {
+      setLoadingAi(false);
+    }
+  }, [gradProject?.id]);
+
   const handleRequestSupervisor = async (doctorId: number) => {
     if (!gradProject || requestingSupervisorId) return;
 
@@ -768,7 +792,7 @@ export default function DashboardPage() {
       {/* ── NAV ── */}
       <nav style={S.nav}>
         <div style={S.navInner}>
-          <Link to="/" style={S.navLogo}>
+          <Link to={getHomePath()} style={S.navLogo}>
             <div style={S.logoIconWrap}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path
@@ -2730,6 +2754,79 @@ export default function DashboardPage() {
                         {supervisorMsg?.msg ?? ""}
                       </p>
                     )}
+
+                    <div style={{ marginTop: 14 }}>
+                      <button
+                        type="button"
+                        onClick={handleRecommendSupervisors}
+                        disabled={loadingAi}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          border: "1.5px solid #c7d2fe",
+                          background: loadingAi ? "#e2e8f0" : "white",
+                          color: loadingAi ? "#94a3b8" : "#6366f1",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: loadingAi ? "not-allowed" : "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {loadingAi ? "Loading..." : "Recommend Supervisors"}
+                      </button>
+                      {aiSupervisors.map((doc, index) => (
+                        <div
+                          key={doc.doctorId}
+                          style={{
+                            border:
+                              index === 0 ? "2px solid #22c55e" : "1px solid #ccc",
+                            padding: 12,
+                            marginTop: 10,
+                            borderRadius: 8,
+                            background: index === 0 ? "#f0fdf4" : "#fff",
+                          }}
+                        >
+                          <h4 style={{ margin: 0 }}>
+                            {index === 0
+                              ? "⭐ Best Match"
+                              : "Recommended Supervisor"}
+                          </h4>
+
+                          <p style={{ margin: "5px 0" }}>
+                            Match Score: <strong>{doc.matchScore}%</strong>
+                          </p>
+
+                          {doc.reason && (
+                            <p style={{ margin: 0, color: "#555" }}>
+                              {doc.reason}
+                            </p>
+                          )}
+
+                          <button
+                            type="button"
+                            style={{
+                              marginTop: 8,
+                              padding: "5px 10px",
+                              borderRadius: 6,
+                              border: "1px solid #c7d2fe",
+                              background: "white",
+                              color: "#6366f1",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Request Supervisor
+                          </button>
+                        </div>
+                      ))}
+                      {!loadingAi && aiSupervisors.length === 0 && (
+                        <p style={{ marginTop: 10, color: "#64748b" }}>
+                          No recommendations found
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

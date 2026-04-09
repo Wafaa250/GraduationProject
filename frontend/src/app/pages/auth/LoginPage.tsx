@@ -26,12 +26,16 @@ export default function LoginPage() {
       localStorage.setItem('name', result.name)
       localStorage.setItem('email', result.email)
 
-      // ✅ التوجيه حسب الـ role
-
-        if (result.role === 'student') navigate('/dashboard')
-else if (result.role === 'doctor') navigate('/doctor-dashboard')
-        else if (result.role === 'company') navigate('/company/dashboard')
-        else navigate('/dashboard')
+      const role = (result.role ?? '').toString().toLowerCase()
+      if (role === 'doctor') {
+        navigate('/doctor-dashboard')
+      } else if (role === 'student') {
+        navigate('/dashboard')
+      } else if (role === 'company') {
+        navigate('/company/dashboard')
+      } else {
+        navigate('/dashboard')
+      }
 
     } catch (error: any) {
       const msg =

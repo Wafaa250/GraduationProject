@@ -5,6 +5,7 @@ import {
   MapPin, GraduationCap, BookOpen, Star, Zap
 } from 'lucide-react'
 import api from '../../../api/axiosInstance'
+import { navigateHome } from '../../../utils/homeNavigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
@@ -106,7 +107,7 @@ export default function ProfilePage() {
       {/* ── Top bar ── */}
       <div style={S.topBar}>
         <div style={S.topBarInner}>
-          <button onClick={() => navigate('/dashboard')} style={S.backBtn}>
+          <button onClick={() => navigateHome(navigate)} style={S.backBtn}>
             <ArrowLeft size={16} />
             <span>Back to Dashboard</span>
           </button>

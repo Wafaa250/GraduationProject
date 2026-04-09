@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
+import { getHomePath } from "../../../utils/homeNavigation";
 import {
   getDoctorRequests,
   getDoctorSupervisorCancelRequests,
@@ -346,7 +347,7 @@ export default function DoctorDashboardPage() {
 
       <nav style={S.nav}>
         <div style={S.navInner}>
-          <Link to="/" style={S.navLogo}>
+          <Link to={getHomePath()} style={S.navLogo}>
             <div style={S.logoIconWrap}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path

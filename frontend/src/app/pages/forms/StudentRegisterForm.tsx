@@ -2,6 +2,7 @@ import { useState, useRef, ReactNode, ChangeEvent, type CSSProperties } from 're
 import { useNavigate } from 'react-router-dom'
 import { useUser } from "../../../context/UserContext"
 import { registerStudent } from '../../../api/authApi'
+import { navigateHome } from '../../../utils/homeNavigation'
 
 interface FormState {
   fullName: string; email: string; password: string; confirmPassword: string
@@ -188,7 +189,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
         </div>
         <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
           <button style={S.btnPrimary} onClick={()=>{sessionStorage.removeItem('selectedRole');navigate('/profile')}}>View My Profile →</button>
-          <button style={S.btnOutline} onClick={()=>{sessionStorage.removeItem('selectedRole');navigate('/dashboard')}}>Go to Dashboard</button>
+          <button style={S.btnOutline} onClick={()=>{sessionStorage.removeItem('selectedRole');navigateHome(navigate)}}>Go to Dashboard</button>
         </div>
       </div>
     </div>

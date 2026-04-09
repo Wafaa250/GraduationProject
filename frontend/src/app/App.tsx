@@ -10,6 +10,8 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import ProfilePage from "./pages/profile/ProfilePage";
 import EditProfilePage from "./pages/profile/EditProfilePage";
 import DoctorDashboardPage from "./pages/doctor/DoctorDashboardPage";
+import DoctorProfilePage from "./pages/doctor/DoctorProfilePage";
+import EditDoctorProfilePage from "./pages/doctor/EditDoctorProfilePage";
 import ChannelPageWrapper from "./pages/doctor/ChannelPageWrapper";
 
 import StudentsPage from "./pages/students/StudentsPage";
@@ -23,6 +25,54 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     return <>{children}</>
 }
 
+/** Student dashboard — doctors and unknown roles are redirected to avoid wrong UI. */
+function StudentDashboardRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (role === "student") return <DashboardPage />;
+    return <Navigate to="/" replace />;
+}
+
+/** Doctor dashboard — students and unknown roles are redirected. */
+function DoctorDashboardRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    if (role === "doctor") return <DoctorDashboardPage />;
+    return <Navigate to="/" replace />;
+}
+
+/** Profile route split by role to avoid rendering student UI for doctors. */
+function ProfileRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <Navigate to="/doctor/profile" replace />;
+    if (role === "student") return <ProfilePage />;
+    return <Navigate to="/" replace />;
+}
+
+/** Edit profile route split by role to keep doctor edit form separate. */
+function EditProfileRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <Navigate to="/doctor/edit-profile" replace />;
+    if (role === "student") return <EditProfilePage />;
+    return <Navigate to="/" replace />;
+}
+
+/** Doctor-only profile route. */
+function DoctorProfileRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <DoctorProfilePage />;
+    if (role === "student") return <Navigate to="/profile" replace />;
+    return <Navigate to="/" replace />;
+}
+
+/** Doctor-only edit profile route. */
+function EditDoctorProfileRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <EditDoctorProfilePage />;
+    if (role === "student") return <Navigate to="/edit-profile" replace />;
+    return <Navigate to="/" replace />;
+}
+
 export default function App() {
     return (
         <UserProvider>
@@ -34,12 +84,14 @@ export default function App() {
                     <Route path="/register" element={<RegisterPage />} />
 
                     {/* Protected – Student */}
-                    <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-                    <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-                    <Route path="/edit-profile" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
+                    <Route path="/dashboard" element={<ProtectedRoute><StudentDashboardRoute /></ProtectedRoute>} />
+                    <Route path="/profile" element={<ProtectedRoute><ProfileRoute /></ProtectedRoute>} />
+                    <Route path="/edit-profile" element={<ProtectedRoute><EditProfileRoute /></ProtectedRoute>} />
 
                     {/* Protected – Doctor */}
-                    <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardPage /></ProtectedRoute>} />
+                    <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardRoute /></ProtectedRoute>} />
+                    <Route path="/doctor/profile" element={<ProtectedRoute><DoctorProfileRoute /></ProtectedRoute>} />
+                    <Route path="/doctor/edit-profile" element={<ProtectedRoute><EditDoctorProfileRoute /></ProtectedRoute>} />
                     <Route path="/doctor/channels/:channelId" element={<ProtectedRoute><ChannelPageWrapper /></ProtectedRoute>} />
 
                     {/* ✅ التعديل تبعك */}
