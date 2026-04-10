@@ -24,6 +24,77 @@ namespace GraduationProject.API.Controllers
         public DoctorDashboardController(ApplicationDbContext db) => _db = db;
 
         // =====================================================================
+        // GET /api/doctors/me/requests
+        //
+        // Returns all supervisor requests directed at the logged-in doctor.
+        // Previously defined in StudentProjectController — removed from there
+        // to eliminate the duplicate route conflict that caused 500 errors.
+        //
+        // Fix: .ToListAsync() is called BEFORE JSON deserialization so EF
+        //      never tries to translate JsonSerializer.Deserialize<> to SQL.
+        // Fix: Returns Ok([]) instead of NotFound when doctor profile is absent
+        //      so the frontend receives an empty list rather than an error.
+        // =====================================================================
+        [HttpGet("requests")]
+        public async Task<IActionResult> GetDoctorRequests()
+        {
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can access this endpoint." });
+
+            var doctor = await GetCurrentDoctorProfileAsync();
+            if (doctor == null)
+                return Ok(new List<object>()); // Bug 3 fix: graceful empty list
+
+            // ── Materialize first, then deserialize JSON in memory (Bug 2 fix) ──
+            var requests = await _db.SupervisorRequests
+                .Where(r => r.DoctorId == doctor.Id)
+                .Include(r => r.Project)
+                .Include(r => r.Sender).ThenInclude(s => s.User)
+                .OrderByDescending(r => r.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var result = requests.Select(r =>
+            {
+                List<string> skills;
+                try
+                {
+                    skills = r.Project?.RequiredSkills is { } reqJson
+                        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(reqJson) ?? new List<string>()
+                        : new List<string>();
+                }
+                catch
+                {
+                    skills = new List<string>();
+                }
+
+                return new
+                {
+                    requestId = r.Id,
+                    project = new
+                    {
+                        projectId = r.ProjectId,
+                        name = r.Project?.Name ?? "",
+                        description = r.Project?.Abstract,
+                        requiredSkills = skills
+                    },
+                    sender = new
+                    {
+                        studentId = r.SenderId,
+                        name = r.Sender?.User?.Name ?? "",
+                        major = r.Sender?.Major ?? "",
+                        university = r.Sender?.University ?? ""
+                    },
+                    status = r.Status,
+                    createdAt = r.CreatedAt,
+                    respondedAt = r.RespondedAt
+                };
+            }).ToList();
+
+            return Ok(result);
+        }
+
+        // =====================================================================
         // GET /api/doctors/me/supervised-projects
         //
         // Returns all projects where the logged-in doctor is the current supervisor.
@@ -44,9 +115,9 @@ namespace GraduationProject.API.Controllers
 
             var doctor = await GetCurrentDoctorProfileAsync();
             if (doctor == null)
-                return NotFound(new { message = "Doctor profile not found." });
+                return Ok(new List<object>()); // Bug 3 fix: return empty list, not 404
 
-            // ── 2. Fetch projects supervised by this doctor ───────────────────
+            // ── 2. Materialize first — JSON deserialization happens in memory ──
             var projects = await _db.StudentProjects
                 .Where(p => p.SupervisorId == doctor.Id)
                 .Include(p => p.Owner).ThenInclude(o => o.User)
@@ -55,28 +126,41 @@ namespace GraduationProject.API.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            // ── 3. Map to response ────────────────────────────────────────────
-            var result = projects.Select(p => new
+            // ── 3. Map to response (Bug 2 fix: JsonSerializer runs in-memory) ──
+            var result = projects.Select(p =>
             {
-                projectId = p.Id,
-                name = p.Name,
-                description = p.Abstract,
-                requiredSkills = p.RequiredSkills != null
-                    ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new List<string>()
-                    : new List<string>(),
-                partnersCount = p.PartnersCount,
-                memberCount = p.Members.Count,
-                isFull = p.Members.Count >= p.PartnersCount,
-                owner = new
+                List<string> skills;
+                try
                 {
-                    studentId = p.OwnerId,
-                    userId = p.Owner?.UserId ?? 0,
-                    name = p.Owner?.User?.Name ?? "",
-                    university = p.Owner?.University ?? "",
-                    major = p.Owner?.Major ?? ""
-                },
-                createdAt = p.CreatedAt
-            });
+                    skills = p.RequiredSkills != null
+                        ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new List<string>()
+                        : new List<string>();
+                }
+                catch
+                {
+                    skills = new List<string>();
+                }
+
+                return new
+                {
+                    projectId = p.Id,
+                    name = p.Name,
+                    description = p.Abstract,
+                    requiredSkills = skills,
+                    partnersCount = p.PartnersCount,
+                    memberCount = p.Members.Count,
+                    isFull = p.Members.Count >= p.PartnersCount,
+                    owner = new
+                    {
+                        studentId = p.OwnerId,
+                        userId = p.Owner?.UserId ?? 0,
+                        name = p.Owner?.User?.Name ?? "",
+                        university = p.Owner?.University ?? "",
+                        major = p.Owner?.Major ?? ""
+                    },
+                    createdAt = p.CreatedAt
+                };
+            }).ToList();
 
             return Ok(result);
         }
@@ -97,7 +181,7 @@ namespace GraduationProject.API.Controllers
 
             var doctor = await GetCurrentDoctorProfileAsync();
             if (doctor == null)
-                return NotFound(new { message = "Doctor profile not found." });
+                return Ok(new { pendingRequestsCount = 0, supervisedCount = 0, pendingCancelCount = 0 }); // Bug 3 fix
 
             var pendingRequests = await _db.SupervisorRequests
                 .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "pending");

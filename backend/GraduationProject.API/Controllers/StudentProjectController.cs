@@ -837,7 +837,7 @@ namespace GraduationProject.API.Controllers
             if (student == null)
                 return Forbid();
 
-           
+
             var doctors = await _db.DoctorProfiles
                 .Include(d => d.User)
                 .Where(d => d.Department != null &&
@@ -942,59 +942,9 @@ namespace GraduationProject.API.Controllers
             return Ok(new { message = "Supervisor request rejected successfully" });
         }
 
-        // =====================================================================
-        // GET /api/graduation-projects/doctors/me/requests
-        // Returns all supervisor requests for the logged-in doctor.
-        // =====================================================================
-        [HttpGet("/api/doctors/me/requests")]
-        public async Task<IActionResult> GetDoctorRequests()
-        {
-            // ── 1. Check role ────────────────────────────────────────────────
-            if (AuthorizationHelper.GetRole(User) != "doctor")
-                return StatusCode(403, new { message = "Only doctors can access this endpoint." });
-
-            var doctor = await GetCurrentDoctorProfileAsync();
-            if (doctor == null)
-                return NotFound(new { message = "Doctor profile not found." });
-
-            // ── 3. Fetch requests with related data (NO N+1) ─────────────────
-            var requests = await _db.SupervisorRequests
-                .Where(r => r.DoctorId == doctor.Id)
-                .Include(r => r.Project)
-                .Include(r => r.Sender).ThenInclude(s => s.User)
-                .OrderByDescending(r => r.CreatedAt)
-                .ToListAsync();
-
-            // ── 4. Map to clean response ─────────────────────────────────────
-            var result = requests.Select(r => new
-            {
-                requestId = r.Id,
-
-                project = new
-                {
-                    projectId = r.ProjectId,
-                    name = r.Project?.Name ?? "",
-                    description = r.Project?.Abstract,
-                    requiredSkills = r.Project?.RequiredSkills is { } reqJson
-                        ? JsonSerializer.Deserialize<List<string>>(reqJson) ?? new List<string>()
-                        : new List<string>()
-                },
-
-                sender = new
-                {
-                    studentId = r.SenderId,
-                    name = r.Sender?.User?.Name ?? "",
-                    major = r.Sender?.Major ?? "",
-                    university = r.Sender?.University ?? ""
-                },
-
-                status = r.Status,
-                createdAt = r.CreatedAt,
-                respondedAt = r.RespondedAt
-            });
-
-            return Ok(result);
-        }
+        // NOTE: GET /api/doctors/me/requests is handled exclusively by
+        // DoctorDashboardController to avoid duplicate route conflicts.
+        // It was removed from here as part of bug fix (duplicate route + EF materialization).
 
         // =====================================================================
         // GET /api/doctors/me/supervisor-cancel-requests
@@ -1278,7 +1228,7 @@ namespace GraduationProject.API.Controllers
                     DoctorId = p.Supervisor?.Id ?? 0,
                     Name = p.Supervisor?.User?.Name ?? "",
                     Specialization = p.Supervisor?.Specialization ?? "",
-                    Department = p.Supervisor?.Department   
+                    Department = p.Supervisor?.Department
                 } : null,
 
                 Members = members.Select(m => new StudentProjectMemberDto
