@@ -1,6 +1,6 @@
 import { Trash2 } from "lucide-react";
 import type { DeletedProjectRecord } from "../doctorDeletedProjectsStorage";
-import { cardStyle, dash } from "./doctorDashTokens";
+import { dash, card } from "./doctorDashTokens";
 
 type Props = {
   items: DeletedProjectRecord[];
@@ -8,53 +8,57 @@ type Props = {
 
 export function DeletedProjectsSection({ items }: Props) {
   return (
-    <div className="doctor-dash-section-fade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ ...cardStyle, padding: "20px 22px" }}>
-        <h2
+    <div>
+      <h2 style={{ margin: "0 0 18px", fontSize: 13, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
+        DELETED PROJECTS
+      </h2>
+      <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+        <div
           style={{
-            margin: "0 0 16px",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: dash.subtle,
+            padding: "16px 20px",
+            borderBottom: `1px solid ${dash.border}`,
             display: "flex",
             alignItems: "center",
-            gap: 8,
+            gap: 10,
           }}
         >
-          <Trash2 size={15} color={dash.muted} /> Deleted projects
-        </h2>
-        <p style={{ margin: "0 0 16px", fontSize: 13, color: dash.subtle }}>
-          Stored locally on this device. Clearing site data removes this list.
-        </p>
+          <Trash2 size={18} color={dash.muted} />
+          <span style={{ fontSize: 15, fontWeight: 800, fontFamily: dash.fontDisplay }}>History</span>
+          <span style={{ fontSize: 12, color: dash.muted, marginLeft: "auto" }}>
+            Local only — not synced to the server
+          </span>
+        </div>
 
         {items.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "28px 16px" }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>No deleted projects</p>
+          <div style={{ padding: "40px 24px", textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>No removed projects</p>
             <p style={{ margin: "8px 0 0", fontSize: 13, color: dash.subtle }}>
-              Projects you remove from supervision appear here.
+              After you resign from a project or remove supervision on My Projects, entries appear here on this
+              browser.
             </p>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {items.map((p) => (
-              <div
+              <li
                 key={p.projectId}
                 style={{
-                  padding: "14px 16px",
-                  borderRadius: dash.radiusMd,
-                  border: `1px dashed ${dash.border}`,
-                  background: "#f8fafc",
+                  padding: "16px 20px",
+                  borderBottom: `1px solid ${dash.border}`,
                 }}
               >
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>{p.name}</p>
-                <p style={{ margin: "6px 0 0", fontSize: 11, color: dash.subtle }}>
-                  Removed · {new Date(p.removedAt).toLocaleString()}
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: dash.text }}>{p.name}</p>
+                <p style={{ margin: "6px 0 0", fontSize: 12, color: dash.subtle }}>
+                  {p.source === "resign"
+                    ? "Resigned"
+                    : p.source === "remove_supervision"
+                      ? "Removed supervision"
+                      : "Recorded"}{" "}
+                  · {new Date(p.removedAt).toLocaleString()}
                 </p>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
     </div>

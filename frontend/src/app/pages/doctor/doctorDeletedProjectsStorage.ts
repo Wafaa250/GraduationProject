@@ -4,6 +4,8 @@ export type DeletedProjectRecord = {
   projectId: number;
   name: string;
   removedAt: string;
+  /** How it was recorded (local-only; not from any API). */
+  source?: "resign" | "remove_supervision";
 };
 
 function safeParse(raw: string | null): DeletedProjectRecord[] {
@@ -11,14 +13,15 @@ function safeParse(raw: string | null): DeletedProjectRecord[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (x): x is DeletedProjectRecord =>
-        x != null &&
-        typeof x === "object" &&
-        typeof (x as DeletedProjectRecord).projectId === "number" &&
-        typeof (x as DeletedProjectRecord).name === "string" &&
-        typeof (x as DeletedProjectRecord).removedAt === "string",
-    );
+    return parsed.filter((x): x is DeletedProjectRecord => {
+      if (x == null || typeof x !== "object") return false;
+      const r = x as DeletedProjectRecord;
+      if (typeof r.projectId !== "number" || typeof r.name !== "string" || typeof r.removedAt !== "string") {
+        return false;
+      }
+      if (r.source != null && r.source !== "resign" && r.source !== "remove_supervision") return false;
+      return true;
+    });
   } catch {
     return [];
   }

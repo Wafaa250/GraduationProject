@@ -1,4 +1,4 @@
-import type { DoctorSupervisedProject } from "../doctorDashboardTypes";
+import type { DashboardProject, DashboardSummary } from "../../../../api/dashboardApi";
 
 export type ProjectHighlight = {
   name: string;
@@ -8,38 +8,46 @@ export type ProjectHighlight = {
   isFull: boolean;
 };
 
-export type SupervisedStudentRow = {
+export type SuggestionRow = {
   userId: number;
   name: string;
   major: string;
   university: string;
+  matchScore: number;
+  skills: string[];
 };
 
-export function buildOverviewHighlightFromSupervised(
-  projects: DoctorSupervisedProject[],
-): ProjectHighlight | null {
-  const p = projects[0];
-  if (!p) return null;
+function highlightFromDashboardProject(dp: DashboardProject): ProjectHighlight {
   return {
-    name: p.name,
-    role: "Supervisor",
-    memberCount: p.memberCount,
-    maxTeamSize: Math.max(p.partnersCount, 1),
-    isFull: p.isFull,
+    name: dp.projectName,
+    role: dp.role === "owner" ? "Owner" : "Member",
+    memberCount: dp.memberCount,
+    maxTeamSize: dp.maxTeamSize,
+    isFull: dp.isFull,
   };
 }
 
-export function buildSupervisedStudentRows(projects: DoctorSupervisedProject[]): SupervisedStudentRow[] {
-  const m = new Map<number, SupervisedStudentRow>();
-  for (const proj of projects) {
-    const o = proj.owner;
-    if (m.has(o.userId)) continue;
-    m.set(o.userId, {
-      userId: o.userId,
-      name: o.name,
-      major: o.major,
-      university: o.university,
-    });
+export function buildOverviewHighlight(
+  summary: DashboardSummary | null,
+  myProject: DashboardProject | null,
+): ProjectHighlight | null {
+  if (summary?.myProject) {
+    return highlightFromDashboardProject(summary.myProject);
   }
-  return [...m.values()].slice(0, 12);
+  if (myProject) {
+    return highlightFromDashboardProject(myProject);
+  }
+  return null;
+}
+
+export function buildOverviewSuggestions(summary: DashboardSummary | null): SuggestionRow[] {
+  if (!summary?.suggestedTeammates?.length) return [];
+  return summary.suggestedTeammates.slice(0, 8).map((t) => ({
+    userId: t.userId,
+    name: t.name,
+    major: t.major,
+    university: t.university,
+    matchScore: t.matchScore,
+    skills: t.skills ?? [],
+  }));
 }
