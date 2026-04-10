@@ -1,36 +1,30 @@
 // src/app/pages/doctor/ChannelPage.tsx
-import { useState, useEffect } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Copy, Check, Users, Layers, FolderOpen, Plus, Loader } from 'lucide-react'
-import { CourseChannel } from './data/doctorMockData'
-import api from '../../../api/axiosInstance'
+import { ArrowLeft, Copy, Check, Users, Layers, FolderOpen, Plus } from 'lucide-react'
 
 type ChannelTab = 'overview' | 'students' | 'projects' | 'settings'
 
-// ── Project types — matches ProjectResponseDto from API ──────────────────────
+// ── Project types (ready to be filled from API) ──────────────────────────────
 interface Project {
-    id:             number
-    channelId:      number
-    name:           string
-    description:    string | null
-    formationMode:  'students' | 'doctor'
-    publishDate:    string | null
-    dueDate:        string | null
-    weight:         number | null
-    maxTeamSize:    number | null
-    requiredSkills: string[]
-    hasFile:        boolean
-    filePath:       string | null
-    teamCount:      number
-    createdAt:      string
+    id:          string
+    name:        string
+    description: string | null
+    publishDate: string | null   // ISO date string
+    dueDate:     string | null   // ISO date string
+    weight:      number | null   // % of final grade
+    maxTeamSize: number | null
+    teamCount:   number
+    mode:        'students' | 'doctor'
+    skills:      string[]
 }
 
 // ── Project Card ─────────────────────────────────────────────────────────────
 function ProjectCard({ project }: { project: Project }) {
-    const modeLabel  = project.formationMode === 'doctor' ? 'AI / Doctor' : 'Students choose'
-    const modeColor  = project.formationMode === 'doctor' ? '#6366f1' : '#10b981'
-    const modeBg     = project.formationMode === 'doctor' ? '#eef2ff' : '#f0fdf4'
-    const modeBorder = project.formationMode === 'doctor' ? '#c7d2fe' : '#bbf7d0'
+    const modeLabel  = project.mode === 'doctor' ? 'AI / Doctor' : 'Students choose'
+    const modeColor  = project.mode === 'doctor' ? '#6366f1' : '#10b981'
+    const modeBg     = project.mode === 'doctor' ? '#eef2ff' : '#f0fdf4'
+    const modeBorder = project.mode === 'doctor' ? '#c7d2fe' : '#bbf7d0'
 
     const fmt = (d: string | null) => d
         ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -79,13 +73,13 @@ function ProjectCard({ project }: { project: Project }) {
             </div>
 
             {/* Skills */}
-            {project.requiredSkills.length > 0 && (
+            {project.skills.length > 0 && (
                 <div style={PC.skills}>
-                    {project.requiredSkills.slice(0, 4).map(sk => (
+                    {project.skills.slice(0, 4).map(sk => (
                         <span key={sk} style={PC.skillChip}>{sk}</span>
                     ))}
-                    {project.requiredSkills.length > 4 && (
-                        <span style={PC.skillMore}>+{project.requiredSkills.length - 4}</span>
+                    {project.skills.length > 4 && (
+                        <span style={PC.skillMore}>+{project.skills.length - 4}</span>
                     )}
                 </div>
             )}
@@ -95,7 +89,7 @@ function ProjectCard({ project }: { project: Project }) {
     )
 }
 
-const PC: Record<string, React.CSSProperties> = {
+const PC: Record<string, CSSProperties> = {
     card:        { background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, padding: '20px 20px 18px', boxShadow: '0 2px 12px rgba(99,102,241,0.04)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10 },
     accentBar:   { position: 'absolute', top: 0, left: 0, right: 0, height: 3, borderRadius: '16px 16px 0 0', background: 'linear-gradient(90deg,#6366f1,#a855f7)' },
     header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -134,22 +128,8 @@ export default function ChannelPage({ channels }: Props) {
     const [publishDate, setPublishDate]         = useState('')
     const [dueDate, setDueDate]                 = useState('')
     const [projectWeight, setProjectWeight]     = useState('')
-    // Projects list — fetched from API
-    const [projects, setProjects]           = useState<Project[]>([])
-    const [projectsLoading, setProjectsLoading] = useState(false)
-    const [projectsError, setProjectsError]     = useState<string | null>(null)
-    const [submitting, setSubmitting]           = useState(false)
-
-    // ── Fetch projects when tab opens or channelId changes ───────────────
-    useEffect(() => {
-        if (!channelId) return
-        setProjectsLoading(true)
-        setProjectsError(null)
-        api.get(`/doctor/channels/${channelId}/projects`)
-            .then(res => setProjects(res.data))
-            .catch(() => setProjectsError('Failed to load projects.'))
-            .finally(() => setProjectsLoading(false))
-    }, [channelId])
+    // Projects list — will be populated from API later
+    const [projects, setProjects] = useState<Project[]>([])
 
     const resetModal = () => {
         setProjectName('')
@@ -164,53 +144,26 @@ export default function ChannelPage({ channels }: Props) {
         setUploadedFile(null)
     }
 
-    const handleCreateProject = async () => {
-        if (!projectName.trim() || !channelId) return
+    const handleCreateProject = () => {
+        if (!projectName.trim()) return          // name is required
 
-        setSubmitting(true)
-        try {
-            // ── Convert file to base64 if present ────────────────────────────
-            let fileBase64: string | null = null
-            let fileName:   string | null = null
-            if (uploadedFile) {
-                fileName   = uploadedFile.name
-                fileBase64 = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader()
-                    reader.onload  = () => {
-                        // result is "data:*/*;base64,XXXX" — strip the prefix
-                        const result = reader.result as string
-                        resolve(result.split(',')[1])
-                    }
-                    reader.onerror = reject
-                    reader.readAsDataURL(uploadedFile)
-                })
-            }
-
-            const payload = {
-                name:           projectName.trim(),
-                description:    projectDesc.trim() || null,
-                formationMode:  teamMode,
-                publishDate:    publishDate || null,
-                dueDate:        dueDate     || null,
-                weight:         projectWeight ? Number(projectWeight) : null,
-                maxTeamSize:    selectedSize,
-                requiredSkills: skills,
-                fileBase64,
-                fileName,
-            }
-
-            const res = await api.post(`/doctor/channels/${channelId}/projects`, payload)
-
-            // Add the new project to the list immediately (optimistic update)
-            setProjects(prev => [res.data, ...prev])
-            resetModal()
-            setShowCreateProject(false)
-        } catch (err: any) {
-            console.error('[CreateProject] error:', err?.response?.status, err?.response?.data)
-            alert(err?.response?.data?.message || err?.response?.data?.title || JSON.stringify(err?.response?.data) || 'Failed to create project. Please try again.')
-        } finally {
-            setSubmitting(false)
+        // ── Data ready to send to API later ──────────────────────────────
+        const projectData = {
+            name:          projectName.trim(),
+            description:   projectDesc.trim() || null,
+            formationMode: teamMode,
+            publishDate:   publishDate || null,
+            dueDate:       dueDate     || null,
+            weight:        projectWeight ? Number(projectWeight) : null,
+            maxTeamSize:   selectedSize,
+            skills,
+            file:          uploadedFile,
         }
+        console.log('[ChannelPage] project payload →', projectData)
+        // TODO: await api.post(`/doctor/channels/${channelId}/projects`, projectData)
+
+        resetModal()
+        setShowCreateProject(false)
     }
 
     const channel = channels.find(c => c.id === channelId)
@@ -431,29 +384,7 @@ export default function ChannelPage({ channels }: Props) {
                                 )}
                             </div>
 
-                            {/* Loading */}
-                            {projectsLoading && (
-                                <div style={S.empty}>
-                                    <Loader size={24} color="#6366f1" style={{ animation: 'spin 1s linear infinite' }} />
-                                    <p style={{ color: '#94a3b8', margin: '10px 0', fontSize: 13 }}>Loading projects...</p>
-                                </div>
-                            )}
-
-                            {/* Error */}
-                            {!projectsLoading && projectsError && (
-                                <div style={S.empty}>
-                                    <p style={{ color: '#ef4444', fontSize: 13, margin: 0 }}>{projectsError}</p>
-                                    <button style={{ ...S.ghostBtn, marginTop: 10 }} onClick={() => {
-                                        setProjectsError(null)
-                                        api.get(`/doctor/channels/${channelId}/projects`)
-                                            .then(res => setProjects(res.data))
-                                            .catch(() => setProjectsError('Failed to load projects.'))
-                                    }}>Retry</button>
-                                </div>
-                            )}
-
-                            {/* Empty */}
-                            {!projectsLoading && !projectsError && projects.length === 0 && (
+                            {projects.length === 0 ? (
                                 <div style={S.empty}>
                                     <FolderOpen size={28} color="#c7d2fe" />
                                     <p style={{ color: '#94a3b8', margin: '10px 0 14px', fontSize: 13 }}>
@@ -463,10 +394,8 @@ export default function ChannelPage({ channels }: Props) {
                                         <Plus size={13} /> Create Project
                                     </button>
                                 </div>
-                            )}
-
-                            {/* Projects grid — rendered from API */}
-                            {!projectsLoading && !projectsError && projects.length > 0 && (
+                            ) : (
+                                // projects will be rendered here later from API
                                 <div style={S.projectsGrid}>
                                     {projects.map(p => (
                                         <ProjectCard key={p.id} project={p} />
@@ -687,25 +616,22 @@ export default function ChannelPage({ channels }: Props) {
 
                         {/* Actions */}
                         <div style={S.modalFooter}>
-                            <button style={S.cancelBtn} onClick={() => { resetModal(); setShowCreateProject(false) }} disabled={submitting}>
+                            <button style={S.cancelBtn} onClick={() => { resetModal(); setShowCreateProject(false) }}>
                                 Cancel
                             </button>
                             <button
-                                style={{ ...S.primaryBtn, opacity: (projectName.trim() && !submitting) ? 1 : 0.5, cursor: (projectName.trim() && !submitting) ? 'pointer' : 'not-allowed' }}
-                                disabled={!projectName.trim() || submitting}
+                                style={{ ...S.primaryBtn, opacity: projectName.trim() ? 1 : 0.5, cursor: projectName.trim() ? 'pointer' : 'not-allowed' }}
+                                disabled={!projectName.trim()}
                                 onClick={handleCreateProject}
                             >
-                                {submitting
-                                    ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> Creating...</>
-                                    : <><Plus size={13} /> Create Project</>
-                                }
+                                <Plus size={13} /> Create Project
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            <style>{`a{text-decoration:none;} button:hover:not(:disabled){opacity:.88;} button:active{transform:scale(.98);} input::placeholder,textarea::placeholder{color:#94a3b8;} input:focus,textarea:focus{outline:none;border-color:#6366f1!important;} textarea{resize:vertical;} @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+            <style>{`a{text-decoration:none;} button:hover:not(:disabled){opacity:.88;} button:active{transform:scale(.98);} input::placeholder,textarea::placeholder{color:#94a3b8;} input:focus,textarea:focus{outline:none;border-color:#6366f1!important;} textarea{resize:vertical;}`}</style>
         </div>
     )
 }
@@ -719,7 +645,7 @@ function BgDecor() {
     )
 }
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
     page: { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative' },
     nav: { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
     navInner: { maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 12 },

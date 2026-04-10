@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowRight, Mail, Lock } from 'lucide-react'
 import api from '../../../api/axiosInstance'
@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setApiError(null)
@@ -26,12 +26,16 @@ export default function LoginPage() {
       localStorage.setItem('name', result.name)
       localStorage.setItem('email', result.email)
 
-      // ✅ التوجيه حسب الـ role
-
-        if (result.role === 'student') navigate('/dashboard')
-else if (result.role === 'doctor') navigate('/doctor-dashboard')
-        else if (result.role === 'company') navigate('/company/dashboard')
-        else navigate('/dashboard')
+      const role = (result.role ?? '').toString().toLowerCase()
+      if (role === 'doctor') {
+        navigate('/doctor-dashboard')
+      } else if (role === 'student') {
+        navigate('/dashboard')
+      } else if (role === 'company') {
+        navigate('/company/dashboard')
+      } else {
+        navigate('/dashboard')
+      }
 
     } catch (error: any) {
       const msg =

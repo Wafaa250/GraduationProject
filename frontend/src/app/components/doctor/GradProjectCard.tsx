@@ -1,5 +1,5 @@
 // src/app/pages/doctor/components/GradProjectCard.tsx
-import { useState } from 'react'
+import { useState, type CSSProperties, type MouseEvent } from 'react'
 import { Users, Copy, Check, ExternalLink } from 'lucide-react'
 import { GraduationProject } from '../data/doctorMockData'
 
@@ -8,7 +8,7 @@ interface Props { project: GraduationProject }
 export default function GradProjectCard({ project }: Props) {
   const [copied, setCopied] = useState(false)
 
-  const handleCopy = (e: React.MouseEvent) => {
+  const handleCopy = (e: MouseEvent) => {
     e.stopPropagation()
     navigator.clipboard.writeText(project.inviteCode)
     setCopied(true)
@@ -78,7 +78,7 @@ export default function GradProjectCard({ project }: Props) {
   )
 }
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
   card:            { background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, padding: '20px 20px 18px', boxShadow: '0 2px 12px rgba(99,102,241,0.04)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10 },
   accentBar:       { position: 'absolute', top: 0, left: 0, right: 0, height: 3, borderRadius: '16px 16px 0 0' },
   header:          { display: 'flex' },

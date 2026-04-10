@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, CheckCircle2, Circle, Pencil,
   MapPin, GraduationCap, BookOpen, Star, Zap
 } from 'lucide-react'
 import api from '../../../api/axiosInstance'
+import { navigateHome } from '../../../utils/homeNavigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
@@ -106,7 +107,7 @@ export default function ProfilePage() {
       {/* ── Top bar ── */}
       <div style={S.topBar}>
         <div style={S.topBarInner}>
-          <button onClick={() => navigate('/dashboard')} style={S.backBtn}>
+          <button onClick={() => navigateHome(navigate)} style={S.backBtn}>
             <ArrowLeft size={16} />
             <span>Back to Dashboard</span>
           </button>
@@ -291,7 +292,7 @@ export default function ProfilePage() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
   page:           { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 45%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative', overflow: 'hidden' },
   blob1:          { position: 'fixed', top: -160, right: -160, width: 520, height: 520, borderRadius: '50%', background: 'radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 },
   blob2:          { position: 'fixed', bottom: -120, left: -120, width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 },

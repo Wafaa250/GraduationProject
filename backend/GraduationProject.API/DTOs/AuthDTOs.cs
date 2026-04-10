@@ -101,6 +101,9 @@ namespace GraduationProject.API.DTOs
         [Required(ErrorMessage = "Faculty is required")]
         public string Faculty { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Department is required")]
+        public string Department { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Specialization is required")]
         public string Specialization { get; set; } = string.Empty;
 

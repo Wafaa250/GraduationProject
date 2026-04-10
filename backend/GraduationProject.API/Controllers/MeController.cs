@@ -91,14 +91,31 @@ namespace GraduationProject.API.Controllers
 
             return Ok(new
             {
-                role                = "doctor",
-                userId              = profile.UserId,
-                profileId           = profile.Id,
-                name                = profile.User.Name,
-                email               = profile.User.Email,
-                specialization      = profile.Specialization,
-                supervisionCapacity = profile.SupervisionCapacity,
-                bio                 = profile.Bio
+                role = "doctor",
+                userId = profile.UserId,
+                profileId = profile.Id,
+
+                name = profile.User.Name,
+                email = profile.User.Email,
+
+                department = profile.Department,
+                faculty = profile.Faculty,
+                specialization = profile.Specialization,
+
+                yearsOfExperience = profile.YearsOfExperience,
+                linkedin = profile.Linkedin,
+                officeHours = profile.OfficeHours,
+
+                bio = profile.Bio,
+                profilePictureBase64 = profile.ProfilePictureBase64,
+
+                technicalSkills = profile.TechnicalSkills != null
+          ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(profile.TechnicalSkills)
+          : new List<string>(),
+
+                researchSkills = profile.ResearchSkills != null
+          ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(profile.ResearchSkills)
+          : new List<string>()
             });
         }
 
