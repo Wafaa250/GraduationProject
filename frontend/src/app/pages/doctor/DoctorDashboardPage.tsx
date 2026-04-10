@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
 import { useAuth } from "../../../context/AuthContext";
 import LoginPage from "../auth/LoginPage";
-import {
-  doctorDashboardApi,
-  doctorShouldHideApiError,
-  getDoctorSupervisedProjects,
-} from "../../../api/doctorDashboardApi";
+import { doctorDashboardApi, getDoctorSupervisedProjects } from "../../../api/doctorDashboardApi";
+import { doctorDashboardKeys, supervisedProjectsQueryKey } from "../../../api/doctorDashboardQueryKeys";
+import { getDashboardSummary, getDashboardMyProject, type DashboardSummary } from "../../../api/dashboardApi";
 import {
   getDoctorRequests,
   acceptSupervisorRequest,
@@ -14,96 +14,122 @@ import {
   type SupervisorRequest,
 } from "../../../api/supervisorApi";
 import { ToastProvider, useToast } from "../../../context/ToastContext";
-import type {
-  DoctorDashboardSection,
-  DoctorMeResponse,
-  DoctorSupervisedProject,
-  RequestRow,
-} from "./doctorDashboardTypes";
+import type { DoctorDashboardSection, DoctorMeResponse, DoctorSupervisedProject } from "./doctorDashboardTypes";
 import { isPendingRequestStatus } from "./doctorRequestUtils";
-import {
-  appendDeletedProject,
-  loadDeletedProjects,
-  type DeletedProjectRecord,
-} from "./doctorDeletedProjectsStorage";
+import { buildOverviewHighlight, buildOverviewSuggestions } from "./dashboard/doctorDashboardHelpers";
 import { DoctorDashboardLayout } from "./dashboard/DoctorDashboardLayout";
 import { OverviewSection } from "./dashboard/OverviewSection";
 import { RequestsSection } from "./dashboard/RequestsSection";
 import { ProjectsSection } from "./dashboard/ProjectsSection";
 import { DeletedProjectsSection } from "./dashboard/DeletedProjectsSection";
 import {
-  buildOverviewHighlightFromSupervised,
-  buildSupervisedStudentRows,
-} from "./dashboard/doctorDashboardHelpers";
+  appendDeletedProject,
+  loadDeletedProjects,
+  type DeletedProjectRecord,
+} from "./doctorDeletedProjectsStorage";
 
 function DoctorDashboardInner() {
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { isAuthenticated, logout, syncAuthFromStorage } = useAuth();
 
   const [activeSection, setActiveSection] = useState<DoctorDashboardSection>("overview");
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [me, setMe] = useState<DoctorMeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [supervisionRequests, setSupervisionRequests] = useState<SupervisorRequest[]>([]);
-  const [requestsError, setRequestsError] = useState<string | null>(null);
-  const [requestsLoading, setRequestsLoading] = useState(false);
-
-  const [supervisedProjects, setSupervisedProjects] = useState<DoctorSupervisedProject[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(false);
-  const [projectsError, setProjectsError] = useState<string | null>(null);
-
   const [deletedProjects, setDeletedProjects] = useState<DeletedProjectRecord[]>(() =>
     loadDeletedProjects(),
   );
   const [removingId, setRemovingId] = useState<number | null>(null);
-  const [actionKey, setActionKey] = useState<string | null>(null);
 
-  const refetchRequests = useCallback(async () => {
-    setRequestsLoading(true);
-    setRequestsError(null);
-    try {
-      const list = await getDoctorRequests();
-      setSupervisionRequests(Array.isArray(list) ? list : []);
-    } catch (err: unknown) {
-      console.error("[DoctorDashboard] GET /doctors/me/requests failed", err);
-      if (doctorShouldHideApiError(err)) {
-        setRequestsError(null);
-        setSupervisionRequests([]);
-      } else {
-        setRequestsError(parseApiErrorMessage(err));
-        setSupervisionRequests([]);
+  const doctorSessionOk = Boolean(
+    isAuthenticated && me && me.role === "doctor" && me.profileId != null && !loadError,
+  );
+
+  const requestsQuery = useQuery({
+    queryKey: doctorDashboardKeys.requests,
+    queryFn: getDoctorRequests,
+    enabled: doctorSessionOk,
+  });
+
+  const summaryQuery = useQuery({
+    queryKey: doctorDashboardKeys.dashboardSummary,
+    queryFn: getDashboardSummary,
+    enabled: doctorSessionOk,
+  });
+
+  const myProjectQuery = useQuery({
+    queryKey: doctorDashboardKeys.dashboardMyProject,
+    queryFn: getDashboardMyProject,
+    enabled: doctorSessionOk,
+  });
+
+  const supervisedProjectsQuery = useQuery({
+    queryKey: supervisedProjectsQueryKey,
+    queryFn: getDoctorSupervisedProjects,
+    enabled: doctorSessionOk,
+  });
+
+  const requestActionMutation = useMutation({
+    mutationFn: async ({ requestId, action }: { requestId: number; action: "accept" | "reject" }) => {
+      if (action === "accept") await acceptSupervisorRequest(requestId);
+      else await rejectSupervisorRequest(requestId);
+    },
+    onMutate: async ({ requestId }) => {
+      await queryClient.cancelQueries({ queryKey: doctorDashboardKeys.requests });
+      const previous = queryClient.getQueryData<SupervisorRequest[]>(doctorDashboardKeys.requests);
+      queryClient.setQueryData<SupervisorRequest[]>(doctorDashboardKeys.requests, (old) =>
+        (old ?? []).filter((r) => r.requestId !== requestId),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(doctorDashboardKeys.requests, context.previous);
       }
-    } finally {
-      setRequestsLoading(false);
-    }
-  }, []);
-
-  const refetchProjects = useCallback(async () => {
-    setProjectsLoading(true);
-    setProjectsError(null);
-    try {
-      const list = await getDoctorSupervisedProjects();
-      setSupervisedProjects(list);
-    } catch (err: unknown) {
-      console.error("[DoctorDashboard] GET /doctors/me/supervised-projects failed", err);
-      if (doctorShouldHideApiError(err)) {
-        setProjectsError(null);
-        setSupervisedProjects([]);
-      } else {
-        setProjectsError(parseApiErrorMessage(err));
-        setSupervisedProjects([]);
+    },
+    onSuccess: async (_data, variables) => {
+      if (variables.action === "accept") {
+        await queryClient.refetchQueries({ queryKey: supervisedProjectsQueryKey });
       }
-    } finally {
-      setProjectsLoading(false);
-    }
-  }, []);
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.requests });
+      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardMyProject });
+      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardSummary });
+    },
+  });
 
-  const refetchAfterAction = useCallback(async () => {
-    await Promise.all([refetchRequests(), refetchProjects()]);
-  }, [refetchRequests, refetchProjects]);
+  const supervisionRequests = requestsQuery.data ?? [];
+  const requestsError = requestsQuery.error ? parseApiErrorMessage(requestsQuery.error) : null;
+  const requestsLoading = requestsQuery.isLoading || requestsQuery.isFetching;
+
+  const summary: DashboardSummary | null = summaryQuery.data ?? null;
+  const overviewError = summaryQuery.error ? parseApiErrorMessage(summaryQuery.error) : null;
+  const overviewLoading = summaryQuery.isLoading || summaryQuery.isFetching;
+
+  const myProject = myProjectQuery.data ?? null;
+  const supervisedProjects = supervisedProjectsQuery.data ?? [];
+  const projectsError = supervisedProjectsQuery.error
+    ? parseApiErrorMessage(supervisedProjectsQuery.error)
+    : null;
+  const projectsLoading = supervisedProjectsQuery.isLoading || supervisedProjectsQuery.isFetching;
+
+  const actionKey =
+    requestActionMutation.isPending && requestActionMutation.variables
+      ? `sup-${requestActionMutation.variables.requestId}-${requestActionMutation.variables.action}`
+      : null;
+
+  const invalidateDoctorDashboard = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.requests });
+    await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardMyProject });
+    await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardSummary });
+    await queryClient.invalidateQueries({ queryKey: supervisedProjectsQueryKey });
+  }, [queryClient]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -119,12 +145,11 @@ function DoctorDashboardInner() {
       try {
         const { data } = await api.get<DoctorMeResponse>("/me");
         if (data.role !== "doctor" || data.profileId == null) {
-          setLoadError("Access restricted. This workspace is for doctor accounts only.");
+          setLoadError("Access restricted. This account is not a doctor profile.");
           setMe(null);
           return;
         }
         setMe(data);
-        await Promise.all([refetchRequests(), refetchProjects()]);
       } catch (err: unknown) {
         const status = (err as { response?: { status?: number } })?.response?.status;
         if (status === 401) {
@@ -138,65 +163,69 @@ function DoctorDashboardInner() {
       }
     };
     void run();
-  }, [isAuthenticated, logout, refetchRequests, refetchProjects]);
+  }, [isAuthenticated, logout]);
 
-  const requestRows: RequestRow[] = useMemo(
-    () =>
-      supervisionRequests.map((r) => ({
-        kind: "supervision" as const,
-        requestId: r.requestId,
-        projectName: r.project?.name ?? "",
-        studentName: r.sender?.name ?? "",
-        status: r.status,
-      })),
+  useEffect(() => {
+    if (!isAuthenticated || activeSection !== "requests") return;
+    void queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.requests });
+  }, [activeSection, isAuthenticated, queryClient]);
+
+  useEffect(() => {
+    const s = (location.state as { defaultSection?: DoctorDashboardSection } | null)?.defaultSection;
+    if (s === "overview" || s === "requests" || s === "projects" || s === "deleted") {
+      setActiveSection(s);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    setDeletedProjects(loadDeletedProjects());
+  }, [location.key]);
+
+  useEffect(() => {
+    if (activeSection === "deleted") {
+      setDeletedProjects(loadDeletedProjects());
+    }
+  }, [activeSection]);
+
+  const pendingRequestsCount = useMemo(
+    () => supervisionRequests.filter((r) => isPendingRequestStatus(r.status)).length,
     [supervisionRequests],
   );
 
-  const pendingRequestsCount = useMemo(
-    () => requestRows.filter((r) => isPendingRequestStatus(r.status)).length,
-    [requestRows],
-  );
-
   const overviewHighlight = useMemo(
-    () => buildOverviewHighlightFromSupervised(supervisedProjects),
-    [supervisedProjects],
+    () => buildOverviewHighlight(summary, myProject),
+    [summary, myProject],
   );
 
-  const supervisedStudentRows = useMemo(
-    () => buildSupervisedStudentRows(supervisedProjects),
-    [supervisedProjects],
-  );
+  const suggestions = useMemo(() => buildOverviewSuggestions(summary), [summary]);
 
-  const overviewLoading = requestsLoading || projectsLoading;
-  const overviewError = [requestsError, projectsError].filter(Boolean).join(" · ") || null;
-
-  const handleSupervisionAction = async (requestId: number, action: "accept" | "reject") => {
-    const key = `sup-${requestId}-${action}`;
-    setActionKey(key);
-    try {
-      if (action === "accept") await acceptSupervisorRequest(requestId);
-      else await rejectSupervisorRequest(requestId);
-      await refetchAfterAction();
-      showToast(action === "accept" ? "Request accepted" : "Request rejected", "success");
-    } catch (err: unknown) {
-      showToast(parseApiErrorMessage(err), "error");
-    } finally {
-      setActionKey(null);
-    }
+  const handleRequestAction = (requestId: number, action: "accept" | "reject") => {
+    requestActionMutation.mutate(
+      { requestId, action },
+      {
+        onSuccess: () => {
+          showToast(action === "accept" ? "Request accepted" : "Request rejected", "success");
+        },
+        onError: (err: unknown) => {
+          showToast(parseApiErrorMessage(err), "error");
+        },
+      },
+    );
   };
 
-  const handleRemoveProject = async (p: DoctorSupervisedProject) => {
+  const handleRemoveSupervision = async (p: DoctorSupervisedProject) => {
     setRemovingId(p.projectId);
     try {
       await doctorDashboardApi.removeSupervision(p.projectId);
-      showToast("Supervision removed", "success");
+      showToast("Doctor cancelled the project", "success");
       const next = appendDeletedProject({
         projectId: p.projectId,
         name: p.name,
         removedAt: new Date().toISOString(),
+        source: "remove_supervision",
       });
       setDeletedProjects(next);
-      await refetchAfterAction();
+      await invalidateDoctorDashboard();
     } catch (err: unknown) {
       showToast(parseApiErrorMessage(err), "error");
     } finally {
@@ -204,15 +233,13 @@ function DoctorDashboardInner() {
     }
   };
 
-  const initials = useMemo(() => {
-    if (!me?.name) return "DR";
-    return me.name
-      .split(" ")
+  const initials =
+    me?.name
+      ?.split(" ")
       .map((n) => n[0])
       .join("")
       .slice(0, 2)
-      .toUpperCase();
-  }, [me?.name]);
+      .toUpperCase() || "DR";
 
   if (!isAuthenticated) {
     return <LoginPage embedded onLoginSuccess={syncAuthFromStorage} />;
@@ -230,7 +257,7 @@ function DoctorDashboardInner() {
           fontFamily: "DM Sans, sans-serif",
         }}
       >
-        <p style={{ fontSize: 14, color: "#64748b", fontWeight: 600 }}>Loading…</p>
+        <p style={{ fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>Loading…</p>
       </div>
     );
   }
@@ -250,13 +277,13 @@ function DoctorDashboardInner() {
       >
         <div
           style={{
-            maxWidth: 420,
+            maxWidth: 480,
             width: "100%",
-            padding: 24,
-            borderRadius: 14,
             background: "#fff",
+            borderRadius: 16,
+            padding: 28,
             border: "1px solid #e2e8f0",
-            boxShadow: "0 4px 24px rgba(15,23,42,0.08)",
+            boxShadow: "0 4px 24px rgba(15,23,42,0.06)",
           }}
         >
           <p style={{ margin: 0, fontSize: 15, color: "#b91c1c", fontWeight: 700 }}>
@@ -266,16 +293,16 @@ function DoctorDashboardInner() {
             type="button"
             onClick={() => logout()}
             style={{
-              marginTop: 16,
+              marginTop: 18,
               padding: "10px 18px",
-              background: "linear-gradient(135deg,#4f46e5,#9333ea)",
-              color: "#fff",
+              background: "linear-gradient(135deg,#6366f1,#a855f7)",
+              color: "white",
               border: "none",
               borderRadius: 10,
               fontSize: 13,
               fontWeight: 700,
-              cursor: "pointer",
               fontFamily: "inherit",
+              cursor: "pointer",
             }}
           >
             Back to sign in
@@ -289,49 +316,46 @@ function DoctorDashboardInner() {
     <DoctorDashboardLayout
       doctorName={me.name}
       initials={initials}
-      onLogout={logout}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
-      sidebarMobileOpen={sidebarMobileOpen}
-      onSidebarToggle={() => setSidebarMobileOpen((o) => !o)}
-      onSidebarCloseMobile={() => setSidebarMobileOpen(false)}
+      sidebarMobileOpen={sidebarOpen}
+      onSidebarOpen={() => setSidebarOpen(true)}
+      onSidebarClose={() => setSidebarOpen(false)}
+      onLogout={logout}
     >
-      <div key={activeSection} className="doctor-dash-section-fade">
-        {activeSection === "overview" ? (
-          <OverviewSection
-            me={me}
-            loading={overviewLoading}
-            error={overviewError}
-            supervisedCount={supervisedProjects.length}
-            highlight={overviewHighlight}
-            supervisedStudents={supervisedStudentRows}
-            pendingRequestsCount={pendingRequestsCount}
-            totalRequestsCount={requestRows.length}
-          />
-        ) : null}
+      {activeSection === "overview" ? (
+        <OverviewSection
+          me={me}
+          summary={summary}
+          loading={overviewLoading}
+          error={overviewError}
+          highlight={overviewHighlight}
+          suggestions={suggestions}
+          pendingRequestsCount={pendingRequestsCount}
+        />
+      ) : null}
 
-        {activeSection === "requests" ? (
-          <RequestsSection
-            rows={requestRows}
-            loading={requestsLoading}
-            error={requestsError}
-            actionKey={actionKey}
-            onSupervisionAction={(id, a) => void handleSupervisionAction(id, a)}
-          />
-        ) : null}
+      {activeSection === "requests" ? (
+        <RequestsSection
+          requests={supervisionRequests}
+          loading={requestsLoading}
+          error={requestsError}
+          actionKey={actionKey}
+          onAction={(id, a) => handleRequestAction(id, a)}
+        />
+      ) : null}
 
-        {activeSection === "projects" ? (
-          <ProjectsSection
-            loading={projectsLoading}
-            error={projectsError}
-            projects={supervisedProjects}
-            removingId={removingId}
-            onRemoveSupervision={(p) => void handleRemoveProject(p)}
-          />
-        ) : null}
+      {activeSection === "projects" ? (
+        <ProjectsSection
+          projects={supervisedProjects}
+          loading={projectsLoading}
+          error={projectsError}
+          removingId={removingId}
+          onRemoveSupervision={(p) => void handleRemoveSupervision(p)}
+        />
+      ) : null}
 
-        {activeSection === "deleted" ? <DeletedProjectsSection items={deletedProjects} /> : null}
-      </div>
+      {activeSection === "deleted" ? <DeletedProjectsSection items={deletedProjects} /> : null}
     </DoctorDashboardLayout>
   );
 }

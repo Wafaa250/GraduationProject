@@ -85,6 +85,9 @@ export interface GradProject {
   /** Project description; null when not provided. */
   description?: string | null
 
+  /** Same field as DB Abstract; API may send `abstract` while older code used `description`. */
+  abstract?: string | null
+
   /**
    * Total team capacity including the owner.
    * Maps to StudentProject.PartnersCount on the backend.
@@ -132,6 +135,7 @@ export interface GradProject {
     doctorId: number
     name: string
     specialization: string
+    department?: string | null
   } | null
 
   /**
@@ -210,6 +214,16 @@ export interface ChangeLeaderResponse {
 }
 
 // ─── API functions ────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/graduation-projects/{projectId}
+ *
+ * Returns full project details (members, supervisor, abstract, skills).
+ */
+export async function getGraduationProjectById(projectId: number): Promise<GradProject> {
+  const { data } = await api.get<GradProject>(`/graduation-projects/${projectId}`)
+  return data
+}
 
 /**
  * GET /api/graduation-projects/{projectId}/members

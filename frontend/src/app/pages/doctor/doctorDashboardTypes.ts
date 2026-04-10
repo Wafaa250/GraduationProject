@@ -5,7 +5,6 @@ export interface DoctorMeResponse {
   name: string;
   email: string;
   specialization?: string | null;
-  supervisionCapacity?: number | null;
 }
 
 // ─── GET /api/doctors/me/supervised-projects ─────────────────────────────────

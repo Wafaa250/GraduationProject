@@ -16,11 +16,11 @@ export function SectionSpinner({ label }: { label?: string }) {
         fontFamily: dash.font,
       }}
     >
-      <Loader2 size={22} color={dash.accent} className="doctor-dash-spin" />
+      <Loader2 size={22} color={dash.accent} className="dd-spin" />
       {label ?? "Loading…"}
       <style>{`
-        .doctor-dash-spin { animation: doctorDashSpin 0.75s linear infinite; }
-        @keyframes doctorDashSpin { to { transform: rotate(360deg); } }
+        .dd-spin { animation: ddSpin 0.75s linear infinite; }
+        @keyframes ddSpin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );

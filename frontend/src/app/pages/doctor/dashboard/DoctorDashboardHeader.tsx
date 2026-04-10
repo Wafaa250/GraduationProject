@@ -5,23 +5,22 @@ import { dash } from "./doctorDashTokens";
 type Props = {
   doctorName: string;
   initials: string;
-  onLogout: () => void;
   onMenuClick: () => void;
+  onLogout: () => void;
 };
 
-export function DoctorDashboardHeader({ doctorName, initials, onLogout, onMenuClick }: Props) {
+export function DoctorDashboardHeader({ doctorName, initials, onMenuClick, onLogout }: Props) {
   return (
     <header
       style={{
         flexShrink: 0,
-        height: 56,
+        height: 60,
         padding: "0 16px 0 20px",
         display: "flex",
         alignItems: "center",
-        gap: 12,
-        background: dash.surface,
+        gap: 16,
         borderBottom: `1px solid ${dash.border}`,
-        boxShadow: "0 1px 0 rgba(15,23,42,0.04)",
+        background: dash.surface,
         fontFamily: dash.font,
       }}
     >
@@ -35,127 +34,90 @@ export function DoctorDashboardHeader({ doctorName, initials, onLogout, onMenuCl
           justifyContent: "center",
           width: 40,
           height: 40,
-          border: `1px solid ${dash.border}`,
-          borderRadius: dash.radiusMd,
-          background: dash.surface,
+          border: "none",
+          borderRadius: 10,
+          background: dash.bg,
           color: dash.muted,
           cursor: "pointer",
         }}
-        className="doctor-dash-mobile-menu-btn"
+        className="dd-header-menu-btn"
       >
         <Menu size={20} />
       </button>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <div
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
+          DOCTOR WORKSPACE
+        </p>
+        <p
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "linear-gradient(135deg,#6366f1,#a855f7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            justifySelf: "center",
-            boxShadow: "0 2px 8px rgba(99,102,241,0.35)",
-            flexShrink: 0,
+            margin: "2px 0 0",
+            fontSize: 16,
+            fontWeight: 800,
+            color: dash.text,
+            fontFamily: dash.fontDisplay,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-              stroke="white"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: dash.text, fontFamily: dash.fontDisplay }}>
-            Skill<span style={{ color: dash.accent }}>Swap</span>
-          </div>
-          <div style={{ fontSize: 11, color: dash.subtle, fontWeight: 600, marginTop: 2 }}>
-            Doctor workspace
-          </div>
-        </div>
+          {doctorName}
+        </p>
       </div>
 
-      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            marginRight: 8,
-            minWidth: 0,
-          }}
-          className="doctor-dash-header-meta"
-        >
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: dash.text,
-              maxWidth: 200,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {doctorName}
-          </span>
-          <span style={{ fontSize: 11, color: dash.subtle }}>Dashboard</span>
-        </div>
-
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <Link
           to="/settings"
+          title="Settings"
           style={{
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: dash.radiusMd,
+            borderRadius: 10,
             color: dash.muted,
-            border: `1px solid transparent`,
+            transition: "background 0.15s ease",
           }}
+          className="dd-header-icon-link"
         >
           <Settings size={18} />
         </Link>
         <button
           type="button"
+          title="Sign out"
           onClick={onLogout}
           style={{
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: dash.radiusMd,
             border: "none",
+            borderRadius: 10,
             background: "transparent",
             color: dash.muted,
             cursor: "pointer",
           }}
-          aria-label="Sign out"
+          className="dd-header-icon-btn"
         >
           <LogOut size={18} />
         </button>
         <Link
           to="/doctor/profile"
+          title="Profile"
           style={{
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             borderRadius: "50%",
             overflow: "hidden",
-            background: "linear-gradient(135deg,#6366f1,#a855f7)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            background: "linear-gradient(135deg,#6366f1,#a855f7)",
+            color: "#fff",
             fontSize: 12,
             fontWeight: 800,
-            color: "#fff",
             flexShrink: 0,
           }}
         >
@@ -165,8 +127,11 @@ export function DoctorDashboardHeader({ doctorName, initials, onLogout, onMenuCl
 
       <style>{`
         @media (max-width: 900px) {
-          .doctor-dash-mobile-menu-btn { display: flex !important; }
-          .doctor-dash-header-meta { display: none !important; }
+          .dd-header-menu-btn { display: flex !important; }
+        }
+        .dd-header-icon-link:hover, .dd-header-icon-btn:hover {
+          background: ${dash.bg} !important;
+          color: ${dash.text} !important;
         }
       `}</style>
     </header>

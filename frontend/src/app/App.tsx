@@ -19,6 +19,7 @@ import StudentsPage from "./pages/students/StudentsPage";
 import StudentProfilePage from "./pages/students/StudentProfilePage"
 import ReceivedInvitationsPage from "./pages/invitations/ReceivedInvitationsPage";
 import ProjectWorkspacePage from "./pages/doctor/ProjectWorkspacePage";
+import DoctorProjectDetailsPage from "./pages/doctor/DoctorProjectDetailsPage";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token')
@@ -66,6 +67,14 @@ function EditDoctorProfileRoute() {
     return <Navigate to="/" replace />;
 }
 
+/** Doctor-only graduation project details (supervisor view). */
+function DoctorProjectDetailsRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <DoctorProjectDetailsPage />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 export default function App() {
     return (
         <UserProvider>
@@ -87,6 +96,7 @@ export default function App() {
                     <Route path="/doctor/profile" element={<ProtectedRoute><DoctorProfileRoute /></ProtectedRoute>} />
                     <Route path="/doctor/edit-profile" element={<ProtectedRoute><EditDoctorProfileRoute /></ProtectedRoute>} />
                     <Route path="/doctor/channels/:channelId" element={<ProtectedRoute><ChannelPageWrapper /></ProtectedRoute>} />
+                    <Route path="/doctor/projects/:projectId" element={<ProtectedRoute><DoctorProjectDetailsRoute /></ProtectedRoute>} />
 
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
