@@ -9,6 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Models;
+using Google.Apis.Auth;
+
 
 namespace GraduationProject.API.Services
 {
@@ -18,6 +20,7 @@ namespace GraduationProject.API.Services
         Task<(AuthResponseDto? result, string? error)> RegisterCompanyAsync(RegisterCompanyDto dto);
         Task<(AuthResponseDto? result, string? error)> RegisterAssociationAsync(RegisterAssociationDto dto);
         Task<(AuthResponseDto? result, string? error)> LoginAsync(LoginDto dto);
+        Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto);
     }
 
     public class AuthService : IAuthService
@@ -197,5 +200,88 @@ namespace GraduationProject.API.Services
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+
+        // ===========================
+        // GOOGLE LOGIN / REGISTER
+        // ===========================
+        public async Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto)
+        {
+            // ── 1. تحقق من الـ Google ID Token ──────────────────────────────
+            GoogleJsonWebSignature.Payload googlePayload;
+            try
+            {
+                var clientId = _config["Google:ClientId"]
+                    ?? throw new InvalidOperationException("Google ClientId missing in config.");
+
+                var settings = new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = new[] { clientId }
+                };
+
+                googlePayload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, settings);
+            }
+            catch (InvalidJwtException)
+            {
+                return (null, "Invalid Google token.");
+            }
+
+            var email = googlePayload.Email?.ToLower().Trim();
+            var name = googlePayload.Name ?? email ?? "User";
+
+            if (string.IsNullOrWhiteSpace(email))
+                return (null, "Could not retrieve email from Google token.");
+
+            // ── 2. ابحث عن المستخدم أو أنشئه ────────────────────────────────
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+            {
+                // مستخدم جديد — نسجّله تلقائياً
+                var role = dto.Role?.ToLower() switch
+                {
+                    "doctor" => "doctor",
+                    _ => "student"      // افتراضي
+                };
+
+                user = new User
+                {
+                    Name = name,
+                    Email = email,
+                    // لا يوجد باسورد للـ Google users — نحط قيمة غير قابلة للاستخدام
+                    Password = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
+                    Role = role,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _db.Users.Add(user);
+                await _db.SaveChangesAsync();
+
+                // أنشئ الـ profile المناسب
+                if (role == "student")
+                {
+                    _db.StudentProfiles.Add(new Models.StudentProfile
+                    {
+                        UserId = user.Id,
+                        ProfilePictureBase64 = null,
+                        // باقي الحقول فارغة — الطالب يكملها لاحقاً من صفحة الـ Profile
+                    });
+                }
+                else if (role == "doctor")
+                {
+                    _db.DoctorProfiles.Add(new Models.DoctorProfile
+                    {
+                        UserId = user.Id,
+                        Department = "",
+                    });
+                }
+
+                await _db.SaveChangesAsync();
+            }
+
+            // ── 3. ارجع الـ JWT ───────────────────────────────────────────────
+            int profileId = await GetProfileIdAsync(user);
+            return (BuildResponse(user, profileId), null);
+        }
+
     }
 }
