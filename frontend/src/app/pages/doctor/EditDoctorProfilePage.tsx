@@ -83,14 +83,27 @@ export default function EditDoctorProfilePage() {
         const data = res.data
         const user = data?.user ?? data ?? {}
         const doctorProfile = data?.doctorProfile ?? data ?? {}
-        const incomingSkills = Array.isArray(doctorProfile.skills)
-          ? doctorProfile.skills
-          : (
-            Array.isArray(doctorProfile.technicalSkills)
-              ? doctorProfile.technicalSkills
-              : []
-          )
-        const splitSkills = splitSkillsByHeuristic(incomingSkills)
+        let technicalSkills: string[] = []
+        let researchSkills: string[] = []
+
+        if (
+          Array.isArray(doctorProfile.technicalSkills) ||
+          Array.isArray(doctorProfile.researchSkills)
+        ) {
+          technicalSkills = Array.isArray(doctorProfile.technicalSkills)
+            ? doctorProfile.technicalSkills
+            : []
+          researchSkills = Array.isArray(doctorProfile.researchSkills)
+            ? doctorProfile.researchSkills
+            : []
+        } else {
+          const incomingSkills = Array.isArray(doctorProfile.skills)
+            ? doctorProfile.skills
+            : []
+          const splitSkills = splitSkillsByHeuristic(incomingSkills)
+          technicalSkills = splitSkills.technicalSkills
+          researchSkills = splitSkills.researchSkills
+        }
 
         form.reset({
           fullName: user.name || user.fullName || '',
@@ -105,8 +118,8 @@ export default function EditDoctorProfilePage() {
               ? String(doctorProfile.yearsOfExperience)
               : '',
           profilePictureBase64: user.profilePictureBase64 || doctorProfile.profilePictureBase64 || null,
-          technicalSkills: splitSkills.technicalSkills,
-          researchSkills: splitSkills.researchSkills,
+          technicalSkills,
+          researchSkills,
         })
       } finally {
         setLoading(false)
@@ -156,22 +169,33 @@ export default function EditDoctorProfilePage() {
     setSaving(true)
     setToast(null)
     try {
-      const mergedSkills = [...(values.technicalSkills || []), ...(values.researchSkills || [])]
-      const uniqueSkills = Array.from(new Set(mergedSkills.map(s => s.trim()).filter(Boolean)))
-      const payload = {
-        doctorProfile: {
-          faculty: values.faculty || '',
-          department: values.department || '',
-          specialization: values.specialization || '',
-          yearsOfExperience: values.yearsOfExperience ? Number(values.yearsOfExperience) : null,
-          skills: uniqueSkills,
-          bio: values.bio || '',
-          officeHours: values.officeHours || '',
-          linkedin: values.linkedin || '',
-        },
+      const technicalSkills = (values.technicalSkills ?? []).map(s => s.trim()).filter(Boolean)
+      const researchSkills = (values.researchSkills ?? []).map(s => s.trim()).filter(Boolean)
+
+      const yoeRaw = values.yearsOfExperience?.trim() ?? ''
+      let yearsOfExperience: number | null = null
+      if (yoeRaw) {
+        const n = Number(yoeRaw)
+        yearsOfExperience = Number.isFinite(n) ? Math.trunc(n) : null
       }
-      console.log('Updating doctor profile:', payload)
-      await apiClient.put('/profile', payload, {
+
+      const payload = {
+        fullName: values.fullName?.trim() ?? '',
+        department: values.department?.trim() ?? '',
+        faculty: values.faculty?.trim() ?? '',
+        specialization: values.specialization?.trim() ?? '',
+        yearsOfExperience,
+        linkedin: values.linkedin?.trim() ?? '',
+        officeHours: values.officeHours?.trim() ?? '',
+        bio: values.bio?.trim() ?? '',
+        profilePictureBase64: values.profilePictureBase64 ?? null,
+        technicalSkills,
+        researchSkills,
+      }
+
+      console.log('Doctor payload:', payload)
+
+      await apiClient.put('/profile/doctor', payload, {
         headers: {
           'Content-Type': 'application/json',
         },
