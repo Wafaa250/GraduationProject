@@ -53,6 +53,30 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
     return response.data
 }
 
+/** GET /api/dashboard/my-project — current project affiliation (student dashboard). */
+export function parseDashboardProjectDto(raw: unknown): DashboardProject | null {
+    if (raw == null || typeof raw !== 'object') return null
+    const r = raw as Record<string, unknown>
+    const projectId = Number(r.projectId ?? r.ProjectId)
+    const projectName = String(r.projectName ?? r.ProjectName ?? '').trim()
+    const roleRaw = r.role ?? r.Role
+    const role = roleRaw === 'owner' || roleRaw === 'member' ? roleRaw : null
+    if (!Number.isFinite(projectId) || !projectName || !role) return null
+    return {
+        projectId,
+        projectName,
+        role,
+        memberCount: Number(r.memberCount ?? r.MemberCount ?? 0),
+        maxTeamSize: Number(r.maxTeamSize ?? r.MaxTeamSize ?? 0),
+        isFull: Boolean(r.isFull ?? r.IsFull ?? false),
+    }
+}
+
+export const getDashboardMyProject = async (): Promise<DashboardProject | null> => {
+    const response = await api.get('/dashboard/my-project')
+    return parseDashboardProjectDto(response.data)
+}
+
 // جلب الطلاب المقترحين فقط
 export const getSuggestedTeammates = async (): Promise<SuggestedTeammate[]> => {
     const response = await api.get('/dashboard/teammates')

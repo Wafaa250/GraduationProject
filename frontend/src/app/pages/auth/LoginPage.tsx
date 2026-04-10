@@ -2,7 +2,15 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowRight, Mail, Lock } from 'lucide-react'
 import api from '../../../api/axiosInstance'
-export default function LoginPage() {
+
+export type LoginPageProps = {
+  /** When true, successful login does not navigate — caller refreshes in-place (e.g. embedded doctor dashboard). */
+  embedded?: boolean
+  /** Called after tokens are written to localStorage. */
+  onLoginSuccess?: () => void
+}
+
+export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPageProps) {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
@@ -25,6 +33,12 @@ export default function LoginPage() {
       localStorage.setItem('role', result.role)
       localStorage.setItem('name', result.name)
       localStorage.setItem('email', result.email)
+
+      onLoginSuccess?.()
+
+      if (embedded) {
+        return
+      }
 
       const role = (result.role ?? '').toString().toLowerCase()
       if (role === 'doctor') {
