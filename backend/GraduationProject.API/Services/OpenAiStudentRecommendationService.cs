@@ -45,7 +45,7 @@ namespace GraduationProject.API.Services
                     project = new
                     {
                         title = project.Title,
-                        description = project.Description,
+                        abstract_ = project.Abstract,
                         requiredSkills = project.RequiredSkills
                     },
                     students = students.Select(s => new
@@ -59,15 +59,21 @@ namespace GraduationProject.API.Services
                 };
 
                 var systemMessage =
+                    "You are an AI assistant that ranks students for graduation projects. " +
+                    "Analyze the project title, abstract, and required skills together to understand " +
+                    "the project domain and goals. Then rank each student by how well their skills, " +
+                    "major, and bio align with the project needs. " +
                     "Return ONLY valid JSON in this exact structure: " +
                     "{\"rankedStudents\":[{\"studentId\":number,\"matchScore\":number,\"reason\":string}]}. " +
                     "Do not return text, explanation, or markdown. Only JSON.";
 
                 var userMessage =
-                    "Rank students from best to worst for this project. " +
+                    "Rank the following students from best to worst fit for this graduation project. " +
+                    "Use the project abstract (if provided) together with the required skills to understand " +
+                    "what the project needs, then score each student 0-100 accordingly. " +
                     "Return ONLY valid JSON in this exact structure: " +
                     "{\"rankedStudents\":[{\"studentId\":number,\"matchScore\":number,\"reason\":string}]}. " +
-                    "Do not return text, explanation, or markdown. Only JSON.\n\n" +
+                    "Do not include markdown or extra text.\n\n" +
                     JsonSerializer.Serialize(requestPayload);
 
                 var requestBody = new
@@ -137,22 +143,29 @@ namespace GraduationProject.API.Services
                     project = new
                     {
                         title = project.Title,
-                        description = project.Description,
+                        abstract_ = project.Abstract,
                         requiredSkills = project.RequiredSkills
                     },
                     doctors = doctors.Select(d => new
                     {
                         doctorId = d.DoctorId,
                         name = d.Name,
-                        specialization = d.Specialization
+                        specialization = d.Specialization,
+                        bio = d.Bio
                     }).ToList()
                 };
 
                 var systemMessage =
+                    "You are an AI assistant that ranks academic supervisors for graduation projects. " +
+                    "Analyze the project title, abstract, and required skills together to understand " +
+                    "the project domain and research area. Then rank each supervisor by how well their " +
+                    "specialization and bio align with the project. " +
                     "You are an AI that ranks supervisors based on how well they match a project.";
 
                 var userMessage =
-                    "Rank supervisors from best to worst for this project and return JSON only. " +
+                    "Rank the following supervisors from best to worst fit for this graduation project. " +
+                    "Use the project abstract (if provided) together with the required skills to understand " +
+                    "the project domain, then evaluate each supervisor's specialization and bio accordingly. " +
                     "Response format must be exactly: {\"rankedSupervisors\":[{\"doctorId\":number,\"matchScore\":0-100,\"reason\":\"short sentence\"}]}. " +
                     "Do not include markdown or extra text.\n\n" +
                     JsonSerializer.Serialize(requestPayload);

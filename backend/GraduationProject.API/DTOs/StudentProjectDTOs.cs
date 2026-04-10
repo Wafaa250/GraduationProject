@@ -12,7 +12,13 @@ namespace GraduationProject.API.DTOs
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
 
-        public string? Description { get; set; }
+        public string? Abstract { get; set; }
+
+        /// <summary>
+        /// Required for Engineering &amp; IT faculty students: "GP1" | "GP2" | "GP".
+        /// For all other faculties, always "GP" (set automatically by the server).
+        /// </summary>
+        public string ProjectType { get; set; } = "GP";
 
         // Skills كـ strings من الفرونت e.g. ["React", "Python"]
         public List<string> RequiredSkills { get; set; } = new();
@@ -27,7 +33,9 @@ namespace GraduationProject.API.DTOs
         [MaxLength(200)]
         public string? Name { get; set; }
 
-        public string? Description { get; set; }
+        public string? Abstract { get; set; }
+
+        public string? ProjectType { get; set; }
 
         public List<string>? RequiredSkills { get; set; }
 
@@ -81,7 +89,11 @@ namespace GraduationProject.API.DTOs
         public int OwnerUserId { get; set; }
         public string OwnerName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public string? Description { get; set; }
+        public string? Abstract { get; set; }
+
+        /// <summary>"GP1" | "GP2" | "GP"</summary>
+        public string ProjectType { get; set; } = "GP";
+
         public List<string> RequiredSkills { get; set; } = new();
         public int PartnersCount { get; set; }
         public int CurrentMembers { get; set; }

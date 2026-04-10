@@ -121,7 +121,7 @@ namespace GraduationProject.API.Controllers
             var aiProject = new AiProjectInput
             {
                 Title = project.Name,
-                Description = project.Description ?? string.Empty,
+                Abstract = project.Abstract ?? string.Empty,
                 RequiredSkills = requiredSkillNames
             };
 
@@ -257,7 +257,7 @@ namespace GraduationProject.API.Controllers
             var aiProject = new AiProjectInput
             {
                 Title = project.Name,
-                Description = project.Description ?? string.Empty,
+                Abstract = project.Abstract ?? string.Empty,
                 RequiredSkills = requiredSkillNames
             };
 

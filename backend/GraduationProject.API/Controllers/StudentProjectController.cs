@@ -384,11 +384,31 @@ namespace GraduationProject.API.Controllers
             var conflict = await CheckProjectConflict(student.Id);
             if (conflict != null) return conflict;
 
+            // ── ProjectType validation ────────────────────────────────────────
+            // Engineering & IT faculty → GP1 / GP2 / GP allowed
+            // All other faculties     → always "GP"
+            var isEngineeringOrIT = IsEngineeringOrIT(student.Faculty);
+            string projectType;
+
+            if (isEngineeringOrIT)
+            {
+                var validTypes = new[] { "GP1", "GP2", "GP" };
+                if (!validTypes.Contains(dto.ProjectType))
+                    return BadRequest(new { message = "Invalid project type. Must be GP1, GP2, or GP for Engineering & IT students." });
+                projectType = dto.ProjectType;
+            }
+            else
+            {
+                // Non-engineering faculties only have one graduation project
+                projectType = "GP";
+            }
+
             var project = new StudentProject
             {
                 OwnerId = student.Id,
                 Name = dto.Name.Trim(),
-                Description = dto.Description?.Trim(),
+                Abstract = dto.Abstract?.Trim(),
+                ProjectType = projectType,
                 RequiredSkills = dto.RequiredSkills.Count > 0
                                     ? JsonSerializer.Serialize(dto.RequiredSkills)
                                     : null,
@@ -449,8 +469,23 @@ namespace GraduationProject.API.Controllers
                 return Forbid();
 
             if (dto.Name != null) project.Name = dto.Name.Trim();
-            if (dto.Description != null) project.Description = dto.Description.Trim();
+            if (dto.Abstract != null) project.Abstract = dto.Abstract.Trim();
             if (dto.PartnersCount != null) project.PartnersCount = dto.PartnersCount.Value;
+
+            // ProjectType update — same faculty rules apply
+            if (dto.ProjectType != null)
+            {
+                var student2 = await GetStudentProfileAsync();
+                if (student2 != null && IsEngineeringOrIT(student2.Faculty))
+                {
+                    var validTypes = new[] { "GP1", "GP2", "GP" };
+                    if (!validTypes.Contains(dto.ProjectType))
+                        return BadRequest(new { message = "Invalid project type. Must be GP1, GP2, or GP." });
+                    project.ProjectType = dto.ProjectType;
+                }
+                // Non-engineering: silently ignore ProjectType changes
+            }
+
             if (dto.RequiredSkills != null)
                 project.RequiredSkills = dto.RequiredSkills.Count > 0
                     ? JsonSerializer.Serialize(dto.RequiredSkills)
@@ -939,7 +974,7 @@ namespace GraduationProject.API.Controllers
                 {
                     projectId = r.ProjectId,
                     name = r.Project?.Name ?? "",
-                    description = r.Project?.Description,
+                    description = r.Project?.Abstract,
                     requiredSkills = r.Project?.RequiredSkills is { } reqJson
                         ? JsonSerializer.Deserialize<List<string>>(reqJson) ?? new List<string>()
                         : new List<string>()
@@ -1156,6 +1191,20 @@ namespace GraduationProject.API.Controllers
             return profile?.Id;
         }
 
+        /// <summary>
+        /// Returns true when the student's faculty is Engineering &amp; IT,
+        /// meaning they can choose between GP1, GP2, or GP.
+        /// </summary>
+        private static bool IsEngineeringOrIT(string? faculty)
+        {
+            if (string.IsNullOrWhiteSpace(faculty)) return false;
+            var f = faculty.Trim();
+            return string.Equals(f, "Engineering and Information Technology", StringComparison.OrdinalIgnoreCase)
+                || f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("IT", StringComparison.OrdinalIgnoreCase)
+                || f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("Information Technology", StringComparison.OrdinalIgnoreCase)
+                || f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("Technology", StringComparison.OrdinalIgnoreCase);
+        }
+
         private async Task<IActionResult?> CheckProjectConflict(int studentId)
         {
             var ownsProject = await _db.StudentProjects
@@ -1213,7 +1262,8 @@ namespace GraduationProject.API.Controllers
                 OwnerUserId = p.Owner?.UserId ?? 0,
                 OwnerName = p.Owner?.User?.Name ?? "",
                 Name = p.Name,
-                Description = p.Description,
+                Abstract = p.Abstract,
+                ProjectType = p.ProjectType,
                 RequiredSkills = p.RequiredSkills != null
                     ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new()
                     : new(),

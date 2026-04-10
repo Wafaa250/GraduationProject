@@ -30,7 +30,7 @@ namespace GraduationProject.API.Controllers
         // Used by the Doctor Dashboard "My Projects" / "View Projects" section.
         //
         // Response per project:
-        //   projectId, name, description, requiredSkills,
+        //   projectId, name, abstract, requiredSkills,
         //   owner { studentId, name, university, major },
         //   memberCount, partnersCount,
         //   createdAt
@@ -58,22 +58,22 @@ namespace GraduationProject.API.Controllers
             // ── 3. Map to response ────────────────────────────────────────────
             var result = projects.Select(p => new
             {
-                projectId       = p.Id,
-                name            = p.Name,
-                description     = p.Description,
-                requiredSkills  = p.RequiredSkills != null
+                projectId = p.Id,
+                name = p.Name,
+                description = p.Abstract,
+                requiredSkills = p.RequiredSkills != null
                     ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new List<string>()
                     : new List<string>(),
-                partnersCount   = p.PartnersCount,
-                memberCount     = p.Members.Count,
-                isFull          = p.Members.Count >= p.PartnersCount,
+                partnersCount = p.PartnersCount,
+                memberCount = p.Members.Count,
+                isFull = p.Members.Count >= p.PartnersCount,
                 owner = new
                 {
-                    studentId  = p.OwnerId,
-                    userId     = p.Owner?.UserId ?? 0,
-                    name       = p.Owner?.User?.Name ?? "",
+                    studentId = p.OwnerId,
+                    userId = p.Owner?.UserId ?? 0,
+                    name = p.Owner?.User?.Name ?? "",
                     university = p.Owner?.University ?? "",
-                    major      = p.Owner?.Major ?? ""
+                    major = p.Owner?.Major ?? ""
                 },
                 createdAt = p.CreatedAt
             });
@@ -112,7 +112,7 @@ namespace GraduationProject.API.Controllers
             {
                 pendingRequestsCount = pendingRequests,
                 supervisedCount,
-                pendingCancelCount   = pendingCancelRequests
+                pendingCancelCount = pendingCancelRequests
             });
         }
 
@@ -182,11 +182,11 @@ namespace GraduationProject.API.Controllers
 
                 _db.SupervisorCancellationRequests.Add(new Models.SupervisorCancellationRequest
                 {
-                    ProjectId   = projectId,
-                    DoctorId    = doctor.Id,
-                    SenderId    = senderId,
-                    Status      = "accepted",
-                    CreatedAt   = DateTime.UtcNow,
+                    ProjectId = projectId,
+                    DoctorId = doctor.Id,
+                    SenderId = senderId,
+                    Status = "accepted",
+                    CreatedAt = DateTime.UtcNow,
                     RespondedAt = DateTime.UtcNow
                 });
             }

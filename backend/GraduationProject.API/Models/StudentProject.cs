@@ -11,7 +11,10 @@ namespace GraduationProject.API.Models
         [Column("id")] public int Id { get; set; }
         [Column("owner_id")] public int OwnerId { get; set; }  // StudentProfile.Id
         [Column("name")] public string Name { get; set; } = string.Empty;
-        [Column("description")] public string? Description { get; set; }
+        [Column("abstract")] public string? Abstract { get; set; }
+
+        // "GP1" | "GP2" | "GP" — GP1/GP2 only for Engineering & IT faculty students
+        [Column("project_type")] public string ProjectType { get; set; } = "GP";
 
         // JSON array of strings e.g. ["React","Python"]
         [Column("required_skills")] public string? RequiredSkills { get; set; }
