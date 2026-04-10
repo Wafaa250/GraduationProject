@@ -17,7 +17,13 @@ namespace GraduationProject.API.Services
     public class AiProjectInput
     {
         public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Previously "Description". Maps to the project's Abstract column.
+        /// Kept for backwards compatibility — always populate from project.Abstract.
+        /// </summary>
+        public string Abstract { get; set; } = string.Empty;
+
         public List<string> RequiredSkills { get; set; } = new();
     }
 
