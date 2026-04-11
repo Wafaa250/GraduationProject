@@ -1,7 +1,7 @@
 import { useState, useRef, ChangeEvent, useEffect, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Camera, Github, Linkedin, Globe, CheckCircle2 } from 'lucide-react'
-import { useUser } from "../../../context/UserContext"
+import { useUser, normalizeSkillStringList } from "../../../context/UserContext"
 import api from '../../../api/axiosInstance'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ const ALL_LANGUAGES = ['Arabic', 'English', 'French', 'German', 'Spanish', 'Chin
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function EditProfilePage() {
   const navigate = useNavigate()
-  const { profile, updateProfile } = useUser()
+  const { profile, refetch } = useUser()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState<EditFormState>({
@@ -88,9 +88,9 @@ export default function EditProfilePage() {
     linkedin:          profile.linkedin      || '',
     portfolio:         profile.portfolio     || '',
     languages:         profile.languages     || [],
-    roles:             (profile as any).roles            || [],
-    technicalSkills:   (profile as any).technicalSkills  || [],
-    tools:             profile.tools                     || [],
+    roles:             normalizeSkillStringList((profile as any).roles ?? (profile as any).generalSkills),
+    technicalSkills:   normalizeSkillStringList((profile as any).technicalSkills ?? (profile as any).majorSkills),
+    tools:             normalizeSkillStringList(profile.tools),
     profilePicPreview: profile.profilePic    || null,
   })
 
@@ -123,9 +123,9 @@ export default function EditProfilePage() {
           linkedin:          d.linkedin             || '',
           portfolio:         d.portfolio            || '',
           languages:         d.languages            || [],
-          roles:             d.roles                || [],
-          technicalSkills:   d.technicalSkills      || [],
-          tools:             d.tools                || [],
+          roles:             normalizeSkillStringList(d.roles ?? d.generalSkills),
+          technicalSkills:   normalizeSkillStringList(d.technicalSkills ?? d.majorSkills),
+          tools:             normalizeSkillStringList(d.tools),
           profilePicPreview: d.profilePictureBase64 || null,
         })
       } catch { /* keep context values */ }
@@ -157,7 +157,12 @@ export default function EditProfilePage() {
   const handleSave = async () => {
     setIsSaving(true); setSaveError(null)
     try {
-      await api.put('/profile', {
+      const roles = normalizeSkillStringList(form.roles)
+      const technicalSkills = normalizeSkillStringList(form.technicalSkills)
+      const tools = normalizeSkillStringList(form.tools)
+      const skills = [...new Set([...roles, ...technicalSkills, ...tools])]
+
+      const payload = {
         fullName:             form.fullName,
         bio:                  form.bio,
         availability:         form.availability,
@@ -166,25 +171,16 @@ export default function EditProfilePage() {
         linkedin:             form.linkedin,
         portfolio:            form.portfolio,
         languages:            form.languages,
-        roles:                form.roles,
-        technicalSkills:      form.technicalSkills,
-        tools:                form.tools,
+        roles,
+        technicalSkills,
+        tools,
+        skills,
         profilePictureBase64: form.profilePicPreview,
-      })
-      updateProfile({
-        fullName:        form.fullName,
-        bio:             form.bio,
-        availability:    form.availability,
-        lookingFor:      form.lookingFor,
-        github:          form.github,
-        linkedin:        form.linkedin,
-        portfolio:       form.portfolio,
-        languages:       form.languages,
-        roles:           form.roles,
-        technicalSkills: form.technicalSkills,
-        tools:           form.tools,
-        profilePic:      form.profilePicPreview,
-      })
+      }
+      console.log("UPDATE PAYLOAD", payload)
+      await api.put("/profile", payload)
+      const response = await refetch(true)
+      console.log("UPDATED USER", response)
       setSaved(true)
       setTimeout(() => navigate('/profile'), 1200)
     } catch (err: any) {

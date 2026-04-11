@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -103,12 +104,9 @@ namespace GraduationProject.API.Controllers
             if (dto.ProfilePictureBase64 != null)
                 profile.ProfilePictureBase64 = dto.ProfilePictureBase64;
 
-            // Skills
-            if (dto.TechnicalSkills != null)
-                profile.TechnicalSkills = System.Text.Json.JsonSerializer.Serialize(dto.TechnicalSkills);
-
-            if (dto.ResearchSkills != null)
-                profile.ResearchSkills = System.Text.Json.JsonSerializer.Serialize(dto.ResearchSkills);
+            // Skills — DB columns are text (JSON string arrays)
+            profile.TechnicalSkills = JsonSerializer.Serialize(dto.TechnicalSkills ?? new List<string>());
+            profile.ResearchSkills = JsonSerializer.Serialize(dto.ResearchSkills ?? new List<string>());
 
             await _db.SaveChangesAsync();
 
