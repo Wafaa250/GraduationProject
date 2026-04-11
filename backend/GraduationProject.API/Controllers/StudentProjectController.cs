@@ -16,12 +16,17 @@ namespace GraduationProject.API.Controllers
 {
     /// <summary>
     /// Core Project Engine of the platform.
-    /// Handles project creation, discovery, team formation, and membership.
+    /// Handles project creation, discovery, team formation, membership,
+    /// supervisor requests, and invitations.
     ///
-    /// Future integrations planned:
-    ///   - AI-based project recommendations
-    ///   - AI-assisted team matching
-    ///   - Invitation system
+    /// Both route prefixes are intentional and kept in sync with Swagger:
+    ///   /api/graduation-projects  (primary)
+    ///   /api/student-projects     (alias)
+    ///
+    /// NOTE: GET /api/doctors/me/requests lives exclusively in DoctorDashboardController.
+    ///       GET /api/doctors/me/supervised-projects lives exclusively in DoctorDashboardController.
+    ///       GET /api/doctors/me/dashboard-summary lives exclusively in DoctorDashboardController.
+    ///       POST /api/doctors/me/resign-supervision lives exclusively in DoctorDashboardController.
     /// </summary>
     [ApiController]
     [Route("api/graduation-projects")]
@@ -122,18 +127,15 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // ── Caller-aware flags ────────────────────────────────────────────
             var isOwner = callerProfile != null && project.OwnerId == callerProfile.Id;
             var isLeader = callerProfile != null && project.Members
                 .Any(m => m.StudentId == callerProfile.Id && m.Role == "leader");
 
-            // ── Capacity ──────────────────────────────────────────────────────
             var totalCapacity = project.PartnersCount;
             var currentMembers = project.Members.Count;
             var remainingSeats = Math.Max(0, totalCapacity - currentMembers);
             var isFull = currentMembers >= totalCapacity;
 
-            // ── Members list — leader first, then by joinedAt ─────────────────
             var members = (project.Members ?? new List<StudentProjectMember>())
                 .OrderBy(m => m.Role == "leader" ? 0 : 1)
                 .ThenBy(m => m.JoinedAt)
@@ -167,7 +169,7 @@ namespace GraduationProject.API.Controllers
         // =====================================================================
         // GET /api/graduation-projects/{projectId}/available-students
         // Returns all students with their invite status for a specific project.
-        // Matching based on owner skills similarity.
+        // Matching is based on owner–student skill similarity.
         // Only the project owner can access.
         // =====================================================================
         [HttpGet("{projectId:int}/available-students")]
@@ -260,11 +262,11 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // GET /api/graduation-projects/{projectId}/recommended-students
-        // Returns students ranked by how well their skills match the project
-        // required skills — NOT based on owner similarity.
+        // Returns students ranked by skill match against the project's required
+        // skills — NOT based on owner similarity.
         //
-        // [AI HOOK] Future: replace or augment this rule-based score with a
-        //           real AI model that considers experience, availability, etc.
+        // [AI HOOK] Future: replace/augment with an AI model that considers
+        //           experience, availability, work style, etc.
         // =====================================================================
         [HttpGet("{projectId:int}/recommended-students")]
         public async Task<IActionResult> GetRecommendedStudents(int projectId)
@@ -327,8 +329,7 @@ namespace GraduationProject.API.Controllers
                 if (hasRequirements)
                 {
                     var commonCount = projectSkillIds.Count(id => studentSkillIds.Contains(id));
-                    matchScore = (int)Math.Min(
-                        (double)commonCount / projectSkillIds.Count * 100, 100);
+                    matchScore = (int)Math.Min((double)commonCount / projectSkillIds.Count * 100, 100);
                 }
                 else
                 {
@@ -384,9 +385,7 @@ namespace GraduationProject.API.Controllers
             var conflict = await CheckProjectConflict(student.Id);
             if (conflict != null) return conflict;
 
-            // ── ProjectType validation ────────────────────────────────────────
-            // Engineering & IT faculty → GP1 / GP2 / GP allowed
-            // All other faculties     → always "GP"
+            // Engineering & IT faculty → GP1 / GP2 / GP allowed; others → always "GP"
             var isEngineeringOrIT = IsEngineeringOrIT(student.Faculty);
             string projectType;
 
@@ -399,7 +398,6 @@ namespace GraduationProject.API.Controllers
             }
             else
             {
-                // Non-engineering faculties only have one graduation project
                 projectType = "GP";
             }
 
@@ -472,18 +470,13 @@ namespace GraduationProject.API.Controllers
             if (dto.Abstract != null) project.Abstract = dto.Abstract.Trim();
             if (dto.PartnersCount != null) project.PartnersCount = dto.PartnersCount.Value;
 
-            // ProjectType update — same faculty rules apply
-            if (dto.ProjectType != null)
+            if (dto.ProjectType != null && IsEngineeringOrIT(student.Faculty))
             {
-                var student2 = await GetStudentProfileAsync();
-                if (student2 != null && IsEngineeringOrIT(student2.Faculty))
-                {
-                    var validTypes = new[] { "GP1", "GP2", "GP" };
-                    if (!validTypes.Contains(dto.ProjectType))
-                        return BadRequest(new { message = "Invalid project type. Must be GP1, GP2, or GP." });
-                    project.ProjectType = dto.ProjectType;
-                }
-                // Non-engineering: silently ignore ProjectType changes
+                var validTypes = new[] { "GP1", "GP2", "GP" };
+                if (!validTypes.Contains(dto.ProjectType))
+                    return BadRequest(new { message = "Invalid project type. Must be GP1, GP2, or GP." });
+                project.ProjectType = dto.ProjectType;
+                // Non-engineering faculty: ProjectType changes are silently ignored.
             }
 
             if (dto.RequiredSkills != null)
@@ -540,14 +533,12 @@ namespace GraduationProject.API.Controllers
             if (project.OwnerId == student.Id)
                 return BadRequest(new { message = "You cannot join your own project as a member." });
 
-            var alreadyInThisProject = project.Members.Any(m => m.StudentId == student.Id);
-            if (alreadyInThisProject)
+            if (project.Members.Any(m => m.StudentId == student.Id))
                 return BadRequest(new { message = "You are already a member of this project." });
 
             var conflict = await CheckProjectConflict(student.Id);
             if (conflict != null) return conflict;
 
-            // TotalCapacity = PartnersCount (owner counts as one of the members)
             if (project.Members.Count >= project.PartnersCount)
                 return BadRequest(new { message = "This project's team is already full." });
 
@@ -561,11 +552,10 @@ namespace GraduationProject.API.Controllers
 
             await _db.SaveChangesAsync();
 
-            var updatedCount = project.Members.Count + 1;
             return Ok(new
             {
                 message = "Successfully joined the project team.",
-                currentMembers = updatedCount
+                currentMembers = project.Members.Count + 1
             });
         }
 
@@ -585,7 +575,7 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "You are not a member of this project." });
 
             if (membership.Role == "leader")
-                return BadRequest(new { message = "Project owner cannot leave the project. Delete the project instead." });
+                return BadRequest(new { message = "Project leader cannot leave the project. Delete it instead." });
 
             _db.StudentProjectMembers.Remove(membership);
             await _db.SaveChangesAsync();
@@ -595,8 +585,7 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // DELETE /api/graduation-projects/{projectId}/members/{memberId}
-        // Remove a member from the project team — leader only.
-        // memberId = StudentProfile.Id
+        // Remove a member — leader only. memberId = StudentProfile.Id
         // =====================================================================
         [HttpDelete("{projectId:int}/members/{memberId:int}")]
         public async Task<IActionResult> RemoveMember(int projectId, int memberId)
@@ -604,7 +593,6 @@ namespace GraduationProject.API.Controllers
             var caller = await GetStudentProfileAsync();
             if (caller == null) return Forbid();
 
-            // ── 1. Project exists ─────────────────────────────────────────────
             var project = await _db.StudentProjects
                 .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
@@ -612,30 +600,21 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // ── 2. Current user is the leader ─────────────────────────────────
-            var callerMembership = project.Members
-                .FirstOrDefault(m => m.StudentId == caller.Id);
-
+            var callerMembership = project.Members.FirstOrDefault(m => m.StudentId == caller.Id);
             if (callerMembership?.Role != "leader")
                 return StatusCode(403, new { message = "Not authorized. Only the project leader can remove members." });
 
-            // ── 3. Leader cannot remove themselves ────────────────────────────
             if (memberId == caller.Id)
                 return BadRequest(new { message = "You cannot remove yourself from the project." });
 
-            // ── 4. Target member exists in this project ───────────────────────
             var target = project.Members.FirstOrDefault(m => m.StudentId == memberId);
-
             if (target == null)
                 return NotFound(new { message = "Member not found in this project." });
 
-            // ── 5. Remove member ──────────────────────────────────────────────
             _db.StudentProjectMembers.Remove(target);
             await _db.SaveChangesAsync();
 
-            // Count from DB after save — reliable, reflects real state
-            var updatedCount = await _db.StudentProjectMembers
-                .CountAsync(m => m.ProjectId == projectId);
+            var updatedCount = await _db.StudentProjectMembers.CountAsync(m => m.ProjectId == projectId);
 
             return Ok(new
             {
@@ -646,7 +625,7 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // PUT /api/graduation-projects/{projectId}/change-leader/{memberId}
-        // Transfer leadership to another team member — current leader only.
+        // Transfer leadership — current leader only.
         // memberId = StudentProfile.Id of the new leader
         // =====================================================================
         [HttpPut("{projectId:int}/change-leader/{memberId:int}")]
@@ -655,7 +634,6 @@ namespace GraduationProject.API.Controllers
             var caller = await GetStudentProfileAsync();
             if (caller == null) return Forbid();
 
-            // ── 1. Project exists + load members ─────────────────────────────
             var project = await _db.StudentProjects
                 .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
@@ -663,25 +641,17 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // ── 2. Current user is the leader ─────────────────────────────────
-            var callerMembership = project.Members
-                .FirstOrDefault(m => m.StudentId == caller.Id);
-
+            var callerMembership = project.Members.FirstOrDefault(m => m.StudentId == caller.Id);
             if (callerMembership?.Role != "leader")
                 return StatusCode(403, new { message = "Not authorized. Only the project leader can transfer leadership." });
 
-            // ── 3. Cannot assign leader to yourself ───────────────────────────
             if (memberId == caller.Id)
                 return BadRequest(new { message = "You are already the leader." });
 
-            // ── 4. Target member exists in this project ───────────────────────
-            var targetMembership = project.Members
-                .FirstOrDefault(m => m.StudentId == memberId);
-
+            var targetMembership = project.Members.FirstOrDefault(m => m.StudentId == memberId);
             if (targetMembership == null)
                 return NotFound(new { message = "Member not found in this project." });
 
-            // ── 5. Transfer leadership — exactly one leader after update ──────
             callerMembership.Role = "member";
             targetMembership.Role = "leader";
 
@@ -696,7 +666,6 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // POST /api/graduation-projects/{projectId}/request-supervisor/{doctorId}
-        // POST /api/student-projects/{projectId}/request-supervisor/{doctorId}
         // Send a supervision request to a doctor — leader only.
         // =====================================================================
         [HttpPost("{projectId:int}/request-supervisor/{doctorId:int}")]
@@ -705,43 +674,31 @@ namespace GraduationProject.API.Controllers
             var caller = await GetStudentProfileAsync();
             if (caller == null) return Forbid();
 
-            // ── 1. Project exists ────────────────────────────────────────────
             var project = await _db.StudentProjects
                 .FirstOrDefaultAsync(p => p.Id == projectId);
 
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // ── 2. Only project leader (StudentProjectMembers) ───────────────
             var isLeader = await _db.StudentProjectMembers
                 .AnyAsync(m => m.ProjectId == projectId && m.StudentId == caller.Id && m.Role == "leader");
 
             if (!isLeader)
                 return StatusCode(403, new { message = "Not authorized. Only the project leader can send supervision requests." });
 
-            // ── 3. Doctor exists ──────────────────────────────────────────────
-            var doctorExists = await _db.DoctorProfiles
-                .AnyAsync(d => d.Id == doctorId);
-
-            if (!doctorExists)
+            if (!await _db.DoctorProfiles.AnyAsync(d => d.Id == doctorId))
                 return NotFound(new { message = "Doctor not found." });
 
-            // ── 4. Supervisor not already assigned ───────────────────────────
             if (project.SupervisorId != null)
                 return BadRequest(new { message = "This project already has a supervisor." });
 
-            // ── 5. No duplicate pending request for same project + doctor ─────
             var pendingExists = await _db.SupervisorRequests
-                .AnyAsync(r =>
-                    r.ProjectId == projectId &&
-                    r.DoctorId == doctorId &&
-                    r.Status == "pending");
+                .AnyAsync(r => r.ProjectId == projectId && r.DoctorId == doctorId && r.Status == "pending");
 
             if (pendingExists)
                 return BadRequest(new { message = "A pending supervision request already exists for this doctor." });
 
-            // ── 6. Create request ─────────────────────────────────────────────
-            var request = new SupervisorRequest
+            _db.SupervisorRequests.Add(new SupervisorRequest
             {
                 ProjectId = projectId,
                 DoctorId = doctorId,
@@ -749,9 +706,8 @@ namespace GraduationProject.API.Controllers
                 Status = "pending",
                 CreatedAt = DateTime.UtcNow,
                 RespondedAt = null
-            };
+            });
 
-            _db.SupervisorRequests.Add(request);
             await _db.SaveChangesAsync();
 
             return Ok(new { message = "Supervisor request sent successfully" });
@@ -759,8 +715,7 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // POST /api/graduation-projects/{projectId}/request-supervisor-cancel
-        // POST /api/student-projects/{projectId}/request-supervisor-cancel
-        // Send supervisor cancellation request to assigned doctor — leader only.
+        // Send a supervisor cancellation request — leader only.
         // =====================================================================
         [HttpPost("{projectId:int}/request-supervisor-cancel")]
         public async Task<IActionResult> RequestSupervisorCancellation(int projectId)
@@ -784,15 +739,14 @@ namespace GraduationProject.API.Controllers
                 return BadRequest(new { message = "This project does not have a supervisor." });
 
             var pendingExists = await _db.SupervisorCancellationRequests
-                .AnyAsync(r =>
-                    r.ProjectId == projectId &&
-                    r.DoctorId == project.SupervisorId.Value &&
-                    r.Status == "pending");
+                .AnyAsync(r => r.ProjectId == projectId &&
+                               r.DoctorId == project.SupervisorId.Value &&
+                               r.Status == "pending");
 
             if (pendingExists)
                 return BadRequest(new { message = "A pending cancellation request already exists." });
 
-            var request = new SupervisorCancellationRequest
+            _db.SupervisorCancellationRequests.Add(new SupervisorCancellationRequest
             {
                 ProjectId = projectId,
                 DoctorId = project.SupervisorId.Value,
@@ -800,9 +754,8 @@ namespace GraduationProject.API.Controllers
                 Status = "pending",
                 CreatedAt = DateTime.UtcNow,
                 RespondedAt = null
-            };
+            });
 
-            _db.SupervisorCancellationRequests.Add(request);
             await _db.SaveChangesAsync();
 
             return Ok(new { message = "Cancellation request sent" });
@@ -810,10 +763,8 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // GET /api/graduation-projects/{projectId}/recommended-supervisors
-        // GET /api/student-projects/{projectId}/recommended-supervisors
-        // Returns doctors ranked by how well they match project required skills.
+        // Returns doctors ranked by skill match against the project.
         // =====================================================================
-
         [HttpGet("{projectId:int}/recommended-supervisors")]
         public async Task<ActionResult<IReadOnlyList<RecommendedSupervisorDto>>> GetRecommendedSupervisors(int projectId)
         {
@@ -831,18 +782,13 @@ namespace GraduationProject.API.Controllers
                 .AnyAsync(m => m.ProjectId == projectId && m.StudentId == caller.Id && m.Role == "leader");
 
             if (!isLeader)
-                return StatusCode(403, new { message = "Only project leader can view recommended supervisors." });
-
-            var student = await GetStudentProfileAsync();
-            if (student == null)
-                return Forbid();
-
+                return StatusCode(403, new { message = "Only the project leader can view recommended supervisors." });
 
             var doctors = await _db.DoctorProfiles
                 .Include(d => d.User)
                 .Where(d => d.Department != null &&
-                            student.Major != null &&
-                            d.Department.ToLower() == student.Major.ToLower())
+                            caller.Major != null &&
+                            d.Department.ToLower() == caller.Major.ToLower())
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -851,6 +797,7 @@ namespace GraduationProject.API.Controllers
 
             return Ok(result);
         }
+
         // =====================================================================
         // POST /api/supervisor-requests/{id}/accept
         // POST /api/student-projects/supervisor-requests/{id}/accept
@@ -888,10 +835,9 @@ namespace GraduationProject.API.Controllers
             if (request.Project != null)
                 request.Project.SupervisorId = request.DoctorId;
 
+            // Auto-reject all other pending requests for the same project
             var otherRequests = await _db.SupervisorRequests
-                .Where(r => r.ProjectId == request.ProjectId
-                         && r.Status == "pending"
-                         && r.Id != request.Id)
+                .Where(r => r.ProjectId == request.ProjectId && r.Status == "pending" && r.Id != request.Id)
                 .ToListAsync();
 
             foreach (var r in otherRequests)
@@ -904,7 +850,6 @@ namespace GraduationProject.API.Controllers
 
             return Ok(new { message = "Supervisor request accepted successfully" });
         }
-
 
         // =====================================================================
         // POST /api/supervisor-requests/{id}/reject
@@ -941,10 +886,6 @@ namespace GraduationProject.API.Controllers
 
             return Ok(new { message = "Supervisor request rejected successfully" });
         }
-
-        // NOTE: GET /api/doctors/me/requests is handled exclusively by
-        // DoctorDashboardController to avoid duplicate route conflicts.
-        // It was removed from here as part of bug fix (duplicate route + EF materialization).
 
         // =====================================================================
         // GET /api/doctors/me/supervisor-cancel-requests
@@ -1049,15 +990,17 @@ namespace GraduationProject.API.Controllers
 
             return Ok(new { message = "Cancellation request rejected" });
         }
+
         // =====================================================================
         // POST /api/graduation-projects/{projectId}/invite/{receiverId}
+        // Send a project invitation — project owner only.
+        // receiverId = StudentProfile.Id
         // =====================================================================
         [HttpPost("{projectId:int}/invite/{receiverId:int}")]
         public async Task<IActionResult> SendInvitation(int projectId, int receiverId)
         {
             var senderProfile = await GetStudentProfileAsync();
-            if (senderProfile == null)
-                return Forbid();
+            if (senderProfile == null) return Forbid();
 
             var project = await _db.StudentProjects
                 .Include(p => p.Members)
@@ -1069,28 +1012,20 @@ namespace GraduationProject.API.Controllers
             if (project.OwnerId != senderProfile.Id)
                 return StatusCode(403, new { message = "Not authorized." });
 
-            var receiverExists = await _db.StudentProfiles
-                .AnyAsync(s => s.Id == receiverId);
-
-            if (!receiverExists)
+            if (!await _db.StudentProfiles.AnyAsync(s => s.Id == receiverId))
                 return NotFound(new { message = "Receiver not found." });
 
             if (receiverId == senderProfile.Id)
                 return BadRequest(new { message = "You cannot invite yourself." });
 
-            // TotalCapacity = PartnersCount (owner counts as one of the members)
             if (project.Members.Count >= project.PartnersCount)
                 return BadRequest(new { message = "Project is full." });
 
-            var alreadyMember = project.Members.Any(m => m.StudentId == receiverId);
-            if (alreadyMember)
+            if (project.Members.Any(m => m.StudentId == receiverId))
                 return BadRequest(new { message = "User already a member." });
 
             var pendingExists = await _db.ProjectInvitations
-                .AnyAsync(i =>
-                    i.ProjectId == projectId &&
-                    i.ReceiverId == receiverId &&
-                    i.Status == "pending");
+                .AnyAsync(i => i.ProjectId == projectId && i.ReceiverId == receiverId && i.Status == "pending");
 
             if (pendingExists)
                 return Conflict(new { message = "Invitation already sent." });
@@ -1124,66 +1059,57 @@ namespace GraduationProject.API.Controllers
             return await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == userId);
         }
 
-        /// <summary>Doctor profile for the current JWT user. Call only after verifying role is doctor.</summary>
+        private async Task<int?> GetCurrentStudentProfileIdAsync()
+        {
+            if (AuthorizationHelper.GetRole(User) != "student") return null;
+            var userId = AuthorizationHelper.GetUserId(User);
+            var profile = await _db.StudentProfiles.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+            return profile?.Id;
+        }
+
+        /// <summary>
+        /// Doctor profile for the current JWT user.
+        /// Used only by doctor-facing endpoints inside this controller
+        /// (accept/reject supervisor requests, cancel requests).
+        /// The full doctor dashboard lives in DoctorDashboardController.
+        /// </summary>
         private async Task<DoctorProfile?> GetCurrentDoctorProfileAsync()
         {
             var userId = AuthorizationHelper.GetUserId(User);
             return await _db.DoctorProfiles.FirstOrDefaultAsync(d => d.UserId == userId);
         }
 
-        private async Task<int?> GetCurrentStudentProfileIdAsync()
-        {
-            if (AuthorizationHelper.GetRole(User) != "student") return null;
-            var userId = AuthorizationHelper.GetUserId(User);
-            var profile = await _db.StudentProfiles
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.UserId == userId);
-            return profile?.Id;
-        }
-
-        /// <summary>
-        /// Returns true when the student's faculty is Engineering &amp; IT,
-        /// meaning they can choose between GP1, GP2, or GP.
-        /// </summary>
         private static bool IsEngineeringOrIT(string? faculty)
         {
             if (string.IsNullOrWhiteSpace(faculty)) return false;
             var f = faculty.Trim();
             return string.Equals(f, "Engineering and Information Technology", StringComparison.OrdinalIgnoreCase)
-                || f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("IT", StringComparison.OrdinalIgnoreCase)
-                || f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("Information Technology", StringComparison.OrdinalIgnoreCase)
-                || f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("Technology", StringComparison.OrdinalIgnoreCase);
+                || (f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("IT", StringComparison.OrdinalIgnoreCase))
+                || (f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("Information Technology", StringComparison.OrdinalIgnoreCase))
+                || (f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("Technology", StringComparison.OrdinalIgnoreCase));
         }
 
         private async Task<IActionResult?> CheckProjectConflict(int studentId)
         {
-            var ownsProject = await _db.StudentProjects
-                .AnyAsync(p => p.OwnerId == studentId);
-            if (ownsProject)
+            if (await _db.StudentProjects.AnyAsync(p => p.OwnerId == studentId))
                 return Conflict(new { message = "You already own a project." });
 
-            var isMember = await _db.StudentProjectMembers
-                .AnyAsync(m => m.StudentId == studentId);
-            if (isMember)
+            if (await _db.StudentProjectMembers.AnyAsync(m => m.StudentId == studentId))
                 return Conflict(new { message = "You are already a member of another project." });
 
             return null;
         }
 
         /// <summary>
-        /// Converts a JSON array of skill name strings (from StudentProject.RequiredSkills)
-        /// into a list of skill IDs from the Skills table.
-        /// Returns empty list if RequiredSkills is null or empty.
+        /// Converts a JSON array of skill-name strings into a list of skill IDs.
         /// </summary>
         private async Task<List<int>> GetProjectSkillIdsAsync(string? requiredSkillsJson)
         {
-            if (string.IsNullOrEmpty(requiredSkillsJson))
-                return new List<int>();
+            if (string.IsNullOrEmpty(requiredSkillsJson)) return new List<int>();
 
             var skillNames = JsonSerializer.Deserialize<List<string>>(requiredSkillsJson) ?? new();
-
-            if (skillNames.Count == 0)
-                return new List<int>();
+            if (skillNames.Count == 0) return new List<int>();
 
             return await _db.Skills
                 .Where(sk => skillNames.Contains(sk.Name))
@@ -1225,10 +1151,10 @@ namespace GraduationProject.API.Controllers
 
                 Supervisor = p.Supervisor != null ? new SupervisorDto
                 {
-                    DoctorId = p.Supervisor?.Id ?? 0,
-                    Name = p.Supervisor?.User?.Name ?? "",
-                    Specialization = p.Supervisor?.Specialization ?? "",
-                    Department = p.Supervisor?.Department
+                    DoctorId = p.Supervisor.Id,
+                    Name = p.Supervisor.User?.Name ?? "",
+                    Specialization = p.Supervisor.Specialization ?? "",
+                    Department = p.Supervisor.Department
                 } : null,
 
                 Members = members.Select(m => new StudentProjectMemberDto
