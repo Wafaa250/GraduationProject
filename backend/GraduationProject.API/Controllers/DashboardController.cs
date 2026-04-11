@@ -35,6 +35,9 @@ namespace GraduationProject.API.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized(new { message = "Invalid token" });
 
+            if (IsDoctor())
+                return Ok(await BuildDoctorSummaryAsync(userId.Value));
+
             var profile = await _db.StudentProfiles
                 .Include(s => s.User)
                 .FirstOrDefaultAsync(s => s.UserId == userId);
@@ -73,6 +76,9 @@ namespace GraduationProject.API.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
+            if (IsDoctor())
+                return Ok(new List<SuggestedTeammateDto>());
+
             var profile = await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == userId);
             if (profile == null) return NotFound();
 
@@ -88,6 +94,9 @@ namespace GraduationProject.API.Controllers
         {
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
+
+            if (IsDoctor())
+                return Ok(EmptyProfileStrength());
 
             var profile = await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == userId);
             if (profile == null) return NotFound();
@@ -108,6 +117,9 @@ namespace GraduationProject.API.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
+            if (IsDoctor())
+                return Ok((DashboardProjectDto?)null);
+
             var profile = await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == userId);
             if (profile == null) return NotFound();
 
@@ -115,6 +127,46 @@ namespace GraduationProject.API.Controllers
         }
 
         // ── Private Helpers ───────────────────────────────────────────────────
+
+        private bool IsDoctor()
+        {
+            var r = (AuthorizationHelper.GetRole(User) ?? string.Empty).Trim().ToLowerInvariant();
+            return r == "doctor";
+        }
+
+        private async Task<DashboardSummaryDto> BuildDoctorSummaryAsync(int userId)
+        {
+            var doctor = await _db.DoctorProfiles
+                .Include(d => d.User)
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            var name = doctor?.User?.Name ?? string.Empty;
+            var major = doctor?.Specialization ?? string.Empty;
+            var university = doctor?.Department ?? doctor?.Faculty ?? string.Empty;
+
+            return new DashboardSummaryDto
+            {
+                Name               = name,
+                Major              = major,
+                University         = university,
+                AcademicYear       = string.Empty,
+                TotalSkills        = 0,
+                ProfileStrength    = EmptyProfileStrength(),
+                SuggestedTeammates = new List<SuggestedTeammateDto>(),
+                MyProject          = null
+            };
+        }
+
+        private static ProfileStrengthDto EmptyProfileStrength() =>
+            new ProfileStrengthDto
+            {
+                Score             = 0,
+                HasProfilePicture = false,
+                HasGeneralSkills  = false,
+                HasMajorSkills    = false,
+                HasBio            = false,
+                HasGpa            = false
+            };
 
         private int? GetUserId()
         {

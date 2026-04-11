@@ -1,37 +1,61 @@
+import axios from "axios";
 import { apiClient } from "./client";
-import type { DoctorSupervisedProject } from "../app/pages/doctor/doctorDashboardTypes";
 
-/** GET /api/doctors/me/supervised-projects */
-export async function getDoctorSupervisedProjects(): Promise<DoctorSupervisedProject[]> {
-  const { data } = await apiClient.get<DoctorSupervisedProject[]>("/doctors/me/supervised-projects");
-  return Array.isArray(data) ? data : [];
+export interface DoctorSupervisedProjectOwner {
+  studentId: number;
+  userId: number;
+  name: string;
+  university: string;
+  major: string;
 }
 
-/**
- * POST /api/doctors/me/resign-supervision/{projectId}
- * Doctor resigns supervision (explicit resign route).
- */
-export async function resignDoctorSupervision(projectId: number) {
-  await apiClient.post(`/doctors/me/resign-supervision/${projectId}`);
+/** GET /api/doctors/me/supervised-projects — one item */
+export interface DoctorSupervisedProject {
+  projectId: number;
+  name: string;
+  description: string | null;
+  requiredSkills: string[];
+  partnersCount: number;
+  memberCount: number;
+  isFull: boolean;
+  owner: DoctorSupervisedProjectOwner;
+  createdAt: string;
 }
 
+/** GET /api/doctors/me/dashboard-summary */
+export interface DoctorDashboardSummary {
+  pendingRequestsCount: number;
+  supervisedCount: number;
+  pendingCancelCount: number;
+}
+
+export const doctorDashboardApi = {
+  getProjects: () =>
+    apiClient.get<DoctorSupervisedProject[]>("/doctors/me/supervised-projects"),
+
+  getSummary: () =>
+    apiClient.get<DoctorDashboardSummary>("/doctors/me/dashboard-summary"),
+
+  resign: (projectId: number) =>
+    apiClient.post(`/doctors/me/resign-supervision/${projectId}`),
+
+  deleteSupervisedProject: (projectId: number) =>
+    apiClient.delete(`/doctors/me/supervised-projects/${projectId}`),
+};
+
 /**
- * Remove doctor supervision for a project. Tries DELETE first; falls back to
- * POST resign when the API only implements the legacy route.
+ * Tries DELETE /doctors/me/supervised-projects/{id}; on 404/405 falls back to
+ * POST /doctors/me/resign-supervision/{id} (existing backend).
  */
-export async function removeDoctorSupervision(projectId: number) {
+export async function removeDoctorSupervision(projectId: number): Promise<void> {
   try {
-    return await apiClient.delete(`/doctors/me/supervised-projects/${projectId}`);
-  } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status;
+    await doctorDashboardApi.deleteSupervisedProject(projectId);
+  } catch (err) {
+    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
     if (status === 404 || status === 405) {
-      return apiClient.post(`/doctors/me/resign-supervision/${projectId}`);
+      await doctorDashboardApi.resign(projectId);
+      return;
     }
     throw err;
   }
 }
-
-export const doctorDashboardApi = {
-  removeSupervision: removeDoctorSupervision,
-  resignSupervision: resignDoctorSupervision,
-};

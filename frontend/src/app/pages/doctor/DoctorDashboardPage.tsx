@@ -1,251 +1,317 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
+import { getDashboardSummary, type DashboardSummary } from "../../../api/dashboardApi";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
-import { useAuth } from "../../../context/AuthContext";
-import LoginPage from "../auth/LoginPage";
-import { doctorDashboardApi, getDoctorSupervisedProjects } from "../../../api/doctorDashboardApi";
-import { doctorDashboardKeys, supervisedProjectsQueryKey } from "../../../api/doctorDashboardQueryKeys";
-import { getDashboardSummary, getDashboardMyProject, type DashboardSummary } from "../../../api/dashboardApi";
 import {
-  getDoctorRequests,
+  doctorDashboardApi,
+  removeDoctorSupervision,
+  type DoctorSupervisedProject,
+} from "../../../api/doctorDashboardApi";
+import {
+  acceptSupervisorCancelRequest,
   acceptSupervisorRequest,
+  getDoctorRequests,
+  getDoctorSupervisorCancelRequests,
+  rejectSupervisorCancelRequest,
   rejectSupervisorRequest,
+  type SupervisorCancelRequestItem,
   type SupervisorRequest,
 } from "../../../api/supervisorApi";
 import { ToastProvider, useToast } from "../../../context/ToastContext";
-import type { DoctorDashboardSection, DoctorMeResponse, DoctorSupervisedProject } from "./doctorDashboardTypes";
-import { isPendingRequestStatus } from "./doctorRequestUtils";
-import { buildOverviewHighlight, buildOverviewSuggestions } from "./dashboard/doctorDashboardHelpers";
+import type {
+  DoctorDashboardSection,
+  DoctorMeResponse,
+  DoctorDashboardSummary,
+} from "./doctorDashboardTypes";
+import { mergeDoctorRequestRows } from "./doctorRequestUtils";
 import { DoctorDashboardLayout } from "./dashboard/DoctorDashboardLayout";
 import { OverviewSection } from "./dashboard/OverviewSection";
 import { RequestsSection } from "./dashboard/RequestsSection";
 import { ProjectsSection } from "./dashboard/ProjectsSection";
 import { DeletedProjectsSection } from "./dashboard/DeletedProjectsSection";
 import {
+  buildOverviewHighlight,
+  buildOverviewHighlightFromSupervised,
+  buildOverviewSuggestions,
+} from "./dashboard/doctorDashboardHelpers";
+import {
   appendDeletedProject,
   loadDeletedProjects,
   type DeletedProjectRecord,
 } from "./doctorDeletedProjectsStorage";
 
-function DoctorDashboardInner() {
-  const location = useLocation();
-  const queryClient = useQueryClient();
+function DoctorDashboardContent() {
+  const navigate = useNavigate();
   const { showToast } = useToast();
-  const { isAuthenticated, logout, syncAuthFromStorage } = useAuth();
 
   const [activeSection, setActiveSection] = useState<DoctorDashboardSection>("overview");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
   const [me, setMe] = useState<DoctorMeResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
 
-  const [deletedProjects, setDeletedProjects] = useState<DeletedProjectRecord[]>(() =>
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [doctorStats, setDoctorStats] = useState<DoctorDashboardSummary | null>(null);
+
+  const [supervisedProjects, setSupervisedProjects] = useState<DoctorSupervisedProject[]>([]);
+  const [supervisedLoading, setSupervisedLoading] = useState(false);
+  const [supervisedError, setSupervisedError] = useState<string | null>(null);
+
+  const [supervisionRequests, setSupervisionRequests] = useState<SupervisorRequest[]>([]);
+  const [cancelRequests, setCancelRequests] = useState<SupervisorCancelRequestItem[]>([]);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+
+  const [actionKey, setActionKey] = useState<string | null>(null);
+  const [removingProjectId, setRemovingProjectId] = useState<number | null>(null);
+
+  const [deletedItems, setDeletedItems] = useState<DeletedProjectRecord[]>(() =>
     loadDeletedProjects(),
   );
-  const [removingId, setRemovingId] = useState<number | null>(null);
 
-  const doctorSessionOk = Boolean(
-    isAuthenticated && me && me.role === "doctor" && me.profileId != null && !loadError,
-  );
+  const loadOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    setOverviewError(null);
+    try {
+      const settled = await Promise.allSettled([
+        getDashboardSummary(),
+        doctorDashboardApi.getSummary(),
+      ]);
+      const sumRes = settled[0];
+      const docRes = settled[1];
 
-  const requestsQuery = useQuery({
-    queryKey: doctorDashboardKeys.requests,
-    queryFn: getDoctorRequests,
-    enabled: doctorSessionOk,
-  });
-
-  const summaryQuery = useQuery({
-    queryKey: doctorDashboardKeys.dashboardSummary,
-    queryFn: getDashboardSummary,
-    enabled: doctorSessionOk,
-  });
-
-  const myProjectQuery = useQuery({
-    queryKey: doctorDashboardKeys.dashboardMyProject,
-    queryFn: getDashboardMyProject,
-    enabled: doctorSessionOk,
-  });
-
-  const supervisedProjectsQuery = useQuery({
-    queryKey: supervisedProjectsQueryKey,
-    queryFn: getDoctorSupervisedProjects,
-    enabled: doctorSessionOk,
-  });
-
-  const requestActionMutation = useMutation({
-    mutationFn: async ({ requestId, action }: { requestId: number; action: "accept" | "reject" }) => {
-      if (action === "accept") await acceptSupervisorRequest(requestId);
-      else await rejectSupervisorRequest(requestId);
-    },
-    onMutate: async ({ requestId }) => {
-      await queryClient.cancelQueries({ queryKey: doctorDashboardKeys.requests });
-      const previous = queryClient.getQueryData<SupervisorRequest[]>(doctorDashboardKeys.requests);
-      queryClient.setQueryData<SupervisorRequest[]>(doctorDashboardKeys.requests, (old) =>
-        (old ?? []).filter((r) => r.requestId !== requestId),
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(doctorDashboardKeys.requests, context.previous);
+      if (sumRes.status === "fulfilled") {
+        setSummary(sumRes.value);
+      } else {
+        setSummary(null);
+        setOverviewError(parseApiErrorMessage(sumRes.reason));
       }
-    },
-    onSuccess: async (_data, variables) => {
-      if (variables.action === "accept") {
-        await queryClient.refetchQueries({ queryKey: supervisedProjectsQueryKey });
+
+      if (docRes.status === "fulfilled") {
+        setDoctorStats(docRes.value.data);
+      } else {
+        setDoctorStats(null);
       }
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.requests });
-      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardMyProject });
-      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardSummary });
-    },
-  });
+    } catch (e) {
+      setOverviewError(parseApiErrorMessage(e));
+      setSummary(null);
+      setDoctorStats(null);
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, []);
 
-  const supervisionRequests = requestsQuery.data ?? [];
-  const requestsError = requestsQuery.error ? parseApiErrorMessage(requestsQuery.error) : null;
-  const requestsLoading = requestsQuery.isLoading || requestsQuery.isFetching;
+  /** GET /api/doctors/me/supervised-projects only — doctor My Projects (not /dashboard/my-project). */
+  const loadSupervisedProjects = useCallback(async () => {
+    setSupervisedLoading(true);
+    setSupervisedError(null);
+    try {
+      const { data } = await doctorDashboardApi.getProjects();
+      setSupervisedProjects(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setSupervisedError(parseApiErrorMessage(e));
+      setSupervisedProjects([]);
+    } finally {
+      setSupervisedLoading(false);
+    }
+  }, []);
 
-  const summary: DashboardSummary | null = summaryQuery.data ?? null;
-  const overviewError = summaryQuery.error ? parseApiErrorMessage(summaryQuery.error) : null;
-  const overviewLoading = summaryQuery.isLoading || summaryQuery.isFetching;
+  const loadRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    setRequestsError(null);
+    try {
+      const settled = await Promise.allSettled([
+        getDoctorRequests(),
+        getDoctorSupervisorCancelRequests(),
+      ]);
 
-  const myProject = myProjectQuery.data ?? null;
-  const supervisedProjects = supervisedProjectsQuery.data ?? [];
-  const projectsError = supervisedProjectsQuery.error
-    ? parseApiErrorMessage(supervisedProjectsQuery.error)
-    : null;
-  const projectsLoading = supervisedProjectsQuery.isLoading || supervisedProjectsQuery.isFetching;
+      const supResult = settled[0];
+      const canResult = settled[1];
 
-  const actionKey =
-    requestActionMutation.isPending && requestActionMutation.variables
-      ? `sup-${requestActionMutation.variables.requestId}-${requestActionMutation.variables.action}`
-      : null;
+      if (supResult.status === "rejected") {
+        console.error("[DoctorDashboard] GET /doctors/me/requests failed", supResult.reason);
+      }
+      if (canResult.status === "rejected") {
+        console.error(
+          "[DoctorDashboard] GET /doctors/me/supervisor-cancel-requests failed",
+          canResult.reason,
+        );
+      }
 
-  const invalidateDoctorDashboard = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.requests });
-    await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardMyProject });
-    await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardSummary });
-    await queryClient.invalidateQueries({ queryKey: supervisedProjectsQueryKey });
-  }, [queryClient]);
+      setSupervisionRequests(supResult.status === "fulfilled" ? supResult.value : []);
+      setCancelRequests(canResult.status === "fulfilled" ? canResult.value : []);
+
+      const failures = settled.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      if (failures.length === 2) {
+        setRequestsError(parseApiErrorMessage(failures[0].reason));
+      } else if (failures.length === 1) {
+        setRequestsError(
+          `Could not load all requests (${parseApiErrorMessage(failures[0].reason)}). The other list may still appear below.`,
+        );
+      }
+    } catch (err: unknown) {
+      setRequestsError(parseApiErrorMessage(err));
+      setSupervisionRequests([]);
+      setCancelRequests([]);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+
+  /** After any request/supervision change: sync inbox + supervised list + overview stats. */
+  const refetchAll = useCallback(async () => {
+    await Promise.all([loadRequests(), loadSupervisedProjects(), loadOverview()]);
+  }, [loadRequests, loadSupervisedProjects, loadOverview]);
+
+  /** Refresh deleted list from localStorage when opening the section (e.g. after remove on another tab). */
+  useEffect(() => {
+    if (activeSection === "deleted") {
+      setDeletedItems(loadDeletedProjects());
+    }
+  }, [activeSection]);
+
+  /** Cross-tab localStorage updates + same-tab custom sync after appendDeletedProject */
+  useEffect(() => {
+    const syncDeletedFromStorage = () => setDeletedItems(loadDeletedProjects());
+    window.addEventListener("storage", syncDeletedFromStorage);
+    window.addEventListener("doctor-dashboard-deleted-sync", syncDeletedFromStorage);
+    return () => {
+      window.removeEventListener("storage", syncDeletedFromStorage);
+      window.removeEventListener("doctor-dashboard-deleted-sync", syncDeletedFromStorage);
+    };
+  }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setLoading(false);
-      setMe(null);
-      setLoadError(null);
-      return;
-    }
-
     const run = async () => {
-      setLoading(true);
-      setLoadError(null);
+      setPageLoading(true);
+      setPageError(null);
       try {
         const { data } = await api.get<DoctorMeResponse>("/me");
         if (data.role !== "doctor" || data.profileId == null) {
-          setLoadError("Access restricted. This account is not a doctor profile.");
+          setPageError("This account is not a doctor profile.");
           setMe(null);
           return;
         }
         setMe(data);
+        await Promise.all([loadOverview(), loadSupervisedProjects(), loadRequests()]);
       } catch (err: unknown) {
         const status = (err as { response?: { status?: number } })?.response?.status;
         if (status === 401) {
-          logout();
+          setPageError("Your session expired. Sign in again.");
+          setMe(null);
           return;
         }
-        setLoadError("Could not load your account.");
+        setPageError(parseApiErrorMessage(err) || "Could not load your account.");
         setMe(null);
       } finally {
-        setLoading(false);
+        setPageLoading(false);
       }
     };
     void run();
-  }, [isAuthenticated, logout]);
+  }, [loadOverview, loadSupervisedProjects, loadRequests]);
 
-  useEffect(() => {
-    if (!isAuthenticated || activeSection !== "requests") return;
-    void queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.requests });
-  }, [activeSection, isAuthenticated, queryClient]);
-
-  useEffect(() => {
-    const s = (location.state as { defaultSection?: DoctorDashboardSection } | null)?.defaultSection;
-    if (s === "overview" || s === "requests" || s === "projects" || s === "deleted") {
-      setActiveSection(s);
-    }
-  }, [location.state]);
-
-  useEffect(() => {
-    setDeletedProjects(loadDeletedProjects());
-  }, [location.key]);
-
-  useEffect(() => {
-    if (activeSection === "deleted") {
-      setDeletedProjects(loadDeletedProjects());
-    }
-  }, [activeSection]);
-
-  const pendingRequestsCount = useMemo(
-    () => supervisionRequests.filter((r) => isPendingRequestStatus(r.status)).length,
-    [supervisionRequests],
+  const mergedRows = useMemo(
+    () => mergeDoctorRequestRows(supervisionRequests, cancelRequests),
+    [supervisionRequests, cancelRequests],
   );
 
-  const overviewHighlight = useMemo(
-    () => buildOverviewHighlight(summary, myProject),
-    [summary, myProject],
-  );
+  const highlight = useMemo(() => {
+    return (
+      buildOverviewHighlight(summary, null) ??
+      buildOverviewHighlightFromSupervised(supervisedProjects)
+    );
+  }, [summary, supervisedProjects]);
 
   const suggestions = useMemo(() => buildOverviewSuggestions(summary), [summary]);
 
-  const handleRequestAction = (requestId: number, action: "accept" | "reject") => {
-    requestActionMutation.mutate(
-      { requestId, action },
-      {
-        onSuccess: () => {
-          showToast(action === "accept" ? "Request accepted" : "Request rejected", "success");
-        },
-        onError: (err: unknown) => {
-          showToast(parseApiErrorMessage(err), "error");
-        },
-      },
-    );
+  const initials = useMemo(() => {
+    const n = me?.name?.trim();
+    if (!n) return "DR";
+    return n
+      .split(/\s+/)
+      .map((p) => p[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  }, [me?.name]);
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login", { replace: true });
   };
 
-  const handleRemoveSupervision = async (p: DoctorSupervisedProject) => {
-    setRemovingId(p.projectId);
+  const handleRemoveSupervision = async (project: DoctorSupervisedProject) => {
+    const projectId = project.projectId;
+    setRemovingProjectId(projectId);
     try {
-      await doctorDashboardApi.removeSupervision(p.projectId);
-      showToast("Doctor cancelled the project", "success");
-      const next = appendDeletedProject({
-        projectId: p.projectId,
-        name: p.name,
+      await removeDoctorSupervision(projectId);
+      setSupervisedProjects((prev) => prev.filter((p) => p.projectId !== projectId));
+      appendDeletedProject({
+        projectId,
+        name: project.name,
         removedAt: new Date().toISOString(),
-        source: "remove_supervision",
+        source: "remove",
       });
-      setDeletedProjects(next);
-      await invalidateDoctorDashboard();
-    } catch (err: unknown) {
-      showToast(parseApiErrorMessage(err), "error");
+      setDeletedItems(loadDeletedProjects());
+      window.dispatchEvent(new Event("doctor-dashboard-deleted-sync"));
+      window.setTimeout(() => {
+        void refetchAll();
+      }, 300);
+      showToast("Supervision removed", "success");
+    } catch (e) {
+      showToast(parseApiErrorMessage(e), "error");
     } finally {
-      setRemovingId(null);
+      setRemovingProjectId(null);
     }
   };
 
-  const initials =
-    me?.name
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "DR";
+  const handleSupervisionAction = async (
+    requestId: number,
+    action: "accept" | "reject",
+  ) => {
+    const key = `sup-${requestId}-${action}`;
+    setActionKey(key);
+    try {
+      if (action === "accept") await acceptSupervisorRequest(requestId);
+      else await rejectSupervisorRequest(requestId);
+      setSupervisionRequests((prev) => prev.filter((r) => r.requestId !== requestId));
+      await refetchAll();
+      if (action === "accept") showToast("Request accepted", "success");
+      else showToast("Request rejected", "success");
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast(typeof msg === "string" ? msg : parseApiErrorMessage(err), "error");
+    } finally {
+      setActionKey(null);
+    }
+  };
 
-  if (!isAuthenticated) {
-    return <LoginPage embedded onLoginSuccess={syncAuthFromStorage} />;
-  }
+  const handleCancelAction = async (requestId: number, action: "accept" | "reject") => {
+    const key = `can-${requestId}-${action}`;
+    setActionKey(key);
+    try {
+      if (action === "accept") await acceptSupervisorCancelRequest(requestId);
+      else await rejectSupervisorCancelRequest(requestId);
+      setCancelRequests((prev) => prev.filter((r) => r.requestId !== requestId));
+      await refetchAll();
+      showToast(
+        action === "accept" ? "Cancellation request accepted" : "Cancellation request rejected",
+        "success",
+      );
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast(typeof msg === "string" ? msg : parseApiErrorMessage(err), "error");
+    } finally {
+      setActionKey(null);
+    }
+  };
 
-  if (loading) {
+  if (pageLoading) {
     return (
       <div
         style={{
@@ -262,7 +328,7 @@ function DoctorDashboardInner() {
     );
   }
 
-  if (loadError || !me) {
+  if (pageError || !me) {
     return (
       <div
         style={{
@@ -277,40 +343,41 @@ function DoctorDashboardInner() {
       >
         <div
           style={{
-            maxWidth: 480,
-            width: "100%",
-            background: "#fff",
+            maxWidth: 420,
+            padding: 24,
             borderRadius: 16,
-            padding: 28,
+            background: "#fff",
             border: "1px solid #e2e8f0",
-            boxShadow: "0 4px 24px rgba(15,23,42,0.06)",
+            boxShadow: "0 8px 30px rgba(15,23,42,0.08)",
           }}
         >
-          <p style={{ margin: 0, fontSize: 15, color: "#b91c1c", fontWeight: 700 }}>
-            {loadError || "Unable to load dashboard."}
+          <p style={{ margin: 0, fontSize: 14, color: "#b91c1c", fontWeight: 600 }}>
+            {pageError || "Unable to load dashboard."}
           </p>
-          <button
-            type="button"
-            onClick={() => logout()}
+          <Link
+            to="/login"
             style={{
-              marginTop: 18,
-              padding: "10px 18px",
-              background: "linear-gradient(135deg,#6366f1,#a855f7)",
-              color: "white",
-              border: "none",
-              borderRadius: 10,
-              fontSize: 13,
+              display: "inline-block",
+              marginTop: 16,
+              fontSize: 14,
               fontWeight: 700,
-              fontFamily: "inherit",
-              cursor: "pointer",
+              color: "#4f46e5",
             }}
           >
-            Back to sign in
-          </button>
+            Go to sign in
+          </Link>
         </div>
       </div>
     );
   }
+
+  const statsForOverview =
+    doctorStats != null
+      ? {
+          pendingRequestsCount: doctorStats.pendingRequestsCount,
+          supervisedCount: doctorStats.supervisedCount,
+        }
+      : null;
 
   return (
     <DoctorDashboardLayout
@@ -318,44 +385,45 @@ function DoctorDashboardInner() {
       initials={initials}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
-      sidebarMobileOpen={sidebarOpen}
-      onSidebarOpen={() => setSidebarOpen(true)}
-      onSidebarClose={() => setSidebarOpen(false)}
-      onLogout={logout}
+      sidebarMobileOpen={sidebarMobileOpen}
+      onSidebarOpen={() => setSidebarMobileOpen(true)}
+      onSidebarClose={() => setSidebarMobileOpen(false)}
+      onLogout={handleLogout}
     >
       {activeSection === "overview" ? (
         <OverviewSection
           me={me}
           summary={summary}
+          doctorStats={statsForOverview}
           loading={overviewLoading}
           error={overviewError}
-          highlight={overviewHighlight}
+          highlight={highlight}
           suggestions={suggestions}
-          pendingRequestsCount={pendingRequestsCount}
         />
       ) : null}
 
       {activeSection === "requests" ? (
         <RequestsSection
-          requests={supervisionRequests}
+          rows={mergedRows}
           loading={requestsLoading}
           error={requestsError}
           actionKey={actionKey}
-          onAction={(id, a) => handleRequestAction(id, a)}
+          onSupervisionAction={handleSupervisionAction}
+          onCancelAction={handleCancelAction}
         />
       ) : null}
 
       {activeSection === "projects" ? (
         <ProjectsSection
           projects={supervisedProjects}
-          loading={projectsLoading}
-          error={projectsError}
-          removingId={removingId}
-          onRemoveSupervision={(p) => void handleRemoveSupervision(p)}
+          loading={supervisedLoading}
+          error={supervisedError}
+          removingProjectId={removingProjectId}
+          onCancelSupervision={(p) => void handleRemoveSupervision(p)}
         />
       ) : null}
 
-      {activeSection === "deleted" ? <DeletedProjectsSection items={deletedProjects} /> : null}
+      {activeSection === "deleted" ? <DeletedProjectsSection items={deletedItems} /> : null}
     </DoctorDashboardLayout>
   );
 }
@@ -363,7 +431,7 @@ function DoctorDashboardInner() {
 export default function DoctorDashboardPage() {
   return (
     <ToastProvider>
-      <DoctorDashboardInner />
+      <DoctorDashboardContent />
     </ToastProvider>
   );
 }

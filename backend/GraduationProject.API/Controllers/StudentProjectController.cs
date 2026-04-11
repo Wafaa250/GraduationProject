@@ -63,6 +63,9 @@ namespace GraduationProject.API.Controllers
         [HttpGet("my")]
         public async Task<IActionResult> GetMy()
         {
+            if (!IsStudentRole())
+                return Ok(new { role = (string?)null, project = (object?)null });
+
             var student = await GetStudentProfileAsync();
             if (student == null) return Forbid();
 
@@ -1052,16 +1055,19 @@ namespace GraduationProject.API.Controllers
 
         // ── Private Helpers ───────────────────────────────────────────────────
 
+        private bool IsStudentRole() =>
+            string.Equals(AuthorizationHelper.GetRole(User), "student", StringComparison.OrdinalIgnoreCase);
+
         private async Task<StudentProfile?> GetStudentProfileAsync()
         {
-            if (AuthorizationHelper.GetRole(User) != "student") return null;
+            if (!IsStudentRole()) return null;
             var userId = AuthorizationHelper.GetUserId(User);
             return await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == userId);
         }
 
         private async Task<int?> GetCurrentStudentProfileIdAsync()
         {
-            if (AuthorizationHelper.GetRole(User) != "student") return null;
+            if (!IsStudentRole()) return null;
             var userId = AuthorizationHelper.GetUserId(User);
             var profile = await _db.StudentProfiles.AsNoTracking()
                 .FirstOrDefaultAsync(s => s.UserId == userId);

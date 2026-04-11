@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { DoctorDashboardHeader } from "./DoctorDashboardHeader";
-import { DoctorDashboardSidebar } from "./DoctorDashboardSidebar";
+import { Header } from "./Header";
+import { Sidebar } from "./Sidebar";
 import type { DoctorDashboardSection } from "../doctorDashboardTypes";
 import { dash } from "./doctorDashTokens";
 
@@ -38,7 +38,7 @@ export function DoctorDashboardLayout({
         color: dash.text,
       }}
     >
-      <DoctorDashboardHeader
+      <Header
         doctorName={doctorName}
         initials={initials}
         onMenuClick={onSidebarOpen}
@@ -51,7 +51,7 @@ export function DoctorDashboardLayout({
           minHeight: 0,
         }}
       >
-        <DoctorDashboardSidebar
+        <Sidebar
           activeSection={activeSection}
           onSelect={onSectionChange}
           mobileOpen={sidebarMobileOpen}
@@ -67,6 +67,7 @@ export function DoctorDashboardLayout({
           className="dd-main"
         >
           <div
+            key={activeSection}
             className="dd-section-fade"
             style={{
               maxWidth: 1120,

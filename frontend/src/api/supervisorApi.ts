@@ -43,6 +43,26 @@ export async function rejectSupervisorRequest(id: number): Promise<void> {
   await apiClient.post(`/supervisor-requests/${id}/reject`);
 }
 
+/** GET /api/doctors/me/supervisor-cancel-requests */
+export async function getDoctorSupervisorCancelRequests(): Promise<
+  SupervisorCancelRequestItem[]
+> {
+  const { data } = await apiClient.get<SupervisorCancelRequestItem[]>(
+    "/doctors/me/supervisor-cancel-requests",
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+/** POST /api/supervisor-cancel-requests/{id}/accept */
+export async function acceptSupervisorCancelRequest(id: number): Promise<void> {
+  await apiClient.post(`/supervisor-cancel-requests/${id}/accept`);
+}
+
+/** POST /api/supervisor-cancel-requests/{id}/reject */
+export async function rejectSupervisorCancelRequest(id: number): Promise<void> {
+  await apiClient.post(`/supervisor-cancel-requests/${id}/reject`);
+}
+
 // ── Student project leader: recommended supervisors + request (graduation-projects routes) ──
 
 /** GET /api/graduation-projects/{projectId}/recommended-supervisors */

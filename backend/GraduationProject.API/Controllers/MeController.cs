@@ -20,18 +20,24 @@ namespace GraduationProject.API.Controllers
         public async Task<IActionResult> GetMe()
         {
             var userId = AuthorizationHelper.GetUserId(User);
-            var role   = AuthorizationHelper.GetRole(User);
+            var role   = NormalizeRole(AuthorizationHelper.GetRole(User));
+
+            // Doctor (and other non-student roles) must never run student profile loading.
+            if (role == "doctor")
+                return await GetDoctorInfo(userId);
 
             return role switch
             {
                 "student"     => await GetStudentInfo(userId),
-                "doctor"      => await GetDoctorInfo(userId),
                 "company"     => await GetCompanyInfo(userId),
                 "association" => await GetAssociationInfo(userId),
                 "admin"       => await GetAdminInfo(userId),
                 _             => Unauthorized(new { message = "Unknown role." })
             };
         }
+
+        private static string NormalizeRole(string? role) =>
+            (role ?? string.Empty).Trim().ToLowerInvariant();
 
         // ── Student ──────────────────────────────────────────────────────────
         private async Task<IActionResult> GetStudentInfo(int userId)
