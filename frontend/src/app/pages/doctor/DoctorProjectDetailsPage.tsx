@@ -65,9 +65,8 @@ function DoctorProjectDetailsInner() {
     );
   }
 
-  const abstractText = (data?.abstract ?? data?.description)?.trim()
-    ? (data.abstract ?? data.description)
-    : null;
+  const abstractText =
+    (data?.abstract ?? data?.description)?.trim() || null;
 
   return (
     <div

@@ -28,10 +28,20 @@ import { getReceivedInvitations } from "../../../api/invitationsApi";
 import type {
   GradProject,
   GradProjectMember,
+  GraduationProjectType,
+  GradProjectRecommendedStudent,
+  GradProjectRecommendedSupervisor,
 } from "../../../api/gradProjectApi";
 import {
   removeProjectMember,
   changeProjectLeader,
+  createGraduationProject,
+  updateGraduationProject,
+  isEngineeringOrITFaculty,
+  abstractForApi,
+  projectTypeForApi,
+  getRecommendedStudents,
+  getRecommendedSupervisors as fetchGraduationRecommendedSupervisors,
 } from "../../../api/gradProjectApi";
 import {
   getRecommendedSupervisors,
@@ -79,7 +89,9 @@ interface StudentProfile {
 interface RecommendedProject {
   id: number;
   title: string;
+  /** Channel/course body; display uses `abstract ?? description` */
   description: string | null;
+  abstract?: string | null;
   lookingFor: string[];
   matchScore: number;
   maxTeamSize: number | null;
@@ -147,17 +159,40 @@ export default function DashboardPage() {
   const [gradProject, setGradProject] = useState<GradProject | null>(null);
   const [gradLoading, setGradLoading] = useState(false);
   const [gradModalOpen, setGradModalOpen] = useState(false);
-  const [gradForm, setGradForm] = useState({
+  const [gradModalMode, setGradModalMode] = useState<"create" | "edit">(
+    "create",
+  );
+  const [gradForm, setGradForm] = useState<{
+    name: string;
+    abstract: string;
+    skills: string;
+    teamSize: string;
+    projectType: GraduationProjectType;
+  }>({
     name: "",
-    description: "",
+    abstract: "",
     skills: "",
     teamSize: "",
+    projectType: "GP",
   });
   const [gradFormError, setGradFormError] = useState<string | null>(null);
   const [gradSubmitting, setGradSubmitting] = useState(false);
   const [gradTeammates, setGradTeammates] = useState<SuggestedTeammate[]>([]);
   const [addTeammatesOpen, setAddTeammatesOpen] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
+
+  const [aiStudents, setAiStudents] = useState<GradProjectRecommendedStudent[]>(
+    [],
+  );
+  const [aiSupervisors, setAiSupervisors] = useState<
+    GradProjectRecommendedSupervisor[]
+  >([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingSupervisors, setLoadingSupervisors] = useState(false);
+  const [aiStudentsError, setAiStudentsError] = useState<string | null>(null);
+  const [aiSupervisorsError, setAiSupervisorsError] = useState<string | null>(
+    null,
+  );
 
   // Role the current user holds in their project — comes from GET /my envelope.
   // Kept separately from gradProject so it survives the same optimistic-update
@@ -431,6 +466,7 @@ export default function DashboardPage() {
             id: p.id,
             title: p.name,
             description: p.description ?? null,
+            abstract: p.abstract ?? null,
             lookingFor: p.requiredSkills ?? [],
             matchScore: 0,
             maxTeamSize: p.maxTeamSize ?? null,
@@ -451,6 +487,33 @@ export default function DashboardPage() {
     navigate("/login");
   };
 
+  const openGradModal = useCallback(
+    (mode: "create" | "edit") => {
+      setGradModalMode(mode);
+      setGradFormError(null);
+      if (mode === "edit" && gradProject) {
+        setGradForm({
+          name: gradProject.name,
+          abstract: gradProject.abstract ?? "",
+          skills: (gradProject.requiredSkills ?? []).join(", "),
+          teamSize: String(gradProject.partnersCount),
+          projectType:
+            (gradProject.projectType as GraduationProjectType) ?? "GP",
+        });
+      } else {
+        setGradForm({
+          name: "",
+          abstract: "",
+          skills: "",
+          teamSize: "",
+          projectType: "GP",
+        });
+      }
+      setGradModalOpen(true);
+    },
+    [gradProject],
+  );
+
   const handleGradSubmit = async () => {
     if (!gradForm.name.trim()) {
       setGradFormError("Project name is required.");
@@ -469,26 +532,85 @@ export default function DashboardPage() {
         .split(",")
         .map((s: string) => s.trim())
         .filter(Boolean);
-      // POST /api/graduation-projects
-      const res = await api.post("/graduation-projects", {
-        name: gradForm.name.trim(),
-        description: gradForm.description.trim() || null,
-        requiredSkills: skills,
-        partnersCount: size,
-      });
+      const projectType = projectTypeForApi(user?.faculty, gradForm.projectType);
+      const abstractPayload = abstractForApi(gradForm.abstract);
+
+      if (gradModalMode === "edit") {
+        if (!gradProject) return;
+        await updateGraduationProject(gradProject.id, {
+          name: gradForm.name.trim(),
+          abstract: abstractPayload,
+          projectType,
+          requiredSkills: skills,
+          partnersCount: size,
+        });
+      } else {
+        await createGraduationProject({
+          name: gradForm.name.trim(),
+          abstract: abstractPayload,
+          projectType,
+          requiredSkills: skills,
+          partnersCount: size,
+        });
+      }
       // Refetch from GET endpoint — guarantees isOwner/remainingSeats are populated
-      setGradForm({ name: "", description: "", skills: "", teamSize: "" });
+      setGradForm({
+        name: "",
+        abstract: "",
+        skills: "",
+        teamSize: "",
+        projectType: "GP",
+      });
+      setGradModalMode("create");
       setGradModalOpen(false);
       await refetchGradProject();
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
-        "Failed to create project. Please try again.";
+        (gradModalMode === "edit"
+          ? "Failed to save project. Please try again."
+          : "Failed to create project. Please try again.");
       setGradFormError(msg);
     } finally {
       setGradSubmitting(false);
     }
   };
+
+  const handleAiRecommendedStudents = useCallback(async () => {
+    if (!gradProject) return;
+    setLoadingStudents(true);
+    setAiStudentsError(null);
+    try {
+      const result = await getRecommendedStudents(gradProject.id);
+      setAiStudents(result);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? "Request failed.";
+      setAiStudentsError(msg);
+      setAiStudents([]);
+    } finally {
+      setLoadingStudents(false);
+    }
+  }, [gradProject]);
+
+  const handleAiRecommendedSupervisorsJson = useCallback(async () => {
+    if (!gradProject) return;
+    setLoadingSupervisors(true);
+    setAiSupervisorsError(null);
+    try {
+      const result = await fetchGraduationRecommendedSupervisors(gradProject.id);
+      setAiSupervisors(result);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? "Request failed.";
+      setAiSupervisorsError(msg);
+      setAiSupervisors([]);
+    } finally {
+      setLoadingSupervisors(false);
+    }
+  }, [gradProject]);
 
   const handleDeleteProject = async () => {
     if (!gradProject) return;
@@ -1366,7 +1488,7 @@ export default function DashboardPage() {
                   <h3 style={S.cardTitle}>🎓 My Graduation Project</h3>
                   {!gradProject && !gradLoading && (
                     <button
-                      onClick={() => setGradModalOpen(true)}
+                      onClick={() => openGradModal("create")}
                       style={S.cardActionBtn}
                     >
                       + Create <ChevronRight size={12} />
@@ -1392,7 +1514,7 @@ export default function DashboardPage() {
                       Create your graduation project and find teammates
                     </p>
                     <button
-                      onClick={() => setGradModalOpen(true)}
+                      onClick={() => openGradModal("create")}
                       style={{
                         marginTop: 8,
                         padding: "7px 16px",
@@ -1458,21 +1580,47 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       {gradProject?.isOwner ? (
-                        <button
-                          onClick={handleDeleteProject}
+                        <div
                           style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "#ef4444",
-                            fontSize: 11,
-                            fontFamily: "inherit",
-                            padding: "2px 6px",
-                            borderRadius: 6,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
                           }}
                         >
-                          🗑 Delete
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => openGradModal("edit")}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "#6366f1",
+                              fontSize: 11,
+                              fontFamily: "inherit",
+                              padding: "2px 6px",
+                              borderRadius: 6,
+                              fontWeight: 700,
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeleteProject}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "#ef4444",
+                              fontSize: 11,
+                              fontFamily: "inherit",
+                              padding: "2px 6px",
+                              borderRadius: 6,
+                            }}
+                          >
+                            🗑 Delete
+                          </button>
+                        </div>
                       ) : (
                         <button
                           onClick={handleLeaveProject}
@@ -1492,18 +1640,47 @@ export default function DashboardPage() {
                       )}
                     </div>
 
-                    {/* Description */}
-                    {gradProject?.description && (
-                      <p
+                    {/* Abstract + project type */}
+                    {(gradProject?.projectType ||
+                      (gradProject?.abstract ?? "").trim()) && (
+                      <div
                         style={{
-                          fontSize: 12,
-                          color: "#64748b",
                           margin: "0 0 8px",
-                          lineHeight: 1.5,
+                          display: "flex",
+                          flexWrap: "wrap" as const,
+                          gap: 8,
+                          alignItems: "center",
                         }}
                       >
-                        {gradProject?.description ?? ""}
-                      </p>
+                        {gradProject?.projectType ? (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              background: "#f1f5f9",
+                              color: "#475569",
+                              borderRadius: 6,
+                              border: "1px solid #e2e8f0",
+                            }}
+                          >
+                            {gradProject?.projectType}
+                          </span>
+                        ) : null}
+                        {(gradProject?.abstract ?? "").trim() ? (
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: "#64748b",
+                              margin: 0,
+                              lineHeight: 1.5,
+                              flex: "1 1 200px",
+                            }}
+                          >
+                            {(gradProject?.abstract ?? "").trim()}
+                          </p>
+                        ) : null}
+                      </div>
                     )}
 
                     {/* Owner name */}
@@ -1824,7 +2001,7 @@ export default function DashboardPage() {
                 <h3 style={S.cardTitle}>🎓 My Graduation Project</h3>
                 {!gradProject && !gradLoading && (
                   <button
-                    onClick={() => setGradModalOpen(true)}
+                    onClick={() => openGradModal("create")}
                     style={S.cardActionBtn}
                   >
                     + Create <ChevronRight size={12} />
@@ -1852,7 +2029,7 @@ export default function DashboardPage() {
                     Create your graduation project and find teammates
                   </p>
                   <button
-                    onClick={() => setGradModalOpen(true)}
+                    onClick={() => openGradModal("create")}
                     style={{
                       marginTop: 8,
                       padding: "7px 16px",
@@ -1918,21 +2095,47 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     {gradProject?.isOwner ? (
-                      <button
-                        onClick={handleDeleteProject}
+                      <div
                         style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: "#ef4444",
-                          fontSize: 11,
-                          fontFamily: "inherit",
-                          padding: "2px 6px",
-                          borderRadius: 6,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
                         }}
                       >
-                        🗑 Delete
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => openGradModal("edit")}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#6366f1",
+                            fontSize: 11,
+                            fontFamily: "inherit",
+                            padding: "2px 6px",
+                            borderRadius: 6,
+                            fontWeight: 700,
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDeleteProject}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#ef4444",
+                            fontSize: 11,
+                            fontFamily: "inherit",
+                            padding: "2px 6px",
+                            borderRadius: 6,
+                          }}
+                        >
+                          🗑 Delete
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={handleLeaveProject}
@@ -1952,18 +2155,47 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  {/* Description */}
-                  {gradProject?.description && (
-                    <p
+                  {/* Abstract + project type */}
+                  {(gradProject.projectType ||
+                    (gradProject.abstract ?? "").trim()) && (
+                    <div
                       style={{
-                        fontSize: 12,
-                        color: "#64748b",
                         margin: "0 0 8px",
-                        lineHeight: 1.5,
+                        display: "flex",
+                        flexWrap: "wrap" as const,
+                        gap: 8,
+                        alignItems: "center",
                       }}
                     >
-                      {gradProject?.description ?? ""}
-                    </p>
+                      {gradProject.projectType ? (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            background: "#f1f5f9",
+                            color: "#475569",
+                            borderRadius: 6,
+                            border: "1px solid #e2e8f0",
+                          }}
+                        >
+                          {gradProject.projectType}
+                        </span>
+                      ) : null}
+                      {(gradProject.abstract ?? "").trim() ? (
+                        <p
+                          style={{
+                            fontSize: 12,
+                            color: "#64748b",
+                            margin: 0,
+                            lineHeight: 1.5,
+                            flex: "1 1 200px",
+                          }}
+                        >
+                          {(gradProject.abstract ?? "").trim()}
+                        </p>
+                      ) : null}
+                    </div>
                   )}
 
                   {/* Owner name */}
@@ -1995,6 +2227,225 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* AI recommendations */}
+                  <div style={{ marginTop: 12, marginBottom: 10 }}>
+                    <button
+                      type="button"
+                      onClick={handleAiRecommendedStudents}
+                      disabled={loadingStudents}
+                      style={{
+                        padding: "6px 10px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        borderRadius: 8,
+                        border: "1px solid #c7d2fe",
+                        background: "#fff",
+                        color: "#6366f1",
+                        cursor: loadingStudents ? "not-allowed" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Find Best Teammates (AI)
+                    </button>
+                    {loadingStudents ? (
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
+                        Loading AI recommendations...
+                      </p>
+                    ) : null}
+                    {aiStudentsError ? (
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#ef4444" }}>
+                        {aiStudentsError}
+                      </p>
+                    ) : null}
+                    {!loadingStudents && !aiStudentsError && aiStudents.length > 0 ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fill, minmax(220px, 1fr))",
+                          gap: 10,
+                          marginTop: 10,
+                        }}
+                      >
+                        {aiStudents.map((s) => (
+                          <div
+                            key={s.studentId}
+                            style={{
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 10,
+                              padding: 12,
+                              background: "#fff",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: 8,
+                                marginBottom: 8,
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  color: "#0f172a",
+                                  lineHeight: 1.3,
+                                }}
+                              >
+                                {s.name}
+                              </p>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: "3px 8px",
+                                  borderRadius: 8,
+                                  background: "#eef2ff",
+                                  color: "#6366f1",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {s.matchScore}%
+                              </span>
+                            </div>
+                            <p
+                              style={{
+                                margin: "0 0 4px",
+                                fontSize: 12,
+                                color: "#64748b",
+                              }}
+                            >
+                              {s.major}
+                            </p>
+                            <p
+                              style={{
+                                margin: "0 0 8px",
+                                fontSize: 11,
+                                color: "#94a3b8",
+                              }}
+                            >
+                              {s.university}
+                            </p>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap" as const,
+                                gap: 4,
+                              }}
+                            >
+                              {(s.skills ?? []).map((sk) => (
+                                <span key={`${s.studentId}-${sk}`} style={S.skillChipSm}>
+                                  {sk}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={handleAiRecommendedSupervisorsJson}
+                      disabled={loadingSupervisors}
+                      style={{
+                        marginTop: 10,
+                        padding: "6px 10px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        borderRadius: 8,
+                        border: "1px solid #c7d2fe",
+                        background: "#fff",
+                        color: "#6366f1",
+                        cursor: loadingSupervisors ? "not-allowed" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Recommend Supervisors (AI)
+                    </button>
+                    {loadingSupervisors ? (
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
+                        Loading AI recommendations...
+                      </p>
+                    ) : null}
+                    {aiSupervisorsError ? (
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#ef4444" }}>
+                        {aiSupervisorsError}
+                      </p>
+                    ) : null}
+                    {!loadingSupervisors && !aiSupervisorsError && aiSupervisors.length > 0 ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fill, minmax(200px, 1fr))",
+                          gap: 10,
+                          marginTop: 10,
+                        }}
+                      >
+                        {aiSupervisors.map((sup) => (
+                          <div
+                            key={sup.doctorId}
+                            style={{
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 10,
+                              padding: 12,
+                              background: "#fff",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: 8,
+                                marginBottom: 6,
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  color: "#0f172a",
+                                  lineHeight: 1.3,
+                                }}
+                              >
+                                {sup.name}
+                              </p>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: "3px 8px",
+                                  borderRadius: 8,
+                                  background: "#eef2ff",
+                                  color: "#6366f1",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {sup.matchScore}%
+                              </span>
+                            </div>
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 12,
+                                color: "#64748b",
+                                lineHeight: 1.45,
+                              }}
+                            >
+                              {sup.specialization}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
 
                   {/* ── Team Members ── */}
                   <div
@@ -2700,7 +3151,13 @@ export default function DashboardPage() {
                   </p>
                 </div>
               ) : (
-                recommendedProjects.map((project) => (
+                recommendedProjects.map((project) => {
+                  const channelBody = (
+                    project.abstract ??
+                    project.description ??
+                    ""
+                  ).trim();
+                  return (
                   <div
                     key={project.id}
                     style={{
@@ -2735,7 +3192,7 @@ export default function DashboardPage() {
                         >
                           {project.title}
                         </p>
-                        {project.description && (
+                        {channelBody ? (
                           <p
                             style={{
                               margin: "0 0 6px",
@@ -2744,9 +3201,9 @@ export default function DashboardPage() {
                               lineHeight: 1.5,
                             }}
                           >
-                            {project.description}
+                            {channelBody}
                           </p>
-                        )}
+                        ) : null}
                         <div
                           style={{
                             display: "flex",
@@ -2840,7 +3297,8 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   </div>
-                ))
+                );
+                })
               )}
             </div>
             <div style={{ marginTop: 20, textAlign: "center" as const }}>
@@ -2956,13 +3414,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── CREATE GRADUATION PROJECT MODAL ── */}
+      {/* ── GRADUATION PROJECT: CREATE / EDIT MODAL (abstract + projectType only; no description) ── */}
       {gradModalOpen && (
         <div
           style={S.modalOverlay}
           onClick={() => {
             setGradModalOpen(false);
             setGradFormError(null);
+            setGradModalMode("create");
           }}
         >
           <div style={S.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -2983,12 +3442,15 @@ export default function DashboardPage() {
                   fontFamily: "Syne, sans-serif",
                 }}
               >
-                🎓 Create Graduation Project
+                {gradModalMode === "edit"
+                  ? "🎓 Edit Graduation Project"
+                  : "🎓 Create Graduation Project"}
               </h3>
               <button
                 onClick={() => {
                   setGradModalOpen(false);
                   setGradFormError(null);
+                  setGradModalMode("create");
                 }}
                 style={S.modalCloseBtn}
               >
@@ -3030,22 +3492,68 @@ export default function DashboardPage() {
                   letterSpacing: "0.06em",
                 }}
               >
-                Description
+                Abstract
               </label>
               <textarea
-                rows={3}
+                rows={4}
                 style={{
                   ...S.modalInput,
                   resize: "vertical" as const,
                   lineHeight: 1.5,
                 }}
-                placeholder="Brief description..."
-                value={gradForm.description}
+                placeholder="Brief summary of your project idea..."
+                value={gradForm.abstract}
                 onChange={(e) =>
-                  setGradForm((p) => ({ ...p, description: e.target.value }))
+                  setGradForm((p) => ({ ...p, abstract: e.target.value }))
                 }
               />
             </div>
+            {isEngineeringOrITFaculty(user?.faculty) ? (
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 11,
+                    color: "#64748b",
+                    fontWeight: 700,
+                    marginBottom: 5,
+                    textTransform: "uppercase" as const,
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Project type <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <select
+                  value={gradForm.projectType}
+                  onChange={(e) =>
+                    setGradForm((p) => ({
+                      ...p,
+                      projectType: e.target.value as GraduationProjectType,
+                    }))
+                  }
+                  style={{
+                    ...S.modalInput,
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="GP1">GP1</option>
+                  <option value="GP2">GP2</option>
+                  <option value="GP">GP</option>
+                </select>
+              </div>
+            ) : (
+              <p
+                style={{
+                  margin: "0 0 14px",
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  lineHeight: 1.45,
+                }}
+              >
+                Project type: <strong style={{ color: "#64748b" }}>GP</strong>{" "}
+                (required for your faculty; sent automatically)
+              </p>
+            )}
             <div style={{ marginBottom: 14 }}>
               <label
                 style={{
@@ -3151,6 +3659,7 @@ export default function DashboardPage() {
                 onClick={() => {
                   setGradModalOpen(false);
                   setGradFormError(null);
+                  setGradModalMode("create");
                 }}
                 style={S.modalCancelBtn}
               >
@@ -3173,7 +3682,13 @@ export default function DashboardPage() {
                   fontFamily: "inherit",
                 }}
               >
-                {gradSubmitting ? "⏳ Creating..." : "Create Project"}
+                {gradSubmitting
+                  ? gradModalMode === "edit"
+                    ? "⏳ Saving..."
+                    : "⏳ Creating..."
+                  : gradModalMode === "edit"
+                    ? "Save changes"
+                    : "Create Project"}
               </button>
             </div>
           </div>

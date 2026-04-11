@@ -86,6 +86,11 @@ export function ProjectsSection({
               const removing = removingProjectId === project.projectId;
               const statusLabel = project.isFull ? "Team full" : "Recruiting";
               const skills = project.requiredSkills?.length ? project.requiredSkills : [];
+              const detailText = (
+                project.abstract ??
+                project.description ??
+                ""
+              ).trim();
               return (
                 <div
                   key={project.projectId}
@@ -120,7 +125,7 @@ export function ProjectsSection({
                       </p>
                       <p style={{ margin: "0 0 10px", fontSize: 13, color: dash.muted, lineHeight: 1.5 }}>
                         <span style={{ fontWeight: 700, color: dash.subtle }}>Description</span> ·{" "}
-                        {project.description?.trim() ? project.description : "—"}
+                        {detailText || "—"}
                       </p>
                       {skills.length > 0 ? (
                         <div style={{ margin: "0 0 12px" }}>

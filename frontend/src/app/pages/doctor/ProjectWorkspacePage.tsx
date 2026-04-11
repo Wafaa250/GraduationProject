@@ -21,6 +21,7 @@ interface Project {
   id: number;
   name: string;
   description: string | null;
+  abstract?: string | null;
   dueDate: string | null;
   maxTeamSize: number | null;
   requiredSkills: string[];
@@ -133,6 +134,8 @@ export default function ProjectWorkspacePage() {
           year: "numeric",
         })
       : null;
+
+  const projectBodyText = (project.abstract ?? project.description)?.trim() ?? "";
 
   const workspaceTabs: { id: WorkspaceTab; label: string; icon: ReactNode }[] =
     [
@@ -251,7 +254,9 @@ export default function ProjectWorkspacePage() {
                   margin: 0,
                 }}
               >
-                {project.description ?? (
+                {projectBodyText ? (
+                  projectBodyText
+                ) : (
                   <span style={{ color: "#94a3b8" }}>
                     No description provided.
                   </span>

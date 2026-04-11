@@ -11,6 +11,8 @@ export interface DoctorMeResponse {
 export interface DoctorSupervisedProject {
   projectId: number;
   name: string;
+  /** Prefer for display: `abstract ?? description` */
+  abstract?: string | null;
   description: string | null;
   requiredSkills: string[];
   partnersCount: number;

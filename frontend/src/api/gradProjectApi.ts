@@ -9,6 +9,65 @@
 
 import api from './axiosInstance'
 
+/** Matches backend graduation project type values. */
+export type GraduationProjectType = 'GP1' | 'GP2' | 'GP'
+
+/** Same rules as `IsEngineeringOrIT` in StudentProjectController (plus explicit registration labels). */
+export function isEngineeringOrITFaculty(
+  faculty: string | undefined | null,
+): boolean {
+  if (!faculty?.trim()) return false
+  const f = faculty.trim()
+  if (
+    f === 'Engineering and Information Technology' ||
+    f === 'Information Technology'
+  ) {
+    return true
+  }
+  const fl = f.toLowerCase()
+  return (
+    fl === 'engineering and information technology' ||
+    (fl.includes('engineering') && fl.includes('it')) ||
+    (fl.includes('engineering') && fl.includes('information technology')) ||
+    (fl.includes('engineering') && fl.includes('technology'))
+  )
+}
+
+/** Trims abstract; empty string becomes `null` for API JSON. */
+export function abstractForApi(raw: string): string | null {
+  const t = raw.trim()
+  return t.length > 0 ? t : null
+}
+
+/**
+ * Project type sent with create/update: Eng/IT students use their selection;
+ * all other faculties must use GP (matches backend rules).
+ */
+export function projectTypeForApi(
+  faculty: string | undefined | null,
+  selected: GraduationProjectType,
+): GraduationProjectType {
+  return isEngineeringOrITFaculty(faculty) ? selected : 'GP'
+}
+
+/** POST /api/graduation-projects body (camelCase JSON). */
+export interface CreateStudentProjectPayload {
+  name: string
+  abstract?: string | null
+  projectType: GraduationProjectType
+  requiredSkills: string[]
+  partnersCount: number
+}
+
+/** PUT /api/graduation-projects/{id} body — fields optional per backend UpdateStudentProjectDto. */
+export interface UpdateStudentProjectPayload {
+  name?: string | null
+  abstract?: string | null
+  projectType?: GraduationProjectType | null
+  requiredSkills?: string[] | null
+  partnersCount?: number | null
+}
+
 // ─── Member ──────────────────────────────────────────────────────────────────
 
 /**
@@ -63,7 +122,7 @@ export interface GradProjectMember {
  *
  * Fields that the backend always populates but may be absent on lightweight
  * list views in future API versions — typed optional for forward-compatibility:
- *   ownerUserId, ownerName, description, isOwner,
+ *   ownerUserId, ownerName, isOwner,
  *   remainingSeats, requiredSkills, createdAt, updatedAt
  */
 export interface GradProject {
@@ -82,11 +141,17 @@ export interface GradProject {
   /** Project title. */
   name: string
 
-  /** Project description; null when not provided. */
+  /** Project abstract; null when not provided. */
+  abstract?: string | null
+
+  /**
+   * Legacy JSON field only — prefer `abstract` for display.
+   * Kept optional for older responses/clients.
+   */
   description?: string | null
 
-  /** Same field as DB Abstract; API may send `abstract` while older code used `description`. */
-  abstract?: string | null
+  /** "GP1" | "GP2" | "GP" */
+  projectType?: GraduationProjectType
 
   /**
    * Total team capacity including the owner.
@@ -216,6 +281,34 @@ export interface ChangeLeaderResponse {
 // ─── API functions ────────────────────────────────────────────────────────────
 
 /**
+ * POST /api/graduation-projects
+ *
+ * Creates a project for the current student (owner + leader membership).
+ */
+export async function createGraduationProject(
+  payload: CreateStudentProjectPayload,
+): Promise<GradProject> {
+  const { data } = await api.post<GradProject>('/graduation-projects', payload)
+  return data
+}
+
+/**
+ * PUT /api/graduation-projects/{projectId}
+ *
+ * Owner-only full update of project fields.
+ */
+export async function updateGraduationProject(
+  projectId: number,
+  payload: UpdateStudentProjectPayload,
+): Promise<GradProject> {
+  const { data } = await api.put<GradProject>(
+    `/graduation-projects/${projectId}`,
+    payload,
+  )
+  return data
+}
+
+/**
  * GET /api/graduation-projects/{projectId}
  *
  * Returns full project details (members, supervisor, abstract, skills).
@@ -280,4 +373,52 @@ export async function changeProjectLeader(
     `/graduation-projects/${projectId}/change-leader/${memberId}`,
   )
   return data
+}
+
+// ─── AI / recommendations (graduation projects) ───────────────────────────────
+
+/** GET /api/graduation-projects/{projectId}/recommended-students — core row fields. */
+export interface GradProjectRecommendedStudent {
+  studentId: number
+  name: string
+  major: string
+  university: string
+  skills: string[]
+  matchScore: number
+}
+
+/** GET /api/graduation-projects/{projectId}/recommended-supervisors */
+export interface GradProjectRecommendedSupervisor {
+  doctorId: number
+  name: string
+  specialization: string
+  matchScore: number
+}
+
+/**
+ * GET /api/graduation-projects/{projectId}/recommended-students
+ *
+ * Project owner only; students ranked by skill match vs. required skills.
+ */
+export async function getRecommendedStudents(
+  projectId: number,
+): Promise<GradProjectRecommendedStudent[]> {
+  const { data } = await api.get<GradProjectRecommendedStudent[]>(
+    `/graduation-projects/${projectId}/recommended-students`,
+  )
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * GET /api/graduation-projects/{projectId}/recommended-supervisors
+ *
+ * Project leader only; doctors ranked by skill match.
+ */
+export async function getRecommendedSupervisors(
+  projectId: number,
+): Promise<GradProjectRecommendedSupervisor[]> {
+  const { data } = await api.get<GradProjectRecommendedSupervisor[]>(
+    `/graduation-projects/${projectId}/recommended-supervisors`,
+  )
+  return Array.isArray(data) ? data : []
 }

@@ -10,6 +10,8 @@ interface Project {
     id:          string
     name:        string
     description: string | null
+    /** Prefer for display: `abstract ?? description` */
+    abstract?:   string | null
     publishDate: string | null   // ISO date string
     dueDate:     string | null   // ISO date string
     weight:      number | null   // % of final grade
@@ -30,6 +32,8 @@ function ProjectCard({ project }: { project: Project }) {
         ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         : null
 
+    const bodyText = (project.abstract ?? project.description ?? '').trim()
+
     return (
         <div style={PC.card}>
             <div style={PC.accentBar} />
@@ -47,10 +51,10 @@ function ProjectCard({ project }: { project: Project }) {
             {/* Name */}
             <h3 style={PC.name}>{project.name}</h3>
 
-            {/* Description */}
-            {project.description && (
-                <p style={PC.desc}>{project.description}</p>
-            )}
+            {/* Abstract / description (channel projects typically use description) */}
+            {bodyText ? (
+                <p style={PC.desc}>{bodyText}</p>
+            ) : null}
 
             {/* Meta row */}
             <div style={PC.meta}>

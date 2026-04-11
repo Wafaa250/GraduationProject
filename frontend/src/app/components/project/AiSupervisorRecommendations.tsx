@@ -224,7 +224,7 @@ export function AiSupervisorRecommendations({
             <p style={S.emptyTitle}>No matches returned</p>
             <p style={S.emptyDesc}>
               Try running recommendations again in a few minutes, or adjust your
-              project skills and description for a better match.
+              project skills and abstract for a better match.
             </p>
           </div>
         )}
