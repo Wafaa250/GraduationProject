@@ -24,7 +24,7 @@ import {
   getGraduationProjectsMyEnvelope,
   SuggestedTeammate,
 } from "../../../api/dashboardApi";
-import { getReceivedInvitations } from "../../../api/invitationsApi";
+import { getReceivedInvitations, sendInvitation } from "../../../api/invitationsApi";
 import type {
   GradProject,
   GradProjectMember,
@@ -58,6 +58,7 @@ import {
   type AiSupervisorRecommendUiState,
   type EnrichedAiSupervisorRow,
 } from "../../components/project/AiSupervisorRecommendations";
+import { useToast } from "../../../context/ToastContext";
 
 function normApiStatus(s?: string | null): string {
   return s?.toString().trim().toLowerCase() ?? "";
@@ -113,6 +114,7 @@ interface Invitation {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DashboardPage() {
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<
@@ -176,6 +178,12 @@ export default function DashboardPage() {
     projectType: "GP",
   });
   const [gradFormError, setGradFormError] = useState<string | null>(null);
+  const [gradFormFieldErrors, setGradFormFieldErrors] = useState<{
+    abstract?: string;
+    skills?: string;
+  }>({});
+  /** Draft line for skill tag input (Enter commits to `gradForm.skills` as comma-separated string). */
+  const [gradSkillInputDraft, setGradSkillInputDraft] = useState("");
   const [gradSubmitting, setGradSubmitting] = useState(false);
   const [gradTeammates, setGradTeammates] = useState<SuggestedTeammate[]>([]);
   const [addTeammatesOpen, setAddTeammatesOpen] = useState(false);
@@ -225,6 +233,16 @@ export default function DashboardPage() {
   const [aiSupervisorCardRequests, setAiSupervisorCardRequests] = useState<
     Record<number, AiSupervisorCardRequestState>
   >({});
+
+  /** Inline AI student cards — invite action (POST invite/{studentProfileId}) */
+  const [aiCardInviteLoadingId, setAiCardInviteLoadingId] = useState<
+    number | null
+  >(null);
+
+  /** Inline AI supervisor JSON cards — request action */
+  const [aiCardSupervisorLoadingId, setAiCardSupervisorLoadingId] = useState<
+    number | null
+  >(null);
 
   const hour = new Date().getHours();
   const greeting =
@@ -491,6 +509,8 @@ export default function DashboardPage() {
     (mode: "create" | "edit") => {
       setGradModalMode(mode);
       setGradFormError(null);
+      setGradFormFieldErrors({});
+      setGradSkillInputDraft("");
       if (mode === "edit" && gradProject) {
         setGradForm({
           name: gradProject.name,
@@ -515,6 +535,9 @@ export default function DashboardPage() {
   );
 
   const handleGradSubmit = async () => {
+    setGradFormError(null);
+    setGradFormFieldErrors({});
+
     if (!gradForm.name.trim()) {
       setGradFormError("Project name is required.");
       return;
@@ -525,19 +548,32 @@ export default function DashboardPage() {
       return;
     }
 
+    const skills = gradForm.skills
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+
+    const fieldErrors: { abstract?: string; skills?: string } = {};
+    if (!gradForm.abstract.trim()) {
+      fieldErrors.abstract = "Abstract is required";
+    }
+    if (skills.length === 0) {
+      fieldErrors.skills = "At least one skill is required";
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      setGradFormFieldErrors(fieldErrors);
+      return;
+    }
+
+    if (gradModalMode === "edit" && !gradProject) return;
+
     setGradSubmitting(true);
-    setGradFormError(null);
     try {
-      const skills = gradForm.skills
-        .split(",")
-        .map((s: string) => s.trim())
-        .filter(Boolean);
       const projectType = projectTypeForApi(user?.faculty, gradForm.projectType);
       const abstractPayload = abstractForApi(gradForm.abstract);
 
       if (gradModalMode === "edit") {
-        if (!gradProject) return;
-        await updateGraduationProject(gradProject.id, {
+        await updateGraduationProject(gradProject!.id, {
           name: gradForm.name.trim(),
           abstract: abstractPayload,
           projectType,
@@ -561,6 +597,7 @@ export default function DashboardPage() {
         teamSize: "",
         projectType: "GP",
       });
+      setGradSkillInputDraft("");
       setGradModalMode("create");
       setGradModalOpen(false);
       await refetchGradProject();
@@ -574,6 +611,12 @@ export default function DashboardPage() {
     } finally {
       setGradSubmitting(false);
     }
+  };
+
+  const gradModalInputErrorStyle: React.CSSProperties = {
+    borderColor: "#ef4444",
+    borderWidth: "1.5px",
+    borderStyle: "solid",
   };
 
   const handleAiRecommendedStudents = useCallback(async () => {
@@ -611,6 +654,46 @@ export default function DashboardPage() {
       setLoadingSupervisors(false);
     }
   }, [gradProject]);
+
+  const handleAiCardInviteStudent = useCallback(
+    async (studentId: number) => {
+      if (!gradProject?.id) return;
+      setAiCardInviteLoadingId(studentId);
+      try {
+        await sendInvitation(gradProject.id, studentId);
+        showToast("Invitation sent", "success");
+        void fetchInvitations();
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response
+            ?.data?.message ?? "Request failed.";
+        showToast(msg, "error");
+      } finally {
+        setAiCardInviteLoadingId(null);
+      }
+    },
+    [gradProject?.id, fetchInvitations, showToast],
+  );
+
+  const handleAiCardRequestSupervisor = useCallback(
+    async (doctorId: number) => {
+      if (!gradProject) return;
+      setAiCardSupervisorLoadingId(doctorId);
+      try {
+        await requestSupervisor(gradProject.id, doctorId);
+        await refreshGradProjectAfterSupervisorRequest();
+        showToast("Request sent", "success");
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response
+            ?.data?.message ?? "Request failed.";
+        showToast(msg, "error");
+      } finally {
+        setAiCardSupervisorLoadingId(null);
+      }
+    },
+    [gradProject, refreshGradProjectAfterSupervisorRequest, showToast],
+  );
 
   const handleDeleteProject = async () => {
     if (!gradProject) return;
@@ -2343,6 +2426,40 @@ export default function DashboardPage() {
                                 </span>
                               ))}
                             </div>
+                            {gradProject?.isOwner ? (
+                              <div style={{ marginTop: 10 }}>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleAiCardInviteStudent(s.studentId)
+                                  }
+                                  disabled={
+                                    isFull ||
+                                    aiCardInviteLoadingId === s.studentId
+                                  }
+                                  style={{
+                                    padding: "6px 12px",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    borderRadius: 8,
+                                    border: "1px solid #c7d2fe",
+                                    background: "#fff",
+                                    color: "#6366f1",
+                                    cursor:
+                                      isFull ||
+                                      aiCardInviteLoadingId === s.studentId
+                                        ? "not-allowed"
+                                        : "pointer",
+                                    fontFamily: "inherit",
+                                    opacity: isFull ? 0.55 : 1,
+                                  }}
+                                >
+                                  {aiCardInviteLoadingId === s.studentId
+                                    ? "Sending…"
+                                    : "Invite"}
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
                         ))}
                       </div>
@@ -2441,6 +2558,77 @@ export default function DashboardPage() {
                             >
                               {sup.specialization}
                             </p>
+                            {myRole === "owner" || myRole === "leader" ? (
+                              <div style={{ marginTop: 10 }}>
+                                {gradProject.supervisor ? null : normApiStatus(
+                                    gradProject.supervisorRequestStatus,
+                                  ) === "pending" &&
+                                  gradProject.pendingSupervisor != null &&
+                                  gradProject.pendingSupervisor.doctorId ===
+                                    sup.doctorId ? (
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: "#15803d",
+                                    }}
+                                  >
+                                    Request pending
+                                  </p>
+                                ) : normApiStatus(
+                                    gradProject.supervisorRequestStatus,
+                                  ) === "pending" &&
+                                  gradProject.pendingSupervisor != null &&
+                                  gradProject.pendingSupervisor.doctorId !==
+                                    sup.doctorId ? (
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 11,
+                                      color: "#94a3b8",
+                                    }}
+                                  >
+                                    Another request is pending
+                                  </p>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void handleAiCardRequestSupervisor(
+                                          sup.doctorId,
+                                        )
+                                      }
+                                      disabled={
+                                        aiCardSupervisorLoadingId ===
+                                        sup.doctorId
+                                      }
+                                      style={{
+                                        padding: "6px 12px",
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        borderRadius: 8,
+                                        border: "1px solid #c7d2fe",
+                                        background: "#fff",
+                                        color: "#6366f1",
+                                        cursor:
+                                          aiCardSupervisorLoadingId ===
+                                          sup.doctorId
+                                            ? "not-allowed"
+                                            : "pointer",
+                                        fontFamily: "inherit",
+                                      }}
+                                    >
+                                      {aiCardSupervisorLoadingId ===
+                                      sup.doctorId
+                                        ? "Sending…"
+                                        : "Request"}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         ))}
                       </div>
@@ -3421,10 +3609,26 @@ export default function DashboardPage() {
           onClick={() => {
             setGradModalOpen(false);
             setGradFormError(null);
+            setGradFormFieldErrors({});
+            setGradSkillInputDraft("");
             setGradModalMode("create");
           }}
         >
           <div style={S.modalBox} onClick={(e) => e.stopPropagation()}>
+            <style>{`
+              .grad-modal-abstract {
+                transition: border-color 0.2s ease, box-shadow 0.2s ease;
+              }
+              .grad-modal-abstract:focus {
+                outline: none;
+                border-color: #a5b4fc !important;
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+              }
+              .grad-modal-submit:not(:disabled):hover {
+                filter: brightness(1.06);
+                box-shadow: 0 6px 20px rgba(99, 102, 241, 0.42);
+              }
+            `}</style>
             <div
               style={{
                 display: "flex",
@@ -3450,6 +3654,8 @@ export default function DashboardPage() {
                 onClick={() => {
                   setGradModalOpen(false);
                   setGradFormError(null);
+                  setGradFormFieldErrors({});
+                  setGradSkillInputDraft("");
                   setGradModalMode("create");
                 }}
                 style={S.modalCloseBtn}
@@ -3492,21 +3698,50 @@ export default function DashboardPage() {
                   letterSpacing: "0.06em",
                 }}
               >
-                Abstract
+                Abstract <span style={{ color: "#ef4444" }}>*</span>
               </label>
               <textarea
-                rows={4}
+                className="grad-modal-abstract"
+                rows={6}
                 style={{
                   ...S.modalInput,
+                  ...(gradFormFieldErrors.abstract
+                    ? gradModalInputErrorStyle
+                    : {}),
                   resize: "vertical" as const,
-                  lineHeight: 1.5,
+                  lineHeight: 1.55,
+                  minHeight: 140,
+                  padding: "14px 16px",
+                  border: gradFormFieldErrors.abstract
+                    ? undefined
+                    : "1.5px solid #e2e8f0",
+                  borderRadius: 12,
+                  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                 }}
                 placeholder="Brief summary of your project idea..."
                 value={gradForm.abstract}
-                onChange={(e) =>
-                  setGradForm((p) => ({ ...p, abstract: e.target.value }))
-                }
+                onChange={(e) => {
+                  setGradForm((p) => ({ ...p, abstract: e.target.value }));
+                  setGradFormFieldErrors((prev) => {
+                    if (!prev.abstract) return prev;
+                    const next = { ...prev };
+                    delete next.abstract;
+                    return next;
+                  });
+                }}
               />
+              {gradFormFieldErrors.abstract ? (
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#ef4444",
+                  }}
+                >
+                  {gradFormFieldErrors.abstract}
+                </p>
+              ) : null}
             </div>
             {isEngineeringOrITFaculty(user?.faculty) ? (
               <div style={{ marginBottom: 14 }}>
@@ -3516,30 +3751,72 @@ export default function DashboardPage() {
                     fontSize: 11,
                     color: "#64748b",
                     fontWeight: 700,
-                    marginBottom: 5,
+                    marginBottom: 8,
                     textTransform: "uppercase" as const,
                     letterSpacing: "0.06em",
                   }}
                 >
                   Project type <span style={{ color: "#ef4444" }}>*</span>
                 </label>
-                <select
-                  value={gradForm.projectType}
-                  onChange={(e) =>
-                    setGradForm((p) => ({
-                      ...p,
-                      projectType: e.target.value as GraduationProjectType,
-                    }))
-                  }
+                <div
                   style={{
-                    ...S.modalInput,
-                    cursor: "pointer",
+                    display: "flex",
+                    flexWrap: "wrap" as const,
+                    gap: 10,
                   }}
                 >
-                  <option value="GP1">GP1</option>
-                  <option value="GP2">GP2</option>
-                  <option value="GP">GP</option>
-                </select>
+                  {(
+                    [
+                      { value: "GP1" as const, label: "GP1" },
+                      { value: "GP2" as const, label: "GP2" },
+                      { value: "GP" as const, label: "GP" },
+                    ] as const
+                  ).map((opt) => {
+                    const checked = gradForm.projectType === opt.value;
+                    return (
+                      <label
+                        key={opt.value}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                          padding: "8px 14px",
+                          borderRadius: 10,
+                          border: checked
+                            ? "1.5px solid #6366f1"
+                            : "1.5px solid #e2e8f0",
+                          background: checked ? "#eef2ff" : "#f8fafc",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: checked ? "#4338ca" : "#64748b",
+                          fontFamily: "inherit",
+                          userSelect: "none" as const,
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="grad-project-type"
+                          checked={checked}
+                          onChange={() =>
+                            setGradForm((p) => ({
+                              ...p,
+                              projectType: opt.value,
+                            }))
+                          }
+                          style={{
+                            accentColor: "#6366f1",
+                            width: 15,
+                            height: 15,
+                            margin: 0,
+                            cursor: "pointer",
+                          }}
+                        />
+                        {opt.label}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <p
@@ -3566,19 +3843,151 @@ export default function DashboardPage() {
                   letterSpacing: "0.06em",
                 }}
               >
-                Required Skills{" "}
+                Required Skills <span style={{ color: "#ef4444" }}>*</span>{" "}
                 <span style={{ color: "#94a3b8", fontWeight: 400 }}>
-                  (comma separated)
+                  Type a skill, press Enter
                 </span>
               </label>
-              <input
-                style={S.modalInput}
-                placeholder="e.g. React, Python, Machine Learning"
-                value={gradForm.skills}
-                onChange={(e) =>
-                  setGradForm((p) => ({ ...p, skills: e.target.value }))
-                }
-              />
+              <div
+                style={{
+                  ...S.modalInput,
+                  ...(gradFormFieldErrors.skills ? gradModalInputErrorStyle : {}),
+                  display: "flex",
+                  flexWrap: "wrap" as const,
+                  alignItems: "center",
+                  gap: 8,
+                  minHeight: 46,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  background: "#f8fafc",
+                }}
+              >
+                {gradForm.skills
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+                  .map((skill, idx) => (
+                    <span
+                      key={`${skill}-${idx}`}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        padding: "4px 8px 4px 10px",
+                        borderRadius: 8,
+                        background: "#eef2ff",
+                        border: "1px solid #c7d2fe",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#4338ca",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap" as const,
+                          maxWidth: 200,
+                        }}
+                      >
+                        {skill}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${skill}`}
+                        onClick={() => {
+                          const parts = gradForm.skills
+                            .split(",")
+                            .map((x) => x.trim())
+                            .filter(Boolean);
+                          parts.splice(idx, 1);
+                          setGradForm((p) => ({
+                            ...p,
+                            skills: parts.join(", "),
+                          }));
+                          setGradFormFieldErrors((prev) => {
+                            if (!prev.skills) return prev;
+                            const next = { ...prev };
+                            delete next.skills;
+                            return next;
+                          });
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 18,
+                          height: 18,
+                          padding: 0,
+                          border: "none",
+                          borderRadius: 6,
+                          background: "rgba(99,102,241,0.12)",
+                          color: "#4f46e5",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          lineHeight: 1,
+                          fontFamily: "inherit",
+                          flexShrink: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                <input
+                  type="text"
+                  placeholder="Add skill…"
+                  value={gradSkillInputDraft}
+                  onChange={(e) => setGradSkillInputDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const t = gradSkillInputDraft.trim();
+                      if (!t) return;
+                      const parts = gradForm.skills
+                        .split(",")
+                        .map((x) => x.trim())
+                        .filter(Boolean);
+                      if (!parts.includes(t)) parts.push(t);
+                      setGradForm((p) => ({
+                        ...p,
+                        skills: parts.join(", "),
+                      }));
+                      setGradSkillInputDraft("");
+                      setGradFormFieldErrors((prev) => {
+                        if (!prev.skills) return prev;
+                        const next = { ...prev };
+                        delete next.skills;
+                        return next;
+                      });
+                    }
+                  }}
+                  style={{
+                    flex: "1 1 120px",
+                    minWidth: 100,
+                    border: "none",
+                    background: "transparent",
+                    fontSize: 13,
+                    color: "#0f172a",
+                    fontFamily: "inherit",
+                    outline: "none",
+                    padding: "4px 2px",
+                  }}
+                />
+              </div>
+              {gradFormFieldErrors.skills ? (
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#ef4444",
+                  }}
+                >
+                  {gradFormFieldErrors.skills}
+                </p>
+              ) : null}
             </div>
             <div style={{ marginBottom: 20 }}>
               <label
@@ -3659,6 +4068,8 @@ export default function DashboardPage() {
                 onClick={() => {
                   setGradModalOpen(false);
                   setGradFormError(null);
+                  setGradFormFieldErrors({});
+                  setGradSkillInputDraft("");
                   setGradModalMode("create");
                 }}
                 style={S.modalCancelBtn}
@@ -3668,9 +4079,10 @@ export default function DashboardPage() {
               <button
                 onClick={handleGradSubmit}
                 disabled={gradSubmitting}
+                className="grad-modal-submit"
                 style={{
-                  padding: "9px 22px",
-                  borderRadius: 10,
+                  padding: "10px 24px",
+                  borderRadius: 12,
                   border: "none",
                   background: gradSubmitting
                     ? "#e2e8f0"
@@ -3680,6 +4092,10 @@ export default function DashboardPage() {
                   fontWeight: 700,
                   cursor: gradSubmitting ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
+                  boxShadow: gradSubmitting
+                    ? "none"
+                    : "0 4px 14px rgba(99, 102, 241, 0.35)",
+                  transition: "filter 0.15s ease, box-shadow 0.15s ease",
                 }}
               >
                 {gradSubmitting

@@ -21,7 +21,7 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const TOAST_MS = 4500;
+const TOAST_MS = 2800;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -44,8 +44,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         aria-label="Notifications"
         style={{
           position: "fixed",
+          top: 20,
           right: 20,
-          bottom: 20,
           zIndex: 2000,
           display: "flex",
           flexDirection: "column",
@@ -63,14 +63,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               borderRadius: 12,
               fontSize: 13,
               fontWeight: 700,
-              fontFamily: "DM Sans, sans-serif",
-              boxShadow: "0 8px 24px rgba(15,23,42,0.12)",
+              fontFamily: "inherit",
+              boxShadow: "0 10px 28px rgba(15,23,42,0.14)",
               border:
                 t.kind === "error"
                   ? "1px solid #fecaca"
-                  : "1px solid #c7d2fe",
-              background: t.kind === "error" ? "#fef2f2" : "#eef2ff",
-              color: t.kind === "error" ? "#991b1b" : "#4338ca",
+                  : "1px solid #bbf7d0",
+              background: t.kind === "error" ? "#fef2f2" : "#f0fdf4",
+              color: t.kind === "error" ? "#b91c1c" : "#15803d",
               animation: "toastIn 0.22s ease-out",
             }}
           >
@@ -80,8 +80,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
       <style>{`
         @keyframes toastIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateX(10px); }
+          to { opacity: 1; transform: translateX(0); }
         }
       `}</style>
     </ToastContext.Provider>

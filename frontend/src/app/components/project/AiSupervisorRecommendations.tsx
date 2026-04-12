@@ -311,7 +311,7 @@ export function AiSupervisorRecommendations({
                             onClick={() => void onRequestSupervisor(row.doctorId)}
                             style={S.requestBtn}
                           >
-                            Request Supervisor
+                            Request
                           </button>
                         )}
                         {merged.phase === "sending" && canTriggerRecommend && (

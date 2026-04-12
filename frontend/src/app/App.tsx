@@ -1,6 +1,7 @@
 // src/app/App.tsx
 import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { ToastProvider } from "../context/ToastContext";
 import { UserProvider } from '../context/UserContext';
 import { DoctorProvider } from './pages/doctor/DoctorContext';
 import LandingPage from "./pages/LandingPage";
@@ -75,6 +76,7 @@ function EditDoctorProfileRoute() {
 
 export default function App() {
     return (
+        <ToastProvider>
         <UserProvider>
             <DoctorProvider>
                 <Routes>
@@ -104,5 +106,6 @@ export default function App() {
                 </Routes>
             </DoctorProvider>
         </UserProvider>
+        </ToastProvider>
     );
 }
