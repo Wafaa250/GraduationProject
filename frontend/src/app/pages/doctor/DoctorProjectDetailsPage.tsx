@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { resignDoctorSupervision } from "../../../api/doctorDashboardApi";
-import { doctorDashboardKeys, supervisedProjectsQueryKey } from "../../../api/doctorDashboardQueryKeys";
-import { getGraduationProjectById, type GradProject } from "../../../api/gradProjectApi";
-import { appendDeletedProject } from "./doctorDeletedProjectsStorage";
+import { supervisedProjectsQueryKey } from "../../../api/doctorDashboardQueryKeys";
+import { getGraduationProjectById } from "../../../api/gradProjectApi";
 import { parseApiErrorMessage } from "../../../api/axiosInstance";
 import { ToastProvider, useToast } from "../../../context/ToastContext";
+import { appendDeletedProject } from "./doctorDeletedProjectsStorage";
+import type { DoctorSupervisedProject } from "./doctorDashboardTypes";
 import { SectionSpinner } from "./dashboard/SectionSpinner";
 import { card, dash } from "./dashboard/doctorDashTokens";
 
@@ -25,27 +25,25 @@ function DoctorProjectDetailsInner() {
   });
 
   const resignMutation = useMutation({
-    mutationFn: () => resignDoctorSupervision(projectId),
-    onSuccess: async () => {
-      const cached = queryClient.getQueryData<GradProject>(["graduation-project", projectId]);
-      const name = cached?.name?.trim() ? cached.name : `Project #${projectId}`;
+    mutationFn: async () => {
+      if (!data) throw new Error("Project not loaded");
       appendDeletedProject({
         projectId,
-        name,
+        name: data.name,
         removedAt: new Date().toISOString(),
         source: "resign",
       });
-
-      await queryClient.invalidateQueries({ queryKey: supervisedProjectsQueryKey });
-      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.requests });
-      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardSummary });
-      await queryClient.invalidateQueries({ queryKey: doctorDashboardKeys.dashboardMyProject });
+      queryClient.setQueryData<DoctorSupervisedProject[]>(supervisedProjectsQueryKey, (old) =>
+        (old ?? []).filter((x) => x.projectId !== projectId),
+      );
       queryClient.removeQueries({ queryKey: ["graduation-project", projectId] });
-      showToast("You have resigned from this project.", "success");
+    },
+    onSuccess: () => {
+      showToast("Resignation recorded (saved on this device only).", "success");
       navigate("/doctor-dashboard", { replace: true, state: { defaultSection: "deleted" } });
     },
     onError: (err: unknown) => {
-      showToast(parseApiErrorMessage(err), "error");
+      showToast(err instanceof Error ? err.message : parseApiErrorMessage(err), "error");
     },
   });
 
@@ -67,9 +65,8 @@ function DoctorProjectDetailsInner() {
     );
   }
 
-  const abstractText = (data?.abstract ?? data?.description)?.trim()
-    ? (data.abstract ?? data.description)
-    : null;
+  const abstractText =
+    (data?.abstract ?? data?.description)?.trim() || null;
 
   return (
     <div

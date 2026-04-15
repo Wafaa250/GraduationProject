@@ -1,37 +1,52 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Briefcase, ClipboardList, Hash, Sparkles } from "lucide-react";
+import { Briefcase, ClipboardList } from "lucide-react";
 import type { DashboardSummary } from "../../../../api/dashboardApi";
 import type { DoctorMeResponse } from "../doctorDashboardTypes";
 import { SectionSpinner } from "./SectionSpinner";
 import { dash, card } from "./doctorDashTokens";
 import type { ProjectHighlight, SuggestionRow } from "./doctorDashboardHelpers";
 
+type DoctorStats = {
+  pendingRequestsCount: number;
+  supervisedCount: number;
+};
+
 type Props = {
   me: DoctorMeResponse;
   summary: DashboardSummary | null;
+  doctorStats: DoctorStats | null;
   loading: boolean;
   error: string | null;
   highlight: ProjectHighlight | null;
   suggestions: SuggestionRow[];
-  pendingRequestsCount: number;
 };
 
 export function OverviewSection({
   me,
   summary,
+  doctorStats,
   loading,
   error,
   highlight,
   suggestions,
-  pendingRequestsCount,
 }: Props) {
   const displayName = me.name || summary?.name || "—";
 
-  if (loading && !summary) {
+  if (loading && !summary && !error) {
     return (
       <div>
-        <p style={{ margin: "0 0 8px", fontSize: 13, color: dash.muted }}>Overview</p>
-        <h1 style={{ margin: "0 0 20px", fontSize: 26, fontWeight: 800, fontFamily: dash.fontDisplay }}>
+        <p style={{ margin: "0 0 8px", fontSize: 13, color: dash.muted }}>
+          Overview
+        </p>
+        <h1
+          style={{
+            margin: "0 0 20px",
+            fontSize: 26,
+            fontWeight: 800,
+            fontFamily: dash.fontDisplay,
+          }}
+        >
           {displayName}
         </h1>
         <SectionSpinner label="Loading dashboard summary…" />
@@ -42,15 +57,31 @@ export function OverviewSection({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div>
-        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: dash.subtle, letterSpacing: "0.08em" }}>
+        <p
+          style={{
+            margin: "0 0 8px",
+            fontSize: 12,
+            fontWeight: 700,
+            color: dash.subtle,
+            letterSpacing: "0.08em",
+          }}
+        >
           OVERVIEW
         </p>
-        <h1 style={{ margin: "0 0 6px", fontSize: 28, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text }}>
+        <h1
+          style={{
+            margin: "0 0 6px",
+            fontSize: 28,
+            fontWeight: 800,
+            fontFamily: dash.fontDisplay,
+            color: dash.text,
+          }}
+        >
           {displayName}
         </h1>
         <p style={{ margin: 0, fontSize: 14, color: dash.muted }}>
           {me.specialization ? `${me.specialization} · ` : null}
-          {summary?.university ? summary.university : null}
+          {summary?.university ?? ""}
         </p>
       </div>
 
@@ -73,30 +104,32 @@ export function OverviewSection({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
           gap: 14,
         }}
       >
         <StatCard
           icon={<ClipboardList size={18} />}
           label="Pending requests"
-          value={loading ? "…" : String(pendingRequestsCount)}
+          value={
+            loading
+              ? "…"
+              : doctorStats != null
+                ? String(doctorStats.pendingRequestsCount)
+                : "—"
+          }
           accent
         />
         <StatCard
           icon={<Briefcase size={18} />}
-          label="Profile strength"
-          value={loading ? "…" : summary?.profileStrength.score != null ? `${summary.profileStrength.score}` : "—"}
-        />
-        <StatCard
-          icon={<Hash size={18} />}
-          label="Skills tracked"
-          value={loading ? "…" : summary?.totalSkills != null ? String(summary.totalSkills) : "—"}
-        />
-        <StatCard
-          icon={<Sparkles size={18} />}
-          label="Suggestions"
-          value={loading ? "…" : summary?.suggestedTeammates?.length != null ? String(summary.suggestedTeammates.length) : "—"}
+          label="Supervised projects"
+          value={
+            loading
+              ? "…"
+              : doctorStats != null
+                ? String(doctorStats.supervisedCount)
+                : "—"
+          }
         />
       </div>
 
@@ -107,77 +140,149 @@ export function OverviewSection({
           gap: 20,
         }}
       >
-        <div style={{ ...card, padding: 20 }}>
-          <h2 style={{ margin: "0 0 14px", fontSize: 12, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
+        <div style={{ ...card, padding: 20 }} className="dd-overview-card">
+          <h2
+            style={{
+              margin: "0 0 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: dash.subtle,
+              letterSpacing: "0.06em",
+            }}
+          >
             PROJECT SUMMARY
           </h2>
           {loading && !highlight ? (
-            <SectionSpinner label="Loading…" />
+            <SectionSpinner label="Loading project context…" />
           ) : !highlight ? (
-            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>No project data from the summary.</p>
+            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
+              No active project in your dashboard summary yet.
+            </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <p style={{ margin: 0, fontSize: 18, fontWeight: 800, fontFamily: dash.fontDisplay }}>{highlight.name}</p>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 800,
+                  fontFamily: dash.fontDisplay,
+                }}
+              >
+                {highlight.name}
+              </p>
               <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
                 Role: <strong style={{ color: dash.text }}>{highlight.role}</strong>
               </p>
               <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                Team: {highlight.memberCount} / {highlight.maxTeamSize} · {highlight.isFull ? "Full" : "Not full"}
+                Members: {highlight.memberCount} / {highlight.maxTeamSize} ·{" "}
+                {highlight.isFull ? "Full" : "Not full"}
               </p>
             </div>
           )}
         </div>
 
-        <div style={{ ...card, padding: 20 }}>
-          <h2 style={{ margin: "0 0 14px", fontSize: 12, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
+        <div style={{ ...card, padding: 20 }} className="dd-overview-card">
+          <h2
+            style={{
+              margin: "0 0 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: dash.subtle,
+              letterSpacing: "0.06em",
+            }}
+          >
             SUGGESTED TEAMMATES
           </h2>
-          {loading && suggestions.length === 0 ? (
+          {loading && suggestions.length === 0 && !error ? (
             <SectionSpinner label="Loading suggestions…" />
           ) : suggestions.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>No suggestions in the current summary.</p>
+            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
+              No teammate suggestions in the current summary.
+            </p>
           ) : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+            <ul
+              style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
               {suggestions.map((s) => (
                 <li
                   key={s.userId}
                   style={{
                     ...card,
-                    padding: "12px 14px",
+                    padding: "14px 16px",
                     boxShadow: "none",
                     display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    alignItems: "flex-start",
-                    flexWrap: "wrap",
+                    flexDirection: "column",
+                    gap: 10,
                   }}
                   className="dd-suggest-card"
                 >
-                  <div style={{ minWidth: 0 }}>
-                    <Link
-                      to={`/students/${s.userId}`}
-                      style={{ fontSize: 14, fontWeight: 700, color: dash.accent, textDecoration: "none" }}
-                    >
-                      {s.name}
-                    </Link>
-                    <p style={{ margin: "4px 0 0", fontSize: 12, color: dash.muted }}>
-                      {s.major}
-                      {s.university ? ` · ${s.university}` : ""}
-                    </p>
-                  </div>
-                  <span
+                  <div
                     style={{
-                      fontSize: 11,
-                      fontWeight: 800,
-                      padding: "4px 10px",
-                      borderRadius: 20,
-                      background: dash.accentMuted,
-                      color: dash.accent,
-                      flexShrink: 0,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      alignItems: "flex-start",
+                      flexWrap: "wrap",
                     }}
                   >
-                    {s.matchScore}% match
-                  </span>
+                    <div style={{ minWidth: 0 }}>
+                      <Link
+                        to={`/students/${s.userId}`}
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: dash.accent,
+                          textDecoration: "none",
+                        }}
+                      >
+                        {s.name}
+                      </Link>
+                      <p style={{ margin: "4px 0 0", fontSize: 12, color: dash.muted }}>
+                        {s.major}
+                        {s.university ? ` · ${s.university}` : ""}
+                      </p>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        padding: "4px 10px",
+                        borderRadius: 20,
+                        background: dash.accentMuted,
+                        color: dash.accent,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {s.matchScore}% match
+                    </span>
+                  </div>
+                  {s.skills.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {s.skills.slice(0, 8).map((sk, i) => (
+                        <span
+                          key={`${s.userId}-sk-${i}`}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            padding: "4px 8px",
+                            borderRadius: 8,
+                            background: dash.bg,
+                            color: dash.muted,
+                            border: `1px solid ${dash.border}`,
+                          }}
+                        >
+                          {sk}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -186,6 +291,10 @@ export function OverviewSection({
       </div>
       <style>{`
         .dd-suggest-card:hover { box-shadow: ${dash.shadowLg}; }
+        .dd-overview-card { transition: box-shadow 0.18s ease; }
+        .dd-overview-card:hover { box-shadow: ${dash.shadowLg}; }
+        .dd-stat-hover { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .dd-stat-hover:hover { transform: translateY(-2px); box-shadow: ${dash.shadowLg}; }
       `}</style>
     </div>
   );
@@ -197,7 +306,7 @@ function StatCard({
   value,
   accent,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
   accent?: boolean;
@@ -211,7 +320,7 @@ function StatCard({
         alignItems: "flex-start",
         gap: 12,
       }}
-      className="dd-stat-card"
+      className="dd-stat-hover"
     >
       <div
         style={{
@@ -230,8 +339,20 @@ function StatCard({
         {icon}
       </div>
       <div style={{ minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text }}>{value}</p>
-        <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 600, color: dash.muted }}>{label}</p>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 22,
+            fontWeight: 800,
+            fontFamily: dash.fontDisplay,
+            color: dash.text,
+          }}
+        >
+          {value}
+        </p>
+        <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 600, color: dash.muted }}>
+          {label}
+        </p>
       </div>
     </div>
   );

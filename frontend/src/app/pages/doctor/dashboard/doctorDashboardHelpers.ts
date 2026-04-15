@@ -1,4 +1,5 @@
 import type { DashboardProject, DashboardSummary } from "../../../../api/dashboardApi";
+import type { DoctorSupervisedProject } from "../../../../api/doctorDashboardApi";
 
 export type ProjectHighlight = {
   name: string;
@@ -38,6 +39,21 @@ export function buildOverviewHighlight(
     return highlightFromDashboardProject(myProject);
   }
   return null;
+}
+
+/** When the logged-in user is a doctor, dashboard summary has no student project — use first supervised project. */
+export function buildOverviewHighlightFromSupervised(
+  projects: DoctorSupervisedProject[],
+): ProjectHighlight | null {
+  const first = projects[0];
+  if (!first) return null;
+  return {
+    name: first.name,
+    role: "Supervisor",
+    memberCount: first.memberCount,
+    maxTeamSize: first.partnersCount,
+    isFull: first.isFull,
+  };
 }
 
 export function buildOverviewSuggestions(summary: DashboardSummary | null): SuggestionRow[] {

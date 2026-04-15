@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Building2, BriefcaseBusiness, Mail, Linkedin, Clock3, ShieldCheck } from 'lucide-react'
 import api from '../../../api/axiosInstance'
+import { mergeDoctorSkillsFromLists, normalizeSkillStringList } from '../../../context/UserContext'
 import { navigateHome } from '../../../utils/homeNavigation'
 
 interface DoctorProfile {
@@ -22,26 +23,34 @@ interface DoctorProfile {
 
 function mapDoctorProfile(data: any): DoctorProfile {
   const user = data?.user ?? data ?? {}
-  const doctorProfile = data?.doctorProfile ?? data ?? {}
+  const dp = data?.doctorProfile ?? data?.DoctorProfile ?? {}
+
+  const technical = normalizeSkillStringList(
+    dp.technicalSkills ?? dp.TechnicalSkills ?? data?.technicalSkills ?? data?.TechnicalSkills,
+  )
+  const research = normalizeSkillStringList(
+    dp.researchSkills ?? dp.ResearchSkills ?? data?.researchSkills ?? data?.ResearchSkills,
+  )
+  const skills = mergeDoctorSkillsFromLists(technical, research)
 
   return {
     // Required mapping
     fullName: user.name || user.fullName || '',
     email: user.email || '',
-    faculty: doctorProfile.faculty || '',
-    department: doctorProfile.department || '',
-    specialization: doctorProfile.specialization || '',
+    faculty: dp.faculty ?? dp.Faculty ?? '',
+    department: dp.department ?? dp.Department ?? '',
+    specialization: dp.specialization ?? dp.Specialization ?? '',
     yearsOfExperience:
-      doctorProfile.yearsOfExperience != null ? String(doctorProfile.yearsOfExperience) : '',
-    skills: Array.isArray(doctorProfile.skills) ? doctorProfile.skills : [],
+      dp.yearsOfExperience != null ? String(dp.yearsOfExperience) : '',
+    skills,
 
     // Additional display fields
-    title: doctorProfile.title || (user.role?.toLowerCase?.() === 'doctor' ? 'Doctor' : 'Professor'),
-    university: doctorProfile.university || user.university || '',
-    bio: doctorProfile.bio || user.bio || '',
-    linkedin: doctorProfile.linkedin || user.linkedin || '',
-    officeHours: doctorProfile.officeHours || '',
-    profilePictureBase64: user.profilePictureBase64 || doctorProfile.profilePictureBase64 || null,
+    title: dp.title || (user.role?.toLowerCase?.() === 'doctor' ? 'Doctor' : 'Professor'),
+    university: dp.university ?? dp.University ?? user.university ?? '',
+    bio: dp.bio ?? user.bio ?? '',
+    linkedin: dp.linkedin ?? user.linkedin ?? '',
+    officeHours: dp.officeHours ?? dp.OfficeHours ?? '',
+    profilePictureBase64: user.profilePictureBase64 ?? dp.profilePictureBase64 ?? null,
   }
 }
 
@@ -53,6 +62,7 @@ function displayValue(value?: string | null): string {
 
 export default function DoctorProfilePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [profile, setProfile] = useState<DoctorProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -79,14 +89,14 @@ export default function DoctorProfilePage() {
 
   useEffect(() => {
     fetchProfile()
-  }, [])
+  }, [location.pathname, location.key])
 
   const initials = useMemo(
     () => (profile?.fullName || 'DR').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase(),
     [profile?.fullName],
   )
 
-  const skills = useMemo(() => profile?.skills || [], [profile?.skills])
+  const skills = useMemo(() => profile?.skills ?? [], [profile?.skills])
 
   if (loading) {
     return (

@@ -11,6 +11,8 @@ export interface DoctorMeResponse {
 export interface DoctorSupervisedProject {
   projectId: number;
   name: string;
+  /** Prefer for display: `abstract ?? description` */
+  abstract?: string | null;
   description: string | null;
   requiredSkills: string[];
   partnersCount: number;
@@ -33,7 +35,12 @@ export interface DoctorDashboardSummary {
   pendingCancelCount: number;
 }
 
-export type DoctorDashboardSection = "overview" | "requests" | "projects" | "deleted";
+export type DoctorDashboardSection =
+  | "overview"
+  | "requests"
+  | "projects"
+  | "deleted"
+  | "courses";
 
 export type RequestRow =
   | {

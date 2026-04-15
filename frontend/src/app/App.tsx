@@ -1,8 +1,8 @@
 // src/app/App.tsx
 import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { ToastProvider } from "../context/ToastContext";
 import { UserProvider } from '../context/UserContext';
-import { AuthProvider } from '../context/AuthContext';
 import { DoctorProvider } from './pages/doctor/DoctorContext';
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/auth/LoginPage";
@@ -19,7 +19,6 @@ import StudentsPage from "./pages/students/StudentsPage";
 import StudentProfilePage from "./pages/students/StudentProfilePage"
 import ReceivedInvitationsPage from "./pages/invitations/ReceivedInvitationsPage";
 import ProjectWorkspacePage from "./pages/doctor/ProjectWorkspacePage";
-import DoctorProjectDetailsPage from "./pages/doctor/DoctorProjectDetailsPage";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token')
@@ -32,6 +31,14 @@ function StudentDashboardRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
     if (role === "student") return <DashboardPage />;
+    return <Navigate to="/" replace />;
+}
+
+/** Doctor dashboard — students and unknown roles are redirected. */
+function DoctorDashboardRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    if (role === "doctor") return <DoctorDashboardPage />;
     return <Navigate to="/" replace />;
 }
 
@@ -67,18 +74,18 @@ function EditDoctorProfileRoute() {
     return <Navigate to="/" replace />;
 }
 
-/** Doctor-only graduation project details (supervisor view). */
-function DoctorProjectDetailsRoute() {
+/** Old course URLs → doctor dashboard (courses live in-dashboard). */
+function DoctorCoursesLegacyRedirect() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
-    if (role === "doctor") return <DoctorProjectDetailsPage />;
     if (role === "student") return <Navigate to="/dashboard" replace />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
     return <Navigate to="/" replace />;
 }
 
 export default function App() {
     return (
+        <ToastProvider>
         <UserProvider>
-            <AuthProvider>
             <DoctorProvider>
                 <Routes>
                     {/* Public */}
@@ -92,11 +99,12 @@ export default function App() {
                     <Route path="/edit-profile" element={<ProtectedRoute><EditProfileRoute /></ProtectedRoute>} />
 
                     {/* Protected – Doctor */}
-                    <Route path="/doctor-dashboard" element={<DoctorDashboardPage />} />
+                    <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardRoute /></ProtectedRoute>} />
                     <Route path="/doctor/profile" element={<ProtectedRoute><DoctorProfileRoute /></ProtectedRoute>} />
                     <Route path="/doctor/edit-profile" element={<ProtectedRoute><EditDoctorProfileRoute /></ProtectedRoute>} />
                     <Route path="/doctor/channels/:channelId" element={<ProtectedRoute><ChannelPageWrapper /></ProtectedRoute>} />
-                    <Route path="/doctor/projects/:projectId" element={<ProtectedRoute><DoctorProjectDetailsRoute /></ProtectedRoute>} />
+                    <Route path="/doctor/courses/:courseId" element={<ProtectedRoute><DoctorCoursesLegacyRedirect /></ProtectedRoute>} />
+                    <Route path="/doctor/courses" element={<ProtectedRoute><DoctorCoursesLegacyRedirect /></ProtectedRoute>} />
 
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
@@ -107,7 +115,7 @@ export default function App() {
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </DoctorProvider>
-            </AuthProvider>
         </UserProvider>
+        </ToastProvider>
     );
 }

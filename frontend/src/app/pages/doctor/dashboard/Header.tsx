@@ -9,7 +9,7 @@ type Props = {
   onLogout: () => void;
 };
 
-export function DoctorDashboardHeader({ doctorName, initials, onMenuClick, onLogout }: Props) {
+export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
   return (
     <header
       style={{
@@ -22,6 +22,7 @@ export function DoctorDashboardHeader({ doctorName, initials, onMenuClick, onLog
         borderBottom: `1px solid ${dash.border}`,
         background: dash.surface,
         fontFamily: dash.font,
+        boxShadow: "0 1px 0 rgba(15,23,42,0.04)",
       }}
     >
       <button
@@ -46,7 +47,15 @@ export function DoctorDashboardHeader({ doctorName, initials, onMenuClick, onLog
       </button>
 
       <div style={{ minWidth: 0, flex: 1 }}>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 700,
+            color: dash.subtle,
+            letterSpacing: "0.06em",
+          }}
+        >
           DOCTOR WORKSPACE
         </p>
         <p

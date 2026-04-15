@@ -1,30 +1,47 @@
 import { Briefcase } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import type { DoctorSupervisedProject } from "../doctorDashboardTypes";
+import type { DoctorSupervisedProject } from "../../../../api/doctorDashboardApi";
 import { SectionSpinner } from "./SectionSpinner";
 import { dash, card } from "./doctorDashTokens";
 
 type Props = {
-  /** GET /api/doctors/me/supervised-projects */
   projects: DoctorSupervisedProject[];
   loading: boolean;
   error: string | null;
-  removingId: number | null;
-  onRemoveSupervision: (project: DoctorSupervisedProject) => void;
+  removingProjectId: number | null;
+  onCancelSupervision: (project: DoctorSupervisedProject) => void;
 };
+
+function formatCreatedAt(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(d);
+  } catch {
+    return iso;
+  }
+}
 
 export function ProjectsSection({
   projects,
   loading,
   error,
-  removingId,
-  onRemoveSupervision,
+  removingProjectId,
+  onCancelSupervision,
 }: Props) {
-  const navigate = useNavigate();
-
   return (
     <div>
-      <h2 style={{ margin: "0 0 18px", fontSize: 13, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
+      <h2
+        style={{
+          margin: "0 0 18px",
+          fontSize: 13,
+          fontWeight: 700,
+          color: dash.subtle,
+          letterSpacing: "0.06em",
+        }}
+      >
         MY PROJECTS
       </h2>
       <div style={{ ...card, padding: 0, overflow: "hidden" }}>
@@ -38,154 +55,201 @@ export function ProjectsSection({
           }}
         >
           <Briefcase size={18} color={dash.accent} />
-          <span style={{ fontSize: 15, fontWeight: 800, fontFamily: dash.fontDisplay }}>Supervised projects</span>
-          <span style={{ fontSize: 12, color: dash.muted, marginLeft: "auto" }}>{projects.length} total</span>
+          <span style={{ fontSize: 15, fontWeight: 800, fontFamily: dash.fontDisplay }}>
+            Supervised projects
+          </span>
+          <span style={{ fontSize: 12, color: dash.muted, marginLeft: "auto" }}>
+            {projects.length} active
+          </span>
         </div>
 
         {error ? (
-          <div style={{ padding: "16px 20px", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>{error}</div>
+          <div style={{ padding: "16px 20px", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>
+            {error}
+          </div>
         ) : null}
 
         {loading ? (
-          <SectionSpinner label="Loading projects…" />
+          <SectionSpinner label="Loading supervised projects…" />
         ) : projects.length === 0 ? (
           <div style={{ padding: "40px 24px", textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>No supervised projects</p>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>
+              No supervised projects yet
+            </p>
             <p style={{ margin: "10px 0 0", fontSize: 13, color: dash.subtle }}>
-              Projects you supervise will appear here.
+              Accept a supervision request to see projects here.
             </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {projects.map((project) => (
-              <div
-                key={project.projectId}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/doctor/projects/${project.projectId}`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    navigate(`/doctor/projects/${project.projectId}`);
-                  }
-                }}
-                style={{
-                  padding: "20px 24px",
-                  borderBottom: `1px solid ${dash.border}`,
-                  cursor: "pointer",
-                }}
-                className="dd-proj-row"
-                aria-label={`Open project ${project.name}`}
-              >
+            {projects.map((project) => {
+              const removing = removingProjectId === project.projectId;
+              const statusLabel = project.isFull ? "Team full" : "Recruiting";
+              const skills = project.requiredSkills?.length ? project.requiredSkills : [];
+              const detailText = (
+                project.abstract ??
+                project.description ??
+                ""
+              ).trim();
+              return (
                 <div
+                  key={project.projectId}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 16,
-                    flexWrap: "wrap",
-                    alignItems: "flex-start",
+                    padding: "20px 24px",
+                    borderBottom: `1px solid ${dash.border}`,
                   }}
+                  className={
+                    removing ? "dd-myproj-row dd-myproj-fade-out" : "dd-myproj-row"
+                  }
                 >
-                  <div style={{ minWidth: 0, flex: "1 1 280px" }}>
-                    <p
-                      style={{
-                        margin: "0 0 10px",
-                        fontSize: 18,
-                        fontWeight: 800,
-                        fontFamily: dash.fontDisplay,
-                        color: dash.text,
-                      }}
-                    >
-                      {project.name}
-                    </p>
-                    <p style={{ margin: "0 0 12px", fontSize: 13, color: dash.muted, lineHeight: 1.5 }}>
-                      {project.description?.trim() ? project.description : "—"}
-                    </p>
-                    <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.04em" }}>
-                      Required skills
-                    </p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-                      {project.requiredSkills?.length ? (
-                        project.requiredSkills.map((skill, i) => (
-                          <span
-                            key={`${project.projectId}-skill-${i}`}
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              padding: "4px 10px",
-                              borderRadius: 8,
-                              background: dash.bg,
-                              color: dash.muted,
-                              border: `1px solid ${dash.border}`,
-                            }}
-                          >
-                            {skill}
-                          </span>
-                        ))
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 16,
+                      flexWrap: "wrap",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+                      <p
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: 18,
+                          fontWeight: 800,
+                          fontFamily: dash.fontDisplay,
+                          color: dash.text,
+                        }}
+                      >
+                        {project.name}
+                      </p>
+                      <p style={{ margin: "0 0 10px", fontSize: 13, color: dash.muted, lineHeight: 1.5 }}>
+                        <span style={{ fontWeight: 700, color: dash.subtle }}>Description</span> ·{" "}
+                        {detailText || "—"}
+                      </p>
+                      {skills.length > 0 ? (
+                        <div style={{ margin: "0 0 12px" }}>
+                          <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: dash.subtle }}>
+                            REQUIRED SKILLS
+                          </p>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {skills.map((sk, i) => (
+                              <span
+                                key={`${project.projectId}-sk-${i}`}
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  padding: "4px 10px",
+                                  borderRadius: 8,
+                                  background: dash.bg,
+                                  color: dash.muted,
+                                  border: `1px solid ${dash.border}`,
+                                }}
+                              >
+                                {sk}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       ) : (
-                        <span style={{ fontSize: 12, color: dash.subtle }}>—</span>
+                        <p style={{ margin: "0 0 12px", fontSize: 12, color: dash.subtle }}>Required skills: —</p>
                       )}
+                      <p style={{ margin: "0 0 6px", fontSize: 13, color: dash.muted }}>
+                        <span style={{ fontWeight: 700, color: dash.subtle }}>Members</span> ·{" "}
+                        {project.memberCount}
+                        {" · "}
+                        <span style={{ fontWeight: 700, color: dash.subtle }}>Partners capacity</span> ·{" "}
+                        {project.partnersCount}
+                      </p>
+                      <p style={{ margin: "0 0 10px", fontSize: 13, color: dash.muted }}>
+                        <span style={{ fontWeight: 700, color: dash.subtle }}>Owner</span> ·{" "}
+                        {project.owner?.name ?? "—"}
+                        {project.owner?.major ? ` · ${project.owner.major}` : ""}
+                        {project.owner?.university ? ` · ${project.owner.university}` : ""}
+                      </p>
+                      <p style={{ margin: "0 0 10px", fontSize: 12, color: dash.subtle }}>
+                        <span style={{ fontWeight: 700, color: dash.muted }}>Created</span> ·{" "}
+                        {formatCreatedAt(project.createdAt)}
+                      </p>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "6px 12px",
+                          borderRadius: 20,
+                          background: project.isFull ? "#dcfce7" : dash.accentMuted,
+                          color: project.isFull ? "#166534" : dash.accent,
+                        }}
+                      >
+                        {statusLabel}
+                      </span>
                     </div>
-                    <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.04em" }}>
-                      Owner
-                    </p>
-                    <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: dash.text }}>
-                      {project.owner?.name?.trim() || "—"}
-                    </p>
-                    <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.04em" }}>
-                        Members / partners
-                      </span>
-                      <br />
-                      <span style={{ fontSize: 15, fontWeight: 700, color: dash.text }}>
-                        {project.memberCount} / {project.partnersCount}
-                      </span>
-                    </p>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
-                    <span
+                    <div
                       style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "6px 12px",
-                        borderRadius: 20,
-                        background: project.isFull ? "#dcfce7" : dash.accentMuted,
-                        color: project.isFull ? "#166534" : dash.accent,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-end",
+                        gap: 10,
+                        flexShrink: 0,
                       }}
                     >
-                      {project.isFull ? "Team full" : "Recruiting"}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={removingId != null}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveSupervision(project);
-                      }}
-                      style={{
-                        padding: "10px 16px",
-                        borderRadius: 10,
-                        border: "1.5px solid #fecaca",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: removingId != null ? "wait" : "pointer",
-                        fontFamily: "inherit",
-                        background: dash.surface,
-                        color: dash.danger,
-                      }}
-                    >
-                      {removingId === project.projectId ? "Removing…" : "Remove supervision"}
-                    </button>
+                      <button
+                        type="button"
+                        disabled={removingProjectId === project.projectId}
+                        onClick={() => onCancelSupervision(project)}
+                        style={{
+                          padding: "10px 16px",
+                          borderRadius: 10,
+                          border: "1.5px solid #fecaca",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: removingProjectId === project.projectId ? "wait" : "pointer",
+                          fontFamily: "inherit",
+                          background: dash.surface,
+                          color: dash.danger,
+                          opacity: removingProjectId === project.projectId ? 0.85 : 1,
+                          minWidth: 168,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                        }}
+                      >
+                        {removing ? (
+                          <>
+                            <span
+                              style={{
+                                width: 14,
+                                height: 14,
+                                border: "2px solid #fecaca",
+                                borderTopColor: dash.danger,
+                                borderRadius: "50%",
+                                animation: "dd-spin 0.7s linear infinite",
+                              }}
+                            />
+                            Removing…
+                          </>
+                        ) : (
+                          "Cancel Supervision"
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
       <style>{`
-        .dd-proj-row:last-child { border-bottom: none !important; }
-        .dd-proj-row:hover { background: #fafbfc; }
+        @keyframes dd-spin { to { transform: rotate(360deg); } }
+        .dd-myproj-row:last-child { border-bottom: none !important; }
+        .dd-myproj-row:hover { background: #fafbfc; }
+        .dd-myproj-fade-out {
+          opacity: 0;
+          transform: translateX(20px);
+          transition: opacity 0.3s ease, transform 0.3s ease;
+        }
       `}</style>
     </div>
   );

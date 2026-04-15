@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Camera, Save, X } from 'lucide-react'
 import { apiClient } from '../../../api/client'
+import { normalizeSkillStringList, useUser } from '../../../context/UserContext'
 import { navigateHome } from '../../../utils/homeNavigation'
 
 const doctorSchema = z.object({
@@ -23,19 +24,6 @@ const doctorSchema = z.object({
 
 type DoctorFormValues = z.infer<typeof doctorSchema>
 
-const RESEARCH_HINTS = [
-  'research',
-  'publication',
-  'academic',
-  'analysis',
-  'methodology',
-  'journal',
-  'clinical trial',
-  'thesis',
-  'literature',
-  'survey',
-]
-
 function normalizeLinkedin(v?: string): boolean {
   if (!v) return true
   return /^https?:\/\/.+/i.test(v) || /^linkedin\.com\/.+/i.test(v)
@@ -43,6 +31,7 @@ function normalizeLinkedin(v?: string): boolean {
 
 export default function EditDoctorProfilePage() {
   const navigate = useNavigate()
+  const { refetch } = useUser()
   const fileRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -83,27 +72,8 @@ export default function EditDoctorProfilePage() {
         const data = res.data
         const user = data?.user ?? data ?? {}
         const doctorProfile = data?.doctorProfile ?? data ?? {}
-        let technicalSkills: string[] = []
-        let researchSkills: string[] = []
-
-        if (
-          Array.isArray(doctorProfile.technicalSkills) ||
-          Array.isArray(doctorProfile.researchSkills)
-        ) {
-          technicalSkills = Array.isArray(doctorProfile.technicalSkills)
-            ? doctorProfile.technicalSkills
-            : []
-          researchSkills = Array.isArray(doctorProfile.researchSkills)
-            ? doctorProfile.researchSkills
-            : []
-        } else {
-          const incomingSkills = Array.isArray(doctorProfile.skills)
-            ? doctorProfile.skills
-            : []
-          const splitSkills = splitSkillsByHeuristic(incomingSkills)
-          technicalSkills = splitSkills.technicalSkills
-          researchSkills = splitSkills.researchSkills
-        }
+        const technicalSkills = normalizeSkillStringList(doctorProfile.technicalSkills)
+        const researchSkills = normalizeSkillStringList(doctorProfile.researchSkills)
 
         form.reset({
           fullName: user.name || user.fullName || '',
@@ -126,7 +96,8 @@ export default function EditDoctorProfilePage() {
       }
     }
     fetchDoctor()
-  }, [form])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once; `form` is stable from useForm
+  }, [])
 
   const addTag = (field: 'technicalSkills' | 'researchSkills', value: string) => {
     const tag = value.trim()
@@ -165,12 +136,28 @@ export default function EditDoctorProfilePage() {
     reader.readAsDataURL(file)
   }
 
+  /** Merge RHF values with any text still in the skill inputs (Enter not pressed yet). */
+  const collectSkillsForSubmit = () => {
+    let tech = [...(form.getValues('technicalSkills') ?? [])].map(s => s.trim()).filter(Boolean)
+    let res = [...(form.getValues('researchSkills') ?? [])].map(s => s.trim()).filter(Boolean)
+    const pendingTech = techInput.trim()
+    const pendingRes = researchInput.trim()
+    if (pendingTech && !tech.some(t => t.toLowerCase() === pendingTech.toLowerCase())) {
+      tech = [...tech, pendingTech]
+      form.setValue('technicalSkills', tech, { shouldDirty: true, shouldValidate: true })
+    }
+    if (pendingRes && !res.some(r => r.toLowerCase() === pendingRes.toLowerCase())) {
+      res = [...res, pendingRes]
+      form.setValue('researchSkills', res, { shouldDirty: true, shouldValidate: true })
+    }
+    return { technicalSkills: tech, researchSkills: res }
+  }
+
   const onSubmit = async (values: DoctorFormValues) => {
     setSaving(true)
     setToast(null)
     try {
-      const technicalSkills = (values.technicalSkills ?? []).map(s => s.trim()).filter(Boolean)
-      const researchSkills = (values.researchSkills ?? []).map(s => s.trim()).filter(Boolean)
+      const { technicalSkills, researchSkills } = collectSkillsForSubmit()
 
       const yoeRaw = values.yearsOfExperience?.trim() ?? ''
       let yearsOfExperience: number | null = null
@@ -193,13 +180,14 @@ export default function EditDoctorProfilePage() {
         researchSkills,
       }
 
-      console.log('Doctor payload:', payload)
+      console.log('PAYLOAD', payload)
 
       await apiClient.put('/profile/doctor', payload, {
         headers: {
           'Content-Type': 'application/json',
         },
       })
+      await refetch(true)
       setToast('Doctor profile updated successfully.')
       setTimeout(() => navigate('/doctor/profile', { replace: true }), 900)
     } catch (err: any) {
@@ -298,6 +286,12 @@ export default function EditDoctorProfilePage() {
               setInputValue={setTechInput}
               tags={technicalSkills}
               onKeyDown={(e) => onSkillInputKey(e, 'technicalSkills', techInput, setTechInput)}
+              onBlur={() => {
+                if (techInput.trim()) {
+                  addTag('technicalSkills', techInput)
+                  setTechInput('')
+                }
+              }}
               onRemove={(idx) => removeTag('technicalSkills', idx)}
             />
             <TagField
@@ -306,6 +300,12 @@ export default function EditDoctorProfilePage() {
               setInputValue={setResearchInput}
               tags={researchSkills}
               onKeyDown={(e) => onSkillInputKey(e, 'researchSkills', researchInput, setResearchInput)}
+              onBlur={() => {
+                if (researchInput.trim()) {
+                  addTag('researchSkills', researchInput)
+                  setResearchInput('')
+                }
+              }}
               onRemove={(idx) => removeTag('researchSkills', idx)}
             />
           </section>
@@ -347,6 +347,7 @@ function TagField({
   setInputValue,
   tags,
   onKeyDown,
+  onBlur,
   onRemove,
 }: {
   label: string
@@ -354,6 +355,7 @@ function TagField({
   setInputValue: (v: string) => void
   tags: string[]
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void
+  onBlur?: () => void
   onRemove: (index: number) => void
 }) {
   return (
@@ -364,6 +366,7 @@ function TagField({
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={onKeyDown}
+        onBlur={onBlur}
         placeholder="Type and press Enter"
       />
       <div style={S.tagRow}>
@@ -378,25 +381,6 @@ function TagField({
       </div>
     </div>
   )
-}
-
-function splitSkillsByHeuristic(skills: string[]): {
-  technicalSkills: string[]
-  researchSkills: string[]
-} {
-  const technicalSkills: string[] = []
-  const researchSkills: string[] = []
-
-  for (const raw of skills) {
-    const skill = String(raw || '').trim()
-    if (!skill) continue
-    const lower = skill.toLowerCase()
-    const isResearch = RESEARCH_HINTS.some(hint => lower.includes(hint))
-    if (isResearch) researchSkills.push(skill)
-    else technicalSkills.push(skill)
-  }
-
-  return { technicalSkills, researchSkills }
 }
 
 const S: Record<string, CSSProperties> = {

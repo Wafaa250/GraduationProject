@@ -17,21 +17,32 @@ import {
   Trophy,
   Sparkles,
   X,
+  Trash2,
 } from "lucide-react";
-import api from "../../../api/axiosInstance";
+import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
 import {
   getDashboardSummary,
   getGraduationProjectsMyEnvelope,
   SuggestedTeammate,
 } from "../../../api/dashboardApi";
-import { getReceivedInvitations } from "../../../api/invitationsApi";
+import { getReceivedInvitations, sendInvitation } from "../../../api/invitationsApi";
 import type {
   GradProject,
   GradProjectMember,
+  GraduationProjectType,
+  GradProjectRecommendedStudent,
+  GradProjectRecommendedSupervisor,
 } from "../../../api/gradProjectApi";
 import {
   removeProjectMember,
   changeProjectLeader,
+  createGraduationProject,
+  updateGraduationProject,
+  isEngineeringOrITFaculty,
+  abstractForApi,
+  projectTypeForApi,
+  getRecommendedStudents,
+  getRecommendedSupervisors as fetchGraduationRecommendedSupervisors,
 } from "../../../api/gradProjectApi";
 import {
   getRecommendedSupervisors,
@@ -40,6 +51,7 @@ import {
 } from "../../../api/supervisorApi";
 import { aiApi } from "../../../api/ai";
 import { getHomePath } from "../../../utils/homeNavigation";
+import { getCourseId } from "../../../utils/normalize";
 import {
   AiSupervisorRecommendations,
   enrichAiSupervisorsWithRecommended,
@@ -48,6 +60,28 @@ import {
   type AiSupervisorRecommendUiState,
   type EnrichedAiSupervisorRow,
 } from "../../components/project/AiSupervisorRecommendations";
+import { useToast } from "../../../context/ToastContext";
+import {
+  acceptPartnerRequest,
+  createPartnerRequest,
+  getCourseById,
+  getCoursePartnerRequests,
+  getCourseProjectSetting,
+  getCourseStudents,
+  getEnrolledCourses,
+  getMyTeam,
+  leaveCourse,
+  rejectPartnerRequest,
+  removeTeamMember,
+  type CourseDetails,
+  type CourseProjectSetting,
+  type CourseStudent,
+  type EnrolledCourse,
+  type MyTeamResponse,
+  type PartnerRequest,
+  type PartnerRequestsResponse,
+  type TeamMember,
+} from "../../../api/studentCoursesApi";
 
 function normApiStatus(s?: string | null): string {
   return s?.toString().trim().toLowerCase() ?? "";
@@ -79,7 +113,9 @@ interface StudentProfile {
 interface RecommendedProject {
   id: number;
   title: string;
+  /** Channel/course body; display uses `abstract ?? description` */
   description: string | null;
+  abstract?: string | null;
   lookingFor: string[];
   matchScore: number;
   maxTeamSize: number | null;
@@ -99,13 +135,102 @@ interface Invitation {
   invitedBy: string;
 }
 
+// ─── Course Teams modal helpers (studentCoursesApi response shapes) ─────────────
+function ctAsRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function ctReadTextField(obj: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const raw = obj[key];
+    if (typeof raw === "string" && raw.trim() !== "") return raw;
+  }
+  return "—";
+}
+
+function ctReadNumberField(
+  obj: Record<string, unknown>,
+  keys: string[],
+): number | null {
+  for (const key of keys) {
+    const raw = obj[key];
+    if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+    if (typeof raw === "string" && raw.trim() !== "") {
+      const parsed = Number(raw);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+function ctReadOptionalLink(
+  obj: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const raw = obj[key];
+    if (typeof raw === "string" && raw.trim() !== "") return raw;
+  }
+  return null;
+}
+
+function ctMemberDisplayName(member: TeamMember): string {
+  if (member.name && member.name.trim() !== "") return member.name;
+  return member.universityId;
+}
+
+function ctCourseStudentDbId(s: CourseStudent): number | null {
+  const v = s.studentId ?? s.StudentId;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function ctCourseStudentUserId(s: CourseStudent): number | null {
+  const v = s.userId ?? s.UserId;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function ctPartnerRequestReceiverDbId(r: PartnerRequest): number | null {
+  if (
+    typeof r.receiverStudentId === "number" &&
+    Number.isFinite(r.receiverStudentId)
+  ) {
+    return r.receiverStudentId;
+  }
+  if (r.receiver) return ctCourseStudentDbId(r.receiver);
+  return null;
+}
+
+/** Outgoing list is pending-only per product rules; tolerate empty/missing status. */
+function ctIsOutgoingPendingPartnerRequest(r: PartnerRequest): boolean {
+  const st = normApiStatus(r.status);
+  return st === "pending" || st === "";
+}
+
+function ctIncomingSenderRow(sender: CourseStudent | undefined): {
+  name: string;
+  university: string;
+  major: string | null;
+  pic: string | null;
+} {
+  if (!sender) {
+    return { name: "—", university: "—", major: null, pic: null };
+  }
+  const majRaw = (sender.major ?? sender.Major ?? "").trim();
+  return {
+    name: sender.name ?? sender.Name ?? "—",
+    university: sender.university ?? sender.University ?? "—",
+    major: majRaw === "" ? null : majRaw,
+    pic: sender.profilePicture ?? sender.ProfilePictureBase64 ?? null,
+  };
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DashboardPage() {
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<
-    "all" | "projects" | "teammates"
-  >("all");
   const [user, setUser] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [teammates, setTeammates] = useState<SuggestedTeammate[]>([]);
@@ -143,21 +268,143 @@ export default function DashboardPage() {
   const [joinChannelOpen, setJoinChannelOpen] = useState(false);
   const [joinCode, setJoinCode] = useState("");
 
+  // ── Course Teams (modal; student dashboard only) ──────────────────────────
+  const [courseTeamsModalOpen, setCourseTeamsModalOpen] = useState(false);
+  const [ctCourses, setCtCourses] = useState<EnrolledCourse[]>([]);
+  const [ctNoValidCourseIds, setCtNoValidCourseIds] = useState(false);
+  const [ctSelectedCourseId, setCtSelectedCourseId] = useState<number | null>(
+    null,
+  );
+  const [ctCoursesLoading, setCtCoursesLoading] = useState(false);
+  const [ctCoursesError, setCtCoursesError] = useState<string | null>(null);
+  const [ctDetailsLoading, setCtDetailsLoading] = useState(false);
+  const [ctDetailsError, setCtDetailsError] = useState<string | null>(null);
+  const [ctCourseDetail, setCtCourseDetail] = useState<CourseDetails | null>(
+    null,
+  );
+  const [ctProjectSetting, setCtProjectSetting] =
+    useState<CourseProjectSetting | null>(null);
+  const [ctMyTeam, setCtMyTeam] = useState<MyTeamResponse | null>(null);
+  const [ctPartnerRequests, setCtPartnerRequests] =
+    useState<PartnerRequestsResponse | null>(null);
+  const [ctCourseStudents, setCtCourseStudents] = useState<CourseStudent[]>(
+    [],
+  );
+  /** University id string for the row currently sending a partner request (Step 4). */
+  const [ctSendingReceiverUniversityId, setCtSendingReceiverUniversityId] =
+    useState<string | null>(null);
+  /** Per incoming request row: which action is in flight (Step 6). */
+  const [ctIncomingRowAction, setCtIncomingRowAction] = useState<
+    Record<number, "accept" | "reject">
+  >({});
+  /** Course Teams card on dashboard — preview counts (same APIs as modal). */
+  const [ctDashCardCoursesCount, setCtDashCardCoursesCount] = useState<
+    number | null
+  >(null);
+  const [ctDashCardRequestsCount, setCtDashCardRequestsCount] = useState<
+    number | null
+  >(null);
+  /** Course team member row: DB studentId while DELETE is in flight (Step 7). */
+  const [ctRemovingMemberStudentId, setCtRemovingMemberStudentId] = useState<
+    number | null
+  >(null);
+  /** Leave Course action in progress (disables only that control). */
+  const [ctLeavingCourse, setCtLeavingCourse] = useState(false);
+
+  const resetCourseTeamsModalState = useCallback(() => {
+    setCtCourses([]);
+    setCtNoValidCourseIds(false);
+    setCtSelectedCourseId(null);
+    setCtCoursesLoading(false);
+    setCtCoursesError(null);
+    setCtDetailsLoading(false);
+    setCtDetailsError(null);
+    setCtCourseDetail(null);
+    setCtProjectSetting(null);
+    setCtMyTeam(null);
+    setCtPartnerRequests(null);
+    setCtCourseStudents([]);
+    setCtSendingReceiverUniversityId(null);
+    setCtIncomingRowAction({});
+    setCtRemovingMemberStudentId(null);
+    setCtLeavingCourse(false);
+  }, []);
+
+  const closeCourseTeamsModal = useCallback(() => {
+    setCourseTeamsModalOpen(false);
+    resetCourseTeamsModalState();
+  }, [resetCourseTeamsModalState]);
+
+  /** Same logic as the dashboard Course Teams card — keep in sync after mutations while modal is open. */
+  const refreshCourseTeamsDashCardCounts = useCallback(async () => {
+    try {
+      const courses = await getEnrolledCourses();
+      setCtDashCardCoursesCount(courses.length);
+      if (courses.length === 0) {
+        setCtDashCardRequestsCount(0);
+        return;
+      }
+      const validCourseIds = courses
+        .map((course) => getCourseId(course))
+        .filter((id): id is number => id !== null);
+      const prs = await Promise.all(
+        validCourseIds.map((courseId) => getCoursePartnerRequests(courseId)),
+      );
+      let total = 0;
+      for (const pr of prs) {
+        total += (pr.incoming?.length ?? 0) + (pr.outgoing?.length ?? 0);
+      }
+      setCtDashCardRequestsCount(total);
+    } catch {
+      setCtDashCardCoursesCount(null);
+      setCtDashCardRequestsCount(null);
+    }
+  }, []);
+
   // ── Graduation Project ────────────────────────────────────────────────────
   const [gradProject, setGradProject] = useState<GradProject | null>(null);
   const [gradLoading, setGradLoading] = useState(false);
   const [gradModalOpen, setGradModalOpen] = useState(false);
-  const [gradForm, setGradForm] = useState({
+  const [gradModalMode, setGradModalMode] = useState<"create" | "edit">(
+    "create",
+  );
+  const [gradForm, setGradForm] = useState<{
+    name: string;
+    abstract: string;
+    skills: string;
+    teamSize: string;
+    projectType: GraduationProjectType;
+  }>({
     name: "",
-    description: "",
+    abstract: "",
     skills: "",
     teamSize: "",
+    projectType: "GP",
   });
   const [gradFormError, setGradFormError] = useState<string | null>(null);
+  const [gradFormFieldErrors, setGradFormFieldErrors] = useState<{
+    abstract?: string;
+    skills?: string;
+  }>({});
+  /** Draft line for skill tag input (Enter commits to `gradForm.skills` as comma-separated string). */
+  const [gradSkillInputDraft, setGradSkillInputDraft] = useState("");
   const [gradSubmitting, setGradSubmitting] = useState(false);
   const [gradTeammates, setGradTeammates] = useState<SuggestedTeammate[]>([]);
   const [addTeammatesOpen, setAddTeammatesOpen] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
+
+  const [aiStudents, setAiStudents] = useState<GradProjectRecommendedStudent[]>(
+    [],
+  );
+  const [aiSupervisors, setAiSupervisors] = useState<
+    GradProjectRecommendedSupervisor[]
+  >([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingSupervisors, setLoadingSupervisors] = useState(false);
+  const [aiStudentsError, setAiStudentsError] = useState<string | null>(null);
+  const [aiSupervisorsError, setAiSupervisorsError] = useState<string | null>(
+    null,
+  );
 
   // Role the current user holds in their project — comes from GET /my envelope.
   // Kept separately from gradProject so it survives the same optimistic-update
@@ -190,6 +437,16 @@ export default function DashboardPage() {
   const [aiSupervisorCardRequests, setAiSupervisorCardRequests] = useState<
     Record<number, AiSupervisorCardRequestState>
   >({});
+
+  /** Inline AI student cards — invite action (POST invite/{studentProfileId}) */
+  const [aiCardInviteLoadingId, setAiCardInviteLoadingId] = useState<
+    number | null
+  >(null);
+
+  /** Inline AI supervisor JSON cards — request action */
+  const [aiCardSupervisorLoadingId, setAiCardSupervisorLoadingId] = useState<
+    number | null
+  >(null);
 
   const hour = new Date().getHours();
   const greeting =
@@ -281,6 +538,272 @@ export default function DashboardPage() {
     const interval = setInterval(fetchInvitations, 10_000);
     return () => clearInterval(interval);
   }, [fetchInvitations]);
+
+  // Course Teams card — enrolled course count + total partner-request items (all courses)
+  useEffect(() => {
+    if (courseTeamsModalOpen) return;
+    void refreshCourseTeamsDashCardCounts();
+  }, [courseTeamsModalOpen, refreshCourseTeamsDashCardCounts]);
+
+  // Course Teams modal: enrolled courses (fresh load each open)
+  useEffect(() => {
+    if (!courseTeamsModalOpen) return;
+    let cancelled = false;
+    const run = async () => {
+      setCtCoursesLoading(true);
+      setCtCoursesError(null);
+      try {
+        const data = await getEnrolledCourses();
+        console.log("Enrolled courses raw:", data);
+        data.forEach((c) => {
+          console.log("Course raw:", c);
+          console.log("Normalized ID:", getCourseId(c));
+        });
+        const validCourses = data.filter((c) => getCourseId(c) !== null);
+        if (cancelled) return;
+        setCtCourses(validCourses);
+        setCtNoValidCourseIds(data.length > 0 && validCourses.length === 0);
+        setCtSelectedCourseId((prev) => {
+          if (prev != null && validCourses.some((c) => getCourseId(c) === prev)) {
+            return prev;
+          }
+          return getCourseId(validCourses[0]) ?? null;
+        });
+      } catch (err) {
+        if (!cancelled) setCtCoursesError(parseApiErrorMessage(err));
+      } finally {
+        if (!cancelled) setCtCoursesLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [courseTeamsModalOpen]);
+
+  // Course Teams modal: detail bundle for selected course
+  useEffect(() => {
+    console.log("Effect triggered with ID:", ctSelectedCourseId);
+    console.log("Type of ID:", typeof ctSelectedCourseId);
+    if (!ctSelectedCourseId) return;
+    const selectedCourseId = ctSelectedCourseId;
+    console.log("Selected course ID:", selectedCourseId);
+    let cancelled = false;
+    const run = async () => {
+      setCtDetailsLoading(true);
+      setCtDetailsError(null);
+      try {
+        console.log("Calling APIs with:", ctSelectedCourseId);
+        console.log("Type of ID:", typeof ctSelectedCourseId);
+        const [courseRes, myTeamRes, requestsRes, studentsRes] =
+          await Promise.all([
+            getCourseById(selectedCourseId),
+            getMyTeam(selectedCourseId),
+            getCoursePartnerRequests(selectedCourseId),
+            getCourseStudents(selectedCourseId),
+          ]);
+        let settingRes: CourseProjectSetting | null = null;
+        try {
+          settingRes = await getCourseProjectSetting(selectedCourseId);
+        } catch (err: any) {
+          if (err?.response?.status === 404) {
+            settingRes = null;
+          } else {
+            throw err;
+          }
+        }
+        if (cancelled) return;
+        setCtCourseDetail(courseRes);
+        setCtProjectSetting(settingRes);
+        setCtMyTeam(myTeamRes);
+        setCtPartnerRequests(requestsRes);
+        setCtCourseStudents(studentsRes);
+      } catch (err) {
+        if (!cancelled) {
+          setCtCourseDetail(null);
+          setCtProjectSetting(null);
+          setCtMyTeam(null);
+          setCtPartnerRequests(null);
+          setCtCourseStudents([]);
+          const status = (err as any)?.response?.status;
+          if (status === 404) {
+            setCtDetailsError("Course data not found");
+            showToast("Course data not found", "error");
+          } else if (status === 403) {
+            setCtDetailsError("You are not allowed to access this course");
+            showToast("You are not allowed to access this course", "error");
+          } else {
+            setCtDetailsError("Unexpected error while loading course");
+            showToast("Unexpected error while loading course", "error");
+          }
+        }
+      } finally {
+        if (!cancelled) setCtDetailsLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [ctSelectedCourseId, showToast]);
+
+  const handleCourseTeamsSendPartnerRequest = useCallback(
+    async (receiverUniversityId: string) => {
+      const uid = receiverUniversityId.trim();
+      if (!ctSelectedCourseId) {
+        console.warn("Invalid courseId, skipping request");
+        return;
+      }
+      if (!uid) return;
+      const selectedCourseId = ctSelectedCourseId;
+      setCtSendingReceiverUniversityId(uid);
+      try {
+        await createPartnerRequest(selectedCourseId, {
+          receiverStudentId: uid,
+        });
+        const pr = await getCoursePartnerRequests(selectedCourseId);
+        setCtPartnerRequests(pr);
+        await refreshCourseTeamsDashCardCounts();
+      } catch (err) {
+        showToast(parseApiErrorMessage(err), "error");
+      } finally {
+        setCtSendingReceiverUniversityId(null);
+      }
+    },
+    [ctSelectedCourseId, showToast, refreshCourseTeamsDashCardCounts],
+  );
+
+  const handleCtAcceptIncoming = useCallback(
+    async (requestId: number) => {
+      if (!ctSelectedCourseId) {
+        console.warn("Invalid courseId, skipping request");
+        return;
+      }
+      const selectedCourseId = ctSelectedCourseId;
+      setCtIncomingRowAction((prev) => ({ ...prev, [requestId]: "accept" }));
+      try {
+        await acceptPartnerRequest(selectedCourseId, requestId);
+        const [pr, team, courseRes] = await Promise.all([
+          getCoursePartnerRequests(selectedCourseId),
+          getMyTeam(selectedCourseId),
+          getCourseById(selectedCourseId),
+        ]);
+        setCtPartnerRequests(pr);
+        setCtMyTeam(team);
+        setCtCourseDetail(courseRes);
+        await refreshCourseTeamsDashCardCounts();
+      } catch (err) {
+        showToast(parseApiErrorMessage(err), "error");
+      } finally {
+        setCtIncomingRowAction((prev) => {
+          const next = { ...prev };
+          delete next[requestId];
+          return next;
+        });
+      }
+    },
+    [ctSelectedCourseId, showToast, refreshCourseTeamsDashCardCounts],
+  );
+
+  const handleCtRejectIncoming = useCallback(
+    async (requestId: number) => {
+      if (!ctSelectedCourseId) {
+        console.warn("Invalid courseId, skipping request");
+        return;
+      }
+      const selectedCourseId = ctSelectedCourseId;
+      setCtIncomingRowAction((prev) => ({ ...prev, [requestId]: "reject" }));
+      try {
+        await rejectPartnerRequest(selectedCourseId, requestId);
+        const pr = await getCoursePartnerRequests(selectedCourseId);
+        setCtPartnerRequests(pr);
+        await refreshCourseTeamsDashCardCounts();
+      } catch (err) {
+        showToast(parseApiErrorMessage(err), "error");
+      } finally {
+        setCtIncomingRowAction((prev) => {
+          const next = { ...prev };
+          delete next[requestId];
+          return next;
+        });
+      }
+    },
+    [ctSelectedCourseId, showToast, refreshCourseTeamsDashCardCounts],
+  );
+
+  const handleCtRemoveTeamMember = useCallback(
+    async (teamId: number, memberStudentId: number) => {
+      if (!ctSelectedCourseId) {
+        console.warn("Invalid courseId, skipping request");
+        return;
+      }
+      if (
+        !window.confirm(
+          "Are you sure you want to remove this member?",
+        )
+      ) {
+        return;
+      }
+      const selectedCourseId = ctSelectedCourseId;
+      setCtRemovingMemberStudentId(memberStudentId);
+      try {
+        await removeTeamMember(
+          selectedCourseId,
+          teamId,
+          memberStudentId,
+        );
+        const [team, pr, students, courseRes] = await Promise.all([
+          getMyTeam(selectedCourseId),
+          getCoursePartnerRequests(selectedCourseId),
+          getCourseStudents(selectedCourseId),
+          getCourseById(selectedCourseId),
+        ]);
+        setCtMyTeam(team);
+        setCtPartnerRequests(pr);
+        setCtCourseStudents(students);
+        setCtCourseDetail(courseRes);
+        await refreshCourseTeamsDashCardCounts();
+      } catch (err) {
+        showToast(parseApiErrorMessage(err), "error");
+      } finally {
+        setCtRemovingMemberStudentId(null);
+      }
+    },
+    [ctSelectedCourseId, showToast, refreshCourseTeamsDashCardCounts],
+  );
+
+  const handleCourseTeamsLeaveCourse = useCallback(async () => {
+    if (!ctSelectedCourseId) {
+      console.warn("Invalid courseId, skipping request");
+      return;
+    }
+    if (
+      !window.confirm(
+        "Are you sure you want to leave this course?",
+      )
+    ) {
+      return;
+    }
+    const leftCourseId = ctSelectedCourseId;
+    setCtLeavingCourse(true);
+    try {
+      await leaveCourse(leftCourseId);
+      showToast("You left the course.", "success");
+      const fresh = await getEnrolledCourses();
+      setCtCourses(fresh);
+      await refreshCourseTeamsDashCardCounts();
+      closeCourseTeamsModal();
+    } catch (err) {
+      showToast(parseApiErrorMessage(err), "error");
+    } finally {
+      setCtLeavingCourse(false);
+    }
+  }, [
+    ctSelectedCourseId,
+    closeCourseTeamsModal,
+    showToast,
+    refreshCourseTeamsDashCardCounts,
+  ]);
 
   // Single call to GET /api/graduation-projects/my
   // Returns { role, project } — project is null when student has no affiliation
@@ -431,6 +954,7 @@ export default function DashboardPage() {
             id: p.id,
             title: p.name,
             description: p.description ?? null,
+            abstract: p.abstract ?? null,
             lookingFor: p.requiredSkills ?? [],
             matchScore: 0,
             maxTeamSize: p.maxTeamSize ?? null,
@@ -451,7 +975,39 @@ export default function DashboardPage() {
     navigate("/login");
   };
 
+  const openGradModal = useCallback(
+    (mode: "create" | "edit") => {
+      setGradModalMode(mode);
+      setGradFormError(null);
+      setGradFormFieldErrors({});
+      setGradSkillInputDraft("");
+      if (mode === "edit" && gradProject) {
+        setGradForm({
+          name: gradProject.name,
+          abstract: gradProject.abstract ?? "",
+          skills: (gradProject.requiredSkills ?? []).join(", "),
+          teamSize: String(gradProject.partnersCount),
+          projectType:
+            (gradProject.projectType as GraduationProjectType) ?? "GP",
+        });
+      } else {
+        setGradForm({
+          name: "",
+          abstract: "",
+          skills: "",
+          teamSize: "",
+          projectType: "GP",
+        });
+      }
+      setGradModalOpen(true);
+    },
+    [gradProject],
+  );
+
   const handleGradSubmit = async () => {
+    setGradFormError(null);
+    setGradFormFieldErrors({});
+
     if (!gradForm.name.trim()) {
       setGradFormError("Project name is required.");
       return;
@@ -462,33 +1018,152 @@ export default function DashboardPage() {
       return;
     }
 
+    const skills = gradForm.skills
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+
+    const fieldErrors: { abstract?: string; skills?: string } = {};
+    if (!gradForm.abstract.trim()) {
+      fieldErrors.abstract = "Abstract is required";
+    }
+    if (skills.length === 0) {
+      fieldErrors.skills = "At least one skill is required";
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      setGradFormFieldErrors(fieldErrors);
+      return;
+    }
+
+    if (gradModalMode === "edit" && !gradProject) return;
+
     setGradSubmitting(true);
-    setGradFormError(null);
     try {
-      const skills = gradForm.skills
-        .split(",")
-        .map((s: string) => s.trim())
-        .filter(Boolean);
-      // POST /api/graduation-projects
-      const res = await api.post("/graduation-projects", {
-        name: gradForm.name.trim(),
-        description: gradForm.description.trim() || null,
-        requiredSkills: skills,
-        partnersCount: size,
-      });
+      const projectType = projectTypeForApi(user?.faculty, gradForm.projectType);
+      const abstractPayload = abstractForApi(gradForm.abstract);
+
+      if (gradModalMode === "edit") {
+        await updateGraduationProject(gradProject!.id, {
+          name: gradForm.name.trim(),
+          abstract: abstractPayload,
+          projectType,
+          requiredSkills: skills,
+          partnersCount: size,
+        });
+      } else {
+        await createGraduationProject({
+          name: gradForm.name.trim(),
+          abstract: abstractPayload,
+          projectType,
+          requiredSkills: skills,
+          partnersCount: size,
+        });
+      }
       // Refetch from GET endpoint — guarantees isOwner/remainingSeats are populated
-      setGradForm({ name: "", description: "", skills: "", teamSize: "" });
+      setGradForm({
+        name: "",
+        abstract: "",
+        skills: "",
+        teamSize: "",
+        projectType: "GP",
+      });
+      setGradSkillInputDraft("");
+      setGradModalMode("create");
       setGradModalOpen(false);
       await refetchGradProject();
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
-        "Failed to create project. Please try again.";
+        (gradModalMode === "edit"
+          ? "Failed to save project. Please try again."
+          : "Failed to create project. Please try again.");
       setGradFormError(msg);
     } finally {
       setGradSubmitting(false);
     }
   };
+
+  const gradModalInputErrorStyle: React.CSSProperties = {
+    borderColor: "#ef4444",
+    borderWidth: "1.5px",
+    borderStyle: "solid",
+  };
+
+  const handleAiRecommendedStudents = useCallback(async () => {
+    if (!gradProject) return;
+    setLoadingStudents(true);
+    setAiStudentsError(null);
+    try {
+      const result = await getRecommendedStudents(gradProject.id);
+      setAiStudents(result);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? "Request failed.";
+      setAiStudentsError(msg);
+      setAiStudents([]);
+    } finally {
+      setLoadingStudents(false);
+    }
+  }, [gradProject]);
+
+  const handleAiRecommendedSupervisorsJson = useCallback(async () => {
+    if (!gradProject) return;
+    setLoadingSupervisors(true);
+    setAiSupervisorsError(null);
+    try {
+      const result = await fetchGraduationRecommendedSupervisors(gradProject.id);
+      setAiSupervisors(result);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? "Request failed.";
+      setAiSupervisorsError(msg);
+      setAiSupervisors([]);
+    } finally {
+      setLoadingSupervisors(false);
+    }
+  }, [gradProject]);
+
+  const handleAiCardInviteStudent = useCallback(
+    async (studentId: number) => {
+      if (!gradProject?.id) return;
+      setAiCardInviteLoadingId(studentId);
+      try {
+        await sendInvitation(gradProject.id, studentId);
+        showToast("Invitation sent", "success");
+        void fetchInvitations();
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response
+            ?.data?.message ?? "Request failed.";
+        showToast(msg, "error");
+      } finally {
+        setAiCardInviteLoadingId(null);
+      }
+    },
+    [gradProject?.id, fetchInvitations, showToast],
+  );
+
+  const handleAiCardRequestSupervisor = useCallback(
+    async (doctorId: number) => {
+      if (!gradProject) return;
+      setAiCardSupervisorLoadingId(doctorId);
+      try {
+        await requestSupervisor(gradProject.id, doctorId);
+        await refreshGradProjectAfterSupervisorRequest();
+        showToast("Request sent", "success");
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response
+            ?.data?.message ?? "Request failed.";
+        showToast(msg, "error");
+      } finally {
+        setAiCardSupervisorLoadingId(null);
+      }
+    },
+    [gradProject, refreshGradProjectAfterSupervisorRequest, showToast],
+  );
 
   const handleDeleteProject = async () => {
     if (!gradProject) return;
@@ -706,12 +1381,6 @@ export default function DashboardPage() {
     setEditInfoOpen(true);
   };
 
-  const handleSaveInfo = async () => {
-    // PUT /api/profile لا يدعم الحقول الأكاديمية (university, major, gpa, etc.)
-    // EditProfilePage هي المكان الصحيح لتعديل هالمعلومات
-    navigate("/edit-profile");
-  };
-
   const allSkills = [
     ...(user?.generalSkills || []),
     ...(user?.majorSkills || []),
@@ -769,6 +1438,9 @@ export default function DashboardPage() {
       link: "/edit-profile#work",
     },
   ];
+
+  const isNarrowLayout =
+    typeof window !== "undefined" ? window.innerWidth < 1024 : false;
 
   if (loading)
     return (
@@ -878,9 +1550,9 @@ export default function DashboardPage() {
             <button style={S.navBtn}>
               <MessageCircle size={17} />
             </button>
-            <Link to="/settings" style={S.navBtn}>
+            <button style={S.navBtn} onClick={openEditInfo}>
               <Settings size={17} />
-            </Link>
+            </button>
             <button
               style={{
                 display: "flex",
@@ -1039,142 +1711,14 @@ export default function DashboardPage() {
         </div>
 
         {/* ── GRID ── */}
-        <div style={S.grid}>
+        <div style={{ ...S.grid, ...(isNarrowLayout ? S.gridNarrow : {}) }}>
           {/* LEFT COL */}
-          <div style={S.leftCol}>
-            {/* Profile Strength */}
-            <div style={S.card}>
-              <div style={S.cardHeader}>
-                <h3 style={S.cardTitle}>
-                  <CheckCircle2 size={15} color="#6366f1" /> Profile Strength
-                </h3>
-              </div>
-              <div style={S.progressRow}>
-                <div style={S.progressTrack}>
-                  <div
-                    style={{ ...S.progressFill, width: `${completeness}%` }}
-                  />
-                </div>
-                <span style={S.progressPct}>{completeness}%</span>
-              </div>
-              <p style={S.progressLabel}>
-                {completeness >= 80
-                  ? "🔥 Strong profile!"
-                  : "Complete your profile to get better AI matches"}
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column" as const,
-                  gap: 10,
-                }}
-              >
-                {PROFILE_TASKS.map((task) => (
-                  <div
-                    key={task.id}
-                    style={{ display: "flex", alignItems: "center", gap: 10 }}
-                  >
-                    {task.done ? (
-                      <CheckCircle2
-                        size={15}
-                        color="#6366f1"
-                        style={{ flexShrink: 0 }}
-                      />
-                    ) : (
-                      <Circle
-                        size={15}
-                        color="#cbd5e1"
-                        style={{ flexShrink: 0 }}
-                      />
-                    )}
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 13,
-                        color: "#475569",
-                        fontWeight: 500,
-                        textDecoration: task.done ? "line-through" : "none",
-                        opacity: task.done ? 0.4 : 1,
-                      }}
-                    >
-                      {task.label}
-                    </span>
-                    {!task.done && (
-                      <Link
-                        to={task.link}
-                        style={{
-                          fontSize: 11,
-                          color: "#6366f1",
-                          fontWeight: 700,
-                          textDecoration: "none",
-                        }}
-                      >
-                        Do it
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* My Info */}
-            <div style={S.card}>
-              <div style={S.cardHeader}>
-                <h3 style={S.cardTitle}>
-                  <BookOpen size={15} color="#6366f1" /> My Info
-                </h3>
-                <button onClick={openEditInfo} style={S.cardActionBtn}>
-                  Edit <ChevronRight size={12} />
-                </button>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column" as const,
-                  gap: 10,
-                }}
-              >
-                {[
-                  { label: "Email", value: user?.email },
-                  { label: "University", value: user?.university },
-                  { label: "Faculty", value: user?.faculty },
-                  { label: "Major", value: user?.major },
-                  { label: "Year", value: user?.academicYear },
-                  { label: "GPA", value: user?.gpa },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "#94a3b8",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: item.value ? "#334155" : "#cbd5e1",
-                        fontWeight: 600,
-                        textAlign: "right" as const,
-                        maxWidth: 170,
-                      }}
-                    >
-                      {item.value || "—"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          <div
+            style={{
+              ...S.leftCol,
+              ...(isNarrowLayout ? S.leftColNarrow : {}),
+            }}
+          >
             {/* My Applications */}
             <div style={S.card}>
               <div style={S.cardHeader}>
@@ -1366,7 +1910,7 @@ export default function DashboardPage() {
                   <h3 style={S.cardTitle}>🎓 My Graduation Project</h3>
                   {!gradProject && !gradLoading && (
                     <button
-                      onClick={() => setGradModalOpen(true)}
+                      onClick={() => openGradModal("create")}
                       style={S.cardActionBtn}
                     >
                       + Create <ChevronRight size={12} />
@@ -1392,7 +1936,7 @@ export default function DashboardPage() {
                       Create your graduation project and find teammates
                     </p>
                     <button
-                      onClick={() => setGradModalOpen(true)}
+                      onClick={() => openGradModal("create")}
                       style={{
                         marginTop: 8,
                         padding: "7px 16px",
@@ -1458,21 +2002,47 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       {gradProject?.isOwner ? (
-                        <button
-                          onClick={handleDeleteProject}
+                        <div
                           style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "#ef4444",
-                            fontSize: 11,
-                            fontFamily: "inherit",
-                            padding: "2px 6px",
-                            borderRadius: 6,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
                           }}
                         >
-                          🗑 Delete
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => openGradModal("edit")}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "#6366f1",
+                              fontSize: 11,
+                              fontFamily: "inherit",
+                              padding: "2px 6px",
+                              borderRadius: 6,
+                              fontWeight: 700,
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeleteProject}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "#ef4444",
+                              fontSize: 11,
+                              fontFamily: "inherit",
+                              padding: "2px 6px",
+                              borderRadius: 6,
+                            }}
+                          >
+                            🗑 Delete
+                          </button>
+                        </div>
                       ) : (
                         <button
                           onClick={handleLeaveProject}
@@ -1492,18 +2062,47 @@ export default function DashboardPage() {
                       )}
                     </div>
 
-                    {/* Description */}
-                    {gradProject?.description && (
-                      <p
+                    {/* Abstract + project type */}
+                    {(gradProject?.projectType ||
+                      (gradProject?.abstract ?? "").trim()) && (
+                      <div
                         style={{
-                          fontSize: 12,
-                          color: "#64748b",
                           margin: "0 0 8px",
-                          lineHeight: 1.5,
+                          display: "flex",
+                          flexWrap: "wrap" as const,
+                          gap: 8,
+                          alignItems: "center",
                         }}
                       >
-                        {gradProject?.description ?? ""}
-                      </p>
+                        {gradProject?.projectType ? (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              background: "#f1f5f9",
+                              color: "#475569",
+                              borderRadius: 6,
+                              border: "1px solid #e2e8f0",
+                            }}
+                          >
+                            {gradProject?.projectType}
+                          </span>
+                        ) : null}
+                        {(gradProject?.abstract ?? "").trim() ? (
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: "#64748b",
+                              margin: 0,
+                              lineHeight: 1.5,
+                              flex: "1 1 200px",
+                            }}
+                          >
+                            {(gradProject?.abstract ?? "").trim()}
+                          </p>
+                        ) : null}
+                      </div>
                     )}
 
                     {/* Owner name */}
@@ -1779,52 +2378,20 @@ export default function DashboardPage() {
           </div>
 
           {/* RIGHT COL */}
-          <div style={S.rightCol}>
-            {/* AI Banner */}
-            <div style={S.aiBanner}>
-              <Sparkles size={18} color="#a855f7" />
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "#4c1d95",
-                  fontWeight: 600,
-                }}
-              >
-                <strong>AI Recommendations</strong> — Matching teammates based
-                on your skills in{" "}
-                <span style={{ color: "#7c3aed" }}>
-                  {allSkills.slice(0, 2).join(", ") || "your major"}
-                </span>
-              </p>
-            </div>
-
-            <div style={S.filterRow}>
-              {(["all", "teammates", "projects"] as const).map((f) => (
-                <button
-                  key={f}
-                  style={{
-                    ...S.filterBtn,
-                    ...(activeFilter === f ? S.filterBtnActive : {}),
-                  }}
-                  onClick={() => setActiveFilter(f)}
-                >
-                  {f === "all"
-                    ? "⚡ All Matches"
-                    : f === "teammates"
-                      ? "👥 Teammates"
-                      : "📁 Projects"}
-                </button>
-              ))}
-            </div>
-
+          <div
+            style={{
+              ...S.rightCol,
+              ...(isNarrowLayout ? S.rightColNarrow : {}),
+            }}
+          >
+            <div style={S.rightColTopRow}>
             {/* My Graduation Project */}
-            <div style={{ ...S.card, order: -1 }}>
+            <div style={{ ...S.card, ...S.rightColTopCard }}>
               <div style={S.cardHeader}>
                 <h3 style={S.cardTitle}>🎓 My Graduation Project</h3>
                 {!gradProject && !gradLoading && (
                   <button
-                    onClick={() => setGradModalOpen(true)}
+                    onClick={() => openGradModal("create")}
                     style={S.cardActionBtn}
                   >
                     + Create <ChevronRight size={12} />
@@ -1852,7 +2419,7 @@ export default function DashboardPage() {
                     Create your graduation project and find teammates
                   </p>
                   <button
-                    onClick={() => setGradModalOpen(true)}
+                    onClick={() => openGradModal("create")}
                     style={{
                       marginTop: 8,
                       padding: "7px 16px",
@@ -1918,21 +2485,47 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     {gradProject?.isOwner ? (
-                      <button
-                        onClick={handleDeleteProject}
+                      <div
                         style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: "#ef4444",
-                          fontSize: 11,
-                          fontFamily: "inherit",
-                          padding: "2px 6px",
-                          borderRadius: 6,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
                         }}
                       >
-                        🗑 Delete
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => openGradModal("edit")}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#6366f1",
+                            fontSize: 11,
+                            fontFamily: "inherit",
+                            padding: "2px 6px",
+                            borderRadius: 6,
+                            fontWeight: 700,
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDeleteProject}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#ef4444",
+                            fontSize: 11,
+                            fontFamily: "inherit",
+                            padding: "2px 6px",
+                            borderRadius: 6,
+                          }}
+                        >
+                          🗑 Delete
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={handleLeaveProject}
@@ -1952,18 +2545,47 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  {/* Description */}
-                  {gradProject?.description && (
-                    <p
+                  {/* Abstract + project type */}
+                  {(gradProject.projectType ||
+                    (gradProject.abstract ?? "").trim()) && (
+                    <div
                       style={{
-                        fontSize: 12,
-                        color: "#64748b",
                         margin: "0 0 8px",
-                        lineHeight: 1.5,
+                        display: "flex",
+                        flexWrap: "wrap" as const,
+                        gap: 8,
+                        alignItems: "center",
                       }}
                     >
-                      {gradProject?.description ?? ""}
-                    </p>
+                      {gradProject.projectType ? (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            background: "#f1f5f9",
+                            color: "#475569",
+                            borderRadius: 6,
+                            border: "1px solid #e2e8f0",
+                          }}
+                        >
+                          {gradProject.projectType}
+                        </span>
+                      ) : null}
+                      {(gradProject.abstract ?? "").trim() ? (
+                        <p
+                          style={{
+                            fontSize: 12,
+                            color: "#64748b",
+                            margin: 0,
+                            lineHeight: 1.5,
+                            flex: "1 1 200px",
+                          }}
+                        >
+                          {(gradProject.abstract ?? "").trim()}
+                        </p>
+                      ) : null}
+                    </div>
                   )}
 
                   {/* Owner name */}
@@ -1995,6 +2617,330 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* AI recommendations */}
+                  <div style={{ marginTop: 12, marginBottom: 10 }}>
+                    <button
+                      type="button"
+                      onClick={handleAiRecommendedStudents}
+                      disabled={loadingStudents}
+                      style={{
+                        padding: "6px 10px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        borderRadius: 8,
+                        border: "1px solid #c7d2fe",
+                        background: "#fff",
+                        color: "#6366f1",
+                        cursor: loadingStudents ? "not-allowed" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Find Best Teammates (AI)
+                    </button>
+                    {loadingStudents ? (
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
+                        Loading AI recommendations...
+                      </p>
+                    ) : null}
+                    {aiStudentsError ? (
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#ef4444" }}>
+                        {aiStudentsError}
+                      </p>
+                    ) : null}
+                    {!loadingStudents && !aiStudentsError && aiStudents.length > 0 ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fill, minmax(220px, 1fr))",
+                          gap: 10,
+                          marginTop: 10,
+                        }}
+                      >
+                        {aiStudents.map((s) => (
+                          <div
+                            key={s.studentId}
+                            style={{
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 10,
+                              padding: 12,
+                              background: "#fff",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: 8,
+                                marginBottom: 8,
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  color: "#0f172a",
+                                  lineHeight: 1.3,
+                                }}
+                              >
+                                {s.name}
+                              </p>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: "3px 8px",
+                                  borderRadius: 8,
+                                  background: "#eef2ff",
+                                  color: "#6366f1",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {s.matchScore}%
+                              </span>
+                            </div>
+                            <p
+                              style={{
+                                margin: "0 0 4px",
+                                fontSize: 12,
+                                color: "#64748b",
+                              }}
+                            >
+                              {s.major}
+                            </p>
+                            <p
+                              style={{
+                                margin: "0 0 8px",
+                                fontSize: 11,
+                                color: "#94a3b8",
+                              }}
+                            >
+                              {s.university}
+                            </p>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap" as const,
+                                gap: 4,
+                              }}
+                            >
+                              {(s.skills ?? []).map((sk) => (
+                                <span key={`${s.studentId}-${sk}`} style={S.skillChipSm}>
+                                  {sk}
+                                </span>
+                              ))}
+                            </div>
+                            {gradProject?.isOwner ? (
+                              <div style={{ marginTop: 10 }}>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleAiCardInviteStudent(s.studentId)
+                                  }
+                                  disabled={
+                                    isFull ||
+                                    aiCardInviteLoadingId === s.studentId
+                                  }
+                                  style={{
+                                    padding: "6px 12px",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    borderRadius: 8,
+                                    border: "1px solid #c7d2fe",
+                                    background: "#fff",
+                                    color: "#6366f1",
+                                    cursor:
+                                      isFull ||
+                                      aiCardInviteLoadingId === s.studentId
+                                        ? "not-allowed"
+                                        : "pointer",
+                                    fontFamily: "inherit",
+                                    opacity: isFull ? 0.55 : 1,
+                                  }}
+                                >
+                                  {aiCardInviteLoadingId === s.studentId
+                                    ? "Sending…"
+                                    : "Invite"}
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={handleAiRecommendedSupervisorsJson}
+                      disabled={loadingSupervisors}
+                      style={{
+                        marginTop: 10,
+                        padding: "6px 10px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        borderRadius: 8,
+                        border: "1px solid #c7d2fe",
+                        background: "#fff",
+                        color: "#6366f1",
+                        cursor: loadingSupervisors ? "not-allowed" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Recommend Supervisors (AI)
+                    </button>
+                    {loadingSupervisors ? (
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
+                        Loading AI recommendations...
+                      </p>
+                    ) : null}
+                    {aiSupervisorsError ? (
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#ef4444" }}>
+                        {aiSupervisorsError}
+                      </p>
+                    ) : null}
+                    {!loadingSupervisors && !aiSupervisorsError && aiSupervisors.length > 0 ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fill, minmax(200px, 1fr))",
+                          gap: 10,
+                          marginTop: 10,
+                        }}
+                      >
+                        {aiSupervisors.map((sup) => (
+                          <div
+                            key={sup.doctorId}
+                            style={{
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 10,
+                              padding: 12,
+                              background: "#fff",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: 8,
+                                marginBottom: 6,
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  color: "#0f172a",
+                                  lineHeight: 1.3,
+                                }}
+                              >
+                                {sup.name}
+                              </p>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: "3px 8px",
+                                  borderRadius: 8,
+                                  background: "#eef2ff",
+                                  color: "#6366f1",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {sup.matchScore}%
+                              </span>
+                            </div>
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 12,
+                                color: "#64748b",
+                                lineHeight: 1.45,
+                              }}
+                            >
+                              {sup.specialization}
+                            </p>
+                            {myRole === "owner" || myRole === "leader" ? (
+                              <div style={{ marginTop: 10 }}>
+                                {gradProject.supervisor ? null : normApiStatus(
+                                    gradProject.supervisorRequestStatus,
+                                  ) === "pending" &&
+                                  gradProject.pendingSupervisor != null &&
+                                  gradProject.pendingSupervisor.doctorId ===
+                                    sup.doctorId ? (
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: "#15803d",
+                                    }}
+                                  >
+                                    Request pending
+                                  </p>
+                                ) : normApiStatus(
+                                    gradProject.supervisorRequestStatus,
+                                  ) === "pending" &&
+                                  gradProject.pendingSupervisor != null &&
+                                  gradProject.pendingSupervisor.doctorId !==
+                                    sup.doctorId ? (
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 11,
+                                      color: "#94a3b8",
+                                    }}
+                                  >
+                                    Another request is pending
+                                  </p>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void handleAiCardRequestSupervisor(
+                                          sup.doctorId,
+                                        )
+                                      }
+                                      disabled={
+                                        aiCardSupervisorLoadingId ===
+                                        sup.doctorId
+                                      }
+                                      style={{
+                                        padding: "6px 12px",
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        borderRadius: 8,
+                                        border: "1px solid #c7d2fe",
+                                        background: "#fff",
+                                        color: "#6366f1",
+                                        cursor:
+                                          aiCardSupervisorLoadingId ===
+                                          sup.doctorId
+                                            ? "not-allowed"
+                                            : "pointer",
+                                        fontFamily: "inherit",
+                                      }}
+                                    >
+                                      {aiCardSupervisorLoadingId ===
+                                      sup.doctorId
+                                        ? "Sending…"
+                                        : "Request"}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
 
                   {/* ── Team Members ── */}
                   <div
@@ -2235,289 +3181,90 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Suggested Teammates */}
-            {(activeFilter === "all" || activeFilter === "teammates") && (
-              <div style={S.card}>
-                <div style={S.cardHeader}>
-                  <h3 style={S.cardTitle}>
-                    <Users size={15} color="#6366f1" /> Suggested Teammates
-                  </h3>
-                  <Link to="/students" style={S.cardAction}>
-                    See all <ChevronRight size={12} />
-                  </Link>
+            {/* Course Teams — separate from graduation project */}
+            <div
+              style={{
+                ...S.card,
+                ...S.rightColTopCard,
+                ...S.ctDashCourseTeamsCard,
+              }}
+            >
+              <div style={S.cardHeader}>
+                <h3 style={S.cardTitle}>
+                  <BookOpen size={15} color="#6366f1" /> My Courses
+                </h3>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 10,
+                  marginBottom: 12,
+                }}
+              >
+                <div style={S.ctDashStatPill}>
+                  <p style={S.ctDashStatLabel}>Enrolled courses</p>
+                  <p style={S.ctDashStatValue}>
+                    {ctDashCardCoursesCount === null
+                      ? "—"
+                      : ctDashCardCoursesCount}
+                  </p>
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column" as const,
-                    gap: 12,
-                  }}
-                >
-                  {teammates.slice(0, 3).map((t) => (
-                    <div key={t.userId} style={S.teammateCard}>
-                      <div style={S.teammateAvatar}>
-                        {t.profilePicture ? (
-                          <img
-                            src={t.profilePicture}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover" as const,
-                              borderRadius: "50%",
-                            }}
-                            alt=""
-                          />
-                        ) : (
-                          <div style={S.teammateAvatarFallback}>
-                            {t.name
-                              .split(" ")
-                              .map((n: string) => n[0])
-                              .join("")
-                              .slice(0, 2)}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: "#0f172a",
-                            margin: "0 0 2px",
-                          }}
-                        >
-                          {t.name}
-                        </p>
-                        <p
-                          style={{
-                            fontSize: 12,
-                            color: "#64748b",
-                            margin: "0 0 6px",
-                          }}
-                        >
-                          {t.major}
-                        </p>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap" as const,
-                            gap: 4,
-                          }}
-                        >
-                          {t.skills.slice(0, 3).map((s: string) => (
-                            <span key={s} style={S.skillChipSm}>
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column" as const,
-                          alignItems: "flex-end",
-                          gap: 8,
-                          flexShrink: 0,
-                        }}
-                      >
-                        <div style={S.matchBadge}>
-                          <span
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 800,
-                              color: "#16a34a",
-                            }}
-                          >
-                            {t.matchScore}%
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              color: "#16a34a",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Match
-                          </span>
-                        </div>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <button
-                            onClick={() => navigate(`/profile/${t.userId}`)}
-                            style={S.btnSm}
-                          >
-                            View
-                          </button>
-                          <button
-                            onClick={() =>
-                              alert(`Invitation sent to ${t.name}!`)
-                            }
-                            style={{
-                              ...S.btnSm,
-                              background:
-                                "linear-gradient(135deg,#6366f1,#a855f7)",
-                              color: "white",
-                              border: "none",
-                            }}
-                          >
-                            Invite
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div style={S.ctDashStatPill}>
+                  <p style={S.ctDashStatLabel}>Partner activity</p>
+                  <p style={S.ctDashStatValue}>
+                    {ctDashCardRequestsCount === null
+                      ? "—"
+                      : ctDashCardRequestsCount}
+                  </p>
+                  <p style={S.ctDashStatHint}>Incoming & outgoing items</p>
                 </div>
               </div>
-            )}
+              <p
+                style={{
+                  margin: "0 0 14px",
+                  fontSize: 12,
+                  color: "#64748b",
+                  lineHeight: 1.55,
+                  fontWeight: 500,
+                }}
+              >
+                View teams, project settings, classmates, and partner requests
+                for each course — in one place.
+              </p>
+              <button
+                type="button"
+                onClick={() => setCourseTeamsModalOpen(true)}
+                style={{
+                  width: "100%",
+                  marginTop: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: "11px 16px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "linear-gradient(135deg,#6366f1,#a855f7)",
+                  color: "white",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  boxShadow: "0 4px 16px rgba(99,102,241,0.38)",
+                }}
+              >
+                <Users size={15} />
+                Manage My Courses
+              </button>
+            </div>
+            </div>
 
-            {/* Recommended Projects */}
-            {(activeFilter === "all" || activeFilter === "projects") && (
-              <div style={S.card}>
-                <div style={S.cardHeader}>
-                  <h3 style={S.cardTitle}>
-                    <Briefcase size={15} color="#a855f7" /> Recommended Projects
-                  </h3>
-                  <Link to="/projects" style={S.cardAction}>
-                    See all <ChevronRight size={12} />
-                  </Link>
-                </div>
-                {recommendedProjects.length === 0 ? (
-                  <div style={S.emptyState}>
-                    <span style={{ fontSize: 28 }}>📁</span>
-                    <p style={S.emptyTitle}>No recommendations yet</p>
-                    <p style={S.emptyDesc}>
-                      Join a channel or add skills to get project
-                      recommendations
-                    </p>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column" as const,
-                      gap: 12,
-                    }}
-                  >
-                    {recommendedProjects.map((p) => (
-                      <div key={p.id} style={S.projectCard}>
-                        <div style={{ flex: 1 }}>
-                          <p
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 700,
-                              color: "#0f172a",
-                              margin: "0 0 4px",
-                            }}
-                          >
-                            {p.title}
-                          </p>
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 10,
-                              flexWrap: "wrap" as const,
-                              marginBottom: 6,
-                            }}
-                          >
-                            {p.dueDate && (
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  color: "#64748b",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                📅{" "}
-                                {new Date(p.dueDate).toLocaleDateString(
-                                  "en-GB",
-                                  {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                  },
-                                )}
-                              </span>
-                            )}
-                            {p.maxTeamSize != null && (
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  color: "#64748b",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                👥 Max {p.maxTeamSize} students
-                              </span>
-                            )}
-                          </div>
-                          {p.lookingFor.length > 0 && (
-                            <>
-                              <p
-                                style={{
-                                  fontSize: 11,
-                                  color: "#94a3b8",
-                                  margin: "0 0 6px",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                Looking for:
-                              </p>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  flexWrap: "wrap" as const,
-                                  gap: 4,
-                                }}
-                              >
-                                {p.lookingFor.map((r: string) => (
-                                  <span
-                                    key={r}
-                                    style={{
-                                      ...S.skillChipSm,
-                                      background: "#faf5ff",
-                                      color: "#a855f7",
-                                      borderColor: "#e9d5ff",
-                                    }}
-                                  >
-                                    {r}
-                                  </span>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column" as const,
-                            alignItems: "flex-end",
-                            gap: 8,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <button
-                            onClick={() => navigate(`/projects/${p.id}`)}
-                            style={{
-                              ...S.btnSm,
-                              background:
-                                "linear-gradient(135deg,#a855f7,#6366f1)",
-                              color: "white",
-                              border: "none",
-                            }}
-                          >
-                            View Project
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* ── EDIT INFO MODAL ── */}
+      {/* ── PROFILE STRENGTH MODAL ── */}
       {editInfoOpen && (
         <div style={S.modalOverlay} onClick={() => setEditInfoOpen(false)}>
           <div style={S.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -2538,7 +3285,7 @@ export default function DashboardPage() {
                   fontFamily: "Syne, sans-serif",
                 }}
               >
-                ✏️ Edit My Info
+                Profile Strength
               </h3>
               <button
                 onClick={() => setEditInfoOpen(false)}
@@ -2547,61 +3294,70 @@ export default function DashboardPage() {
                 <X size={15} />
               </button>
             </div>
-            {/* عرض المعلومات الحالية فقط للقراءة */}
+            <div style={S.progressRow}>
+              <div style={S.progressTrack}>
+                <div style={{ ...S.progressFill, width: `${completeness}%` }} />
+              </div>
+              <span style={S.progressPct}>{completeness}%</span>
+            </div>
+            <p style={S.progressLabel}>
+              {completeness >= 80
+                ? "🔥 Strong profile!"
+                : "Complete your profile to get better AI matches"}
+            </p>
             <div
               style={{
                 display: "flex",
                 flexDirection: "column" as const,
                 gap: 10,
-                marginBottom: 20,
               }}
             >
-              {[
-                { label: "Email", value: user?.email },
-                { label: "University", value: user?.university },
-                { label: "Faculty", value: user?.faculty },
-                { label: "Major", value: user?.major },
-                { label: "Academic Year", value: user?.academicYear },
-                { label: "GPA", value: user?.gpa },
-              ].map((item) => (
+              {PROFILE_TASKS.map((task) => (
                 <div
-                  key={item.label}
+                  key={task.id}
                   style={{
                     display: "flex",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: "#f8fafc",
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
+                    alignItems: "center",
+                    gap: 10,
                   }}
                 >
-                  <span
-                    style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}
-                  >
-                    {item.label}
-                  </span>
+                  {task.done ? (
+                    <CheckCircle2
+                      size={15}
+                      color="#6366f1"
+                      style={{ flexShrink: 0 }}
+                    />
+                  ) : (
+                    <Circle size={15} color="#cbd5e1" style={{ flexShrink: 0 }} />
+                  )}
                   <span
                     style={{
-                      fontSize: 12,
-                      color: item.value ? "#334155" : "#cbd5e1",
-                      fontWeight: 600,
+                      flex: 1,
+                      fontSize: 13,
+                      color: "#475569",
+                      fontWeight: 500,
+                      textDecoration: task.done ? "line-through" : "none",
+                      opacity: task.done ? 0.4 : 1,
                     }}
                   >
-                    {item.value || "—"}
+                    {task.label}
                   </span>
+                  {!task.done && (
+                    <Link
+                      to={task.link}
+                      style={{
+                        fontSize: 11,
+                        color: "#6366f1",
+                        fontWeight: 700,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Do it
+                    </Link>
+                  )}
                 </div>
               ))}
             </div>
-            <p
-              style={{
-                fontSize: 12,
-                color: "#94a3b8",
-                margin: "0 0 18px",
-                textAlign: "center" as const,
-              }}
-            >
-              لتعديل هذه المعلومات، استخدم صفحة تعديل الملف الشخصي
-            </p>
             <div
               style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}
             >
@@ -2611,22 +3367,1332 @@ export default function DashboardPage() {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── COURSE TEAMS MODAL (enrolled courses + detail; no student actions) ── */}
+      {courseTeamsModalOpen && (
+        <div style={S.modalOverlay} onClick={closeCourseTeamsModal}>
+          <div
+            style={{
+              ...S.modalBox,
+              width: 920,
+              maxWidth: "96vw",
+              maxHeight: "88vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column" as const,
+              padding: 0,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: "22px 26px 18px",
+                borderBottom: "1px solid #e2e8f0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                flexShrink: 0,
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: "#0f172a",
+                    fontFamily: "Syne, sans-serif",
+                  }}
+                >
+                  Course Teams
+                </h3>
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 12,
+                    color: "#64748b",
+                    fontWeight: 500,
+                    lineHeight: 1.5,
+                    maxWidth: 420,
+                  }}
+                >
+                  Pick a course to see project details, your team, classmates,
+                  and partner requests — all in one workspace.
+                </p>
+              </div>
               <button
-                onClick={handleSaveInfo}
+                type="button"
+                onClick={closeCourseTeamsModal}
+                style={S.modalCloseBtn}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(220px, 260px) 1fr",
+                gap: 0,
+                flex: 1,
+                minHeight: 0,
+                overflow: "hidden",
+              }}
+            >
+              <aside
                 style={{
-                  padding: "9px 22px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: "linear-gradient(135deg,#6366f1,#a855f7)",
-                  color: "white",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
+                  borderRight: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  padding: "18px 16px",
+                  overflowY: "auto" as const,
                 }}
               >
-                ✏️ Go to Edit Profile
-              </button>
+                <p
+                  style={{
+                    margin: "0 0 12px",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#64748b",
+                    textTransform: "uppercase" as const,
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Enrolled courses
+                </p>
+                {ctCoursesLoading && (
+                  <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>
+                    Loading…
+                  </p>
+                )}
+                {ctCoursesError && (
+                  <p style={{ fontSize: 12, color: "#dc2626", margin: 0 }}>
+                    {ctCoursesError}
+                  </p>
+                )}
+                {!ctCoursesLoading &&
+                  !ctCoursesError &&
+                  ctNoValidCourseIds &&
+                  ctCourses.length === 0 && (
+                    <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>
+                      No valid courses found (invalid IDs)
+                    </p>
+                  )}
+                {!ctCoursesLoading &&
+                  !ctCoursesError &&
+                  !ctNoValidCourseIds &&
+                  ctCourses.length === 0 && (
+                    <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>
+                      You are not enrolled in any courses yet.
+                    </p>
+                  )}
+                {!ctCoursesLoading &&
+                  !ctCoursesError &&
+                  ctCourses.map((c) => {
+                    const courseObj = ctAsRecord(c);
+                    const courseId = getCourseId(c);
+                    if (courseId == null) return null;
+                    const sel = ctSelectedCourseId === courseId;
+                    return (
+                      <button
+                        key={courseId}
+                        type="button"
+                        onClick={() => {
+                          console.log("Clicked course:", c);
+                          console.log("Normalized ID:", getCourseId(c));
+                          setCtSelectedCourseId(courseId);
+                          console.log("Selected ID set:", courseId);
+                        }}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          marginBottom: 8,
+                          borderRadius: 10,
+                          border: sel
+                            ? "1.5px solid #6366f1"
+                            : "1.5px solid #e2e8f0",
+                          background: sel ? "#eef2ff" : "#fff",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: "#0f172a",
+                            marginBottom: 2,
+                          }}
+                        >
+                          {ctReadTextField(courseObj, ["name", "Name"]) ||
+                            `Course #${courseId}`}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#64748b" }}>
+                          {ctReadTextField(courseObj, ["code", "Code"])}
+                          {ctReadTextField(courseObj, [
+                            "section",
+                            "Section",
+                          ]) !== "—"
+                            ? ` · ${ctReadTextField(courseObj, ["section", "Section"])}`
+                            : ""}
+                        </div>
+                      </button>
+                    );
+                  })}
+              </aside>
+              <main
+                style={{
+                  padding: "20px 24px 24px",
+                  overflowY: "auto" as const,
+                  background: "#fff",
+                }}
+              >
+                {!ctSelectedCourseId && !ctCoursesLoading && (
+                  <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
+                    Select a course to view details.
+                  </p>
+                )}
+                {ctSelectedCourseId && ctDetailsLoading && (
+                  <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
+                    Loading course data…
+                  </p>
+                )}
+                {ctSelectedCourseId && ctDetailsError && (
+                  <p style={{ fontSize: 13, color: "#dc2626", margin: 0 }}>
+                    {ctDetailsError}
+                  </p>
+                )}
+                {ctSelectedCourseId &&
+                  !ctDetailsLoading &&
+                  !ctDetailsError &&
+                  (() => {
+                    const sel = ctCourses.find(
+                      (x) => getCourseId(x) === ctSelectedCourseId,
+                    );
+                    const courseObj = ctAsRecord(ctCourseDetail);
+                    const settingObj = ctAsRecord(ctProjectSetting);
+                    const myTeamObj = ctAsRecord(ctMyTeam);
+                    const settingTitle = ctReadTextField(settingObj, [
+                      "title",
+                      "Title",
+                      "projectTitle",
+                      "ProjectTitle",
+                    ]);
+                    const settingDescription = ctReadTextField(settingObj, [
+                      "description",
+                      "Description",
+                      "projectDescription",
+                      "ProjectDescription",
+                    ]);
+                    const settingTeamSize = ctReadNumberField(settingObj, [
+                      "teamSize",
+                      "TeamSize",
+                      "maxTeamSize",
+                      "MaxTeamSize",
+                    ]);
+                    const settingFileUrl = ctReadOptionalLink(settingObj, [
+                      "fileUrl",
+                      "FileUrl",
+                      "attachedFileUrl",
+                      "AttachedFileUrl",
+                      "projectFile",
+                      "ProjectFile",
+                    ]);
+                    const myRoleStr = ctReadTextField(myTeamObj, [
+                      "myRole",
+                      "MyRole",
+                      "role",
+                      "Role",
+                    ]);
+                    const incomingCt = ctPartnerRequests?.incoming.length ?? 0;
+                    const outgoingCt = ctPartnerRequests?.outgoing.length ?? 0;
+                    const teamMemberDbIds = new Set<number>();
+                    for (const m of ctMyTeam?.members ?? []) {
+                      if (
+                        typeof m.studentId === "number" &&
+                        Number.isFinite(m.studentId)
+                      ) {
+                        teamMemberDbIds.add(m.studentId);
+                      }
+                    }
+                    const outgoingPendingReceiverDbIds = new Set<number>();
+                    for (const r of ctPartnerRequests?.outgoing ?? []) {
+                      if (!ctIsOutgoingPendingPartnerRequest(r)) continue;
+                      const rid = ctPartnerRequestReceiverDbId(r);
+                      if (rid != null) outgoingPendingReceiverDbIds.add(rid);
+                    }
+                    const myAuthUserId = myUserIdRef.current;
+                    const ctCourseTeamIsLeader =
+                      normApiStatus(myRoleStr) === "leader";
+                    let ctMyCourseTeamSelfStudentId: number | null = null;
+                    for (const m of ctMyTeam?.members ?? []) {
+                      if (
+                        myAuthUserId != null &&
+                        m.userId === myAuthUserId
+                      ) {
+                        ctMyCourseTeamSelfStudentId = m.studentId;
+                        break;
+                      }
+                    }
+                    return (
+                      <div style={S.ctModalStack}>
+                        <section style={S.ctModalSectionMuted}>
+                          <h4 style={S.ctModalH4}>Course overview</h4>
+                          <p style={S.ctModalH4Sub}>
+                            Basic information for the course you have selected.
+                          </p>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: 12,
+                            }}
+                          >
+                            <div>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Course
+                              </p>
+                              <p
+                                style={{
+                                  margin: "4px 0 0",
+                                  fontSize: 13,
+                                  color: "#0f172a",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {sel?.name ||
+                                  ctReadTextField(courseObj, ["name", "Name"])}
+                              </p>
+                            </div>
+                            <div>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Code
+                              </p>
+                              <p
+                                style={{
+                                  margin: "4px 0 0",
+                                  fontSize: 13,
+                                  color: "#0f172a",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {sel?.code ||
+                                  ctReadTextField(courseObj, ["code", "Code"])}
+                              </p>
+                            </div>
+                            <div>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Section
+                              </p>
+                              <p
+                                style={{
+                                  margin: "4px 0 0",
+                                  fontSize: 13,
+                                  color: "#0f172a",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {sel?.section ||
+                                  ctReadTextField(courseObj, [
+                                    "section",
+                                    "Section",
+                                  ])}
+                              </p>
+                            </div>
+                            <div>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Semester
+                              </p>
+                              <p
+                                style={{
+                                  margin: "4px 0 0",
+                                  fontSize: 13,
+                                  color: "#0f172a",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {sel?.semester ||
+                                  ctReadTextField(courseObj, [
+                                    "semester",
+                                    "Semester",
+                                  ])}
+                              </p>
+                            </div>
+                          </div>
+                          {ctSelectedCourseId && (
+                            <div
+                              style={{
+                                marginTop: 16,
+                                paddingTop: 14,
+                                borderTop: "1px solid #e2e8f0",
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => void handleCourseTeamsLeaveCourse()}
+                                disabled={ctLeavingCourse}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  padding: "8px 14px",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  borderRadius: 8,
+                                  border: "1px solid #fecaca",
+                                  background: "#fff",
+                                  color: "#dc2626",
+                                  cursor: ctLeavingCourse ? "not-allowed" : "pointer",
+                                  fontFamily: "inherit",
+                                  opacity: ctLeavingCourse ? 0.75 : 1,
+                                }}
+                              >
+                                {ctLeavingCourse ? "Leaving..." : "Leave Course"}
+                              </button>
+                            </div>
+                          )}
+                        </section>
+                        <section style={S.ctModalSection}>
+                          <h4 style={S.ctModalH4}>Project setting</h4>
+                          <p style={S.ctModalH4Sub}>
+                            What your instructor configured for this course
+                            project.
+                          </p>
+                          {ctProjectSetting === null ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#94a3b8",
+                              }}
+                            >
+                              No project setting yet
+                            </p>
+                          ) : (
+                            <>
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr",
+                                  gap: 12,
+                                  marginBottom: 10,
+                                }}
+                              >
+                                <div>
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 11,
+                                      color: "#64748b",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Title
+                                  </p>
+                                  <p
+                                    style={{
+                                      margin: "4px 0 0",
+                                      fontSize: 13,
+                                      color: "#0f172a",
+                                    }}
+                                  >
+                                    {settingTitle}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 11,
+                                      color: "#64748b",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Team size
+                                  </p>
+                                  <p
+                                    style={{
+                                      margin: "4px 0 0",
+                                      fontSize: 13,
+                                      color: "#0f172a",
+                                    }}
+                                  >
+                                    {settingTeamSize === null
+                                      ? "—"
+                                      : String(settingTeamSize)}
+                                  </p>
+                                </div>
+                              </div>
+                              <p
+                                style={{
+                                  margin: "0 0 6px",
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Description
+                              </p>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 13,
+                                  color: "#334155",
+                                  lineHeight: 1.55,
+                                }}
+                              >
+                                {settingDescription}
+                              </p>
+                              <p
+                                style={{
+                                  margin: "12px 0 6px",
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Attached file
+                              </p>
+                              {settingFileUrl ? (
+                                <a
+                                  href={settingFileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    color: "#4338ca",
+                                  }}
+                                >
+                                  Open attached file
+                                </a>
+                              ) : (
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "#94a3b8",
+                                  }}
+                                >
+                                  No file attached for this project yet.
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </section>
+                        <section style={S.ctModalSectionMuted}>
+                          <h4 style={S.ctModalH4}>My team</h4>
+                          <p style={S.ctModalH4Sub}>
+                            Your assigned team for this course (if any).
+                          </p>
+                          {!ctMyTeam && (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#475569",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              You are not in a team yet. Invite classmates or
+                              accept partner requests to form a team.
+                            </p>
+                          )}
+                          {ctMyTeam && (
+                            <>
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr",
+                                  gap: 12,
+                                  marginBottom: 12,
+                                }}
+                              >
+                                <div>
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 11,
+                                      color: "#64748b",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Team ID
+                                  </p>
+                                  <p
+                                    style={{
+                                      margin: "4px 0 0",
+                                      fontSize: 13,
+                                      color: "#0f172a",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {String(ctMyTeam.teamId)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 11,
+                                      color: "#64748b",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    My role
+                                  </p>
+                                  <p
+                                    style={{
+                                      margin: "4px 0 0",
+                                      fontSize: 13,
+                                      color: "#0f172a",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {myRoleStr}
+                                  </p>
+                                </div>
+                              </div>
+                              <p
+                                style={{
+                                  margin: "0 0 8px",
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Members
+                              </p>
+                              {ctMyTeam.members.length === 0 ? (
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: 13,
+                                    color: "#94a3b8",
+                                  }}
+                                >
+                                  No other members are listed for this team
+                                  yet.
+                                </p>
+                              ) : (
+                                <ul
+                                  style={{
+                                    margin: 0,
+                                    padding: 0,
+                                    listStyle: "none",
+                                    display: "flex",
+                                    flexDirection: "column" as const,
+                                    gap: 8,
+                                  }}
+                                >
+                                  {ctMyTeam.members.map((member) => {
+                                    const isMemberTeamLeader =
+                                      normApiStatus(
+                                        member.role ??
+                                          (
+                                            member as TeamMember & {
+                                              Role?: string;
+                                            }
+                                          ).Role,
+                                      ) === "leader";
+                                    const isSelfMember =
+                                      ctMyCourseTeamSelfStudentId !== null &&
+                                      member.studentId ===
+                                        ctMyCourseTeamSelfStudentId;
+                                    const showRemoveMember =
+                                      ctCourseTeamIsLeader &&
+                                      !isSelfMember &&
+                                      !isMemberTeamLeader;
+                                    const memberRowBusy =
+                                      ctRemovingMemberStudentId ===
+                                      member.studentId;
+                                    return (
+                                    <li
+                                      key={member.studentId}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 10,
+                                        padding: "8px 10px",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: 8,
+                                        background: "#fff",
+                                        fontSize: 13,
+                                        opacity: memberRowBusy ? 0.65 : 1,
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          flex: 1,
+                                          display: "flex",
+                                          justifyContent: "space-between",
+                                          alignItems: "center",
+                                          gap: 8,
+                                          minWidth: 0,
+                                        }}
+                                      >
+                                        <span style={{ fontWeight: 600 }}>
+                                          {ctMemberDisplayName(member)}
+                                        </span>
+                                        <span
+                                          style={{
+                                            fontSize: 12,
+                                            color: "#64748b",
+                                          }}
+                                        >
+                                          {member.universityId}
+                                        </span>
+                                      </div>
+                                      {showRemoveMember ? (
+                                        <button
+                                          type="button"
+                                          disabled={memberRowBusy}
+                                          onClick={() => {
+                                            if (
+                                              memberRowBusy ||
+                                              !ctSelectedCourseId
+                                            )
+                                              return;
+                                            void handleCtRemoveTeamMember(
+                                              ctMyTeam.teamId,
+                                              member.studentId,
+                                            );
+                                          }}
+                                          style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: 4,
+                                            flexShrink: 0,
+                                            padding: "4px 8px",
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            borderRadius: 6,
+                                            border: "1px solid #fecaca",
+                                            background: "#fff",
+                                            color: "#dc2626",
+                                            cursor: memberRowBusy
+                                              ? "not-allowed"
+                                              : "pointer",
+                                            fontFamily: "inherit",
+                                          }}
+                                          title="Remove from team"
+                                        >
+                                          <Trash2 size={12} />
+                                          {memberRowBusy
+                                            ? "Removing..."
+                                            : "Remove"}
+                                        </button>
+                                      ) : null}
+                                    </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
+                            </>
+                          )}
+                        </section>
+                        <section style={S.ctModalSection}>
+                          <h4 style={S.ctModalH4}>Incoming Partner Requests</h4>
+                          <p style={S.ctModalH4Sub}>
+                            Other students who asked to partner with you in
+                            this course.
+                          </p>
+                          {(ctPartnerRequests?.incoming ?? []).length === 0 ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              You are all caught up — no partner requests need
+                              your attention right now.
+                            </p>
+                          ) : (
+                            <ul
+                              style={{
+                                margin: 0,
+                                padding: 0,
+                                listStyle: "none",
+                                display: "flex",
+                                flexDirection: "column" as const,
+                                gap: 10,
+                              }}
+                            >
+                              {(ctPartnerRequests?.incoming ?? []).map(
+                                (req, incIdx) => {
+                                  const requestId =
+                                    req.requestId ??
+                                    (req as PartnerRequest & { RequestId?: number })
+                                      .RequestId;
+                                  const row = ctIncomingSenderRow(req.sender);
+                                  const incomingRowBusy =
+                                    requestId != null &&
+                                    ctIncomingRowAction[requestId] !== undefined;
+                                  const incomingRowMode =
+                                    requestId != null
+                                      ? ctIncomingRowAction[requestId]
+                                      : undefined;
+                                  const initials = row.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .slice(0, 2)
+                                    .toUpperCase();
+                                  return (
+                                    <li
+                                      key={
+                                        requestId != null
+                                          ? `inc-${requestId}`
+                                          : `inc-${incIdx}`
+                                      }
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 12,
+                                        padding: "10px 12px",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: 10,
+                                        background: "#fafafa",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          width: 40,
+                                          height: 40,
+                                          borderRadius: "50%",
+                                          overflow: "hidden",
+                                          flexShrink: 0,
+                                          background: "#e2e8f0",
+                                        }}
+                                      >
+                                        {row.pic ? (
+                                          <img
+                                            src={row.pic}
+                                            alt=""
+                                            style={{
+                                              width: "100%",
+                                              height: "100%",
+                                              objectFit: "cover" as const,
+                                            }}
+                                          />
+                                        ) : (
+                                          <div
+                                            style={{
+                                              width: "100%",
+                                              height: "100%",
+                                              display: "flex",
+                                              alignItems: "center",
+                                              justifyContent: "center",
+                                              fontSize: 12,
+                                              fontWeight: 800,
+                                              color: "#64748b",
+                                            }}
+                                          >
+                                            {initials}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div
+                                        style={{
+                                          flex: 1,
+                                          minWidth: 0,
+                                        }}
+                                      >
+                                        <p
+                                          style={{
+                                            margin: 0,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            color: "#0f172a",
+                                          }}
+                                        >
+                                          {row.name}
+                                        </p>
+                                        <p
+                                          style={{
+                                            margin: "2px 0 0",
+                                            fontSize: 12,
+                                            color: "#64748b",
+                                          }}
+                                        >
+                                          {row.university}
+                                        </p>
+                                        {row.major ? (
+                                          <p
+                                            style={{
+                                              margin: "2px 0 0",
+                                              fontSize: 12,
+                                              color: "#64748b",
+                                            }}
+                                          >
+                                            {row.major}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                      <div
+                                        style={{
+                                          flexShrink: 0,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 8,
+                                        }}
+                                      >
+                                        <button
+                                          type="button"
+                                          disabled={
+                                            incomingRowBusy ||
+                                            requestId == null
+                                          }
+                                          onClick={() => {
+                                            if (
+                                              requestId == null ||
+                                              incomingRowBusy
+                                            )
+                                              return;
+                                            void handleCtAcceptIncoming(
+                                              requestId,
+                                            );
+                                          }}
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #bbf7d0",
+                                            background: "#f0fdf4",
+                                            color: "#15803d",
+                                            cursor:
+                                              incomingRowBusy ||
+                                              requestId == null
+                                                ? "not-allowed"
+                                                : "pointer",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          {incomingRowMode === "accept"
+                                            ? "Accepting..."
+                                            : "Accept"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={
+                                            incomingRowBusy ||
+                                            requestId == null
+                                          }
+                                          onClick={() => {
+                                            if (
+                                              requestId == null ||
+                                              incomingRowBusy
+                                            )
+                                              return;
+                                            void handleCtRejectIncoming(
+                                              requestId,
+                                            );
+                                          }}
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #fecaca",
+                                            background: "#fef2f2",
+                                            color: "#b91c1c",
+                                            cursor:
+                                              incomingRowBusy ||
+                                              requestId == null
+                                                ? "not-allowed"
+                                                : "pointer",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          {incomingRowMode === "reject"
+                                            ? "Rejecting..."
+                                            : "Reject"}
+                                        </button>
+                                      </div>
+                                    </li>
+                                  );
+                                },
+                              )}
+                            </ul>
+                          )}
+                        </section>
+                        <section style={S.ctModalSectionMuted}>
+                          <h4 style={S.ctModalH4}>Enrolled students</h4>
+                          <p style={S.ctModalH4Sub}>
+                            Everyone in this course — send a partner request
+                            when you are ready.
+                          </p>
+                          {ctCourseStudents.length === 0 ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              No classmates are listed for this course yet. If
+                              you just enrolled, try again in a moment.
+                            </p>
+                          ) : (
+                            <ul
+                              style={{
+                                margin: 0,
+                                padding: 0,
+                                listStyle: "none",
+                                display: "flex",
+                                flexDirection: "column" as const,
+                                gap: 10,
+                              }}
+                            >
+                              {ctCourseStudents.map((raw, idx) => {
+                                const st = raw as CourseStudent;
+                                const dbId = ctCourseStudentDbId(st);
+                                const rowUserId = ctCourseStudentUserId(st);
+                                const name =
+                                  st.name ?? st.Name ?? "—";
+                                const uni =
+                                  st.university ?? st.University ?? "—";
+                                const maj = st.major ?? st.Major ?? "—";
+                                const year =
+                                  st.academicYear ?? st.AcademicYear ?? "—";
+                                const pic =
+                                  st.profilePicture ??
+                                  st.ProfilePictureBase64 ??
+                                  null;
+                                const isSelf =
+                                  myAuthUserId != null &&
+                                  rowUserId != null &&
+                                  rowUserId === myAuthUserId;
+                                const inTeam =
+                                  dbId != null && teamMemberDbIds.has(dbId);
+                                const pendingOut =
+                                  dbId != null &&
+                                  outgoingPendingReceiverDbIds.has(dbId);
+                                const receiverUniversityId = (
+                                  st.universityId ??
+                                  st.UniversityId ??
+                                  ""
+                                ).trim();
+                                const isSendingThisRow =
+                                  ctSendingReceiverUniversityId != null &&
+                                  receiverUniversityId !== "" &&
+                                  ctSendingReceiverUniversityId ===
+                                    receiverUniversityId;
+                                const rowKey =
+                                  dbId != null ? `cs-${dbId}` : `cs-i-${idx}`;
+                                const initials = name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase();
+                                return (
+                                  <li
+                                    key={rowKey}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 12,
+                                      padding: "10px 12px",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: 10,
+                                      background: "#fafafa",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: "50%",
+                                        overflow: "hidden",
+                                        flexShrink: 0,
+                                        background: "#e2e8f0",
+                                      }}
+                                    >
+                                      {pic ? (
+                                        <img
+                                          src={pic}
+                                          alt=""
+                                          style={{
+                                            width: "100%",
+                                            height: "100%",
+                                            objectFit: "cover" as const,
+                                          }}
+                                        />
+                                      ) : (
+                                        <div
+                                          style={{
+                                            width: "100%",
+                                            height: "100%",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontSize: 12,
+                                            fontWeight: 800,
+                                            color: "#64748b",
+                                          }}
+                                        >
+                                          {initials}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div
+                                      style={{
+                                        flex: 1,
+                                        minWidth: 0,
+                                      }}
+                                    >
+                                      <p
+                                        style={{
+                                          margin: 0,
+                                          fontSize: 13,
+                                          fontWeight: 700,
+                                          color: "#0f172a",
+                                        }}
+                                      >
+                                        {name}
+                                      </p>
+                                      <p
+                                        style={{
+                                          margin: "2px 0 0",
+                                          fontSize: 12,
+                                          color: "#64748b",
+                                        }}
+                                      >
+                                        {uni}
+                                      </p>
+                                      <p
+                                        style={{
+                                          margin: "2px 0 0",
+                                          fontSize: 12,
+                                          color: "#64748b",
+                                        }}
+                                      >
+                                        {maj}
+                                        {year && year !== "—"
+                                          ? ` · ${year}`
+                                          : ""}
+                                      </p>
+                                    </div>
+                                    <div
+                                      style={{
+                                        flexShrink: 0,
+                                        minWidth: 112,
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                      }}
+                                    >
+                                      {isSelf ? (
+                                        <span
+                                          style={{
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            color: "#94a3b8",
+                                          }}
+                                        >
+                                          You
+                                        </span>
+                                      ) : inTeam ? (
+                                        <button
+                                          type="button"
+                                          disabled
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #e2e8f0",
+                                            background: "#f1f5f9",
+                                            color: "#94a3b8",
+                                            cursor: "not-allowed",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          In Your Team
+                                        </button>
+                                      ) : pendingOut ? (
+                                        <button
+                                          type="button"
+                                          disabled
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #fde68a",
+                                            background: "#fffbeb",
+                                            color: "#b45309",
+                                            cursor: "not-allowed",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          Pending
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          disabled={
+                                            receiverUniversityId === "" ||
+                                            isSendingThisRow
+                                          }
+                                          onClick={() => {
+                                            if (
+                                              receiverUniversityId === "" ||
+                                              isSendingThisRow
+                                            )
+                                              return;
+                                            void handleCourseTeamsSendPartnerRequest(
+                                              receiverUniversityId,
+                                            );
+                                          }}
+                                          style={{
+                                            padding: "6px 12px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            fontFamily: "inherit",
+                                            ...(receiverUniversityId !== "" &&
+                                            !isSendingThisRow
+                                              ? {
+                                                  border: "none",
+                                                  background:
+                                                    "linear-gradient(135deg,#6366f1,#a855f7)",
+                                                  color: "white",
+                                                  boxShadow:
+                                                    "0 2px 10px rgba(99,102,241,0.35)",
+                                                  cursor: "pointer",
+                                                  opacity: 1,
+                                                }
+                                              : {
+                                                  border: "1.5px solid #e2e8f0",
+                                                  background: "#f8fafc",
+                                                  color: "#94a3b8",
+                                                  cursor:
+                                                    receiverUniversityId ===
+                                                      "" || isSendingThisRow
+                                                      ? "not-allowed"
+                                                      : "pointer",
+                                                  opacity:
+                                                    receiverUniversityId === ""
+                                                      ? 0.55
+                                                      : isSendingThisRow
+                                                        ? 0.75
+                                                        : 0.85,
+                                                }),
+                                          }}
+                                        >
+                                          {isSendingThisRow
+                                            ? "Sending..."
+                                            : "Send Request"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </section>
+                        <section style={S.ctModalSection}>
+                          <h4 style={S.ctModalH4}>Partner requests overview</h4>
+                          <p style={S.ctModalH4Sub}>
+                            Quick counts for the selected course — details are in
+                            the sections above.
+                          </p>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: 12,
+                            }}
+                          >
+                            <div>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Incoming
+                              </p>
+                              <p
+                                style={{
+                                  margin: "4px 0 0",
+                                  fontSize: 20,
+                                  fontWeight: 800,
+                                  color: "#0f172a",
+                                }}
+                              >
+                                {incomingCt}
+                              </p>
+                            </div>
+                            <div>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Outgoing
+                              </p>
+                              <p
+                                style={{
+                                  margin: "4px 0 0",
+                                  fontSize: 20,
+                                  fontWeight: 800,
+                                  color: "#0f172a",
+                                }}
+                              >
+                                {outgoingCt}
+                              </p>
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+                    );
+                  })()}
+              </main>
             </div>
           </div>
         </div>
@@ -2700,7 +4766,13 @@ export default function DashboardPage() {
                   </p>
                 </div>
               ) : (
-                recommendedProjects.map((project) => (
+                recommendedProjects.map((project) => {
+                  const channelBody = (
+                    project.abstract ??
+                    project.description ??
+                    ""
+                  ).trim();
+                  return (
                   <div
                     key={project.id}
                     style={{
@@ -2735,7 +4807,7 @@ export default function DashboardPage() {
                         >
                           {project.title}
                         </p>
-                        {project.description && (
+                        {channelBody ? (
                           <p
                             style={{
                               margin: "0 0 6px",
@@ -2744,9 +4816,9 @@ export default function DashboardPage() {
                               lineHeight: 1.5,
                             }}
                           >
-                            {project.description}
+                            {channelBody}
                           </p>
-                        )}
+                        ) : null}
                         <div
                           style={{
                             display: "flex",
@@ -2840,7 +4912,8 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   </div>
-                ))
+                );
+                })
               )}
             </div>
             <div style={{ marginTop: 20, textAlign: "center" as const }}>
@@ -2956,16 +5029,33 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── CREATE GRADUATION PROJECT MODAL ── */}
+      {/* ── GRADUATION PROJECT: CREATE / EDIT MODAL (abstract + projectType only; no description) ── */}
       {gradModalOpen && (
         <div
           style={S.modalOverlay}
           onClick={() => {
             setGradModalOpen(false);
             setGradFormError(null);
+            setGradFormFieldErrors({});
+            setGradSkillInputDraft("");
+            setGradModalMode("create");
           }}
         >
           <div style={S.modalBox} onClick={(e) => e.stopPropagation()}>
+            <style>{`
+              .grad-modal-abstract {
+                transition: border-color 0.2s ease, box-shadow 0.2s ease;
+              }
+              .grad-modal-abstract:focus {
+                outline: none;
+                border-color: #a5b4fc !important;
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+              }
+              .grad-modal-submit:not(:disabled):hover {
+                filter: brightness(1.06);
+                box-shadow: 0 6px 20px rgba(99, 102, 241, 0.42);
+              }
+            `}</style>
             <div
               style={{
                 display: "flex",
@@ -2983,12 +5073,17 @@ export default function DashboardPage() {
                   fontFamily: "Syne, sans-serif",
                 }}
               >
-                🎓 Create Graduation Project
+                {gradModalMode === "edit"
+                  ? "🎓 Edit Graduation Project"
+                  : "🎓 Create Graduation Project"}
               </h3>
               <button
                 onClick={() => {
                   setGradModalOpen(false);
                   setGradFormError(null);
+                  setGradFormFieldErrors({});
+                  setGradSkillInputDraft("");
+                  setGradModalMode("create");
                 }}
                 style={S.modalCloseBtn}
               >
@@ -3030,22 +5125,139 @@ export default function DashboardPage() {
                   letterSpacing: "0.06em",
                 }}
               >
-                Description
+                Abstract <span style={{ color: "#ef4444" }}>*</span>
               </label>
               <textarea
-                rows={3}
+                className="grad-modal-abstract"
+                rows={6}
                 style={{
                   ...S.modalInput,
+                  ...(gradFormFieldErrors.abstract
+                    ? gradModalInputErrorStyle
+                    : {}),
                   resize: "vertical" as const,
-                  lineHeight: 1.5,
+                  lineHeight: 1.55,
+                  minHeight: 140,
+                  padding: "14px 16px",
+                  border: gradFormFieldErrors.abstract
+                    ? undefined
+                    : "1.5px solid #e2e8f0",
+                  borderRadius: 12,
+                  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                 }}
-                placeholder="Brief description..."
-                value={gradForm.description}
-                onChange={(e) =>
-                  setGradForm((p) => ({ ...p, description: e.target.value }))
-                }
+                placeholder="Brief summary of your project idea..."
+                value={gradForm.abstract}
+                onChange={(e) => {
+                  setGradForm((p) => ({ ...p, abstract: e.target.value }));
+                  setGradFormFieldErrors((prev) => {
+                    if (!prev.abstract) return prev;
+                    const next = { ...prev };
+                    delete next.abstract;
+                    return next;
+                  });
+                }}
               />
+              {gradFormFieldErrors.abstract ? (
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#ef4444",
+                  }}
+                >
+                  {gradFormFieldErrors.abstract}
+                </p>
+              ) : null}
             </div>
+            {isEngineeringOrITFaculty(user?.faculty) ? (
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 11,
+                    color: "#64748b",
+                    fontWeight: 700,
+                    marginBottom: 8,
+                    textTransform: "uppercase" as const,
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Project type <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap" as const,
+                    gap: 10,
+                  }}
+                >
+                  {(
+                    [
+                      { value: "GP1" as const, label: "GP1" },
+                      { value: "GP2" as const, label: "GP2" },
+                      { value: "GP" as const, label: "GP" },
+                    ] as const
+                  ).map((opt) => {
+                    const checked = gradForm.projectType === opt.value;
+                    return (
+                      <label
+                        key={opt.value}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                          padding: "8px 14px",
+                          borderRadius: 10,
+                          border: checked
+                            ? "1.5px solid #6366f1"
+                            : "1.5px solid #e2e8f0",
+                          background: checked ? "#eef2ff" : "#f8fafc",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: checked ? "#4338ca" : "#64748b",
+                          fontFamily: "inherit",
+                          userSelect: "none" as const,
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="grad-project-type"
+                          checked={checked}
+                          onChange={() =>
+                            setGradForm((p) => ({
+                              ...p,
+                              projectType: opt.value,
+                            }))
+                          }
+                          style={{
+                            accentColor: "#6366f1",
+                            width: 15,
+                            height: 15,
+                            margin: 0,
+                            cursor: "pointer",
+                          }}
+                        />
+                        {opt.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p
+                style={{
+                  margin: "0 0 14px",
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  lineHeight: 1.45,
+                }}
+              >
+                Project type: <strong style={{ color: "#64748b" }}>GP</strong>{" "}
+                (required for your faculty; sent automatically)
+              </p>
+            )}
             <div style={{ marginBottom: 14 }}>
               <label
                 style={{
@@ -3058,19 +5270,151 @@ export default function DashboardPage() {
                   letterSpacing: "0.06em",
                 }}
               >
-                Required Skills{" "}
+                Required Skills <span style={{ color: "#ef4444" }}>*</span>{" "}
                 <span style={{ color: "#94a3b8", fontWeight: 400 }}>
-                  (comma separated)
+                  Type a skill, press Enter
                 </span>
               </label>
-              <input
-                style={S.modalInput}
-                placeholder="e.g. React, Python, Machine Learning"
-                value={gradForm.skills}
-                onChange={(e) =>
-                  setGradForm((p) => ({ ...p, skills: e.target.value }))
-                }
-              />
+              <div
+                style={{
+                  ...S.modalInput,
+                  ...(gradFormFieldErrors.skills ? gradModalInputErrorStyle : {}),
+                  display: "flex",
+                  flexWrap: "wrap" as const,
+                  alignItems: "center",
+                  gap: 8,
+                  minHeight: 46,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  background: "#f8fafc",
+                }}
+              >
+                {gradForm.skills
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+                  .map((skill, idx) => (
+                    <span
+                      key={`${skill}-${idx}`}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        padding: "4px 8px 4px 10px",
+                        borderRadius: 8,
+                        background: "#eef2ff",
+                        border: "1px solid #c7d2fe",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#4338ca",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap" as const,
+                          maxWidth: 200,
+                        }}
+                      >
+                        {skill}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${skill}`}
+                        onClick={() => {
+                          const parts = gradForm.skills
+                            .split(",")
+                            .map((x) => x.trim())
+                            .filter(Boolean);
+                          parts.splice(idx, 1);
+                          setGradForm((p) => ({
+                            ...p,
+                            skills: parts.join(", "),
+                          }));
+                          setGradFormFieldErrors((prev) => {
+                            if (!prev.skills) return prev;
+                            const next = { ...prev };
+                            delete next.skills;
+                            return next;
+                          });
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 18,
+                          height: 18,
+                          padding: 0,
+                          border: "none",
+                          borderRadius: 6,
+                          background: "rgba(99,102,241,0.12)",
+                          color: "#4f46e5",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          lineHeight: 1,
+                          fontFamily: "inherit",
+                          flexShrink: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                <input
+                  type="text"
+                  placeholder="Add skill…"
+                  value={gradSkillInputDraft}
+                  onChange={(e) => setGradSkillInputDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const t = gradSkillInputDraft.trim();
+                      if (!t) return;
+                      const parts = gradForm.skills
+                        .split(",")
+                        .map((x) => x.trim())
+                        .filter(Boolean);
+                      if (!parts.includes(t)) parts.push(t);
+                      setGradForm((p) => ({
+                        ...p,
+                        skills: parts.join(", "),
+                      }));
+                      setGradSkillInputDraft("");
+                      setGradFormFieldErrors((prev) => {
+                        if (!prev.skills) return prev;
+                        const next = { ...prev };
+                        delete next.skills;
+                        return next;
+                      });
+                    }
+                  }}
+                  style={{
+                    flex: "1 1 120px",
+                    minWidth: 100,
+                    border: "none",
+                    background: "transparent",
+                    fontSize: 13,
+                    color: "#0f172a",
+                    fontFamily: "inherit",
+                    outline: "none",
+                    padding: "4px 2px",
+                  }}
+                />
+              </div>
+              {gradFormFieldErrors.skills ? (
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#ef4444",
+                  }}
+                >
+                  {gradFormFieldErrors.skills}
+                </p>
+              ) : null}
             </div>
             <div style={{ marginBottom: 20 }}>
               <label
@@ -3151,6 +5495,9 @@ export default function DashboardPage() {
                 onClick={() => {
                   setGradModalOpen(false);
                   setGradFormError(null);
+                  setGradFormFieldErrors({});
+                  setGradSkillInputDraft("");
+                  setGradModalMode("create");
                 }}
                 style={S.modalCancelBtn}
               >
@@ -3159,9 +5506,10 @@ export default function DashboardPage() {
               <button
                 onClick={handleGradSubmit}
                 disabled={gradSubmitting}
+                className="grad-modal-submit"
                 style={{
-                  padding: "9px 22px",
-                  borderRadius: 10,
+                  padding: "10px 24px",
+                  borderRadius: 12,
                   border: "none",
                   background: gradSubmitting
                     ? "#e2e8f0"
@@ -3171,9 +5519,19 @@ export default function DashboardPage() {
                   fontWeight: 700,
                   cursor: gradSubmitting ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
+                  boxShadow: gradSubmitting
+                    ? "none"
+                    : "0 4px 14px rgba(99, 102, 241, 0.35)",
+                  transition: "filter 0.15s ease, box-shadow 0.15s ease",
                 }}
               >
-                {gradSubmitting ? "⏳ Creating..." : "Create Project"}
+                {gradSubmitting
+                  ? gradModalMode === "edit"
+                    ? "⏳ Saving..."
+                    : "⏳ Creating..."
+                  : gradModalMode === "edit"
+                    ? "Save changes"
+                    : "Create Project"}
               </button>
             </div>
           </div>
@@ -3838,12 +6196,113 @@ const S: Record<string, React.CSSProperties> = {
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "300px 1fr",
-    gap: 20,
+    gridTemplateColumns: "minmax(260px, 30%) minmax(0, 70%)",
+    gap: 22,
     alignItems: "start",
   },
-  leftCol: { display: "flex", flexDirection: "column", gap: 14 },
-  rightCol: { display: "flex", flexDirection: "column", gap: 14 },
+  gridNarrow: {
+    gridTemplateColumns: "1fr",
+    gap: 22,
+  },
+  leftCol: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 22,
+    minWidth: 0,
+  },
+  leftColNarrow: { order: 2 },
+  rightCol: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 22,
+    minWidth: 0,
+  },
+  rightColNarrow: { order: 1 },
+  /** My Graduation Project + Course Teams — equal-width row; stacks on narrow viewports */
+  rightColTopRow: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 22,
+  },
+  rightColTopCard: {
+    minWidth: 0,
+    height: "100%",
+    display: "flex",
+    flexDirection: "column" as const,
+    boxSizing: "border-box" as const,
+    padding: "24px",
+  },
+  ctDashCourseTeamsCard: {
+    borderTop: "3px solid transparent",
+    backgroundImage:
+      "linear-gradient(white, white), linear-gradient(135deg,#6366f1,#a855f7)",
+    backgroundOrigin: "border-box",
+    backgroundClip: "padding-box, border-box",
+    boxShadow: "0 4px 24px rgba(99,102,241,0.08)",
+  },
+  ctDashStatPill: {
+    padding: "10px 12px",
+    background: "#f8fafc",
+    borderRadius: 10,
+    border: "1px solid #e2e8f0",
+    minWidth: 0,
+  },
+  ctDashStatLabel: {
+    margin: 0,
+    fontSize: 10,
+    fontWeight: 700,
+    color: "#94a3b8",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
+  },
+  ctDashStatValue: {
+    margin: "6px 0 0",
+    fontSize: 20,
+    fontWeight: 800,
+    color: "#0f172a",
+    fontFamily: "Syne, sans-serif",
+    lineHeight: 1.1,
+  },
+  ctDashStatHint: {
+    margin: "4px 0 0",
+    fontSize: 9,
+    fontWeight: 500,
+    color: "#cbd5e1",
+  },
+  ctModalStack: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 20,
+  },
+  ctModalSection: {
+    padding: 18,
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    background: "#fff",
+  },
+  ctModalSectionMuted: {
+    padding: 18,
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    background: "#fafafa",
+  },
+  ctModalH4: {
+    margin: "0 0 6px",
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#0f172a",
+    fontFamily: "Syne, sans-serif",
+    letterSpacing: "-0.02em",
+  },
+  ctModalH4Sub: {
+    margin: "0 0 14px",
+    paddingBottom: 12,
+    borderBottom: "1px solid #f1f5f9",
+    fontSize: 11,
+    fontWeight: 500,
+    color: "#94a3b8",
+    lineHeight: 1.45,
+  },
   card: {
     background: "white",
     border: "1px solid #e2e8f0",
@@ -3916,69 +6375,6 @@ const S: Record<string, React.CSSProperties> = {
     minWidth: 36,
   },
   progressLabel: { fontSize: 12, color: "#94a3b8", margin: "0 0 12px" },
-  filterRow: { display: "flex", gap: 6, marginBottom: 4 },
-  filterBtn: {
-    padding: "7px 16px",
-    background: "white",
-    border: "1.5px solid #e2e8f0",
-    borderRadius: 20,
-    color: "#64748b",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  },
-  filterBtnActive: {
-    background: "#eef2ff",
-    border: "1.5px solid #c7d2fe",
-    color: "#6366f1",
-  },
-  teammateCard: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: "14px",
-    background: "#f8fafc",
-    borderRadius: 12,
-    border: "1px solid #e2e8f0",
-  },
-  teammateAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: "50%",
-    flexShrink: 0,
-    overflow: "hidden",
-  },
-  teammateAvatarFallback: {
-    width: "100%",
-    height: "100%",
-    background: "linear-gradient(135deg,#6366f1,#a855f7)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 13,
-    fontWeight: 800,
-    color: "white",
-    borderRadius: "50%",
-  },
-  projectCard: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: "14px",
-    background: "#f8fafc",
-    borderRadius: 12,
-    border: "1px solid #e2e8f0",
-  },
-  matchBadge: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "6px 10px",
-    background: "#f0fdf4",
-    border: "1px solid #bbf7d0",
-    borderRadius: 10,
-  },
   skillChipSm: {
     padding: "3px 8px",
     background: "#eef2ff",
@@ -3987,17 +6383,6 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 10,
     color: "#6366f1",
     fontWeight: 600,
-  },
-  btnSm: {
-    padding: "5px 12px",
-    background: "white",
-    border: "1.5px solid #e2e8f0",
-    borderRadius: 8,
-    color: "#64748b",
-    fontSize: 11,
-    fontWeight: 700,
-    cursor: "pointer",
-    fontFamily: "inherit",
   },
   emptyState: {
     display: "flex",

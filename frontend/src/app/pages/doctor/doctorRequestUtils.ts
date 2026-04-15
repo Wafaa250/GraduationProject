@@ -14,29 +14,34 @@ export function supervisionRequestLabel(kind: RequestRow["kind"]): string {
     : "Cancellation request";
 }
 
+/**
+ * Inbox rows: only **pending** items. Accepted/rejected supervision and cancellation
+ * requests must not stay in the inbox (they belong in history / My Projects).
+ */
 export function mergeDoctorRequestRows(
   supervisionRequests: SupervisorRequest[],
   cancelRequests: SupervisorCancelRequestItem[],
 ): RequestRow[] {
   return [
-    ...supervisionRequests.map((r) => ({
-      kind: "supervision" as const,
-      requestId: r.requestId,
-      projectName: r.project?.name ?? "",
-      studentName: r.sender?.name ?? "",
-      status: r.status,
-    })),
-    ...cancelRequests.map((r) => ({
-      kind: "cancellation" as const,
-      requestId: r.requestId,
-      projectName: r.projectName,
-      studentName: r.studentName,
-      status: r.status,
-    })),
+    ...supervisionRequests
+      .filter((r) => isPendingRequestStatus(r.status))
+      .map((r) => ({
+        kind: "supervision" as const,
+        requestId: r.requestId,
+        projectName: r.project?.name ?? "",
+        studentName: r.sender?.name ?? "",
+        status: r.status,
+      })),
+    ...cancelRequests
+      .filter((r) => isPendingRequestStatus(r.status))
+      .map((r) => ({
+        kind: "cancellation" as const,
+        requestId: r.requestId,
+        projectName: r.projectName,
+        studentName: r.studentName,
+        status: r.status,
+      })),
   ].sort((a, b) => {
-    const pa = isPendingRequestStatus(a.status) ? 0 : 1;
-    const pb = isPendingRequestStatus(b.status) ? 0 : 1;
-    if (pa !== pb) return pa - pb;
     if (a.kind !== b.kind) return a.kind === "supervision" ? -1 : 1;
     return b.requestId - a.requestId;
   });

@@ -1,23 +1,39 @@
-import { ClipboardList } from "lucide-react";
-import type { SupervisorRequest } from "../../../../api/supervisorApi";
-import { isPendingRequestStatus } from "../doctorRequestUtils";
+import { ClipboardList, Loader2 } from "lucide-react";
+import type { RequestRow } from "../doctorDashboardTypes";
+import { isPendingRequestStatus, supervisionRequestLabel } from "../doctorRequestUtils";
 import { SectionSpinner } from "./SectionSpinner";
 import { dash, card } from "./doctorDashTokens";
 
 type Props = {
-  /** GET /api/doctors/me/requests */
-  requests: SupervisorRequest[];
+  rows: RequestRow[];
   loading: boolean;
   error: string | null;
   actionKey: string | null;
-  onAction: (requestId: number, action: "accept" | "reject") => void;
+  /** Parent removes the row from state (requestId), then refetches — instant UI + server sync */
+  onSupervisionAction: (requestId: number, action: "accept" | "reject") => void;
+  onCancelAction: (requestId: number, action: "accept" | "reject") => void;
 };
 
-export function RequestsSection({ requests, loading, error, actionKey, onAction }: Props) {
+export function RequestsSection({
+  rows,
+  loading,
+  error,
+  actionKey,
+  onSupervisionAction,
+  onCancelAction,
+}: Props) {
   return (
     <div>
-      <h2 style={{ margin: "0 0 18px", fontSize: 13, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
-        SUPERVISION REQUESTS
+      <h2
+        style={{
+          margin: "0 0 18px",
+          fontSize: 13,
+          fontWeight: 700,
+          color: dash.subtle,
+          letterSpacing: "0.06em",
+        }}
+      >
+        REQUESTS
       </h2>
       <div style={{ ...card, padding: 0, overflow: "hidden" }}>
         <div
@@ -30,36 +46,48 @@ export function RequestsSection({ requests, loading, error, actionKey, onAction 
           }}
         >
           <ClipboardList size={18} color={dash.accent} />
-          <span style={{ fontSize: 15, fontWeight: 800, fontFamily: dash.fontDisplay }}>Requests</span>
-          <span style={{ fontSize: 12, color: dash.muted, marginLeft: "auto" }}>{requests.length} total</span>
+          <span style={{ fontSize: 15, fontWeight: 800, fontFamily: dash.fontDisplay }}>
+            Inbox
+          </span>
+          <span style={{ fontSize: 12, color: dash.muted, marginLeft: "auto" }}>
+            {rows.length} total
+          </span>
         </div>
 
         {error ? (
-          <div style={{ padding: "16px 20px", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>{error}</div>
+          <div style={{ padding: "16px 20px", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>
+            {error}
+          </div>
         ) : null}
 
         {loading ? (
           <SectionSpinner label="Loading requests…" />
-        ) : requests.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div style={{ padding: "40px 20px", textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>No requests yet</p>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>
+              No requests
+            </p>
             <p style={{ margin: "8px 0 0", fontSize: 13, color: dash.subtle }}>
-              When students request supervision, they will appear here.
+              Supervision and cancellation requests will appear here.
             </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {requests.map((req) => {
-              const pending = isPendingRequestStatus(req.status);
-              const statusLabel = req.status
-                ? req.status.charAt(0).toUpperCase() + req.status.slice(1).toLowerCase()
+            {rows.map((row) => {
+              const pending = isPendingRequestStatus(row.status);
+              const statusLabel = row.status
+                ? row.status.charAt(0).toUpperCase() + row.status.slice(1).toLowerCase()
                 : "—";
-              const prefix = `sup-${req.requestId}`;
-              const projectName = req.project?.name?.trim() || "—";
-              const senderName = req.sender?.name?.trim() || "—";
+              const prefix = row.kind === "supervision" ? "sup" : "can";
+              const projectName = row.projectName?.trim() || "—";
+              const studentName = row.studentName?.trim() || "—";
+              const acceptKey = `${prefix}-${row.requestId}-accept`;
+              const rejectKey = `${prefix}-${row.requestId}-reject`;
+              const acceptLoading = actionKey === acceptKey;
+              const rejectLoading = actionKey === rejectKey;
               return (
                 <div
-                  key={req.requestId}
+                  key={`${row.kind}-${row.requestId}`}
                   style={{
                     padding: "16px 20px",
                     borderBottom: `1px solid ${dash.border}`,
@@ -76,17 +104,66 @@ export function RequestsSection({ requests, loading, error, actionKey, onAction 
                     }}
                   >
                     <div style={{ minWidth: 0, flex: "1 1 200px" }}>
-                      <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.04em" }}>
+                      <p
+                        style={{
+                          margin: "0 0 4px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: dash.subtle,
+                          letterSpacing: "0.04em",
+                        }}
+                      >
                         Project
                       </p>
-                      <p style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 700, color: dash.text }}>{projectName}</p>
-                      <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.04em" }}>
+                      <p
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: dash.text,
+                        }}
+                      >
+                        {projectName}
+                      </p>
+                      <p
+                        style={{
+                          margin: "0 0 4px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: dash.subtle,
+                          letterSpacing: "0.04em",
+                        }}
+                      >
                         Student
                       </p>
-                      <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>{senderName}</p>
+                      <p style={{ margin: "0 0 10px", fontSize: 13, color: dash.muted }}>
+                        {studentName}
+                      </p>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.06em",
+                          color: row.kind === "cancellation" ? "#b45309" : dash.accent,
+                        }}
+                      >
+                        {supervisionRequestLabel(row.kind)}
+                      </span>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>STATUS</span>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-end",
+                        gap: 8,
+                      }}
+                    >
+                      <span
+                        style={{ fontSize: 10, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}
+                      >
+                        STATUS
+                      </span>
                       <span
                         style={{
                           fontSize: 11,
@@ -104,7 +181,11 @@ export function RequestsSection({ requests, loading, error, actionKey, onAction 
                           <button
                             type="button"
                             disabled={actionKey != null}
-                            onClick={() => onAction(req.requestId, "accept")}
+                            onClick={() =>
+                              row.kind === "supervision"
+                                ? onSupervisionAction(row.requestId, "accept")
+                                : onCancelAction(row.requestId, "accept")
+                            }
                             style={{
                               padding: "8px 16px",
                               borderRadius: 10,
@@ -115,15 +196,27 @@ export function RequestsSection({ requests, loading, error, actionKey, onAction 
                               fontFamily: "inherit",
                               background: "linear-gradient(135deg,#6366f1,#a855f7)",
                               color: "#fff",
-                              opacity: actionKey ? 0.7 : 1,
+                              opacity: actionKey ? 0.85 : 1,
+                              minWidth: 100,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 6,
                             }}
                           >
-                            {actionKey === `${prefix}-accept` ? "…" : "Accept"}
+                            {acceptLoading ? (
+                              <Loader2 size={14} style={{ animation: "dd-req-spin 0.7s linear infinite" }} />
+                            ) : null}
+                            Accept
                           </button>
                           <button
                             type="button"
                             disabled={actionKey != null}
-                            onClick={() => onAction(req.requestId, "reject")}
+                            onClick={() =>
+                              row.kind === "supervision"
+                                ? onSupervisionAction(row.requestId, "reject")
+                                : onCancelAction(row.requestId, "reject")
+                            }
                             style={{
                               padding: "8px 16px",
                               borderRadius: 10,
@@ -134,9 +227,17 @@ export function RequestsSection({ requests, loading, error, actionKey, onAction 
                               fontFamily: "inherit",
                               background: dash.surface,
                               color: dash.muted,
+                              minWidth: 100,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 6,
                             }}
                           >
-                            {actionKey === `${prefix}-reject` ? "…" : "Reject"}
+                            {rejectLoading ? (
+                              <Loader2 size={14} style={{ animation: "dd-req-spin 0.7s linear infinite" }} />
+                            ) : null}
+                            Reject
                           </button>
                         </div>
                       ) : null}
@@ -149,6 +250,7 @@ export function RequestsSection({ requests, loading, error, actionKey, onAction 
         )}
       </div>
       <style>{`
+        @keyframes dd-req-spin { to { transform: rotate(360deg); } }
         .dd-req-row:last-child { border-bottom: none !important; }
         .dd-req-row:hover { background: #fafbfc; }
       `}</style>

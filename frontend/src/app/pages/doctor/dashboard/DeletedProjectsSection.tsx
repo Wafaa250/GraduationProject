@@ -6,6 +6,19 @@ type Props = {
   items: DeletedProjectRecord[];
 };
 
+function formatRemovedAt(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(d);
+  } catch {
+    return iso;
+  }
+}
+
 export function DeletedProjectsSection({ items }: Props) {
   return (
     <div>
@@ -23,18 +36,17 @@ export function DeletedProjectsSection({ items }: Props) {
           }}
         >
           <Trash2 size={18} color={dash.muted} />
-          <span style={{ fontSize: 15, fontWeight: 800, fontFamily: dash.fontDisplay }}>History</span>
-          <span style={{ fontSize: 12, color: dash.muted, marginLeft: "auto" }}>
-            Local only — not synced to the server
+          <span style={{ fontSize: 15, fontWeight: 800, fontFamily: dash.fontDisplay }}>
+            Removed supervision
           </span>
+          <span style={{ fontSize: 12, color: dash.muted, marginLeft: "auto" }}>{items.length} saved</span>
         </div>
 
         {items.length === 0 ? (
           <div style={{ padding: "40px 24px", textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>No removed projects</p>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>Nothing here yet</p>
             <p style={{ margin: "8px 0 0", fontSize: 13, color: dash.subtle }}>
-              After you resign from a project or remove supervision on My Projects, entries appear here on this
-              browser.
+              When you cancel supervision from My Projects, the project is listed here with the removal date.
             </p>
           </div>
         ) : (
@@ -42,25 +54,25 @@ export function DeletedProjectsSection({ items }: Props) {
             {items.map((p) => (
               <li
                 key={p.projectId}
+                className="dd-deleted-row"
                 style={{
                   padding: "16px 20px",
                   borderBottom: `1px solid ${dash.border}`,
+                  transition: "background 0.15s ease",
                 }}
               >
                 <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: dash.text }}>{p.name}</p>
                 <p style={{ margin: "6px 0 0", fontSize: 12, color: dash.subtle }}>
-                  {p.source === "resign"
-                    ? "Resigned"
-                    : p.source === "remove_supervision"
-                      ? "Removed supervision"
-                      : "Recorded"}{" "}
-                  · {new Date(p.removedAt).toLocaleString()}
+                  Removed by you on {formatRemovedAt(p.removedAt)}
                 </p>
               </li>
             ))}
           </ul>
         )}
       </div>
+      <style>{`
+        .dd-deleted-row:hover { background: #fafbfc; }
+      `}</style>
     </div>
   );
 }
