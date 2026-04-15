@@ -357,7 +357,9 @@ namespace GraduationProject.API.Controllers
 
             var result = enrollments.Select(e => new CourseStudentDto
             {
+                Id = e.StudentId,
                 StudentId = e.StudentId,
+                UniversityId = e.Student.StudentId ?? string.Empty,
                 UserId = e.Student.UserId,
                 Name = e.Student.User?.Name ?? string.Empty,
                 Email = e.Student.User?.Email ?? string.Empty,

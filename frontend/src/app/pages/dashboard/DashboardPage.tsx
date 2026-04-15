@@ -67,6 +67,7 @@ import {
   getCourseById,
   getCoursePartnerRequests,
   getCourseProjectSetting,
+  getRecommendedPartners,
   getCourseStudents,
   getEnrolledCourses,
   getMyTeam,
@@ -80,6 +81,8 @@ import {
   type MyTeamResponse,
   type PartnerRequest,
   type PartnerRequestsResponse,
+  type RecommendedPartner,
+  type RecommendedPartnerMode,
   type TeamMember,
 } from "../../../api/studentCoursesApi";
 
@@ -290,6 +293,15 @@ export default function DashboardPage() {
   const [ctCourseStudents, setCtCourseStudents] = useState<CourseStudent[]>(
     [],
   );
+  const [ctRecommendedMode, setCtRecommendedMode] =
+    useState<RecommendedPartnerMode>("complementary");
+  const [ctRecommendedSort, setCtRecommendedSort] = useState<
+    "best" | "lowest"
+  >("best");
+  const [ctRecommendedPartners, setCtRecommendedPartners] = useState<
+    RecommendedPartner[]
+  >([]);
+  const [ctRecommendedLoading, setCtRecommendedLoading] = useState(false);
   /** University id string for the row currently sending a partner request (Step 4). */
   const [ctSendingReceiverUniversityId, setCtSendingReceiverUniversityId] =
     useState<string | null>(null);
@@ -324,6 +336,10 @@ export default function DashboardPage() {
     setCtMyTeam(null);
     setCtPartnerRequests(null);
     setCtCourseStudents([]);
+    setCtRecommendedMode("complementary");
+    setCtRecommendedSort("best");
+    setCtRecommendedPartners([]);
+    setCtRecommendedLoading(false);
     setCtSendingReceiverUniversityId(null);
     setCtIncomingRowAction({});
     setCtRemovingMemberStudentId(null);
@@ -646,6 +662,34 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [ctSelectedCourseId, showToast]);
+
+  useEffect(() => {
+    if (!ctSelectedCourseId) {
+      setCtRecommendedPartners([]);
+      setCtRecommendedLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      setCtRecommendedLoading(true);
+      try {
+        const recs = await getRecommendedPartners(
+          ctSelectedCourseId,
+          ctRecommendedMode,
+        );
+        if (cancelled) return;
+        setCtRecommendedPartners(Array.isArray(recs) ? recs : []);
+      } catch {
+        if (!cancelled) setCtRecommendedPartners([]);
+      } finally {
+        if (!cancelled) setCtRecommendedLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [ctSelectedCourseId, ctRecommendedMode]);
 
   const handleCourseTeamsSendPartnerRequest = useCallback(
     async (receiverUniversityId: string) => {
@@ -4122,6 +4166,452 @@ export default function DashboardPage() {
                                 </ul>
                               )}
                             </>
+                          )}
+                        </section>
+                        <section style={S.ctModalSection}>
+                          <h4 style={S.ctModalH4}>
+                            AI Partner Recommendations
+                          </h4>
+                          <p style={S.ctModalH4Sub}>
+                            Suggested classmates based on AI matching for this
+                            course.
+                          </p>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              marginBottom: 12,
+                              flexWrap: "wrap" as const,
+                            }}
+                          >
+                            <label
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: "#64748b",
+                              }}
+                            >
+                              Mode:
+                              <select
+                                value={ctRecommendedMode}
+                                onChange={(e) =>
+                                  setCtRecommendedMode(
+                                    e.target.value as RecommendedPartnerMode,
+                                  )
+                                }
+                                disabled={ctRecommendedLoading}
+                                style={{
+                                  padding: "6px 10px",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  borderRadius: 8,
+                                  border: "1px solid #e2e8f0",
+                                  background: "#fff",
+                                  color: "#334155",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                <option value="complementary">
+                                  Complementary
+                                </option>
+                                <option value="similar">Similar</option>
+                              </select>
+                            </label>
+                            <label
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: "#64748b",
+                              }}
+                            >
+                              Sort:
+                              <select
+                                value={ctRecommendedSort}
+                                onChange={(e) =>
+                                  setCtRecommendedSort(
+                                    e.target.value as "best" | "lowest",
+                                  )
+                                }
+                                style={{
+                                  padding: "6px 10px",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  borderRadius: 8,
+                                  border: "1px solid #e2e8f0",
+                                  background: "#fff",
+                                  color: "#334155",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                <option value="best">Best Match</option>
+                                <option value="lowest">Lowest Match</option>
+                              </select>
+                            </label>
+                          </div>
+                          {ctRecommendedLoading ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              Loading AI recommendations...
+                            </p>
+                          ) : ctRecommendedPartners.length === 0 ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              No AI recommendations available yet
+                            </p>
+                          ) : (
+                            <ul
+                              style={{
+                                margin: 0,
+                                padding: 0,
+                                listStyle: "none",
+                                display: "flex",
+                                flexDirection: "column" as const,
+                                gap: 10,
+                              }}
+                            >
+                              {[...ctRecommendedPartners]
+                                .sort((a, b) => {
+                                  const scoreA =
+                                    typeof a.matchScore === "number" &&
+                                    Number.isFinite(a.matchScore)
+                                      ? a.matchScore
+                                      : null;
+                                  const scoreB =
+                                    typeof b.matchScore === "number" &&
+                                    Number.isFinite(b.matchScore)
+                                      ? b.matchScore
+                                      : null;
+                                  if (scoreA === null && scoreB === null) return 0;
+                                  if (scoreA === null) return 1;
+                                  if (scoreB === null) return -1;
+                                  return ctRecommendedSort === "best"
+                                    ? scoreB - scoreA
+                                    : scoreA - scoreB;
+                                })
+                                .map((rec, idx) => {
+                                const recDbId =
+                                  typeof rec.studentId === "number" &&
+                                  Number.isFinite(rec.studentId)
+                                    ? rec.studentId
+                                    : null;
+                                const matchedCourseStudent =
+                                  recDbId != null
+                                    ? ctCourseStudents.find(
+                                        (s) => ctCourseStudentDbId(s) === recDbId,
+                                      )
+                                    : typeof rec.userId === "number" &&
+                                        Number.isFinite(rec.userId)
+                                      ? ctCourseStudents.find(
+                                          (s) =>
+                                            ctCourseStudentUserId(s) === rec.userId,
+                                        )
+                                      : undefined;
+                                const matchedStudentDbId =
+                                  matchedCourseStudent != null
+                                    ? ctCourseStudentDbId(matchedCourseStudent)
+                                    : null;
+                                const receiverUniversityId = (
+                                  matchedCourseStudent?.universityId ??
+                                  matchedCourseStudent?.UniversityId ??
+                                  ""
+                                ).trim();
+                                const receiverExistsInCourseStudents =
+                                  receiverUniversityId !== "";
+                                const isSelf =
+                                  myAuthUserId != null &&
+                                  typeof rec.userId === "number" &&
+                                  rec.userId === myAuthUserId;
+                                const inTeam =
+                                  matchedStudentDbId != null &&
+                                  teamMemberDbIds.has(matchedStudentDbId);
+                                const pendingOut =
+                                  matchedStudentDbId != null &&
+                                  outgoingPendingReceiverDbIds.has(
+                                    matchedStudentDbId,
+                                  );
+                                const isSendingThisRow =
+                                  ctSendingReceiverUniversityId != null &&
+                                  receiverUniversityId !== "" &&
+                                  ctSendingReceiverUniversityId ===
+                                    receiverUniversityId;
+                                const recSkills = Array.isArray(rec.skills)
+                                  ? rec.skills.filter(
+                                      (s) =>
+                                        typeof s === "string" &&
+                                        s.trim() !== "",
+                                    )
+                                  : [];
+                                const matchScore =
+                                  typeof rec.matchScore === "number" &&
+                                  Number.isFinite(rec.matchScore)
+                                    ? rec.matchScore
+                                    : null;
+                                const scorePalette =
+                                  matchScore != null && matchScore > 80
+                                    ? {
+                                        border: "1px solid #bbf7d0",
+                                        background: "#f0fdf4",
+                                        color: "#15803d",
+                                      }
+                                    : matchScore != null && matchScore >= 50
+                                      ? {
+                                          border: "1px solid #fde68a",
+                                          background: "#fffbeb",
+                                          color: "#92400e",
+                                        }
+                                      : {
+                                          border: "1px solid #e2e8f0",
+                                          background: "#f8fafc",
+                                          color: "#64748b",
+                                        };
+                                const rowKey =
+                                  recDbId != null ? `ai-${recDbId}` : `ai-${idx}`;
+                                return (
+                                  <li
+                                    key={rowKey}
+                                    style={{
+                                      padding: "12px",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: 10,
+                                      background: "#fafafa",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        justifyContent: "space-between",
+                                        gap: 10,
+                                      }}
+                                    >
+                                      <div style={{ minWidth: 0 }}>
+                                        {idx === 0 ? (
+                                          <span
+                                            style={{
+                                              display: "inline-flex",
+                                              alignItems: "center",
+                                              marginBottom: 6,
+                                              padding: "2px 8px",
+                                              fontSize: 10,
+                                              fontWeight: 700,
+                                              borderRadius: 999,
+                                              color: "#4338ca",
+                                              background: "#eef2ff",
+                                              border: "1px solid #c7d2fe",
+                                            }}
+                                          >
+                                            Top Match
+                                          </span>
+                                        ) : null}
+                                        <p
+                                          style={{
+                                            margin: 0,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            color: "#0f172a",
+                                          }}
+                                        >
+                                          {rec.name?.trim() || "—"}
+                                        </p>
+                                      </div>
+                                      <span
+                                        style={{
+                                          flexShrink: 0,
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          padding: "4px 8px",
+                                          borderRadius: 8,
+                                          ...scorePalette,
+                                        }}
+                                      >
+                                        {matchScore != null ? `${matchScore}%` : "—"}
+                                      </span>
+                                    </div>
+                                    {typeof rec.reason === "string" &&
+                                    rec.reason.trim() !== "" ? (
+                                      <div
+                                        style={{
+                                          marginTop: 10,
+                                          padding: "8px 10px",
+                                          borderRadius: 8,
+                                          background: "#f8fafc",
+                                          border: "1px solid #e2e8f0",
+                                        }}
+                                      >
+                                        <p
+                                          style={{
+                                            margin: 0,
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            color: "#64748b",
+                                          }}
+                                        >
+                                          Why this match?
+                                        </p>
+                                        <p
+                                          style={{
+                                            margin: "4px 0 0",
+                                            fontSize: 13,
+                                            color: "#475569",
+                                            lineHeight: 1.45,
+                                          }}
+                                        >
+                                          {rec.reason}
+                                        </p>
+                                      </div>
+                                    ) : null}
+                                    {recSkills.length > 0 ? (
+                                      <div
+                                        style={{
+                                          marginTop: 10,
+                                          display: "flex",
+                                          flexWrap: "wrap" as const,
+                                          gap: 6,
+                                        }}
+                                      >
+                                        {recSkills.map((sk, skillIdx) => (
+                                          <span
+                                            key={`${rowKey}-sk-${skillIdx}`}
+                                            style={{
+                                              padding: "3px 8px",
+                                              borderRadius: 999,
+                                              fontSize: 10,
+                                              fontWeight: 700,
+                                              color: "#4338ca",
+                                              background: "#eef2ff",
+                                              border: "1px solid #c7d2fe",
+                                            }}
+                                          >
+                                            {sk}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : null}
+                                    <div
+                                      style={{
+                                        marginTop: 10,
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                      }}
+                                    >
+                                      {isSelf ? (
+                                        <span
+                                          style={{
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            color: "#94a3b8",
+                                          }}
+                                        >
+                                          You
+                                        </span>
+                                      ) : inTeam ? (
+                                        <button
+                                          type="button"
+                                          disabled
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #e2e8f0",
+                                            background: "#f1f5f9",
+                                            color: "#94a3b8",
+                                            cursor: "not-allowed",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          In Your Team
+                                        </button>
+                                      ) : pendingOut ? (
+                                        <button
+                                          type="button"
+                                          disabled
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #fde68a",
+                                            background: "#fffbeb",
+                                            color: "#92400e",
+                                            cursor: "not-allowed",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          Request Sent
+                                        </button>
+                                      ) : !receiverExistsInCourseStudents ? (
+                                        <button
+                                          type="button"
+                                          disabled
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #e2e8f0",
+                                            background: "#f8fafc",
+                                            color: "#94a3b8",
+                                            cursor: "not-allowed",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          Unavailable
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            void handleCourseTeamsSendPartnerRequest(
+                                              receiverUniversityId,
+                                            )
+                                          }
+                                          disabled={isSendingThisRow}
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #c7d2fe",
+                                            background: isSendingThisRow
+                                              ? "#eef2ff"
+                                              : "#fff",
+                                            color: "#4338ca",
+                                            cursor: isSendingThisRow
+                                              ? "not-allowed"
+                                              : "pointer",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          {isSendingThisRow
+                                            ? "Sending..."
+                                            : "Send Request"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
                           )}
                         </section>
                         <section style={S.ctModalSection}>

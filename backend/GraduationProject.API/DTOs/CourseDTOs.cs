@@ -59,7 +59,9 @@ namespace GraduationProject.API.DTOs
 
     public class CourseStudentDto
     {
+        public int Id { get; set; }          // StudentProfile.Id (duplicate-safe key)
         public int StudentId { get; set; }   // StudentProfile.Id
+        public string UniversityId { get; set; } = string.Empty; // StudentProfile.StudentId (university ID string)
         public int UserId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
