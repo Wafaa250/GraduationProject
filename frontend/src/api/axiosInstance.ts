@@ -44,4 +44,25 @@ export function parseApiErrorMessage(err: unknown): string {
   return 'An unexpected error occurred.'
 }
 
+/** Origin hosting the API (e.g. static files under /project-files). */
+export function getApiPublicOrigin(): string {
+  const base = api.defaults.baseURL
+  if (!base) return typeof window !== "undefined" ? window.location.origin : ""
+  try {
+    const u = new URL(base, typeof window !== "undefined" ? window.location.href : "http://localhost")
+    return u.origin
+  } catch {
+    return base.replace(/\/api\/?$/i, "")
+  }
+}
+
+/** Absolute URL for a path returned by the API (e.g. `/project-files/...`). */
+export function resolveApiFileUrl(fileUrl: string | null | undefined): string | null {
+  if (!fileUrl) return null
+  if (/^https?:\/\//i.test(fileUrl)) return fileUrl
+  const origin = getApiPublicOrigin()
+  const path = fileUrl.startsWith("/") ? fileUrl : `/${fileUrl}`
+  return `${origin}${path}`
+}
+
 export default api

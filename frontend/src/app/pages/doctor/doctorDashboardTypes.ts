@@ -35,7 +35,12 @@ export interface DoctorDashboardSummary {
   pendingCancelCount: number;
 }
 
-export type DoctorDashboardSection = "overview" | "requests" | "projects" | "deleted";
+export type DoctorDashboardSection =
+  | "overview"
+  | "requests"
+  | "projects"
+  | "deleted"
+  | "courses";
 
 export type RequestRow =
   | {

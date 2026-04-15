@@ -74,6 +74,14 @@ function EditDoctorProfileRoute() {
     return <Navigate to="/" replace />;
 }
 
+/** Old course URLs → doctor dashboard (courses live in-dashboard). */
+function DoctorCoursesLegacyRedirect() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 export default function App() {
     return (
         <ToastProvider>
@@ -95,6 +103,8 @@ export default function App() {
                     <Route path="/doctor/profile" element={<ProtectedRoute><DoctorProfileRoute /></ProtectedRoute>} />
                     <Route path="/doctor/edit-profile" element={<ProtectedRoute><EditDoctorProfileRoute /></ProtectedRoute>} />
                     <Route path="/doctor/channels/:channelId" element={<ProtectedRoute><ChannelPageWrapper /></ProtectedRoute>} />
+                    <Route path="/doctor/courses/:courseId" element={<ProtectedRoute><DoctorCoursesLegacyRedirect /></ProtectedRoute>} />
+                    <Route path="/doctor/courses" element={<ProtectedRoute><DoctorCoursesLegacyRedirect /></ProtectedRoute>} />
 
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />

@@ -1,4 +1,7 @@
+import type { CSSProperties } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
+  BookOpen,
   Briefcase,
   ClipboardList,
   LayoutDashboard,
@@ -8,15 +11,39 @@ import {
 import type { DoctorDashboardSection } from "../doctorDashboardTypes";
 import { dash } from "./doctorDashTokens";
 
+function sidebarNavItemStyle(active: boolean): CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1.5px solid",
+    borderColor: active ? dash.accent : "transparent",
+    background: active ? dash.accentMuted : "transparent",
+    color: active ? dash.accent : dash.muted,
+    fontSize: 14,
+    fontWeight: active ? 700 : 600,
+    cursor: "pointer",
+    textAlign: "left",
+    width: "100%",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+    transition:
+      "background 0.15s ease, border-color 0.15s ease, transform 0.12s ease",
+  };
+}
+
 const ITEMS: {
   id: DoctorDashboardSection;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: LucideIcon;
 }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "requests", label: "Requests", icon: ClipboardList },
   { id: "projects", label: "My Projects", icon: Briefcase },
   { id: "deleted", label: "Deleted Projects", icon: Trash2 },
+  { id: "courses", label: "My Courses", icon: BookOpen },
 ];
 
 type Props = {
@@ -73,24 +100,7 @@ export function Sidebar({
               onSelect(id);
               onCloseMobile();
             }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1.5px solid",
-              borderColor: active ? dash.accent : "transparent",
-              background: active ? dash.accentMuted : "transparent",
-              color: active ? dash.accent : dash.muted,
-              fontSize: 14,
-              fontWeight: active ? 700 : 600,
-              cursor: "pointer",
-              textAlign: "left",
-              width: "100%",
-              fontFamily: "inherit",
-              transition: "background 0.15s ease, border-color 0.15s ease, transform 0.12s ease",
-            }}
+            style={sidebarNavItemStyle(active)}
             className="dd-sidebar-nav-btn"
           >
             <Icon size={18} strokeWidth={active ? 2.25 : 2} />

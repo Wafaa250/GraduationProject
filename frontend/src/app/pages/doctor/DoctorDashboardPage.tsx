@@ -29,6 +29,7 @@ import { OverviewSection } from "./dashboard/OverviewSection";
 import { RequestsSection } from "./dashboard/RequestsSection";
 import { ProjectsSection } from "./dashboard/ProjectsSection";
 import { DeletedProjectsSection } from "./dashboard/DeletedProjectsSection";
+import { DoctorCoursesSection } from "./dashboard/DoctorCoursesSection";
 import {
   buildOverviewHighlight,
   buildOverviewHighlightFromSupervised,
@@ -424,6 +425,8 @@ function DoctorDashboardContent() {
       ) : null}
 
       {activeSection === "deleted" ? <DeletedProjectsSection items={deletedItems} /> : null}
+
+      {activeSection === "courses" ? <DoctorCoursesSection /> : null}
     </DoctorDashboardLayout>
   );
 }
