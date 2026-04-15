@@ -1,9 +1,37 @@
 // src/app/pages/doctor/DoctorContext.tsx
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
 import api from '../../../api/axiosInstance'
-import { CourseChannel, GraduationProject } from './data/doctorMockData'
 
 const COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899']
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface CourseChannel {
+  id:            string
+  type:          'course'
+  name:          string
+  courseCode:    string
+  section:       string
+  studentsCount: number
+  inviteCode:    string
+  inviteLink:    string
+  color:         string
+  students:      any[]
+  teams:         any[]
+}
+
+export interface GraduationProject {
+  id:            string
+  type:          'graduation'
+  title:         string
+  supervisor:    string
+  studentsCount: number
+  students:      any[]
+  skills:        string[]
+  progress:      number
+  inviteCode:    string
+  color:         string
+}
 
 interface DoctorContextType {
   courses:        CourseChannel[]
@@ -13,10 +41,14 @@ interface DoctorContextType {
   addGradProject: (data: { name: string }) => void
 }
 
+// ─── Context ──────────────────────────────────────────────────────────────────
+
 const DoctorContext = createContext<DoctorContextType>({
   courses: [], gradProjects: [], loading: false,
   addCourse: async () => {}, addGradProject: () => {},
 })
+
+// ─── Mapper ───────────────────────────────────────────────────────────────────
 
 function mapChannel(c: any): CourseChannel {
   return {
@@ -34,21 +66,12 @@ function mapChannel(c: any): CourseChannel {
   }
 }
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
 export function DoctorProvider({ children }: { children: ReactNode }) {
   const [courses, setCourses]           = useState<CourseChannel[]>([])
   const [gradProjects, setGradProjects] = useState<GraduationProject[]>([])
   const [loading, setLoading]           = useState(false)
-
-  // ── جلب القنوات من الـ API عند التحميل ──────────────────────────────────
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) return
-    setLoading(true)
-    api.get('/doctor/channels')
-      .then(res => setCourses(res.data.map(mapChannel)))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
 
   // ── إنشاء قناة جديدة عبر الـ API ────────────────────────────────────────
   const addCourse = async (data: { name: string; code: string; section: string }) => {
@@ -67,7 +90,7 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
     const color = COLORS[Math.floor(Math.random() * COLORS.length)]
     setGradProjects(prev => [...prev, {
       id:            `gp-${Date.now()}`,
-      type:          'graduation',
+      type:          'graduation' as const,
       title:         data.name,
       supervisor:    localStorage.getItem('name') || 'Dr.',
       studentsCount: 0,
