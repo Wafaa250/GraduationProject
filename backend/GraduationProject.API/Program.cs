@@ -46,6 +46,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
+builder.Services.AddHttpClient<IAiPartnerRecommendationService, OpenAiPartnerRecommendationService>();
 
 // ===========================
 // CORS - ✅ مرة وحدة بس
