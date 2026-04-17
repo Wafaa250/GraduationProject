@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -67,6 +73,7 @@ import {
   getCourseById,
   getCoursePartnerRequests,
   getCourseProjectSetting,
+  getRecommendedPartners,
   getCourseStudents,
   getEnrolledCourses,
   getMyTeam,
@@ -80,6 +87,8 @@ import {
   type MyTeamResponse,
   type PartnerRequest,
   type PartnerRequestsResponse,
+  type RecommendedPartner,
+  type RecommendedPartnerMode,
   type TeamMember,
 } from "../../../api/studentCoursesApi";
 
@@ -208,6 +217,36 @@ function ctIsOutgoingPendingPartnerRequest(r: PartnerRequest): boolean {
   return st === "pending" || st === "";
 }
 
+function ctPartnerRequestStatusRaw(req: PartnerRequest): string {
+  const raw =
+    req.status ?? (req as PartnerRequest & { Status?: string }).Status;
+  return typeof raw === "string" ? raw : "";
+}
+
+/** Incoming actions only apply while the backend still has the request as pending. */
+function ctIsIncomingPartnerRequestPending(req: PartnerRequest): boolean {
+  return normApiStatus(ctPartnerRequestStatusRaw(req)) === "pending";
+}
+
+function ctPartnerRequestRowId(req: PartnerRequest): number | null {
+  const id =
+    req.requestId ??
+    (req as PartnerRequest & { RequestId?: number }).RequestId;
+  return typeof id === "number" && Number.isFinite(id) ? id : null;
+}
+
+/** Removes one incoming row immediately after accept/reject so the UI cannot double-action before refetch. */
+function ctStripIncomingPartnerRequestById(
+  prev: PartnerRequestsResponse | null,
+  requestId: number,
+): PartnerRequestsResponse | null {
+  if (!prev) return prev;
+  return {
+    ...prev,
+    incoming: prev.incoming.filter((r) => ctPartnerRequestRowId(r) !== requestId),
+  };
+}
+
 function ctIncomingSenderRow(sender: CourseStudent | undefined): {
   name: string;
   university: string;
@@ -265,8 +304,6 @@ export default function DashboardPage() {
   const [editInfoOpen, setEditInfoOpen] = useState(false);
 
   const [projectsModalOpen, setProjectsModalOpen] = useState(false);
-  const [joinChannelOpen, setJoinChannelOpen] = useState(false);
-  const [joinCode, setJoinCode] = useState("");
 
   // ── Course Teams (modal; student dashboard only) ──────────────────────────
   const [courseTeamsModalOpen, setCourseTeamsModalOpen] = useState(false);
@@ -290,6 +327,16 @@ export default function DashboardPage() {
   const [ctCourseStudents, setCtCourseStudents] = useState<CourseStudent[]>(
     [],
   );
+  const [ctRecommendedMode, setCtRecommendedMode] =
+    useState<RecommendedPartnerMode>("complementary");
+  const [ctRecommendedSort, setCtRecommendedSort] = useState<
+    "best" | "lowest"
+  >("best");
+  const [aiLoaded, setAiLoaded] = useState(false);
+  const [ctRecommendedPartners, setCtRecommendedPartners] = useState<
+    RecommendedPartner[]
+  >([]);
+  const [ctRecommendedLoading, setCtRecommendedLoading] = useState(false);
   /** University id string for the row currently sending a partner request (Step 4). */
   const [ctSendingReceiverUniversityId, setCtSendingReceiverUniversityId] =
     useState<string | null>(null);
@@ -311,6 +358,9 @@ export default function DashboardPage() {
   /** Leave Course action in progress (disables only that control). */
   const [ctLeavingCourse, setCtLeavingCourse] = useState(false);
 
+  /** Blocks double-clicks on Accept/Reject before React re-renders loading state. */
+  const ctIncomingBusyRef = useRef<Set<number>>(new Set());
+
   const resetCourseTeamsModalState = useCallback(() => {
     setCtCourses([]);
     setCtNoValidCourseIds(false);
@@ -324,8 +374,14 @@ export default function DashboardPage() {
     setCtMyTeam(null);
     setCtPartnerRequests(null);
     setCtCourseStudents([]);
+    setCtRecommendedMode("complementary");
+    setCtRecommendedSort("best");
+    setAiLoaded(false);
+    setCtRecommendedPartners([]);
+    setCtRecommendedLoading(false);
     setCtSendingReceiverUniversityId(null);
     setCtIncomingRowAction({});
+    ctIncomingBusyRef.current.clear();
     setCtRemovingMemberStudentId(null);
     setCtLeavingCourse(false);
   }, []);
@@ -352,7 +408,11 @@ export default function DashboardPage() {
       );
       let total = 0;
       for (const pr of prs) {
-        total += (pr.incoming?.length ?? 0) + (pr.outgoing?.length ?? 0);
+        const inc =
+          (pr.incoming ?? []).filter(ctIsIncomingPartnerRequestPending).length;
+        const out =
+          (pr.outgoing ?? []).filter(ctIsOutgoingPendingPartnerRequest).length;
+        total += inc + out;
       }
       setCtDashCardRequestsCount(total);
     } catch {
@@ -647,6 +707,28 @@ export default function DashboardPage() {
     };
   }, [ctSelectedCourseId, showToast]);
 
+  useEffect(() => {
+    setAiLoaded(false);
+    setCtRecommendedPartners([]);
+    setCtRecommendedLoading(false);
+  }, [ctSelectedCourseId, ctRecommendedMode]);
+
+  const fetchRecommendations = useCallback(async () => {
+    if (!ctSelectedCourseId) return;
+    setCtRecommendedLoading(true);
+    try {
+      const recs = await getRecommendedPartners(
+        ctSelectedCourseId,
+        ctRecommendedMode,
+      );
+      setCtRecommendedPartners(Array.isArray(recs) ? recs : []);
+    } catch {
+      setCtRecommendedPartners([]);
+    } finally {
+      setCtRecommendedLoading(false);
+    }
+  }, [ctSelectedCourseId, ctRecommendedMode]);
+
   const handleCourseTeamsSendPartnerRequest = useCallback(
     async (receiverUniversityId: string) => {
       const uid = receiverUniversityId.trim();
@@ -679,10 +761,15 @@ export default function DashboardPage() {
         console.warn("Invalid courseId, skipping request");
         return;
       }
+      if (ctIncomingBusyRef.current.has(requestId)) return;
+      ctIncomingBusyRef.current.add(requestId);
       const selectedCourseId = ctSelectedCourseId;
       setCtIncomingRowAction((prev) => ({ ...prev, [requestId]: "accept" }));
       try {
         await acceptPartnerRequest(selectedCourseId, requestId);
+        setCtPartnerRequests((prev) =>
+          ctStripIncomingPartnerRequestById(prev, requestId),
+        );
         const [pr, team, courseRes] = await Promise.all([
           getCoursePartnerRequests(selectedCourseId),
           getMyTeam(selectedCourseId),
@@ -694,7 +781,18 @@ export default function DashboardPage() {
         await refreshCourseTeamsDashCardCounts();
       } catch (err) {
         showToast(parseApiErrorMessage(err), "error");
+        try {
+          const [pr, team] = await Promise.all([
+            getCoursePartnerRequests(selectedCourseId),
+            getMyTeam(selectedCourseId),
+          ]);
+          setCtPartnerRequests(pr);
+          setCtMyTeam(team);
+        } catch {
+          /* ignore refresh failure */
+        }
       } finally {
+        ctIncomingBusyRef.current.delete(requestId);
         setCtIncomingRowAction((prev) => {
           const next = { ...prev };
           delete next[requestId];
@@ -711,16 +809,36 @@ export default function DashboardPage() {
         console.warn("Invalid courseId, skipping request");
         return;
       }
+      if (ctIncomingBusyRef.current.has(requestId)) return;
+      ctIncomingBusyRef.current.add(requestId);
       const selectedCourseId = ctSelectedCourseId;
       setCtIncomingRowAction((prev) => ({ ...prev, [requestId]: "reject" }));
       try {
         await rejectPartnerRequest(selectedCourseId, requestId);
-        const pr = await getCoursePartnerRequests(selectedCourseId);
+        setCtPartnerRequests((prev) =>
+          ctStripIncomingPartnerRequestById(prev, requestId),
+        );
+        const [pr, team] = await Promise.all([
+          getCoursePartnerRequests(selectedCourseId),
+          getMyTeam(selectedCourseId),
+        ]);
         setCtPartnerRequests(pr);
+        setCtMyTeam(team);
         await refreshCourseTeamsDashCardCounts();
       } catch (err) {
         showToast(parseApiErrorMessage(err), "error");
+        try {
+          const [pr, team] = await Promise.all([
+            getCoursePartnerRequests(selectedCourseId),
+            getMyTeam(selectedCourseId),
+          ]);
+          setCtPartnerRequests(pr);
+          setCtMyTeam(team);
+        } catch {
+          /* ignore refresh failure */
+        }
       } finally {
+        ctIncomingBusyRef.current.delete(requestId);
         setCtIncomingRowAction((prev) => {
           const next = { ...prev };
           delete next[requestId];
@@ -1552,26 +1670,6 @@ export default function DashboardPage() {
             </button>
             <button style={S.navBtn} onClick={openEditInfo}>
               <Settings size={17} />
-            </button>
-            <button
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "7px 14px",
-                background: "linear-gradient(135deg,#6366f1,#a855f7)",
-                color: "white",
-                border: "none",
-                borderRadius: 9,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                marginRight: 4,
-              }}
-              onClick={() => setJoinChannelOpen(true)}
-            >
-              🔗 Join Channel
             </button>
             <button style={S.navBtn} onClick={handleLogout}>
               <LogOut size={16} />
@@ -3609,8 +3707,13 @@ export default function DashboardPage() {
                       "role",
                       "Role",
                     ]);
-                    const incomingCt = ctPartnerRequests?.incoming.length ?? 0;
-                    const outgoingCt = ctPartnerRequests?.outgoing.length ?? 0;
+                    const ctPendingIncomingList = (
+                      ctPartnerRequests?.incoming ?? []
+                    ).filter(ctIsIncomingPartnerRequestPending);
+                    const incomingCt = ctPendingIncomingList.length;
+                    const outgoingCt = (
+                      ctPartnerRequests?.outgoing ?? []
+                    ).filter(ctIsOutgoingPendingPartnerRequest).length;
                     const teamMemberDbIds = new Set<number>();
                     for (const m of ctMyTeam?.members ?? []) {
                       if (
@@ -4125,12 +4228,504 @@ export default function DashboardPage() {
                           )}
                         </section>
                         <section style={S.ctModalSection}>
+                          <h4 style={S.ctModalH4}>
+                            AI Partner Recommendations
+                          </h4>
+                          <p style={S.ctModalH4Sub}>
+                            Suggested classmates based on AI matching for this
+                            course.
+                          </p>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              marginBottom: 12,
+                              flexWrap: "wrap" as const,
+                            }}
+                          >
+                            <label
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: "#64748b",
+                              }}
+                            >
+                              Mode:
+                              <select
+                                value={ctRecommendedMode}
+                                onChange={(e) =>
+                                  setCtRecommendedMode(
+                                    e.target.value as RecommendedPartnerMode,
+                                  )
+                                }
+                                disabled={ctRecommendedLoading}
+                                style={{
+                                  padding: "6px 10px",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  borderRadius: 8,
+                                  border: "1px solid #e2e8f0",
+                                  background: "#fff",
+                                  color: "#334155",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                <option value="complementary">
+                                  Complementary
+                                </option>
+                                <option value="similar">Similar</option>
+                              </select>
+                            </label>
+                            <label
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: "#64748b",
+                              }}
+                            >
+                              Sort:
+                              <select
+                                value={ctRecommendedSort}
+                                onChange={(e) =>
+                                  setCtRecommendedSort(
+                                    e.target.value as "best" | "lowest",
+                                  )
+                                }
+                                style={{
+                                  padding: "6px 10px",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  borderRadius: 8,
+                                  border: "1px solid #e2e8f0",
+                                  background: "#fff",
+                                  color: "#334155",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                <option value="best">Best Match</option>
+                                <option value="lowest">Lowest Match</option>
+                              </select>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAiLoaded(true);
+                                void fetchRecommendations();
+                              }}
+                              disabled={ctRecommendedLoading || !ctSelectedCourseId}
+                              style={{
+                                padding: "6px 12px",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                borderRadius: 8,
+                                border: "1px solid #c7d2fe",
+                                background: "#fff",
+                                color: "#4338ca",
+                                cursor:
+                                  ctRecommendedLoading || !ctSelectedCourseId
+                                    ? "not-allowed"
+                                    : "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              Generate
+                            </button>
+                          </div>
+                          {!aiLoaded ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              Click Generate to get recommendations
+                            </p>
+                          ) : ctRecommendedLoading ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              Loading AI recommendations...
+                            </p>
+                          ) : ctRecommendedPartners.length === 0 ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              No AI recommendations available yet
+                            </p>
+                          ) : (
+                            <ul
+                              style={{
+                                margin: 0,
+                                padding: 0,
+                                listStyle: "none",
+                                display: "flex",
+                                flexDirection: "column" as const,
+                                gap: 10,
+                              }}
+                            >
+                              {[...ctRecommendedPartners]
+                                .sort((a, b) => {
+                                  const scoreA =
+                                    typeof a.matchScore === "number" &&
+                                    Number.isFinite(a.matchScore)
+                                      ? a.matchScore
+                                      : null;
+                                  const scoreB =
+                                    typeof b.matchScore === "number" &&
+                                    Number.isFinite(b.matchScore)
+                                      ? b.matchScore
+                                      : null;
+                                  if (scoreA === null && scoreB === null) return 0;
+                                  if (scoreA === null) return 1;
+                                  if (scoreB === null) return -1;
+                                  return ctRecommendedSort === "best"
+                                    ? scoreB - scoreA
+                                    : scoreA - scoreB;
+                                })
+                                .map((rec, idx) => {
+                                const recDbId =
+                                  typeof rec.studentId === "number" &&
+                                  Number.isFinite(rec.studentId)
+                                    ? rec.studentId
+                                    : null;
+                                const matchedCourseStudent =
+                                  recDbId != null
+                                    ? ctCourseStudents.find(
+                                        (s) => ctCourseStudentDbId(s) === recDbId,
+                                      )
+                                    : typeof rec.userId === "number" &&
+                                        Number.isFinite(rec.userId)
+                                      ? ctCourseStudents.find(
+                                          (s) =>
+                                            ctCourseStudentUserId(s) === rec.userId,
+                                        )
+                                      : undefined;
+                                const matchedStudentDbId =
+                                  matchedCourseStudent != null
+                                    ? ctCourseStudentDbId(matchedCourseStudent)
+                                    : null;
+                                const receiverUniversityId = (
+                                  matchedCourseStudent?.universityId ??
+                                  matchedCourseStudent?.UniversityId ??
+                                  ""
+                                ).trim();
+                                const receiverExistsInCourseStudents =
+                                  receiverUniversityId !== "";
+                                const isSelf =
+                                  myAuthUserId != null &&
+                                  typeof rec.userId === "number" &&
+                                  rec.userId === myAuthUserId;
+                                const inTeam =
+                                  matchedStudentDbId != null &&
+                                  teamMemberDbIds.has(matchedStudentDbId);
+                                const pendingOut =
+                                  matchedStudentDbId != null &&
+                                  outgoingPendingReceiverDbIds.has(
+                                    matchedStudentDbId,
+                                  );
+                                const isSendingThisRow =
+                                  ctSendingReceiverUniversityId != null &&
+                                  receiverUniversityId !== "" &&
+                                  ctSendingReceiverUniversityId ===
+                                    receiverUniversityId;
+                                const recSkills = Array.isArray(rec.skills)
+                                  ? rec.skills.filter(
+                                      (s) =>
+                                        typeof s === "string" &&
+                                        s.trim() !== "",
+                                    )
+                                  : [];
+                                const matchScore =
+                                  typeof rec.matchScore === "number" &&
+                                  Number.isFinite(rec.matchScore)
+                                    ? rec.matchScore
+                                    : null;
+                                const scorePalette =
+                                  matchScore != null && matchScore > 80
+                                    ? {
+                                        border: "1px solid #bbf7d0",
+                                        background: "#f0fdf4",
+                                        color: "#15803d",
+                                      }
+                                    : matchScore != null && matchScore >= 50
+                                      ? {
+                                          border: "1px solid #fde68a",
+                                          background: "#fffbeb",
+                                          color: "#92400e",
+                                        }
+                                      : {
+                                          border: "1px solid #e2e8f0",
+                                          background: "#f8fafc",
+                                          color: "#64748b",
+                                        };
+                                const rowKey =
+                                  recDbId != null ? `ai-${recDbId}` : `ai-${idx}`;
+                                return (
+                                  <li
+                                    key={rowKey}
+                                    style={{
+                                      padding: "12px",
+                                      border: "1px solid #e2e8f0",
+                                      borderRadius: 10,
+                                      background: "#fafafa",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        justifyContent: "space-between",
+                                        gap: 10,
+                                      }}
+                                    >
+                                      <div style={{ minWidth: 0 }}>
+                                        {idx === 0 ? (
+                                          <span
+                                            style={{
+                                              display: "inline-flex",
+                                              alignItems: "center",
+                                              marginBottom: 6,
+                                              padding: "2px 8px",
+                                              fontSize: 10,
+                                              fontWeight: 700,
+                                              borderRadius: 999,
+                                              color: "#4338ca",
+                                              background: "#eef2ff",
+                                              border: "1px solid #c7d2fe",
+                                            }}
+                                          >
+                                            Top Match
+                                          </span>
+                                        ) : null}
+                                        <p
+                                          style={{
+                                            margin: 0,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            color: "#0f172a",
+                                          }}
+                                        >
+                                          {rec.name?.trim() || "—"}
+                                        </p>
+                                      </div>
+                                      <span
+                                        style={{
+                                          flexShrink: 0,
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          padding: "4px 8px",
+                                          borderRadius: 8,
+                                          ...scorePalette,
+                                        }}
+                                      >
+                                        {matchScore != null ? `${matchScore}%` : "—"}
+                                      </span>
+                                    </div>
+                                    {typeof rec.reason === "string" &&
+                                    rec.reason.trim() !== "" ? (
+                                      <div
+                                        style={{
+                                          marginTop: 10,
+                                          padding: "8px 10px",
+                                          borderRadius: 8,
+                                          background: "#f8fafc",
+                                          border: "1px solid #e2e8f0",
+                                        }}
+                                      >
+                                        <p
+                                          style={{
+                                            margin: 0,
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            color: "#64748b",
+                                          }}
+                                        >
+                                          Why this match?
+                                        </p>
+                                        <p
+                                          style={{
+                                            margin: "4px 0 0",
+                                            fontSize: 13,
+                                            color: "#475569",
+                                            lineHeight: 1.45,
+                                          }}
+                                        >
+                                          {rec.reason}
+                                        </p>
+                                      </div>
+                                    ) : null}
+                                    {recSkills.length > 0 ? (
+                                      <div
+                                        style={{
+                                          marginTop: 10,
+                                          display: "flex",
+                                          flexWrap: "wrap" as const,
+                                          gap: 6,
+                                        }}
+                                      >
+                                        {recSkills.map((sk, skillIdx) => (
+                                          <span
+                                            key={`${rowKey}-sk-${skillIdx}`}
+                                            style={{
+                                              padding: "3px 8px",
+                                              borderRadius: 999,
+                                              fontSize: 10,
+                                              fontWeight: 700,
+                                              color: "#4338ca",
+                                              background: "#eef2ff",
+                                              border: "1px solid #c7d2fe",
+                                            }}
+                                          >
+                                            {sk}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : null}
+                                    <div
+                                      style={{
+                                        marginTop: 10,
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                      }}
+                                    >
+                                      {isSelf ? (
+                                        <span
+                                          style={{
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            color: "#94a3b8",
+                                          }}
+                                        >
+                                          You
+                                        </span>
+                                      ) : inTeam ? (
+                                        <button
+                                          type="button"
+                                          disabled
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #e2e8f0",
+                                            background: "#f1f5f9",
+                                            color: "#94a3b8",
+                                            cursor: "not-allowed",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          In Your Team
+                                        </button>
+                                      ) : pendingOut ? (
+                                        <button
+                                          type="button"
+                                          disabled
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #fde68a",
+                                            background: "#fffbeb",
+                                            color: "#92400e",
+                                            cursor: "not-allowed",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          Request Sent
+                                        </button>
+                                      ) : !receiverExistsInCourseStudents ? (
+                                        <button
+                                          type="button"
+                                          disabled
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #e2e8f0",
+                                            background: "#f8fafc",
+                                            color: "#94a3b8",
+                                            cursor: "not-allowed",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          Unavailable
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            void handleCourseTeamsSendPartnerRequest(
+                                              receiverUniversityId,
+                                            )
+                                          }
+                                          disabled={isSendingThisRow}
+                                          style={{
+                                            padding: "6px 10px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderRadius: 8,
+                                            border: "1px solid #c7d2fe",
+                                            background: isSendingThisRow
+                                              ? "#eef2ff"
+                                              : "#fff",
+                                            color: "#4338ca",
+                                            cursor: isSendingThisRow
+                                              ? "not-allowed"
+                                              : "pointer",
+                                            fontFamily: "inherit",
+                                          }}
+                                        >
+                                          {isSendingThisRow
+                                            ? "Sending..."
+                                            : "Send Request"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </section>
+                        <section style={S.ctModalSection}>
                           <h4 style={S.ctModalH4}>Incoming Partner Requests</h4>
                           <p style={S.ctModalH4Sub}>
                             Other students who asked to partner with you in
                             this course.
                           </p>
-                          {(ctPartnerRequests?.incoming ?? []).length === 0 ? (
+                          {ctMyTeam ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              You are already in a team.
+                            </p>
+                          ) : ctPendingIncomingList.length === 0 ? (
                             <p
                               style={{
                                 margin: 0,
@@ -4153,12 +4748,9 @@ export default function DashboardPage() {
                                 gap: 10,
                               }}
                             >
-                              {(ctPartnerRequests?.incoming ?? []).map(
+                              {ctPendingIncomingList.map(
                                 (req, incIdx) => {
-                                  const requestId =
-                                    req.requestId ??
-                                    (req as PartnerRequest & { RequestId?: number })
-                                      .RequestId;
+                                  const requestId = ctPartnerRequestRowId(req);
                                   const row = ctIncomingSenderRow(req.sender);
                                   const incomingRowBusy =
                                     requestId != null &&
@@ -4935,94 +5527,6 @@ export default function DashboardPage() {
                 }}
               >
                 View All Projects →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── JOIN CHANNEL MODAL ── */}
-      {joinChannelOpen && (
-        <div style={S.modalOverlay} onClick={() => setJoinChannelOpen(false)}>
-          <div style={S.modalBox} onClick={(e) => e.stopPropagation()}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 20,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 17,
-                  fontWeight: 800,
-                  color: "#0f172a",
-                  fontFamily: "Syne, sans-serif",
-                }}
-              >
-                🔗 Join Channel
-              </h3>
-              <button
-                onClick={() => setJoinChannelOpen(false)}
-                style={S.modalCloseBtn}
-              >
-                <X size={15} />
-              </button>
-            </div>
-            <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 14px" }}>
-              Enter the invite code shared by your doctor.
-            </p>
-            <input
-              style={S.modalInput}
-              placeholder="e.g. CS101-A2"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-            />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 10,
-                marginTop: 20,
-              }}
-            >
-              <button
-                onClick={() => {
-                  setJoinChannelOpen(false);
-                  setJoinCode("");
-                }}
-                style={S.modalCancelBtn}
-              >
-                Cancel
-              </button>
-              <button
-                disabled={!joinCode.trim()}
-                onClick={async () => {
-                  try {
-                    await api.post("/channels/join", { code: joinCode.trim() });
-                    setJoinChannelOpen(false);
-                    setJoinCode("");
-                  } catch {
-                    alert("Invalid code or channel not found.");
-                  }
-                }}
-                style={{
-                  padding: "9px 22px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: joinCode.trim()
-                    ? "linear-gradient(135deg,#6366f1,#a855f7)"
-                    : "#e2e8f0",
-                  color: joinCode.trim() ? "white" : "#94a3b8",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: joinCode.trim() ? "pointer" : "not-allowed",
-                  fontFamily: "inherit",
-                }}
-              >
-                Join
               </button>
             </div>
           </div>

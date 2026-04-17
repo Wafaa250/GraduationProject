@@ -70,6 +70,7 @@ export interface PartnerRequest {
   receiverStudentId?: number
   senderUniversityId?: string
   receiverUniversityId?: string
+  /** Always set by GET partner-requests: pending | accepted | rejected | cancelled */
   status?: string
   createdAt?: string
   sender?: CourseStudent
@@ -85,6 +86,17 @@ export interface PartnerRequestsResponse {
 export interface CreatePartnerRequestBody {
   /** Must be the UNIVERSITY student id string (not database PK). */
   receiverStudentId: string
+}
+
+export type RecommendedPartnerMode = 'complementary' | 'similar'
+
+export interface RecommendedPartner {
+  studentId: number
+  userId?: number
+  name?: string
+  skills?: string[]
+  matchScore?: number
+  reason?: string
 }
 
 export const getEnrolledCourses = async (): Promise<EnrolledCourse[]> => {
@@ -113,6 +125,17 @@ export const getCoursePartnerRequests = async (
   courseId: number,
 ): Promise<PartnerRequestsResponse> => {
   const response = await api.get(`/courses/${courseId}/partner-requests`)
+  return response.data
+}
+
+export const getRecommendedPartners = async (
+  courseId: number,
+  mode: RecommendedPartnerMode,
+): Promise<RecommendedPartner[]> => {
+  const response = await api.get(
+    `/courses/${courseId}/recommended-partners`,
+    { params: { mode } },
+  )
   return response.data
 }
 
