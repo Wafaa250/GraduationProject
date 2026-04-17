@@ -193,4 +193,38 @@ namespace GraduationProject.API.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PARTNER REQUESTS (GET /courses/{id}/partner-requests)
+    // ══════════════════════════════════════════════════════════════════
+
+    public class PartnerRequestParticipantDto
+    {
+        public int StudentId { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// One row in the incoming or outgoing partner-request list.
+    /// <see cref="Status"/> is always set: pending, accepted, rejected, or cancelled.
+    /// </summary>
+    public class PartnerRequestListItemDto
+    {
+        public int RequestId { get; set; }
+        public string Direction { get; set; } = string.Empty;
+        /// <summary>pending | accepted | rejected | cancelled</summary>
+        public string Status { get; set; } = "pending";
+        public int CourseId { get; set; }
+        public int? TeamId { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? RespondedAt { get; set; }
+        public PartnerRequestParticipantDto Sender { get; set; } = new();
+        public PartnerRequestParticipantDto Receiver { get; set; } = new();
+    }
+
+    public class PartnerRequestsListDto
+    {
+        public List<PartnerRequestListItemDto> Incoming { get; set; } = new();
+        public List<PartnerRequestListItemDto> Outgoing { get; set; } = new();
+    }
 }

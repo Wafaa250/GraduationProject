@@ -70,6 +70,7 @@ export interface PartnerRequest {
   receiverStudentId?: number
   senderUniversityId?: string
   receiverUniversityId?: string
+  /** Always set by GET partner-requests: pending | accepted | rejected | cancelled */
   status?: string
   createdAt?: string
   sender?: CourseStudent

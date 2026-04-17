@@ -171,9 +171,9 @@ export function DoctorCoursesSection() {
           <div
             style={{
               padding: "16px 20px 24px",
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-              gap: 14,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
             }}
           >
             {courses.map((c) => (

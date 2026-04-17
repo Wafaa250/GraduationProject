@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
+using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
 using System.ComponentModel.DataAnnotations;
@@ -200,17 +201,19 @@ namespace GraduationProject.API.Controllers
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 
-            var incoming = all
-                .Where(r => r.ReceiverStudentId == studentProfile.Id)
-                .Select(r => MapRequest(r, direction: "incoming"))
-                .ToList();
+            var dto = new PartnerRequestsListDto
+            {
+                Incoming = all
+                    .Where(r => r.ReceiverStudentId == studentProfile.Id)
+                    .Select(r => MapRequestDto(r, direction: "incoming"))
+                    .ToList(),
+                Outgoing = all
+                    .Where(r => r.SenderStudentId == studentProfile.Id)
+                    .Select(r => MapRequestDto(r, direction: "outgoing"))
+                    .ToList(),
+            };
 
-            var outgoing = all
-                .Where(r => r.SenderStudentId == studentProfile.Id)
-                .Select(r => MapRequest(r, direction: "outgoing"))
-                .ToList();
-
-            return Ok(new { incoming, outgoing });
+            return Ok(dto);
         }
 
         // =====================================================================
@@ -617,28 +620,29 @@ namespace GraduationProject.API.Controllers
         }
 
         /// <summary>
-        /// Maps a CoursePartnerRequest to a flat anonymous response object.
+        /// Maps a CoursePartnerRequest to the list API shape; <see cref="PartnerRequestListItemDto.Status"/> is always populated.
         /// </summary>
-        private static object MapRequest(CoursePartnerRequest r, string direction) => new
-        {
-            requestId         = r.Id,
-            direction,
-            status            = r.Status,
-            courseId          = r.CourseId,
-            teamId            = r.TeamId,
-            createdAt         = r.CreatedAt,
-            respondedAt       = r.RespondedAt,
-            sender = new
+        private static PartnerRequestListItemDto MapRequestDto(CoursePartnerRequest r, string direction) =>
+            new()
             {
-                studentId = r.SenderStudentId,
-                name      = r.Sender?.User?.Name ?? string.Empty
-            },
-            receiver = new
-            {
-                studentId = r.ReceiverStudentId,
-                name      = r.Receiver?.User?.Name ?? string.Empty
-            }
-        };
+                RequestId = r.Id,
+                Direction = direction,
+                Status = string.IsNullOrWhiteSpace(r.Status) ? "pending" : r.Status,
+                CourseId = r.CourseId,
+                TeamId = r.TeamId,
+                CreatedAt = r.CreatedAt,
+                RespondedAt = r.RespondedAt,
+                Sender = new PartnerRequestParticipantDto
+                {
+                    StudentId = r.SenderStudentId,
+                    Name = r.Sender?.User?.Name ?? string.Empty,
+                },
+                Receiver = new PartnerRequestParticipantDto
+                {
+                    StudentId = r.ReceiverStudentId,
+                    Name = r.Receiver?.User?.Name ?? string.Empty,
+                },
+            };
     }
 
     // ── Input DTO (local — no separate file needed for a single field) ────────
