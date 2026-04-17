@@ -18,11 +18,31 @@ namespace GraduationProject.API.Models
         [Column("id")] public int Id { get; set; }
         [Column("name")] public string Name { get; set; } = string.Empty;
         [Column("code")] public string Code { get; set; } = string.Empty;
-        [Column("doctor_id")] public int DoctorId { get; set; }  // DoctorProfile.Id
+        [Column("doctor_id")] public int DoctorId { get; set; }
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation
+        // ── NEW ──────────────────────────────────────────────────────────────
+        /// <summary>e.g. "Fall 2025", "Spring 2026". Nullable — not required.</summary>
+        [Column("semester")] public string? Semester { get; set; }
+
+        /// <summary>
+        /// true  → all sections share ONE CourseProjectSetting.
+        /// false → each section has its own SectionProjectSetting.
+        /// </summary>
+        [Column("use_shared_project_across_sections")]
+        public bool UseSharedProjectAcrossSections { get; set; } = true;
+
+        /// <summary>
+        /// Applies ONLY when UseSharedProjectAcrossSections == true.
+        /// true  → teams may include students from different sections.
+        /// false → teams must be formed within the same section.
+        /// </summary>
+        [Column("allow_cross_section_teams")]
+        public bool AllowCrossSectionTeams { get; set; } = true;
+
+        // ── Navigation ───────────────────────────────────────────────────────
         public DoctorProfile Doctor { get; set; } = null!;
+        public ICollection<CourseSection> Sections { get; set; } = new List<CourseSection>();
         public ICollection<CourseEnrollment> Enrollments { get; set; } = new List<CourseEnrollment>();
         public ICollection<CourseProjectSetting> ProjectSettings { get; set; } = new List<CourseProjectSetting>();
         public ICollection<CourseTeam> Teams { get; set; } = new List<CourseTeam>();
@@ -30,40 +50,64 @@ namespace GraduationProject.API.Models
     }
 
     // ===========================
-    // COURSE ENROLLMENT
+    // COURSE SECTION  (NEW)
     // ===========================
     /// <summary>
-    /// Direct enrollment of a student in a course.
-    /// No invite flow; no status field.
+    /// An optional sub-grouping inside a course.
+    /// A course may have one section (effectively no section split) or many.
+    /// </summary>
+    [Table("course_sections")]
+    public class CourseSection
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("course_id")] public int CourseId { get; set; }
+        [Column("section_number")] public int SectionNumber { get; set; }
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation
+        public Course Course { get; set; } = null!;
+        public ICollection<CourseEnrollment> Enrollments { get; set; } = new List<CourseEnrollment>();
+        public ICollection<SectionProjectSetting> ProjectSettings { get; set; } = new List<SectionProjectSetting>();
+    }
+
+    // ===========================
+    // COURSE ENROLLMENT  (UPDATED)
+    // ===========================
+    /// <summary>
+    /// Direct enrollment of a student in a course, optionally tied to a section.
     /// Unique index: (CourseId, StudentId).
     /// </summary>
     [Table("course_enrollments")]
     public class CourseEnrollment
     {
         [Column("id")] public int Id { get; set; }
-        [Column("course_id")] public int CourseId { get; set; }  // Course.Id
-        [Column("student_id")] public int StudentId { get; set; }  // StudentProfile.Id
+        [Column("course_id")] public int CourseId { get; set; }
+        [Column("student_id")] public int StudentId { get; set; }
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // ── NEW ──────────────────────────────────────────────────────────────
+        /// <summary>Nullable — null means the student is enrolled in the course but
+        /// not yet assigned to any section.</summary>
+        [Column("course_section_id")] public int? CourseSectionId { get; set; }
 
         // Navigation
         public Course Course { get; set; } = null!;
         public StudentProfile Student { get; set; } = null!;
+        public CourseSection? Section { get; set; }
     }
 
     // ===========================
-    // COURSE PROJECT SETTING
+    // COURSE PROJECT SETTING  (UNCHANGED — shared project case)
     // ===========================
     /// <summary>
-    /// Simple project settings defined by the doctor for a course.
-    /// Not a full independent project — only lightweight settings
-    /// (title, description, team size, active flag).
-    /// A course can have multiple settings over time; IsActive marks the current one.
+    /// Lightweight project settings at the course level.
+    /// Used when Course.UseSharedProjectAcrossSections == true.
     /// </summary>
     [Table("course_project_settings")]
     public class CourseProjectSetting
     {
         [Column("id")] public int Id { get; set; }
-        [Column("course_id")] public int CourseId { get; set; }  // Course.Id
+        [Column("course_id")] public int CourseId { get; set; }
         [Column("title")] public string Title { get; set; } = string.Empty;
         [Column("description")] public string? Description { get; set; }
         [Column("team_size")] public int TeamSize { get; set; } = 2;
@@ -71,10 +115,7 @@ namespace GraduationProject.API.Models
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("updated_at")] public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        /// <summary>Relative URL to the uploaded file, e.g. /project-files/{guid}.pdf</summary>
         [Column("file_url")] public string? FileUrl { get; set; }
-
-        /// <summary>Original file name as provided by the uploader.</summary>
         [Column("file_name")] public string? FileName { get; set; }
 
         // Navigation
@@ -83,18 +124,39 @@ namespace GraduationProject.API.Models
     }
 
     // ===========================
-    // COURSE TEAM
+    // SECTION PROJECT SETTING  (NEW)
     // ===========================
     /// <summary>
-    /// One team inside a course, linked to a project setting.
+    /// Per-section project settings.
+    /// Used when Course.UseSharedProjectAcrossSections == false.
+    /// Teams formed under this setting MUST be from the same section.
     /// </summary>
+    [Table("section_project_settings")]
+    public class SectionProjectSetting
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("course_section_id")] public int CourseSectionId { get; set; }
+        [Column("title")] public string Title { get; set; } = string.Empty;
+        [Column("description")] public string? Description { get; set; }
+        [Column("team_size")] public int TeamSize { get; set; } = 2;
+        [Column("is_active")] public bool IsActive { get; set; } = true;
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Column("updated_at")] public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation
+        public CourseSection Section { get; set; } = null!;
+    }
+
+    // ===========================
+    // COURSE TEAM  (UNCHANGED)
+    // ===========================
     [Table("course_teams")]
     public class CourseTeam
     {
         [Column("id")] public int Id { get; set; }
-        [Column("course_id")] public int CourseId { get; set; }  // Course.Id
-        [Column("project_setting_id")] public int ProjectSettingId { get; set; }  // CourseProjectSetting.Id
-        [Column("leader_student_id")] public int LeaderStudentId { get; set; }  // StudentProfile.Id
+        [Column("course_id")] public int CourseId { get; set; }
+        [Column("project_setting_id")] public int ProjectSettingId { get; set; }
+        [Column("leader_student_id")] public int LeaderStudentId { get; set; }
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation
@@ -105,26 +167,15 @@ namespace GraduationProject.API.Models
     }
 
     // ===========================
-    // COURSE TEAM MEMBER
+    // COURSE TEAM MEMBER  (UNCHANGED)
     // ===========================
-    /// <summary>
-    /// A student member of a course team.
-    /// Unique index: (TeamId, StudentId)  — prevents duplicate rows in the same team.
-    /// Unique index: (CourseId, StudentId) — prevents a student from joining more than
-    ///   one team within the same course (the cross-team constraint).
-    /// CourseId is denormalised from CourseTeam to make the cross-team index possible
-    /// at the database level; it must always equal Team.CourseId.
-    /// Role: "leader" | "member"
-    /// </summary>
     [Table("course_team_members")]
     public class CourseTeamMember
     {
         [Column("id")] public int Id { get; set; }
-        [Column("team_id")] public int TeamId { get; set; }  // CourseTeam.Id
-        [Column("course_id")] public int CourseId { get; set; }  // Course.Id  (denormalised from CourseTeam — always == Team.CourseId)
-        [Column("student_id")] public int StudentId { get; set; }  // StudentProfile.Id
-
-        // "leader" | "member"
+        [Column("team_id")] public int TeamId { get; set; }
+        [Column("course_id")] public int CourseId { get; set; }
+        [Column("student_id")] public int StudentId { get; set; }
         [Column("role")] public string Role { get; set; } = "member";
         [Column("joined_at")] public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 
@@ -135,23 +186,16 @@ namespace GraduationProject.API.Models
     }
 
     // ===========================
-    // COURSE PARTNER REQUEST
+    // COURSE PARTNER REQUEST  (UNCHANGED)
     // ===========================
-    /// <summary>
-    /// A partner/team-up request between two students inside the same course.
-    /// TeamId is nullable: set once the request is accepted and a team is created/joined.
-    /// Status: "pending" | "accepted" | "rejected" | "cancelled"
-    /// </summary>
     [Table("course_partner_requests")]
     public class CoursePartnerRequest
     {
         [Column("id")] public int Id { get; set; }
-        [Column("course_id")] public int CourseId { get; set; }  // Course.Id
-        [Column("sender_student_id")] public int SenderStudentId { get; set; }  // StudentProfile.Id
-        [Column("receiver_student_id")] public int ReceiverStudentId { get; set; } // StudentProfile.Id
-        [Column("team_id")] public int? TeamId { get; set; }  // CourseTeam.Id (nullable)
-
-        // "pending" | "accepted" | "rejected" | "cancelled"
+        [Column("course_id")] public int CourseId { get; set; }
+        [Column("sender_student_id")] public int SenderStudentId { get; set; }
+        [Column("receiver_student_id")] public int ReceiverStudentId { get; set; }
+        [Column("team_id")] public int? TeamId { get; set; }
         [Column("status")] public string Status { get; set; } = "pending";
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("responded_at")] public DateTime? RespondedAt { get; set; }

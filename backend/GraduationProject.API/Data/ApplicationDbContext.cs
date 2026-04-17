@@ -27,8 +27,10 @@ namespace GraduationProject.API.Data
 
         // ── Course-based Team Formation ──────────────────────────────────────
         public DbSet<Course> Courses => Set<Course>();
+        public DbSet<CourseSection> CourseSections => Set<CourseSection>();                   // NEW
         public DbSet<CourseEnrollment> CourseEnrollments => Set<CourseEnrollment>();
         public DbSet<CourseProjectSetting> CourseProjectSettings => Set<CourseProjectSetting>();
+        public DbSet<SectionProjectSetting> SectionProjectSettings => Set<SectionProjectSetting>(); // NEW
         public DbSet<CourseTeam> CourseTeams => Set<CourseTeam>();
         public DbSet<CourseTeamMember> CourseTeamMembers => Set<CourseTeamMember>();
         public DbSet<CoursePartnerRequest> CoursePartnerRequests => Set<CoursePartnerRequest>();
@@ -272,6 +274,23 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // ── COURSE SECTION  (NEW) ─────────────────────────────────────────
+            modelBuilder.Entity<CourseSection>(e =>
+            {
+                e.ToTable("course_sections");
+
+                // Section number is unique within a course (no two "section 2"s in course 5).
+                e.HasIndex(cs => new { cs.CourseId, cs.SectionNumber })
+                 .IsUnique()
+                 .HasDatabaseName("ix_course_sections_course_number");
+
+                // Course deleted → cascade delete its sections.
+                e.HasOne(cs => cs.Course)
+                 .WithMany(c => c.Sections)
+                 .HasForeignKey(cs => cs.CourseId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
             // ── COURSE ENROLLMENT ─────────────────────────────────────────────
             modelBuilder.Entity<CourseEnrollment>(e =>
             {
@@ -293,6 +312,15 @@ namespace GraduationProject.API.Data
                  .WithMany()
                  .HasForeignKey(ce => ce.StudentId)
                  .OnDelete(DeleteBehavior.Restrict);
+
+                // ── NEW: optional Section FK ──────────────────────────────────
+                // Section is optional; if the section row is deleted, null the FK
+                // (student remains enrolled in the course but unassigned).
+                e.HasOne(ce => ce.Section)
+                 .WithMany(cs => cs.Enrollments)
+                 .HasForeignKey(ce => ce.CourseSectionId)
+                 .IsRequired(false)
+                 .OnDelete(DeleteBehavior.SetNull);
             });
 
             // ── COURSE PROJECT SETTING ────────────────────────────────────────
@@ -307,6 +335,21 @@ namespace GraduationProject.API.Data
                 e.HasOne(cps => cps.Course)
                  .WithMany(c => c.ProjectSettings)
                  .HasForeignKey(cps => cps.CourseId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── SECTION PROJECT SETTING  (NEW) ────────────────────────────────
+            modelBuilder.Entity<SectionProjectSetting>(e =>
+            {
+                e.ToTable("section_project_settings");
+
+                e.HasIndex(sps => sps.CourseSectionId)
+                 .HasDatabaseName("ix_section_project_settings_section");
+
+                // Section deleted → cascade delete its project settings.
+                e.HasOne(sps => sps.Section)
+                 .WithMany(cs => cs.ProjectSettings)
+                 .HasForeignKey(sps => sps.CourseSectionId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
