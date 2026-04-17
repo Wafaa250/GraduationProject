@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -211,6 +217,36 @@ function ctIsOutgoingPendingPartnerRequest(r: PartnerRequest): boolean {
   return st === "pending" || st === "";
 }
 
+function ctPartnerRequestStatusRaw(req: PartnerRequest): string {
+  const raw =
+    req.status ?? (req as PartnerRequest & { Status?: string }).Status;
+  return typeof raw === "string" ? raw : "";
+}
+
+/** Incoming actions only apply while the backend still has the request as pending. */
+function ctIsIncomingPartnerRequestPending(req: PartnerRequest): boolean {
+  return normApiStatus(ctPartnerRequestStatusRaw(req)) === "pending";
+}
+
+function ctPartnerRequestRowId(req: PartnerRequest): number | null {
+  const id =
+    req.requestId ??
+    (req as PartnerRequest & { RequestId?: number }).RequestId;
+  return typeof id === "number" && Number.isFinite(id) ? id : null;
+}
+
+/** Removes one incoming row immediately after accept/reject so the UI cannot double-action before refetch. */
+function ctStripIncomingPartnerRequestById(
+  prev: PartnerRequestsResponse | null,
+  requestId: number,
+): PartnerRequestsResponse | null {
+  if (!prev) return prev;
+  return {
+    ...prev,
+    incoming: prev.incoming.filter((r) => ctPartnerRequestRowId(r) !== requestId),
+  };
+}
+
 function ctIncomingSenderRow(sender: CourseStudent | undefined): {
   name: string;
   university: string;
@@ -268,8 +304,6 @@ export default function DashboardPage() {
   const [editInfoOpen, setEditInfoOpen] = useState(false);
 
   const [projectsModalOpen, setProjectsModalOpen] = useState(false);
-  const [joinChannelOpen, setJoinChannelOpen] = useState(false);
-  const [joinCode, setJoinCode] = useState("");
 
   // ── Course Teams (modal; student dashboard only) ──────────────────────────
   const [courseTeamsModalOpen, setCourseTeamsModalOpen] = useState(false);
@@ -298,6 +332,7 @@ export default function DashboardPage() {
   const [ctRecommendedSort, setCtRecommendedSort] = useState<
     "best" | "lowest"
   >("best");
+  const [aiLoaded, setAiLoaded] = useState(false);
   const [ctRecommendedPartners, setCtRecommendedPartners] = useState<
     RecommendedPartner[]
   >([]);
@@ -323,6 +358,9 @@ export default function DashboardPage() {
   /** Leave Course action in progress (disables only that control). */
   const [ctLeavingCourse, setCtLeavingCourse] = useState(false);
 
+  /** Blocks double-clicks on Accept/Reject before React re-renders loading state. */
+  const ctIncomingBusyRef = useRef<Set<number>>(new Set());
+
   const resetCourseTeamsModalState = useCallback(() => {
     setCtCourses([]);
     setCtNoValidCourseIds(false);
@@ -338,10 +376,12 @@ export default function DashboardPage() {
     setCtCourseStudents([]);
     setCtRecommendedMode("complementary");
     setCtRecommendedSort("best");
+    setAiLoaded(false);
     setCtRecommendedPartners([]);
     setCtRecommendedLoading(false);
     setCtSendingReceiverUniversityId(null);
     setCtIncomingRowAction({});
+    ctIncomingBusyRef.current.clear();
     setCtRemovingMemberStudentId(null);
     setCtLeavingCourse(false);
   }, []);
@@ -368,7 +408,11 @@ export default function DashboardPage() {
       );
       let total = 0;
       for (const pr of prs) {
-        total += (pr.incoming?.length ?? 0) + (pr.outgoing?.length ?? 0);
+        const inc =
+          (pr.incoming ?? []).filter(ctIsIncomingPartnerRequestPending).length;
+        const out =
+          (pr.outgoing ?? []).filter(ctIsOutgoingPendingPartnerRequest).length;
+        total += inc + out;
       }
       setCtDashCardRequestsCount(total);
     } catch {
@@ -664,31 +708,25 @@ export default function DashboardPage() {
   }, [ctSelectedCourseId, showToast]);
 
   useEffect(() => {
-    if (!ctSelectedCourseId) {
+    setAiLoaded(false);
+    setCtRecommendedPartners([]);
+    setCtRecommendedLoading(false);
+  }, [ctSelectedCourseId, ctRecommendedMode]);
+
+  const fetchRecommendations = useCallback(async () => {
+    if (!ctSelectedCourseId) return;
+    setCtRecommendedLoading(true);
+    try {
+      const recs = await getRecommendedPartners(
+        ctSelectedCourseId,
+        ctRecommendedMode,
+      );
+      setCtRecommendedPartners(Array.isArray(recs) ? recs : []);
+    } catch {
       setCtRecommendedPartners([]);
+    } finally {
       setCtRecommendedLoading(false);
-      return;
     }
-    let cancelled = false;
-    const run = async () => {
-      setCtRecommendedLoading(true);
-      try {
-        const recs = await getRecommendedPartners(
-          ctSelectedCourseId,
-          ctRecommendedMode,
-        );
-        if (cancelled) return;
-        setCtRecommendedPartners(Array.isArray(recs) ? recs : []);
-      } catch {
-        if (!cancelled) setCtRecommendedPartners([]);
-      } finally {
-        if (!cancelled) setCtRecommendedLoading(false);
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
   }, [ctSelectedCourseId, ctRecommendedMode]);
 
   const handleCourseTeamsSendPartnerRequest = useCallback(
@@ -723,10 +761,15 @@ export default function DashboardPage() {
         console.warn("Invalid courseId, skipping request");
         return;
       }
+      if (ctIncomingBusyRef.current.has(requestId)) return;
+      ctIncomingBusyRef.current.add(requestId);
       const selectedCourseId = ctSelectedCourseId;
       setCtIncomingRowAction((prev) => ({ ...prev, [requestId]: "accept" }));
       try {
         await acceptPartnerRequest(selectedCourseId, requestId);
+        setCtPartnerRequests((prev) =>
+          ctStripIncomingPartnerRequestById(prev, requestId),
+        );
         const [pr, team, courseRes] = await Promise.all([
           getCoursePartnerRequests(selectedCourseId),
           getMyTeam(selectedCourseId),
@@ -738,7 +781,18 @@ export default function DashboardPage() {
         await refreshCourseTeamsDashCardCounts();
       } catch (err) {
         showToast(parseApiErrorMessage(err), "error");
+        try {
+          const [pr, team] = await Promise.all([
+            getCoursePartnerRequests(selectedCourseId),
+            getMyTeam(selectedCourseId),
+          ]);
+          setCtPartnerRequests(pr);
+          setCtMyTeam(team);
+        } catch {
+          /* ignore refresh failure */
+        }
       } finally {
+        ctIncomingBusyRef.current.delete(requestId);
         setCtIncomingRowAction((prev) => {
           const next = { ...prev };
           delete next[requestId];
@@ -755,16 +809,36 @@ export default function DashboardPage() {
         console.warn("Invalid courseId, skipping request");
         return;
       }
+      if (ctIncomingBusyRef.current.has(requestId)) return;
+      ctIncomingBusyRef.current.add(requestId);
       const selectedCourseId = ctSelectedCourseId;
       setCtIncomingRowAction((prev) => ({ ...prev, [requestId]: "reject" }));
       try {
         await rejectPartnerRequest(selectedCourseId, requestId);
-        const pr = await getCoursePartnerRequests(selectedCourseId);
+        setCtPartnerRequests((prev) =>
+          ctStripIncomingPartnerRequestById(prev, requestId),
+        );
+        const [pr, team] = await Promise.all([
+          getCoursePartnerRequests(selectedCourseId),
+          getMyTeam(selectedCourseId),
+        ]);
         setCtPartnerRequests(pr);
+        setCtMyTeam(team);
         await refreshCourseTeamsDashCardCounts();
       } catch (err) {
         showToast(parseApiErrorMessage(err), "error");
+        try {
+          const [pr, team] = await Promise.all([
+            getCoursePartnerRequests(selectedCourseId),
+            getMyTeam(selectedCourseId),
+          ]);
+          setCtPartnerRequests(pr);
+          setCtMyTeam(team);
+        } catch {
+          /* ignore refresh failure */
+        }
       } finally {
+        ctIncomingBusyRef.current.delete(requestId);
         setCtIncomingRowAction((prev) => {
           const next = { ...prev };
           delete next[requestId];
@@ -1596,26 +1670,6 @@ export default function DashboardPage() {
             </button>
             <button style={S.navBtn} onClick={openEditInfo}>
               <Settings size={17} />
-            </button>
-            <button
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "7px 14px",
-                background: "linear-gradient(135deg,#6366f1,#a855f7)",
-                color: "white",
-                border: "none",
-                borderRadius: 9,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                marginRight: 4,
-              }}
-              onClick={() => setJoinChannelOpen(true)}
-            >
-              🔗 Join Channel
             </button>
             <button style={S.navBtn} onClick={handleLogout}>
               <LogOut size={16} />
@@ -3653,8 +3707,13 @@ export default function DashboardPage() {
                       "role",
                       "Role",
                     ]);
-                    const incomingCt = ctPartnerRequests?.incoming.length ?? 0;
-                    const outgoingCt = ctPartnerRequests?.outgoing.length ?? 0;
+                    const ctPendingIncomingList = (
+                      ctPartnerRequests?.incoming ?? []
+                    ).filter(ctIsIncomingPartnerRequestPending);
+                    const incomingCt = ctPendingIncomingList.length;
+                    const outgoingCt = (
+                      ctPartnerRequests?.outgoing ?? []
+                    ).filter(ctIsOutgoingPendingPartnerRequest).length;
                     const teamMemberDbIds = new Set<number>();
                     for (const m of ctMyTeam?.members ?? []) {
                       if (
@@ -4254,8 +4313,43 @@ export default function DashboardPage() {
                                 <option value="lowest">Lowest Match</option>
                               </select>
                             </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAiLoaded(true);
+                                void fetchRecommendations();
+                              }}
+                              disabled={ctRecommendedLoading || !ctSelectedCourseId}
+                              style={{
+                                padding: "6px 12px",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                borderRadius: 8,
+                                border: "1px solid #c7d2fe",
+                                background: "#fff",
+                                color: "#4338ca",
+                                cursor:
+                                  ctRecommendedLoading || !ctSelectedCourseId
+                                    ? "not-allowed"
+                                    : "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              Generate
+                            </button>
                           </div>
-                          {ctRecommendedLoading ? (
+                          {!aiLoaded ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              Click Generate to get recommendations
+                            </p>
+                          ) : ctRecommendedLoading ? (
                             <p
                               style={{
                                 margin: 0,
@@ -4620,7 +4714,18 @@ export default function DashboardPage() {
                             Other students who asked to partner with you in
                             this course.
                           </p>
-                          {(ctPartnerRequests?.incoming ?? []).length === 0 ? (
+                          {ctMyTeam ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 13,
+                                color: "#64748b",
+                                lineHeight: 1.55,
+                              }}
+                            >
+                              You are already in a team.
+                            </p>
+                          ) : ctPendingIncomingList.length === 0 ? (
                             <p
                               style={{
                                 margin: 0,
@@ -4643,12 +4748,9 @@ export default function DashboardPage() {
                                 gap: 10,
                               }}
                             >
-                              {(ctPartnerRequests?.incoming ?? []).map(
+                              {ctPendingIncomingList.map(
                                 (req, incIdx) => {
-                                  const requestId =
-                                    req.requestId ??
-                                    (req as PartnerRequest & { RequestId?: number })
-                                      .RequestId;
+                                  const requestId = ctPartnerRequestRowId(req);
                                   const row = ctIncomingSenderRow(req.sender);
                                   const incomingRowBusy =
                                     requestId != null &&
@@ -5425,94 +5527,6 @@ export default function DashboardPage() {
                 }}
               >
                 View All Projects →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── JOIN CHANNEL MODAL ── */}
-      {joinChannelOpen && (
-        <div style={S.modalOverlay} onClick={() => setJoinChannelOpen(false)}>
-          <div style={S.modalBox} onClick={(e) => e.stopPropagation()}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 20,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 17,
-                  fontWeight: 800,
-                  color: "#0f172a",
-                  fontFamily: "Syne, sans-serif",
-                }}
-              >
-                🔗 Join Channel
-              </h3>
-              <button
-                onClick={() => setJoinChannelOpen(false)}
-                style={S.modalCloseBtn}
-              >
-                <X size={15} />
-              </button>
-            </div>
-            <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 14px" }}>
-              Enter the invite code shared by your doctor.
-            </p>
-            <input
-              style={S.modalInput}
-              placeholder="e.g. CS101-A2"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-            />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 10,
-                marginTop: 20,
-              }}
-            >
-              <button
-                onClick={() => {
-                  setJoinChannelOpen(false);
-                  setJoinCode("");
-                }}
-                style={S.modalCancelBtn}
-              >
-                Cancel
-              </button>
-              <button
-                disabled={!joinCode.trim()}
-                onClick={async () => {
-                  try {
-                    await api.post("/channels/join", { code: joinCode.trim() });
-                    setJoinChannelOpen(false);
-                    setJoinCode("");
-                  } catch {
-                    alert("Invalid code or channel not found.");
-                  }
-                }}
-                style={{
-                  padding: "9px 22px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: joinCode.trim()
-                    ? "linear-gradient(135deg,#6366f1,#a855f7)"
-                    : "#e2e8f0",
-                  color: joinCode.trim() ? "white" : "#94a3b8",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: joinCode.trim() ? "pointer" : "not-allowed",
-                  fontFamily: "inherit",
-                }}
-              >
-                Join
               </button>
             </div>
           </div>

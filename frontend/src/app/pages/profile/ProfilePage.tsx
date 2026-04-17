@@ -1,8 +1,19 @@
-import { useState, useEffect, type CSSProperties } from 'react'
+import { useState, useEffect, type CSSProperties, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, CheckCircle2, Circle, Pencil,
-  MapPin, GraduationCap, BookOpen, Star, Zap
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  Pencil,
+  MapPin,
+  GraduationCap,
+  BookOpen,
+  Star,
+  Zap,
+  Users,
+  LayoutDashboard,
+  Sparkles,
+  X,
 } from 'lucide-react'
 import api from '../../../api/axiosInstance'
 import { navigateHome } from '../../../utils/homeNavigation'
@@ -22,17 +33,37 @@ interface StudentProfile {
   profilePic?: string | null
 }
 
+interface ProfileTask {
+  id: string
+  label: string
+  done: boolean
+  link: string
+}
+
+type SkillKind = 'general' | 'major'
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const navigate = useNavigate()
   const [user, setUser] = useState<StudentProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
+  /** Session-only skills (not persisted; merged with /me data for display). */
+  const [addedGeneralSkills, setAddedGeneralSkills] = useState<string[]>([])
+  const [addedMajorSkills, setAddedMajorSkills] = useState<string[]>([])
+
+  const [skillModalOpen, setSkillModalOpen] = useState(false)
+  const [skillNameInput, setSkillNameInput] = useState('')
+  const [skillKind, setSkillKind] = useState<SkillKind>('general')
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem('token')
-        if (!token) { navigate('/login'); return }
+        if (!token) {
+          navigate('/login')
+          return
+        }
 
         const res = await api.get('/me')
         const data = res.data
@@ -64,50 +95,113 @@ export default function ProfilePage() {
     fetchProfile()
   }, [navigate])
 
-  const generalSkills = user?.generalSkills || []
-  const majorSkills   = user?.majorSkills   || []
-  const allSkills     = [...generalSkills, ...majorSkills]
+  const generalSkills = [...(user?.generalSkills ?? []), ...addedGeneralSkills]
+  const majorSkills = [...(user?.majorSkills ?? []), ...addedMajorSkills]
+  const allSkills = [...generalSkills, ...majorSkills]
+
+  const openSkillModal = () => {
+    setSkillNameInput('')
+    setSkillKind('general')
+    setSkillModalOpen(true)
+  }
+
+  const closeSkillModal = () => {
+    setSkillModalOpen(false)
+    setSkillNameInput('')
+  }
+
+  const handleAddSkillSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    const raw = skillNameInput.trim()
+    if (!raw) return
+
+    const norm = (s: string) => s.trim().toLowerCase()
+    const exists =
+      generalSkills.some((s) => norm(s) === norm(raw)) ||
+      majorSkills.some((s) => norm(s) === norm(raw))
+    if (exists) {
+      closeSkillModal()
+      return
+    }
+
+    if (skillKind === 'general') {
+      setAddedGeneralSkills((prev) => [...prev, raw])
+    } else {
+      setAddedMajorSkills((prev) => [...prev, raw])
+    }
+    closeSkillModal()
+  }
 
   const completeness = Math.min(
     20 +
-    (user?.university ? 15 : 0) +
-    (user?.major      ? 15 : 0) +
-    (allSkills.length  > 0 ? 20 : 0) +
-    (user?.gpa        ? 10 : 0) +
-    (user?.profilePic ? 20 : 0),
-    100
+      (user?.university ? 15 : 0) +
+      (user?.major ? 15 : 0) +
+      (allSkills.length > 0 ? 20 : 0) +
+      (user?.gpa ? 10 : 0) +
+      (user?.profilePic ? 20 : 0),
+    100,
   )
 
-  const PROFILE_TASKS = [
-    { id: '1', label: 'Add a profile picture',       done: !!user?.profilePic,                       link: '/edit-profile#basic'  },
-    { id: '2', label: 'Add general skills',           done: generalSkills.length > 0,                 link: '/edit-profile#skills' },
-    { id: '3', label: 'Add major skills',             done: majorSkills.length  > 0,                  link: '/edit-profile#skills' },
-    { id: '4', label: 'Complete academic info',       done: !!user?.major && !!user?.university,       link: '/edit-profile#basic'  },
-    { id: '5', label: 'Add preferred project topics', done: false,                                    link: '/edit-profile#work'   },
+  const PROFILE_TASKS: ProfileTask[] = [
+    { id: '1', label: 'Add a profile picture', done: !!user?.profilePic, link: '/edit-profile#basic' },
+    { id: '2', label: 'Add general skills', done: generalSkills.length > 0, link: '/edit-profile#skills' },
+    { id: '3', label: 'Add major skills', done: majorSkills.length > 0, link: '/edit-profile#skills' },
+    { id: '4', label: 'Complete academic info', done: !!user?.major && !!user?.university, link: '/edit-profile#basic' },
+    { id: '5', label: 'Add preferred project topics', done: false, link: '/edit-profile#work' },
   ]
 
+  const nextActions = PROFILE_TASKS.filter((t) => !t.done).slice(0, 3)
+
   // ── Loading ──────────────────────────────────────────────────────────────
-  if (loading) return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff,#f0f4ff,#faf5ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif' }}>
-      <div style={{ textAlign: 'center' as const }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+  if (loading)
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(155deg,#f8f7ff,#f0f4ff,#faf5ff)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'DM Sans, sans-serif',
+        }}
+      >
+        <div style={{ textAlign: 'center' as const }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              boxShadow: '0 8px 24px rgba(99,102,241,0.3)',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                stroke="white"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <p style={{ fontSize: 14, color: '#94a3b8', fontWeight: 600 }}>Loading profile...</p>
         </div>
-        <p style={{ fontSize: 14, color: '#94a3b8', fontWeight: 600 }}>Loading profile...</p>
       </div>
-    </div>
-  )
+    )
 
   return (
     <div style={S.page}>
-      {/* Bg blobs */}
       <div style={S.blob1} />
       <div style={S.blob2} />
 
-      {/* ── Top bar ── */}
       <div style={S.topBar}>
         <div style={S.topBarInner}>
-          <button onClick={() => navigateHome(navigate)} style={S.backBtn}>
+          <button type="button" onClick={() => navigateHome(navigate)} style={S.backBtn}>
             <ArrowLeft size={16} />
             <span>Back to Dashboard</span>
           </button>
@@ -115,26 +209,29 @@ export default function ProfilePage() {
       </div>
 
       <div style={S.content}>
-
-        {/* ══════════════════════════════════════
-            1 — HERO: Avatar · Name · Major · University
-        ══════════════════════════════════════ */}
+        {/* Header: avatar + name + badges + edit (one horizontal band) */}
         <div style={S.heroCard}>
-          {/* Avatar */}
           <div style={S.avatarWrap}>
-            {user?.profilePic
-              ? <img src={user.profilePic} style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} alt="" />
-              : (
-                <div style={S.avatarFallback}>
-                  {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'ST'}
-                </div>
-              )
-            }
+            {user?.profilePic ? (
+              <img
+                src={user.profilePic}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' as const }}
+                alt=""
+              />
+            ) : (
+              <div style={S.avatarFallback}>
+                {user?.name
+                  ?.split(' ')
+                  .map((n) => n[0])
+                  .join('')
+                  .slice(0, 2) || 'ST'}
+              </div>
+            )}
           </div>
 
-          {/* Text */}
-          <div style={{ flex: 1 }}>
+          <div style={S.heroTextBlock}>
             <h1 style={S.heroName}>{user?.name || 'Student'}</h1>
+            <p style={S.heroEmail}>{user?.email}</p>
             <div style={S.heroBadges}>
               {user?.major && (
                 <span style={S.badge}>
@@ -153,196 +250,628 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
+
+          <Link to="/edit-profile" style={S.heroEditBtn}>
+            <Pencil size={15} />
+            <span>Edit</span>
+          </Link>
         </div>
 
-        <div style={S.mainGrid}>
-          {/* ── LEFT column ── */}
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
-
-            {/* ══════════════════════════════════════
-                2 — ACADEMIC INFO
-            ══════════════════════════════════════ */}
+        <div className="profile-main-grid">
+          <div style={S.col}>
             <div style={S.card}>
               <div style={S.sectionHeader}>
-                <BookOpen size={15} color="#6366f1" />
+                <BookOpen size={14} color="#6366f1" />
                 <h2 style={S.sectionTitle}>Academic Info</h2>
               </div>
-              <div style={S.infoGrid}>
+              <div style={S.infoList}>
                 {[
-                  { label: 'Email',      value: user?.email,        icon: '📧' },
-                  { label: 'Faculty',    value: user?.faculty,      icon: '🏛️' },
-                  { label: 'Year',       value: user?.academicYear, icon: '📅' },
-                  { label: 'GPA',        value: user?.gpa,          icon: '🎯' },
-                ].map(item => (
-                  <div key={item.label} style={S.infoCell}>
-                    <p style={S.infoCellLabel}>{item.icon} {item.label}</p>
-                    <p style={{ ...S.infoCellValue, color: item.value ? '#0f172a' : '#cbd5e1' }}>
+                  { label: 'Email', value: user?.email },
+                  { label: 'Faculty', value: user?.faculty },
+                  { label: 'Year', value: user?.academicYear },
+                  { label: 'GPA', value: user?.gpa },
+                ].map((item) => (
+                  <div key={item.label} className="profile-academic-row" style={S.infoRow}>
+                    <span style={S.infoLabel}>{item.label}</span>
+                    <span
+                      style={{
+                        ...S.infoValue,
+                        color: item.value ? '#0f172a' : '#cbd5e1',
+                      }}
+                    >
                       {item.value || '—'}
-                    </p>
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* ══════════════════════════════════════
-                3 — SKILLS
-            ══════════════════════════════════════ */}
             <div style={S.card}>
               <div style={S.sectionHeader}>
-                <Zap size={15} color="#a855f7" />
+                <Zap size={14} color="#a855f7" />
                 <h2 style={S.sectionTitle}>Skills</h2>
-                <Link to="/edit-profile#skills" style={S.inlineEditLink}>+ Add skills</Link>
+                <button type="button" onClick={openSkillModal} style={S.inlineAddBtn}>
+                  + Add skills
+                </button>
               </div>
 
               {allSkills.length === 0 ? (
                 <div style={S.emptySkills}>
-                  <span style={{ fontSize: 28 }}>🧩</span>
-                  <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>No skills added yet</p>
-                  <Link to="/edit-profile#skills" style={S.addSkillsBtn}>Add your skills →</Link>
+                  <span style={{ fontSize: 22 }}>🧩</span>
+                  <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>No skills yet</p>
+                  <button type="button" onClick={openSkillModal} style={S.addSkillsBtn}>
+                    Add skills →
+                  </button>
                 </div>
               ) : (
-                <>
-                  {generalSkills.length > 0 && (
-                    <div style={{ marginBottom: 16 }}>
-                      <p style={S.skillGroupLabel}>General Skills</p>
-                      <div style={S.skillsRow}>
-                        {generalSkills.map(s => (
-                          <span key={s} style={S.skillChip}>{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {majorSkills.length > 0 && (
-                    <div>
-                      <p style={S.skillGroupLabel}>Major Skills</p>
-                      <div style={S.skillsRow}>
-                        {majorSkills.map(s => (
-                          <span key={s} style={{ ...S.skillChip, background: '#faf5ff', border: '1px solid #e9d5ff', color: '#7c3aed' }}>{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
+                <div style={S.skillsInline}>
+                  {generalSkills.map((s, i) => (
+                    <span key={`g-${s}-${i}`} style={S.skillChip}>
+                      {s}
+                    </span>
+                  ))}
+                  {majorSkills.map((s, i) => (
+                    <span key={`m-${s}-${i}`} style={S.skillChipMajor}>
+                      {s}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
-
           </div>
 
-          {/* ── RIGHT column ── */}
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
-
-            {/* ══════════════════════════════════════
-                4 — PROFILE COMPLETENESS
-            ══════════════════════════════════════ */}
+          <div style={S.col}>
             <div style={S.card}>
               <div style={S.sectionHeader}>
-                <CheckCircle2 size={15} color="#6366f1" />
+                <CheckCircle2 size={14} color="#6366f1" />
                 <h2 style={S.sectionTitle}>Profile Completeness</h2>
               </div>
 
-              {/* Progress bar */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+              <div style={S.progressRow}>
                 <div style={S.progressTrack}>
                   <div style={{ ...S.progressFill, width: `${completeness}%` }} />
                 </div>
                 <span style={S.progressPct}>{completeness}%</span>
               </div>
               <p style={S.progressHint}>
-                {completeness >= 80 ? '🔥 Strong profile — you\'re ready to match!' : 'Complete your profile to unlock better AI matches'}
+                {completeness >= 80
+                  ? "Strong profile — you're ready to match."
+                  : 'Complete your profile for better AI matches.'}
               </p>
 
-              {/* Checklist */}
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginTop: 16 }}>
-                {PROFILE_TASKS.map(task => (
-                  <div key={task.id} style={S.taskRow}>
-                    {task.done
-                      ? <CheckCircle2 size={16} color="#6366f1" style={{ flexShrink: 0 }} />
-                      : <Circle      size={16} color="#cbd5e1"  style={{ flexShrink: 0 }} />
-                    }
-                    <span style={{
-                      flex: 1, fontSize: 13, color: '#475569', fontWeight: 500,
-                      textDecoration: task.done ? 'line-through' : 'none',
-                      opacity: task.done ? 0.45 : 1,
-                    }}>
-                      {task.label}
-                    </span>
-                    {!task.done && (
-                      <Link to={task.link} style={S.doItLink}>Do it →</Link>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {nextActions.length > 0 ? (
+                <div style={S.nextActions}>
+                  {nextActions.map((task) => (
+                    <div key={task.id} style={S.taskRow}>
+                      <Circle size={14} color="#cbd5e1" style={{ flexShrink: 0 }} />
+                      <span style={S.taskLabel}>{task.label}</span>
+                      <Link to={task.link} style={S.doItLink}>
+                        Do it →
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={S.allDoneHint}>You're on track — no urgent tasks.</p>
+              )}
             </div>
 
-            {/* ══════════════════════════════════════
-                5 — EDIT PROFILE CTA
-            ══════════════════════════════════════ */}
-            <Link to="/edit-profile" style={S.editCta}>
-              <Pencil size={16} />
-              <span style={{ fontSize: 14, fontWeight: 700 }}>Edit Profile</span>
-            </Link>
-
+            <div style={S.card}>
+              <div style={S.sectionHeader}>
+                <Sparkles size={14} color="#6366f1" />
+                <h2 style={S.sectionTitle}>Next Steps</h2>
+              </div>
+              <p style={S.quickIntro}>Suggestions to get the most from the platform.</p>
+              <div style={S.quickList}>
+                <Link to="/students" style={S.quickRow}>
+                  <Users size={16} color="#6366f1" style={{ flexShrink: 0 }} />
+                  <span>Browse students & find teammates</span>
+                </Link>
+                <Link to="/edit-profile" style={S.quickRow}>
+                  <Pencil size={16} color="#6366f1" style={{ flexShrink: 0 }} />
+                  <span>Update your profile details</span>
+                </Link>
+                <button type="button" onClick={() => navigateHome(navigate)} style={S.quickRowBtn}>
+                  <LayoutDashboard size={16} color="#6366f1" style={{ flexShrink: 0 }} />
+                  <span>Return to dashboard</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <style>{`a { text-decoration: none; } button:hover { opacity: 0.88; }`}</style>
+      {skillModalOpen && (
+        <div style={S.modalOverlay} onClick={closeSkillModal} role="presentation">
+          <div
+            style={S.modalBox}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-skill-title"
+          >
+            <div style={S.modalHead}>
+              <h2 id="add-skill-title" style={S.modalTitle}>
+                Add skill
+              </h2>
+              <button type="button" style={S.modalClose} onClick={closeSkillModal} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleAddSkillSubmit}>
+              <label style={S.modalLabel}>
+                Skill name
+                <input
+                  type="text"
+                  value={skillNameInput}
+                  onChange={(e) => setSkillNameInput(e.target.value)}
+                  placeholder="e.g. React, Teamwork"
+                  style={S.modalInput}
+                  autoFocus
+                  autoComplete="off"
+                />
+              </label>
+              <p style={S.modalSub}>Type</p>
+              <div style={S.kindToggle}>
+                <button
+                  type="button"
+                  onClick={() => setSkillKind('general')}
+                  style={{
+                    ...S.kindBtn,
+                    ...(skillKind === 'general' ? S.kindBtnActiveGeneral : {}),
+                  }}
+                >
+                  General
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSkillKind('major')}
+                  style={{
+                    ...S.kindBtn,
+                    ...(skillKind === 'major' ? S.kindBtnActiveMajor : {}),
+                  }}
+                >
+                  Major
+                </button>
+              </div>
+              <div style={S.modalActions}>
+                <button type="button" onClick={closeSkillModal} style={S.modalBtnSecondary}>
+                  Cancel
+                </button>
+                <button type="submit" style={S.modalBtnPrimary} disabled={!skillNameInput.trim()}>
+                  Add
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        a { text-decoration: none; }
+        button:hover { opacity: 0.88; }
+        .profile-academic-row:not(:last-child) {
+          border-bottom: 1px solid #f1f5f9;
+        }
+        .profile-main-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          gap: 16px;
+          align-items: start;
+        }
+        @media (max-width: 900px) {
+          .profile-main-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </div>
   )
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const S: Record<string, CSSProperties> = {
-  page:           { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 45%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative', overflow: 'hidden' },
-  blob1:          { position: 'fixed', top: -160, right: -160, width: 520, height: 520, borderRadius: '50%', background: 'radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 },
-  blob2:          { position: 'fixed', bottom: -120, left: -120, width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 },
+  page: {
+    minHeight: '100vh',
+    background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 45%,#faf5ff 100%)',
+    fontFamily: 'DM Sans, sans-serif',
+    color: '#0f172a',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  blob1: {
+    position: 'fixed',
+    top: -160,
+    right: -160,
+    width: 520,
+    height: 520,
+    borderRadius: '50%',
+    background: 'radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 70%)',
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
+  blob2: {
+    position: 'fixed',
+    bottom: -120,
+    left: -120,
+    width: 420,
+    height: 420,
+    borderRadius: '50%',
+    background: 'radial-gradient(circle,rgba(168,85,247,0.07) 0%,transparent 70%)',
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
 
-  // top bar
-  topBar:         { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.88)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
-  topBarInner:    { maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  backBtn:        { display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#64748b', fontFamily: 'inherit', padding: 0 },
-  editBtn:        { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: 'none', boxShadow: '0 4px 12px rgba(99,102,241,0.25)' },
+  topBar: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 100,
+    background: 'rgba(248,247,255,0.88)',
+    backdropFilter: 'blur(20px)',
+    borderBottom: '1px solid rgba(99,102,241,0.1)',
+  },
+  topBarInner: {
+    maxWidth: 1000,
+    margin: '0 auto',
+    padding: '0 20px',
+    height: 52,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#64748b',
+    fontFamily: 'inherit',
+    padding: 0,
+  },
 
-  content:        { maxWidth: 900, margin: '0 auto', padding: '32px 24px 60px', position: 'relative', zIndex: 1 },
+  content: { maxWidth: 1000, margin: '0 auto', padding: '20px 20px 40px', position: 'relative', zIndex: 1 },
 
-  // hero
-  heroCard:       { display: 'flex', alignItems: 'center', gap: 24, padding: '28px 32px', background: 'white', borderRadius: 20, border: '1px solid rgba(99,102,241,0.12)', boxShadow: '0 4px 24px rgba(99,102,241,0.07)', marginBottom: 24 },
-  avatarWrap:     { width: 88, height: 88, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, boxShadow: '0 0 0 4px #eef2ff, 0 4px 16px rgba(99,102,241,0.2)' },
-  avatarFallback: { width: '100%', height: '100%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: 'white' },
-  heroName:       { margin: '0 0 12px', fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px', fontFamily: 'Syne, sans-serif' },
-  heroBadges:     { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  badge:          { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, fontWeight: 600, color: '#6366f1' },
+  heroCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+    padding: '16px 20px',
+    background: 'white',
+    borderRadius: 16,
+    border: '1px solid rgba(99,102,241,0.12)',
+    boxShadow: '0 2px 16px rgba(99,102,241,0.06)',
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
+  avatarWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: '50%',
+    overflow: 'hidden',
+    flexShrink: 0,
+    boxShadow: '0 0 0 3px #eef2ff, 0 2px 12px rgba(99,102,241,0.18)',
+  },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 22,
+    fontWeight: 800,
+    color: 'white',
+  },
+  heroTextBlock: { flex: 1, minWidth: 200 },
+  heroName: {
+    margin: '0 0 2px',
+    fontSize: 20,
+    fontWeight: 800,
+    color: '#0f172a',
+    letterSpacing: '-0.3px',
+    fontFamily: 'Syne, sans-serif',
+  },
+  heroEmail: { margin: '0 0 8px', fontSize: 12, color: '#94a3b8', fontWeight: 500 },
+  heroBadges: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  badge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '4px 10px',
+    background: '#eef2ff',
+    border: '1px solid #c7d2fe',
+    borderRadius: 16,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#6366f1',
+  },
+  heroEditBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 14px',
+    background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+    color: 'white',
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: 700,
+    flexShrink: 0,
+    marginLeft: 'auto',
+    boxShadow: '0 2px 10px rgba(99,102,241,0.25)',
+  },
 
-  // layout
-  mainGrid:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' },
+  col: { display: 'flex', flexDirection: 'column' as const, gap: 16 },
 
-  // card
-  card:           { background: 'white', borderRadius: 16, padding: '22px', border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(99,102,241,0.04)' },
-  sectionHeader:  { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sectionTitle:   { margin: 0, fontSize: 13, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.07em' },
-  inlineEditLink: { marginLeft: 'auto', fontSize: 11, color: '#6366f1', fontWeight: 700, textDecoration: 'none' },
+  card: {
+    background: 'white',
+    borderRadius: 14,
+    padding: '16px',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 1px 8px rgba(99,102,241,0.04)',
+  },
+  sectionHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 },
+  sectionTitle: {
+    margin: 0,
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#334155',
+    textTransform: 'uppercase',
+    letterSpacing: '0.07em',
+  },
+  inlineAddBtn: {
+    marginLeft: 'auto',
+    fontSize: 11,
+    color: '#6366f1',
+    fontWeight: 700,
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    padding: 0,
+  },
 
-  // academic info grid
-  infoGrid:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
-  infoCell:       { padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' },
-  infoCellLabel:  { margin: '0 0 4px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 4 },
-  infoCellValue:  { margin: 0, fontSize: 13, fontWeight: 700 },
+  infoList: { display: 'flex', flexDirection: 'column' as const },
+  infoRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '8px 0',
+  },
+  infoLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#64748b',
+    flexShrink: 0,
+  },
+  infoValue: {
+    fontSize: 13,
+    fontWeight: 600,
+    textAlign: 'right' as const,
+    wordBreak: 'break-word' as const,
+    minWidth: 0,
+  },
 
-  // skills
-  emptySkills:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '20px 0', textAlign: 'center' },
-  addSkillsBtn:   { padding: '6px 16px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, fontWeight: 700, color: '#6366f1', textDecoration: 'none' },
-  skillGroupLabel:{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' },
-  skillsRow:      { display: 'flex', flexWrap: 'wrap', gap: 6 },
-  skillChip:      { padding: '5px 13px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, fontWeight: 600, color: '#6366f1' },
+  emptySkills: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+    padding: '12px 0 4px',
+    textAlign: 'center',
+  },
+  addSkillsBtn: {
+    padding: '5px 12px',
+    background: '#eef2ff',
+    border: '1px solid #c7d2fe',
+    borderRadius: 16,
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#6366f1',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  skillsInline: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  skillChip: {
+    padding: '4px 10px',
+    background: '#eef2ff',
+    border: '1px solid #c7d2fe',
+    borderRadius: 16,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#6366f1',
+  },
+  skillChipMajor: {
+    padding: '4px 10px',
+    background: '#faf5ff',
+    border: '1px solid #e9d5ff',
+    borderRadius: 16,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#7c3aed',
+  },
 
-  // completeness
-  progressTrack:  { flex: 1, height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' },
-  progressFill:   { height: '100%', background: 'linear-gradient(90deg,#6366f1,#a855f7)', borderRadius: 4, transition: 'width 0.6s ease' },
-  progressPct:    { fontSize: 16, fontWeight: 800, color: '#6366f1', minWidth: 40 },
-  progressHint:   { margin: 0, fontSize: 12, color: '#94a3b8' },
-  taskRow:        { display: 'flex', alignItems: 'center', gap: 10 },
-  doItLink:       { fontSize: 11, fontWeight: 700, color: '#6366f1', textDecoration: 'none', whiteSpace: 'nowrap' },
+  progressRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 },
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    background: '#f1f5f9',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg,#6366f1,#a855f7)',
+    borderRadius: 4,
+    transition: 'width 0.6s ease',
+  },
+  progressPct: { fontSize: 14, fontWeight: 800, color: '#6366f1', minWidth: 36 },
+  progressHint: { margin: '0 0 10px', fontSize: 11, color: '#94a3b8', lineHeight: 1.4 },
+  nextActions: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
+  taskRow: { display: 'flex', alignItems: 'center', gap: 8 },
+  taskLabel: { flex: 1, fontSize: 12, color: '#475569', fontWeight: 500 },
+  doItLink: { fontSize: 11, fontWeight: 700, color: '#6366f1', whiteSpace: 'nowrap' },
+  allDoneHint: { margin: 0, fontSize: 12, color: '#94a3b8', fontStyle: 'italic' },
 
-  // edit cta
-  editCta:        { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', borderRadius: 14, textDecoration: 'none', boxShadow: '0 4px 16px rgba(99,102,241,0.3)', transition: 'opacity 0.2s' },
+  quickIntro: { margin: '0 0 10px', fontSize: 11, color: '#94a3b8', lineHeight: 1.45 },
+  quickList: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
+  quickRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '8px 10px',
+    borderRadius: 10,
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#334155',
+    transition: 'border-color 0.15s, background 0.15s',
+  },
+  quickRowBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '8px 10px',
+    borderRadius: 10,
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#334155',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    textAlign: 'left',
+    width: '100%',
+  },
+
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15,23,42,0.45)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3000,
+    padding: 16,
+    backdropFilter: 'blur(4px)',
+  },
+  modalBox: {
+    width: '100%',
+    maxWidth: 380,
+    background: 'white',
+    borderRadius: 14,
+    padding: '18px 20px 20px',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 16px 40px rgba(15,23,42,0.12)',
+  },
+  modalHead: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 800,
+    color: '#0f172a',
+    fontFamily: 'Syne, sans-serif',
+  },
+  modalClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#64748b',
+  },
+  modalLabel: {
+    display: 'block',
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    marginBottom: 14,
+  },
+  modalSub: {
+    margin: '0 0 8px',
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  modalInput: {
+    width: '100%',
+    marginTop: 6,
+    padding: '9px 11px',
+    borderRadius: 9,
+    border: '1px solid #e2e8f0',
+    fontSize: 14,
+    color: '#0f172a',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit',
+    background: '#fafafa',
+  },
+  kindToggle: { display: 'flex', gap: 8, marginBottom: 18 },
+  kindBtn: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: 9,
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#64748b',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  kindBtnActiveGeneral: {
+    background: '#eef2ff',
+    border: '1px solid #c7d2fe',
+    color: '#4f46e5',
+  },
+  kindBtnActiveMajor: {
+    background: '#faf5ff',
+    border: '1px solid #e9d5ff',
+    color: '#7c3aed',
+  },
+  modalActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  modalBtnSecondary: {
+    padding: '8px 14px',
+    borderRadius: 9,
+    border: '1px solid #e2e8f0',
+    background: 'white',
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#64748b',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  modalBtnPrimary: {
+    padding: '8px 16px',
+    borderRadius: 9,
+    border: 'none',
+    background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'white',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    boxShadow: '0 2px 10px rgba(99,102,241,0.25)',
+  },
 }
