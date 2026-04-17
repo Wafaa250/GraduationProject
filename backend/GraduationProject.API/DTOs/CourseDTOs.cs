@@ -19,6 +19,24 @@ namespace GraduationProject.API.DTOs
         [Required(ErrorMessage = "Course code is required")]
         [MaxLength(50)]
         public string Code { get; set; } = string.Empty;
+
+        // ── NEW ──────────────────────────────────────────────────────
+        /// <summary>Optional semester label, e.g. "Fall 2025".</summary>
+        [MaxLength(100)]
+        public string? Semester { get; set; }
+
+        /// <summary>
+        /// true  (default) → all sections share ONE project setting.
+        /// false           → each section has its own project setting.
+        /// </summary>
+        public bool UseSharedProjectAcrossSections { get; set; } = true;
+
+        /// <summary>
+        /// Applies only when UseSharedProjectAcrossSections == true.
+        /// true  (default) → teams may cross sections.
+        /// false           → teams must stay within the same section.
+        /// </summary>
+        public bool AllowCrossSectionTeams { get; set; } = true;
     }
 
     public class CourseDto
@@ -28,6 +46,9 @@ namespace GraduationProject.API.DTOs
         public string Code { get; set; } = string.Empty;
         public int DoctorId { get; set; }
         public string DoctorName { get; set; } = string.Empty;
+        public string? Semester { get; set; }
+        public bool UseSharedProjectAcrossSections { get; set; }
+        public bool AllowCrossSectionTeams { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -38,19 +59,58 @@ namespace GraduationProject.API.DTOs
         public string Code { get; set; } = string.Empty;
         public int DoctorId { get; set; }
         public string DoctorName { get; set; } = string.Empty;
+        public string? Semester { get; set; }
+        public bool UseSharedProjectAcrossSections { get; set; }
+        public bool AllowCrossSectionTeams { get; set; }
         public int StudentCount { get; set; }
         public int TeamCount { get; set; }
+        public int SectionCount { get; set; }
         public DateTime CreatedAt { get; set; }
 
-        /// <summary>Active project setting, if one exists.</summary>
+        /// <summary>Active shared project setting (null when UseSharedProjectAcrossSections == false).</summary>
         public CourseProjectSettingDto? ProjectSetting { get; set; }
+
+        /// <summary>All sections of this course.</summary>
+        public List<CourseSectionDto> Sections { get; set; } = new();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // COURSE SECTION  (NEW)
+    // ══════════════════════════════════════════════════════════════════
+
+    public class CreateCourseSectionDto
+    {
+        [Required(ErrorMessage = "Section number is required")]
+        [Range(1, 999, ErrorMessage = "Section number must be between 1 and 999")]
+        public int SectionNumber { get; set; }
+    }
+
+    public class CourseSectionDto
+    {
+        public int Id { get; set; }
+        public int CourseId { get; set; }
+        public int SectionNumber { get; set; }
+        public int StudentCount { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        /// <summary>Active per-section project setting (null when UseSharedProjectAcrossSections == true).</summary>
+        public SectionProjectSettingDto? ProjectSetting { get; set; }
     }
 
     // ══════════════════════════════════════════════════════════════════
     // ENROLLMENT
     // ══════════════════════════════════════════════════════════════════
 
+    /// <summary>Enroll students into a course (no section assignment yet).</summary>
     public class AddStudentsDto
+    {
+        [Required]
+        [MinLength(1, ErrorMessage = "At least one studentId is required")]
+        public List<string> StudentIds { get; set; } = new();
+    }
+
+    /// <summary>Enroll/assign students directly into a specific section.</summary>
+    public class AddStudentsToSectionDto
     {
         [Required]
         [MinLength(1, ErrorMessage = "At least one studentId is required")]
@@ -59,9 +119,9 @@ namespace GraduationProject.API.DTOs
 
     public class CourseStudentDto
     {
-        public int Id { get; set; }          // StudentProfile.Id (duplicate-safe key)
-        public int StudentId { get; set; }   // StudentProfile.Id
-        public string UniversityId { get; set; } = string.Empty; // StudentProfile.StudentId (university ID string)
+        public int Id { get; set; }
+        public int StudentId { get; set; }
+        public string UniversityId { get; set; } = string.Empty;
         public int UserId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
@@ -69,11 +129,13 @@ namespace GraduationProject.API.DTOs
         public string Major { get; set; } = string.Empty;
         public string AcademicYear { get; set; } = string.Empty;
         public string? ProfilePictureBase64 { get; set; }
+        public int? SectionId { get; set; }     // NEW
+        public int? SectionNumber { get; set; }     // NEW — convenience field
         public DateTime EnrolledAt { get; set; }
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // PROJECT SETTING
+    // PROJECT SETTING — SHARED (course-level)
     // ══════════════════════════════════════════════════════════════════
 
     public class UpsertCourseProjectSettingDto
@@ -87,7 +149,6 @@ namespace GraduationProject.API.DTOs
         [Range(2, 10, ErrorMessage = "Team size must be between 2 and 10")]
         public int TeamSize { get; set; } = 2;
 
-        /// <summary>Optional project brief / specification file (PDF or any document).</summary>
         public IFormFile? File { get; set; }
     }
 
@@ -101,12 +162,36 @@ namespace GraduationProject.API.DTOs
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-
-        /// <summary>Relative URL of the uploaded file, null when no file has been attached.</summary>
         public string? FileUrl { get; set; }
-
-        /// <summary>Original file name as provided by the uploader, null when no file has been attached.</summary>
         public string? FileName { get; set; }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PROJECT SETTING — PER SECTION  (NEW)
+    // ══════════════════════════════════════════════════════════════════
+
+    public class UpsertSectionProjectSettingDto
+    {
+        [Required(ErrorMessage = "Title is required")]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        [Range(2, 10, ErrorMessage = "Team size must be between 2 and 10")]
+        public int TeamSize { get; set; } = 2;
+    }
+
+    public class SectionProjectSettingDto
+    {
+        public int Id { get; set; }
+        public int CourseSectionId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int TeamSize { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
     }
 
     // ══════════════════════════════════════════════════════════════════

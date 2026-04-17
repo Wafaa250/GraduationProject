@@ -23,7 +23,22 @@ namespace GraduationProject.API.Controllers
     ///
     /// Access: students only (must be enrolled in the course).
     ///
-    /// Filtering (before AI is called):
+    /// Section-aware filtering (applied BEFORE the AI call):
+    ///
+    ///   CASE 1 — Shared project (UseSharedProjectAcrossSections == true)
+    ///     IF AllowCrossSectionTeams == false
+    ///       → Recommend ONLY students from the SAME section as the caller.
+    ///     ELSE
+    ///       → Recommend ALL enrolled students (ignore sections).
+    ///
+    ///   CASE 2 — Per-section project (UseSharedProjectAcrossSections == false)
+    ///     → ALWAYS recommend ONLY students from the SAME section (no exceptions).
+    ///
+    ///   Edge case: if the caller has no section (CourseSectionId == null),
+    ///     only students who also have no section are matched (null == null).
+    ///     The service never crashes in this scenario.
+    ///
+    /// Other filtering (unchanged):
     ///   • Excludes the calling student themselves.
     ///   • Excludes students already in the caller's own team.
     ///   • Excludes students whose team is already full.
@@ -96,42 +111,91 @@ namespace GraduationProject.API.Controllers
             if (course == null)
                 return NotFound(new { message = "Course not found." });
 
-            // ── 4. Caller must be enrolled ────────────────────────────────────
-            var enrolled = await _db.CourseEnrollments
-                .AnyAsync(e => e.CourseId == courseId && e.StudentId == current.Id);
+            // ── 4. Caller must be enrolled (and capture their section) ────────
+            var callerEnrollment = await _db.CourseEnrollments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.CourseId == courseId && e.StudentId == current.Id);
 
-            if (!enrolled)
+            if (callerEnrollment == null)
                 return StatusCode(403, new { message = "You are not enrolled in this course." });
 
+            // Caller's section (may be null when no sections defined / assigned).
+            var callerSectionId = callerEnrollment.CourseSectionId;
+
             // ── 5. Active project setting (provides TeamSize) ─────────────────
-            var setting = await _db.CourseProjectSettings
-                .AsNoTracking()
-                .Where(ps => ps.CourseId == courseId && ps.IsActive)
-                .OrderByDescending(ps => ps.CreatedAt)
-                .FirstOrDefaultAsync();
+            //   Resolution logic:
+            //     UseSharedProjectAcrossSections == true  → CourseProjectSetting
+            //     UseSharedProjectAcrossSections == false → SectionProjectSetting (of caller's section)
+            //
+            // If nothing is found we still proceed; we just won't be able to
+            // filter out "full" teams (there is no defined max size).
+            int teamSize = int.MaxValue;
 
-            // If there is no project setting we still proceed; we just won't be
-            // able to filter out "full" teams (there is no defined max size).
-            var teamSize = setting?.TeamSize ?? int.MaxValue;
+            if (course.UseSharedProjectAcrossSections)
+            {
+                var sharedSetting = await _db.CourseProjectSettings
+                    .AsNoTracking()
+                    .Where(ps => ps.CourseId == courseId && ps.IsActive)
+                    .OrderByDescending(ps => ps.CreatedAt)
+                    .FirstOrDefaultAsync();
 
-            // ── 6. Load all enrolled students (excluding caller) ──────────────
-            var enrolledStudentIds = await _db.CourseEnrollments
+                if (sharedSetting != null)
+                    teamSize = sharedSetting.TeamSize;
+            }
+            else if (callerSectionId.HasValue)
+            {
+                var sectionSetting = await _db.SectionProjectSettings
+                    .AsNoTracking()
+                    .Where(sps => sps.CourseSectionId == callerSectionId.Value && sps.IsActive)
+                    .OrderByDescending(sps => sps.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (sectionSetting != null)
+                    teamSize = sectionSetting.TeamSize;
+            }
+
+            // ── 6. Determine if same-section restriction applies ──────────────
+            //
+            //   a) UseSharedProjectAcrossSections == true  AND AllowCrossSectionTeams == true
+            //        → no section restriction
+            //   b) UseSharedProjectAcrossSections == true  AND AllowCrossSectionTeams == false
+            //        → same section as caller (null == null supported)
+            //   c) UseSharedProjectAcrossSections == false (any AllowCrossSectionTeams value)
+            //        → always same section
+            bool enforceSameSection =
+                !course.UseSharedProjectAcrossSections ||   // case c
+                !course.AllowCrossSectionTeams;              // case b
+
+            // ── 7. Load enrolled students (excluding caller, respecting section) ──
+            var enrollmentsQuery = _db.CourseEnrollments
                 .AsNoTracking()
-                .Where(e => e.CourseId == courseId && e.StudentId != current.Id)
+                .Where(e => e.CourseId == courseId && e.StudentId != current.Id);
+
+            if (enforceSameSection)
+            {
+                if (callerSectionId.HasValue)
+                    enrollmentsQuery = enrollmentsQuery
+                        .Where(e => e.CourseSectionId == callerSectionId.Value);
+                else
+                    enrollmentsQuery = enrollmentsQuery
+                        .Where(e => e.CourseSectionId == null);
+            }
+
+            var enrolledStudentIds = await enrollmentsQuery
                 .Select(e => e.StudentId)
                 .ToListAsync();
 
             if (enrolledStudentIds.Count == 0)
                 return Ok(new List<object>());
 
-            // ── 7. Determine caller's own teamId (nullable) ───────────────────
+            // ── 8. Determine caller's own teamId (nullable) ───────────────────
             var callerMembership = await _db.CourseTeamMembers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.CourseId == courseId && m.StudentId == current.Id);
 
             var callerTeamId = callerMembership?.TeamId; // null → caller has no team yet
 
-            // ── 8. Load team membership for all enrolled candidates ───────────
+            // ── 9. Load team membership for all enrolled candidates ───────────
             //   For each team: count members so we can skip full ones.
             var membershipRows = await _db.CourseTeamMembers
                 .AsNoTracking()
@@ -148,7 +212,7 @@ namespace GraduationProject.API.Controllers
                 .Where(m => m.CourseId == courseId && enrolledStudentIds.Contains(m.StudentId))
                 .ToDictionaryAsync(m => m.StudentId, m => m.TeamId);
 
-            // ── 9. Filter candidates ──────────────────────────────────────────
+            // ── 10. Filter candidates ─────────────────────────────────────────
             //   Exclude:
             //     a) students in the same team as the caller
             //     b) students whose team is already full
@@ -174,14 +238,14 @@ namespace GraduationProject.API.Controllers
             if (eligibleIds.Count == 0)
                 return Ok(new List<object>());
 
-            // ── 10. Load full profiles for eligible candidates ────────────────
+            // ── 11. Load full profiles for eligible candidates ────────────────
             var candidateProfiles = await _db.StudentProfiles
                 .AsNoTracking()
                 .Include(s => s.User)
                 .Where(s => eligibleIds.Contains(s.Id))
                 .ToListAsync();
 
-            // ── 11. Resolve skills (IDs JSON → names) for all students ─────────
+            // ── 12. Resolve skills (IDs JSON → names) for all students ─────────
             var currentSkills = await SkillHelper.IdsJsonToNames(_db, current.TechnicalSkills);
 
             var candidateSkillsMap = new Dictionary<int, List<string>>();
@@ -207,7 +271,7 @@ namespace GraduationProject.API.Controllers
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            // ── 12. Build AI input objects ────────────────────────────────────
+            // ── 13. Build AI input objects ────────────────────────────────────
             var aiCurrent = new AiPartnerCurrentStudent
             {
                 StudentId = current.Id,
@@ -226,10 +290,10 @@ namespace GraduationProject.API.Controllers
                 Bio       = cp.Bio   ?? string.Empty
             }).ToList();
 
-            // ── 13. Call AI ───────────────────────────────────────────────────
+            // ── 14. Call AI ───────────────────────────────────────────────────
             var aiResults = await _ai.RankPartnersAsync(aiCurrent, aiCandidates, modeNorm);
 
-            // ── 14. Fallback: simple local scoring if AI failed ───────────────
+            // ── 15. Fallback: simple local scoring if AI failed ───────────────
             List<(int StudentId, int Score, string Reason)> scores;
 
             if (aiResults != null && aiResults.Count > 0)
@@ -287,7 +351,7 @@ namespace GraduationProject.API.Controllers
                     .ToList();
             }
 
-            // ── 15. Build response ────────────────────────────────────────────
+            // ── 16. Build response ────────────────────────────────────────────
             var profileMap = candidateProfiles.ToDictionary(p => p.Id);
             var scoreMap   = scores.ToDictionary(s => s.StudentId);
 
