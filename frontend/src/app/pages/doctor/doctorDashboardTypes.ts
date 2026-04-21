@@ -57,3 +57,14 @@ export type RequestRow =
       studentName: string;
       status: string;
     };
+
+/** Local-only course row merged into My Courses for UI testing (no API). */
+export type DoctorUiTestCourse = {
+  id: string;
+  name: string;
+  code: string;
+  createdAt: string;
+  semester: string | null;
+  useSharedProjectAcrossSections: boolean;
+  allowCrossSectionTeams: boolean;
+};

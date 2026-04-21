@@ -195,6 +195,74 @@ namespace GraduationProject.API.DTOs
     }
 
     // ══════════════════════════════════════════════════════════════════
+    // COURSE PROJECTS (multi-project; new model)
+    // ══════════════════════════════════════════════════════════════════
+
+    public class CreateCourseProjectDto
+    {
+        [Required(ErrorMessage = "Title is required")]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        [Range(2, 10, ErrorMessage = "Team size must be between 2 and 10")]
+        public int TeamSize { get; set; } = 2;
+
+        /// <summary>
+        /// When true, the project applies to every section; <see cref="SectionIds"/> is ignored.
+        /// When false, <see cref="SectionIds"/> lists <c>course_sections.id</c> values.
+        /// </summary>
+        public bool ApplyToAllSections { get; set; }
+
+        public bool AllowCrossSectionTeams { get; set; }
+
+        /// <summary>Course section IDs when <see cref="ApplyToAllSections"/> is false.</summary>
+        public List<int> SectionIds { get; set; } = new();
+    }
+
+    public class UpdateCourseProjectDto
+    {
+        [Required(ErrorMessage = "Title is required")]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        [Range(2, 10, ErrorMessage = "Team size must be between 2 and 10")]
+        public int TeamSize { get; set; } = 2;
+
+        public bool ApplyToAllSections { get; set; }
+
+        public bool AllowCrossSectionTeams { get; set; }
+
+        public List<int> SectionIds { get; set; } = new();
+    }
+
+    public class CourseProjectSectionDto
+    {
+        public int SectionId { get; set; }
+        public int SectionNumber { get; set; }
+    }
+
+    public class CourseProjectDto
+    {
+        public int Id { get; set; }
+        public int CourseId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int TeamSize { get; set; }
+        public bool ApplyToAllSections { get; set; }
+        public bool AllowCrossSectionTeams { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        /// <summary>
+        /// Populated when <see cref="ApplyToAllSections"/> is false; empty when applying to all sections.
+        /// </summary>
+        public List<CourseProjectSectionDto> Sections { get; set; } = new();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // PARTNER REQUESTS (GET /courses/{id}/partner-requests)
     // ══════════════════════════════════════════════════════════════════
 

@@ -19,6 +19,11 @@ import StudentsPage from "./pages/students/StudentsPage";
 import StudentProfilePage from "./pages/students/StudentProfilePage"
 import ReceivedInvitationsPage from "./pages/invitations/ReceivedInvitationsPage";
 import ProjectWorkspacePage from "./pages/doctor/ProjectWorkspacePage";
+import CreateCoursePage from "./pages/courses/CreateCoursePage";
+import CourseWorkspacePage from "./pages/courses/CourseWorkspacePage";
+import SectionStudentsPage from "./pages/courses/SectionStudentsPage";
+import CourseProjectCreatePage from "./pages/courses/CourseProjectCreatePage";
+import ProjectTeamsPage from "./pages/courses/ProjectTeamsPage";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token')
@@ -82,6 +87,46 @@ function DoctorCoursesLegacyRedirect() {
     return <Navigate to="/" replace />;
 }
 
+/** Doctor-only create course page. */
+function CreateCourseDoctorRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <CreateCoursePage />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+/** Doctor-only course workspace (must stay below `/courses/create` so `create` is not a param). */
+function CourseWorkspaceDoctorRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <CourseWorkspacePage />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+/** Doctor-only section roster UI (more specific than `/courses/:courseId`). */
+function SectionStudentsDoctorRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <SectionStudentsPage />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+/** Doctor-only create project wizard for a course workspace. */
+function CourseProjectCreateDoctorRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <CourseProjectCreatePage />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+/** Doctor-only AI teams preview (local UI; no API). */
+function ProjectTeamsDoctorRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <ProjectTeamsPage />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 export default function App() {
     return (
         <ToastProvider>
@@ -105,6 +150,20 @@ export default function App() {
                     <Route path="/doctor/channels/:channelId" element={<ProtectedRoute><ChannelPageWrapper /></ProtectedRoute>} />
                     <Route path="/doctor/courses/:courseId" element={<ProtectedRoute><DoctorCoursesLegacyRedirect /></ProtectedRoute>} />
                     <Route path="/doctor/courses" element={<ProtectedRoute><DoctorCoursesLegacyRedirect /></ProtectedRoute>} />
+                    <Route path="/courses/create" element={<ProtectedRoute><CreateCourseDoctorRoute /></ProtectedRoute>} />
+                    <Route
+                        path="/courses/:courseId/sections/:sectionId/students"
+                        element={<ProtectedRoute><SectionStudentsDoctorRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/courses/:courseId/projects/create"
+                        element={<ProtectedRoute><CourseProjectCreateDoctorRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/courses/:courseId/projects/:projectId/teams"
+                        element={<ProtectedRoute><ProjectTeamsDoctorRoute /></ProtectedRoute>}
+                    />
+                    <Route path="/courses/:courseId" element={<ProtectedRoute><CourseWorkspaceDoctorRoute /></ProtectedRoute>} />
 
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />

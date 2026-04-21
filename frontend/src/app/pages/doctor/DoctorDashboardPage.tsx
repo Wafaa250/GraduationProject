@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getDashboardSummary, type DashboardSummary } from "../../../api/dashboardApi";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
 import {
@@ -22,6 +22,7 @@ import type {
   DoctorDashboardSection,
   DoctorMeResponse,
   DoctorDashboardSummary,
+  DoctorUiTestCourse,
 } from "./doctorDashboardTypes";
 import { mergeDoctorRequestRows } from "./doctorRequestUtils";
 import { DoctorDashboardLayout } from "./dashboard/DoctorDashboardLayout";
@@ -41,12 +42,48 @@ import {
   type DeletedProjectRecord,
 } from "./doctorDeletedProjectsStorage";
 
+const DOCTOR_UI_COURSES_KEY = "doctor-ui-courses-v1";
+
+function readPersistedUiCourses(): DoctorUiTestCourse[] {
+  try {
+    const raw = sessionStorage.getItem(DOCTOR_UI_COURSES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (c): c is DoctorUiTestCourse =>
+        c != null &&
+        typeof c === "object" &&
+        typeof (c as DoctorUiTestCourse).id === "string" &&
+        typeof (c as DoctorUiTestCourse).name === "string" &&
+        typeof (c as DoctorUiTestCourse).code === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function initialSectionFromSearch(search: string): DoctorDashboardSection {
+  const tab = new URLSearchParams(search).get("tab");
+  return tab === "my-courses" ? "courses" : "overview";
+}
+
 function DoctorDashboardContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
 
-  const [activeSection, setActiveSection] = useState<DoctorDashboardSection>("overview");
+  const [activeSection, setActiveSection] = useState<DoctorDashboardSection>(() =>
+    initialSectionFromSearch(location.search),
+  );
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab === "my-courses") {
+      setActiveSection("courses");
+    }
+  }, [location.search]);
 
   const [me, setMe] = useState<DoctorMeResponse | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -72,6 +109,23 @@ function DoctorDashboardContent() {
   const [deletedItems, setDeletedItems] = useState<DeletedProjectRecord[]>(() =>
     loadDeletedProjects(),
   );
+
+  const [uiCourses, setUiCourses] = useState<DoctorUiTestCourse[]>(() => readPersistedUiCourses());
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(DOCTOR_UI_COURSES_KEY, JSON.stringify(uiCourses));
+    } catch {
+      /* ignore */
+    }
+  }, [uiCourses]);
+
+  useEffect(() => {
+    const nc = (location.state as { newCourse?: DoctorUiTestCourse } | null)?.newCourse;
+    if (!nc?.id) return;
+    setUiCourses((prev) => (prev.some((c) => c.id === nc.id) ? prev : [...prev, nc]));
+    navigate(".", { replace: true, state: {} });
+  }, [location.state, navigate]);
 
   const loadOverview = useCallback(async () => {
     setOverviewLoading(true);
@@ -426,7 +480,7 @@ function DoctorDashboardContent() {
 
       {activeSection === "deleted" ? <DeletedProjectsSection items={deletedItems} /> : null}
 
-      {activeSection === "courses" ? <DoctorCoursesSection /> : null}
+      {activeSection === "courses" ? <DoctorCoursesSection uiCourses={uiCourses} /> : null}
     </DoctorDashboardLayout>
   );
 }

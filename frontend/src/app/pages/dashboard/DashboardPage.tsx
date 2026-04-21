@@ -80,6 +80,7 @@ import {
   leaveCourse,
   rejectPartnerRequest,
   removeTeamMember,
+  normalizeCourseProjectsFromDetail,
   type CourseDetails,
   type CourseProjectSetting,
   type CourseStudent,
@@ -312,6 +313,10 @@ export default function DashboardPage() {
   const [ctSelectedCourseId, setCtSelectedCourseId] = useState<number | null>(
     null,
   );
+  /** Selected course project for multi-project courses; drives future team/partner APIs. */
+  const [ctSelectedCourseProjectId, setCtSelectedCourseProjectId] = useState<
+    number | null
+  >(null);
   const [ctCoursesLoading, setCtCoursesLoading] = useState(false);
   const [ctCoursesError, setCtCoursesError] = useState<string | null>(null);
   const [ctDetailsLoading, setCtDetailsLoading] = useState(false);
@@ -365,6 +370,7 @@ export default function DashboardPage() {
     setCtCourses([]);
     setCtNoValidCourseIds(false);
     setCtSelectedCourseId(null);
+    setCtSelectedCourseProjectId(null);
     setCtCoursesLoading(false);
     setCtCoursesError(null);
     setCtDetailsLoading(false);
@@ -711,7 +717,7 @@ export default function DashboardPage() {
     setAiLoaded(false);
     setCtRecommendedPartners([]);
     setCtRecommendedLoading(false);
-  }, [ctSelectedCourseId, ctRecommendedMode]);
+  }, [ctSelectedCourseId, ctRecommendedMode, ctSelectedCourseProjectId]);
 
   const fetchRecommendations = useCallback(async () => {
     if (!ctSelectedCourseId) return;
@@ -729,6 +735,49 @@ export default function DashboardPage() {
     }
   }, [ctSelectedCourseId, ctRecommendedMode]);
 
+  /** True when the enrolled roster row for the current user has no section (partner requests require a section). */
+  const ctPartnerRequestBlockedNoSection = useMemo(() => {
+    const uid = myUserIdRef.current;
+    if (uid == null) return false;
+    const me = ctCourseStudents.find((raw) => {
+      const rowUserId = ctCourseStudentUserId(raw);
+      return rowUserId != null && rowUserId === uid;
+    });
+    if (!me) return false;
+    const sid = me.sectionId ?? me.SectionId;
+    return sid === null || sid === undefined;
+  }, [ctCourseStudents, courseTeamsModalOpen]);
+
+  const ctCourseProjects = useMemo(() => {
+    if (!ctCourseDetail || ctCourseDetail.courseId !== ctSelectedCourseId) {
+      return [];
+    }
+    return normalizeCourseProjectsFromDetail(ctCourseDetail);
+  }, [ctCourseDetail, ctSelectedCourseId]);
+
+  useEffect(() => {
+    setCtSelectedCourseProjectId(null);
+  }, [ctSelectedCourseId]);
+
+  useEffect(() => {
+    if (!ctCourseDetail || ctCourseDetail.courseId !== ctSelectedCourseId) {
+      return;
+    }
+    const projects = normalizeCourseProjectsFromDetail(ctCourseDetail);
+    if (projects.length === 0) {
+      setCtSelectedCourseProjectId(null);
+      return;
+    }
+    if (projects.length === 1) {
+      setCtSelectedCourseProjectId(projects[0].id);
+      return;
+    }
+    setCtSelectedCourseProjectId((prev) => {
+      if (prev != null && projects.some((p) => p.id === prev)) return prev;
+      return projects[0].id;
+    });
+  }, [ctCourseDetail, ctSelectedCourseId]);
+
   const handleCourseTeamsSendPartnerRequest = useCallback(
     async (receiverUniversityId: string) => {
       const uid = receiverUniversityId.trim();
@@ -737,11 +786,15 @@ export default function DashboardPage() {
         return;
       }
       if (!uid) return;
+      if (ctPartnerRequestBlockedNoSection) return;
       const selectedCourseId = ctSelectedCourseId;
       setCtSendingReceiverUniversityId(uid);
       try {
         await createPartnerRequest(selectedCourseId, {
           receiverStudentId: uid,
+          ...(ctSelectedCourseProjectId != null
+            ? { courseProjectId: ctSelectedCourseProjectId }
+            : {}),
         });
         const pr = await getCoursePartnerRequests(selectedCourseId);
         setCtPartnerRequests(pr);
@@ -752,7 +805,13 @@ export default function DashboardPage() {
         setCtSendingReceiverUniversityId(null);
       }
     },
-    [ctSelectedCourseId, showToast, refreshCourseTeamsDashCardCounts],
+    [
+      ctSelectedCourseId,
+      ctSelectedCourseProjectId,
+      ctPartnerRequestBlockedNoSection,
+      showToast,
+      refreshCourseTeamsDashCardCounts,
+    ],
   );
 
   const handleCtAcceptIncoming = useCallback(
@@ -3744,6 +3803,22 @@ export default function DashboardPage() {
                     }
                     return (
                       <div style={S.ctModalStack}>
+                        {ctPartnerRequestBlockedNoSection ? (
+                          <div
+                            style={{
+                              padding: "10px 12px",
+                              borderRadius: 10,
+                              background: "#fffbeb",
+                              border: "1px solid #fde68a",
+                              color: "#92400e",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            You must be assigned to a section first
+                          </div>
+                        ) : null}
                         <section style={S.ctModalSectionMuted}>
                           <h4 style={S.ctModalH4}>Course overview</h4>
                           <p style={S.ctModalH4Sub}>
@@ -3855,6 +3930,95 @@ export default function DashboardPage() {
                               </p>
                             </div>
                           </div>
+                          {ctCourseProjects.length > 0 ? (
+                            <div
+                              style={{
+                                marginTop: 16,
+                                paddingTop: 14,
+                                borderTop: "1px solid #e2e8f0",
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Course project
+                              </p>
+                              {ctCourseProjects.length > 1 ? (
+                                <label
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column" as const,
+                                    gap: 6,
+                                    marginTop: 8,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: 12,
+                                      color: "#475569",
+                                      fontWeight: 600,
+                                      lineHeight: 1.45,
+                                    }}
+                                  >
+                                    This course has multiple projects. Choose
+                                    which one you are working in — partner
+                                    actions will use this selection.
+                                  </span>
+                                  <select
+                                    value={
+                                      ctSelectedCourseProjectId != null
+                                        ? String(ctSelectedCourseProjectId)
+                                        : ""
+                                    }
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      const n = Number(v);
+                                      setCtSelectedCourseProjectId(
+                                        v !== "" && Number.isFinite(n)
+                                          ? n
+                                          : null,
+                                      );
+                                    }}
+                                    style={{
+                                      maxWidth: 420,
+                                      padding: "8px 10px",
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      borderRadius: 8,
+                                      border: "1px solid #e2e8f0",
+                                      background: "#fff",
+                                      color: "#334155",
+                                      fontFamily: "inherit",
+                                    }}
+                                  >
+                                    {ctCourseProjects.map((p) => (
+                                      <option key={p.id} value={String(p.id)}>
+                                        {p.title?.trim() || `Project #${p.id}`}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : (
+                                <p
+                                  style={{
+                                    margin: "8px 0 0",
+                                    fontSize: 13,
+                                    color: "#0f172a",
+                                    fontWeight: 600,
+                                    lineHeight: 1.45,
+                                  }}
+                                >
+                                  {ctCourseProjects[0]?.title?.trim() ||
+                                    `Project #${ctCourseProjects[0]?.id}`}
+                                </p>
+                              )}
+                            </div>
+                          ) : null}
                           {ctSelectedCourseId && (
                             <div
                               style={{
@@ -4679,26 +4843,33 @@ export default function DashboardPage() {
                                               receiverUniversityId,
                                             )
                                           }
-                                          disabled={isSendingThisRow}
+                                          disabled={
+                                            isSendingThisRow ||
+                                            ctPartnerRequestBlockedNoSection
+                                          }
                                           style={{
                                             padding: "6px 10px",
                                             fontSize: 11,
                                             fontWeight: 700,
                                             borderRadius: 8,
                                             border: "1px solid #c7d2fe",
-                                            background: isSendingThisRow
-                                              ? "#eef2ff"
-                                              : "#fff",
+                                            background:
+                                              isSendingThisRow ||
+                                              ctPartnerRequestBlockedNoSection
+                                                ? "#eef2ff"
+                                                : "#fff",
                                             color: "#4338ca",
-                                            cursor: isSendingThisRow
-                                              ? "not-allowed"
-                                              : "pointer",
+                                            cursor:
+                                              isSendingThisRow ||
+                                              ctPartnerRequestBlockedNoSection
+                                                ? "not-allowed"
+                                                : "pointer",
                                             fontFamily: "inherit",
                                           }}
                                         >
                                           {isSendingThisRow
                                             ? "Sending..."
-                                            : "Send Request"}
+                                            : "Send Partner Request"}
                                         </button>
                                       )}
                                     </div>
@@ -5162,12 +5333,14 @@ export default function DashboardPage() {
                                           type="button"
                                           disabled={
                                             receiverUniversityId === "" ||
-                                            isSendingThisRow
+                                            isSendingThisRow ||
+                                            ctPartnerRequestBlockedNoSection
                                           }
                                           onClick={() => {
                                             if (
                                               receiverUniversityId === "" ||
-                                              isSendingThisRow
+                                              isSendingThisRow ||
+                                              ctPartnerRequestBlockedNoSection
                                             )
                                               return;
                                             void handleCourseTeamsSendPartnerRequest(
@@ -5181,7 +5354,8 @@ export default function DashboardPage() {
                                             borderRadius: 8,
                                             fontFamily: "inherit",
                                             ...(receiverUniversityId !== "" &&
-                                            !isSendingThisRow
+                                            !isSendingThisRow &&
+                                            !ctPartnerRequestBlockedNoSection
                                               ? {
                                                   border: "none",
                                                   background:
@@ -5198,7 +5372,9 @@ export default function DashboardPage() {
                                                   color: "#94a3b8",
                                                   cursor:
                                                     receiverUniversityId ===
-                                                      "" || isSendingThisRow
+                                                      "" ||
+                                                    isSendingThisRow ||
+                                                    ctPartnerRequestBlockedNoSection
                                                       ? "not-allowed"
                                                       : "pointer",
                                                   opacity:
@@ -5206,13 +5382,15 @@ export default function DashboardPage() {
                                                       ? 0.55
                                                       : isSendingThisRow
                                                         ? 0.75
-                                                        : 0.85,
+                                                        : ctPartnerRequestBlockedNoSection
+                                                          ? 0.75
+                                                          : 0.85,
                                                 }),
                                           }}
                                         >
                                           {isSendingThisRow
                                             ? "Sending..."
-                                            : "Send Request"}
+                                            : "Send Partner Request"}
                                         </button>
                                       )}
                                     </div>

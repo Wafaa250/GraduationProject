@@ -45,6 +45,10 @@ namespace GraduationProject.API.Models
         public ICollection<CourseSection> Sections { get; set; } = new List<CourseSection>();
         public ICollection<CourseEnrollment> Enrollments { get; set; } = new List<CourseEnrollment>();
         public ICollection<CourseProjectSetting> ProjectSettings { get; set; } = new List<CourseProjectSetting>();
+        /// <summary>
+        /// New multi-project model (parallel to legacy <see cref="CourseProjectSetting"/>).
+        /// </summary>
+        public ICollection<CourseProject> CourseProjects { get; set; } = new List<CourseProject>();
         public ICollection<CourseTeam> Teams { get; set; } = new List<CourseTeam>();
         public ICollection<CoursePartnerRequest> PartnerRequests { get; set; } = new List<CoursePartnerRequest>();
     }
@@ -68,6 +72,8 @@ namespace GraduationProject.API.Models
         public Course Course { get; set; } = null!;
         public ICollection<CourseEnrollment> Enrollments { get; set; } = new List<CourseEnrollment>();
         public ICollection<SectionProjectSetting> ProjectSettings { get; set; } = new List<SectionProjectSetting>();
+        public ICollection<CourseProjectSection> CourseProjectSections { get; set; } =
+            new List<CourseProjectSection>();
     }
 
     // ===========================
@@ -94,6 +100,47 @@ namespace GraduationProject.API.Models
         public Course Course { get; set; } = null!;
         public StudentProfile Student { get; set; } = null!;
         public CourseSection? Section { get; set; }
+    }
+
+    // ===========================
+    // COURSE PROJECT  (multi-project; new model)
+    // ===========================
+    /// <summary>
+    /// A project definition under a course. Can apply to all sections or to explicit
+    /// <see cref="CourseProjectSection"/> rows. Coexists with legacy
+    /// <see cref="CourseProjectSetting"/> / <see cref="SectionProjectSetting"/>.
+    /// </summary>
+    [Table("course_projects")]
+    public class CourseProject
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("course_id")] public int CourseId { get; set; }
+        [Column("title")] public string Title { get; set; } = string.Empty;
+        [Column("description")] public string? Description { get; set; }
+        [Column("team_size")] public int TeamSize { get; set; } = 2;
+        [Column("apply_to_all_sections")] public bool ApplyToAllSections { get; set; }
+        [Column("allow_cross_section_teams")] public bool AllowCrossSectionTeams { get; set; }
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public Course Course { get; set; } = null!;
+        public ICollection<CourseProjectSection> CourseProjectSections { get; set; } =
+            new List<CourseProjectSection>();
+    }
+
+    /// <summary>
+    /// Join of <see cref="CourseProject"/> to a specific <see cref="CourseSection"/>.
+    /// When <see cref="CourseProject.ApplyToAllSections"/> is true, this collection is
+    /// typically empty; when false, rows define which sections the project applies to.
+    /// </summary>
+    [Table("course_project_sections")]
+    public class CourseProjectSection
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("course_project_id")] public int CourseProjectId { get; set; }
+        [Column("course_section_id")] public int CourseSectionId { get; set; }
+
+        public CourseProject CourseProject { get; set; } = null!;
+        public CourseSection CourseSection { get; set; } = null!;
     }
 
     // ===========================

@@ -31,6 +31,8 @@ namespace GraduationProject.API.Data
         public DbSet<CourseEnrollment> CourseEnrollments => Set<CourseEnrollment>();
         public DbSet<CourseProjectSetting> CourseProjectSettings => Set<CourseProjectSetting>();
         public DbSet<SectionProjectSetting> SectionProjectSettings => Set<SectionProjectSetting>(); // NEW
+        public DbSet<CourseProject> CourseProjects => Set<CourseProject>();
+        public DbSet<CourseProjectSection> CourseProjectSections => Set<CourseProjectSection>();
         public DbSet<CourseTeam> CourseTeams => Set<CourseTeam>();
         public DbSet<CourseTeamMember> CourseTeamMembers => Set<CourseTeamMember>();
         public DbSet<CoursePartnerRequest> CoursePartnerRequests => Set<CoursePartnerRequest>();
@@ -350,6 +352,39 @@ namespace GraduationProject.API.Data
                 e.HasOne(sps => sps.Section)
                  .WithMany(cs => cs.ProjectSettings)
                  .HasForeignKey(sps => sps.CourseSectionId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── COURSE PROJECT (multi-project) ───────────────────────────────
+            modelBuilder.Entity<CourseProject>(e =>
+            {
+                e.ToTable("course_projects");
+
+                e.HasIndex(cp => cp.CourseId)
+                 .HasDatabaseName("ix_course_projects_course");
+
+                e.HasOne(cp => cp.Course)
+                 .WithMany(c => c.CourseProjects)
+                 .HasForeignKey(cp => cp.CourseId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CourseProjectSection>(e =>
+            {
+                e.ToTable("course_project_sections");
+
+                e.HasIndex(cps => new { cps.CourseProjectId, cps.CourseSectionId })
+                 .IsUnique()
+                 .HasDatabaseName("ix_course_project_sections_project_section");
+
+                e.HasOne(cps => cps.CourseProject)
+                 .WithMany(cp => cp.CourseProjectSections)
+                 .HasForeignKey(cps => cps.CourseProjectId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(cps => cps.CourseSection)
+                 .WithMany(cs => cs.CourseProjectSections)
+                 .HasForeignKey(cps => cps.CourseSectionId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 

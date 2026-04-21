@@ -1,4 +1,5 @@
 import api from './axiosInstance'
+import type { CourseSection } from './doctorCoursesApi'
 
 /**
  * Shared lightweight entity for student identity fields commonly returned by
@@ -26,6 +27,10 @@ export interface CourseStudent {
   ProfilePictureBase64?: string | null
   enrolledAt?: string
   EnrolledAt?: string
+  sectionId?: number | null
+  SectionId?: number | null
+  sectionNumber?: number | null
+  SectionNumber?: number | null
 }
 
 export interface EnrolledCourse {
@@ -33,7 +38,72 @@ export interface EnrolledCourse {
   name?: string
   code?: string
   section?: string
-  semester?: string
+  semester?: string | null
+  useSharedProjectAcrossSections?: boolean
+  allowCrossSectionTeams?: boolean
+  doctorId?: number
+  doctorName?: string
+  sectionCount?: number
+  sections?: CourseSection[]
+}
+
+/** Mirrors course `projects` entries on GET /courses/{id} (same shape as doctor course projects). */
+export interface CourseProjectSummary {
+  id: number
+  courseId: number
+  title: string
+  description: string | null
+  teamSize: number
+  applyToAllSections: boolean
+  allowCrossSectionTeams: boolean
+  createdAt: string
+  sections: { sectionId: number; sectionNumber: number }[]
+}
+
+function mapCourseProjectSection(raw: unknown): {
+  sectionId: number
+  sectionNumber: number
+} {
+  const r = raw as Record<string, unknown>
+  return {
+    sectionId: Number(r.sectionId ?? r.SectionId ?? 0),
+    sectionNumber: Number(r.sectionNumber ?? r.SectionNumber ?? 0),
+  }
+}
+
+function mapCourseProjectSummary(raw: unknown): CourseProjectSummary {
+  const r = raw as Record<string, unknown>
+  const descRaw = r.description ?? r.Description
+  const sectionsRaw = r.sections ?? r.Sections
+  return {
+    id: Number(r.id ?? r.Id ?? 0),
+    courseId: Number(r.courseId ?? r.CourseId ?? 0),
+    title: String(r.title ?? r.Title ?? ''),
+    description:
+      descRaw === undefined || descRaw === null ? null : String(descRaw),
+    teamSize: Number(r.teamSize ?? r.TeamSize ?? 2),
+    applyToAllSections: Boolean(
+      r.applyToAllSections ?? r.ApplyToAllSections ?? false,
+    ),
+    allowCrossSectionTeams: Boolean(
+      r.allowCrossSectionTeams ?? r.AllowCrossSectionTeams ?? false,
+    ),
+    createdAt: String(r.createdAt ?? r.CreatedAt ?? ''),
+    sections: Array.isArray(sectionsRaw)
+      ? sectionsRaw.map(mapCourseProjectSection)
+      : [],
+  }
+}
+
+/** Reads `projects` / `Projects` from course detail (defensive for PascalCase). */
+export function normalizeCourseProjectsFromDetail(
+  detail: CourseDetails | null | undefined,
+): CourseProjectSummary[] {
+  if (!detail) return []
+  const raw = (detail as Record<string, unknown>).projects ??
+    (detail as Record<string, unknown>).Projects
+  if (!Array.isArray(raw)) return []
+  return raw.map(mapCourseProjectSummary).filter((p) => p.id > 0)
 }
 
 export interface CourseDetails {
@@ -41,7 +111,15 @@ export interface CourseDetails {
   name?: string
   code?: string
   section?: string
-  semester?: string
+  semester?: string | null
+  useSharedProjectAcrossSections?: boolean
+  allowCrossSectionTeams?: boolean
+  doctorId?: number
+  doctorName?: string
+  sectionCount?: number
+  sections?: CourseSection[]
+  projects?: CourseProjectSummary[]
+  projectsCount?: number
   [key: string]: unknown
 }
 
@@ -86,6 +164,8 @@ export interface PartnerRequestsResponse {
 export interface CreatePartnerRequestBody {
   /** Must be the UNIVERSITY student id string (not database PK). */
   receiverStudentId: string
+  /** When the course has multiple projects, the backend may require this. */
+  courseProjectId?: number
 }
 
 export type RecommendedPartnerMode = 'complementary' | 'similar'
