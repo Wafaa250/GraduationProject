@@ -80,16 +80,36 @@ namespace GraduationProject.API.DTOs
 
     public class CreateCourseSectionDto
     {
-        [Required(ErrorMessage = "Section number is required")]
-        [Range(1, 999, ErrorMessage = "Section number must be between 1 and 999")]
-        public int SectionNumber { get; set; }
+        [Required(ErrorMessage = "Section name is required")]
+        [MaxLength(100, ErrorMessage = "Section name must be 100 characters or fewer")]
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Weekday ids the section meets on. Accepts any combination of
+        /// "mon","tue","wed","thu","fri","sat","sun" (lowercase).
+        /// Empty list is allowed.
+        /// </summary>
+        public List<string> Days { get; set; } = new();
+
+        /// <summary>Meeting start time as "HH:mm" (24-hour). Optional.</summary>
+        public string? TimeFrom { get; set; }
+
+        /// <summary>Meeting end time as "HH:mm" (24-hour). Optional.</summary>
+        public string? TimeTo { get; set; }
+
+        [Range(1, 10000, ErrorMessage = "Capacity must be at least 1")]
+        public int Capacity { get; set; } = 1;
     }
 
     public class CourseSectionDto
     {
         public int Id { get; set; }
         public int CourseId { get; set; }
-        public int SectionNumber { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public List<string> Days { get; set; } = new();
+        public string? TimeFrom { get; set; }
+        public string? TimeTo { get; set; }
+        public int Capacity { get; set; }
         public int StudentCount { get; set; }
         public DateTime CreatedAt { get; set; }
 
@@ -129,8 +149,7 @@ namespace GraduationProject.API.DTOs
         public string Major { get; set; } = string.Empty;
         public string AcademicYear { get; set; } = string.Empty;
         public string? ProfilePictureBase64 { get; set; }
-        public int? SectionId { get; set; }     // NEW
-        public int? SectionNumber { get; set; }     // NEW — convenience field
+        public int? SectionId { get; set; }
         public DateTime EnrolledAt { get; set; }
     }
 
@@ -242,7 +261,7 @@ namespace GraduationProject.API.DTOs
     public class CourseProjectSectionDto
     {
         public int SectionId { get; set; }
-        public int SectionNumber { get; set; }
+        public string SectionName { get; set; } = string.Empty;
     }
 
     public class CourseProjectDto

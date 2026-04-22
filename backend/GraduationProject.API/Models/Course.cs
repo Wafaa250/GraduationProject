@@ -65,7 +65,26 @@ namespace GraduationProject.API.Models
     {
         [Column("id")] public int Id { get; set; }
         [Column("course_id")] public int CourseId { get; set; }
-        [Column("section_number")] public int SectionNumber { get; set; }
+
+        /// <summary>Human-readable section name, e.g. "Section A — Morning".</summary>
+        [Column("name")] public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Weekdays the section meets, stored as a JSON array of weekday ids
+        /// ("mon","tue","wed","thu","fri","sat","sun"), e.g. <c>["mon","wed"]</c>.
+        /// Nullable / empty-array when no schedule is set.
+        /// </summary>
+        [Column("days")] public string? Days { get; set; }
+
+        /// <summary>Meeting start time (wall-clock, no timezone).</summary>
+        [Column("time_from")] public TimeOnly? TimeFrom { get; set; }
+
+        /// <summary>Meeting end time (wall-clock, no timezone).</summary>
+        [Column("time_to")] public TimeOnly? TimeTo { get; set; }
+
+        /// <summary>Maximum number of students in this section. Defaults to 0 (unspecified).</summary>
+        [Column("capacity")] public int Capacity { get; set; }
+
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation

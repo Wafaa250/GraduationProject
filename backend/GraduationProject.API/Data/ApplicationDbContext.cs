@@ -281,10 +281,30 @@ namespace GraduationProject.API.Data
             {
                 e.ToTable("course_sections");
 
-                // Section number is unique within a course (no two "section 2"s in course 5).
-                e.HasIndex(cs => new { cs.CourseId, cs.SectionNumber })
+                // Name is required; max 100 chars.
+                e.Property(cs => cs.Name)
+                 .HasMaxLength(100)
+                 .IsRequired();
+
+                // Days: JSON array as text.
+                e.Property(cs => cs.Days)
+                 .HasColumnType("text");
+
+                // TimeOnly → PostgreSQL "time without time zone"
+                e.Property(cs => cs.TimeFrom)
+                 .HasColumnType("time without time zone");
+
+                e.Property(cs => cs.TimeTo)
+                 .HasColumnType("time without time zone");
+
+                e.Property(cs => cs.Capacity)
+                 .HasDefaultValue(0);
+
+                // New: section name must be unique within a course (case-insensitive
+                // uniqueness enforced at the application layer; DB index is case-sensitive).
+                e.HasIndex(cs => new { cs.CourseId, cs.Name })
                  .IsUnique()
-                 .HasDatabaseName("ix_course_sections_course_number");
+                 .HasDatabaseName("ix_course_sections_course_name");
 
                 // Course deleted → cascade delete its sections.
                 e.HasOne(cs => cs.Course)

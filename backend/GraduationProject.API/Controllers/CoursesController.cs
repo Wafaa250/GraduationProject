@@ -178,7 +178,7 @@ namespace GraduationProject.API.Controllers
 
             // ── Build section summaries (with per-section settings if applicable) ──
             var sectionDtos = new List<CourseSectionDto>();
-            foreach (var sec in course.Sections.OrderBy(s => s.SectionNumber))
+            foreach (var sec in course.Sections.OrderBy(s => s.CreatedAt))
             {
                 var studentCount = course.Enrollments.Count(e => e.CourseSectionId == sec.Id);
 
@@ -195,15 +195,7 @@ namespace GraduationProject.API.Controllers
                         sectionSetting = MapToSectionProjectSettingDto(activeSps);
                 }
 
-                sectionDtos.Add(new CourseSectionDto
-                {
-                    Id = sec.Id,
-                    CourseId = sec.CourseId,
-                    SectionNumber = sec.SectionNumber,
-                    StudentCount = studentCount,
-                    CreatedAt = sec.CreatedAt,
-                    ProjectSetting = sectionSetting
-                });
+                sectionDtos.Add(MapToCourseSectionDto(sec, studentCount, sectionSetting));
             }
 
             // ── Active shared project setting ────────────────────────────────
@@ -385,7 +377,6 @@ namespace GraduationProject.API.Controllers
                 AcademicYear = e.Student.AcademicYear ?? string.Empty,
                 ProfilePictureBase64 = e.Student.ProfilePictureBase64,
                 SectionId = e.CourseSectionId,
-                SectionNumber = e.Section?.SectionNumber,
                 EnrolledAt = e.CreatedAt
             });
 
@@ -543,7 +534,7 @@ namespace GraduationProject.API.Controllers
         // =====================================================================
         // POST /api/courses/{courseId}/sections
         // Create a new section inside a course — doctor (owner) only.
-        // SectionNumber must be unique per course.
+        // Section Name must be unique per course (case-insensitive).
         // =====================================================================
         [HttpPost("{courseId:int}/sections")]
         public async Task<IActionResult> CreateSection(
@@ -554,33 +545,40 @@ namespace GraduationProject.API.Controllers
             var (_, guardResult) = await GetCourseWithDoctorGuardAsync(courseId);
             if (guardResult != null) return guardResult;
 
-            var duplicate = await _db.CourseSections
-                .AnyAsync(s => s.CourseId == courseId && s.SectionNumber == dto.SectionNumber);
+            var nameTrim = dto.Name.Trim();
 
-            if (duplicate)
+            // Name uniqueness (case-insensitive) within the course.
+            var duplicateName = await _db.CourseSections
+                .AnyAsync(s => s.CourseId == courseId &&
+                               s.Name.ToLower() == nameTrim.ToLower());
+
+            if (duplicateName)
                 return Conflict(new
                 {
-                    message = $"Section {dto.SectionNumber} already exists in this course."
+                    message = $"A section named '{nameTrim}' already exists in this course."
                 });
+
+            // Validate time range (from must be before to when both provided).
+            var timeFrom = ParseTimeOnly(dto.TimeFrom);
+            var timeTo = ParseTimeOnly(dto.TimeTo);
+            if (timeFrom.HasValue && timeTo.HasValue && timeFrom.Value >= timeTo.Value)
+                return BadRequest(new { message = "Start time must be before end time." });
 
             var section = new CourseSection
             {
                 CourseId = courseId,
-                SectionNumber = dto.SectionNumber,
+                Name = nameTrim,
+                Days = SerializeDays(dto.Days),
+                TimeFrom = timeFrom,
+                TimeTo = timeTo,
+                Capacity = dto.Capacity,
                 CreatedAt = DateTime.UtcNow
             };
 
             _db.CourseSections.Add(section);
             await _db.SaveChangesAsync();
 
-            return StatusCode(201, new CourseSectionDto
-            {
-                Id = section.Id,
-                CourseId = section.CourseId,
-                SectionNumber = section.SectionNumber,
-                StudentCount = 0,
-                CreatedAt = section.CreatedAt
-            });
+            return StatusCode(201, MapToCourseSectionDto(section, studentCount: 0, projectSetting: null));
         }
 
         // =====================================================================
@@ -623,7 +621,7 @@ namespace GraduationProject.API.Controllers
 
             var sections = await _db.CourseSections
                 .Where(s => s.CourseId == courseId)
-                .OrderBy(s => s.SectionNumber)
+                .OrderBy(s => s.CreatedAt)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -654,17 +652,11 @@ namespace GraduationProject.API.Controllers
                         g => g.OrderByDescending(sps => sps.CreatedAt).First());
             }
 
-            var result = sections.Select(s => new CourseSectionDto
-            {
-                Id = s.Id,
-                CourseId = s.CourseId,
-                SectionNumber = s.SectionNumber,
-                StudentCount = countMap.GetValueOrDefault(s.Id, 0),
-                CreatedAt = s.CreatedAt,
-                ProjectSetting = spsMap.TryGetValue(s.Id, out var sps)
-                    ? MapToSectionProjectSettingDto(sps)
-                    : null
-            });
+            var result = sections.Select(s => MapToCourseSectionDto(
+                s,
+                countMap.GetValueOrDefault(s.Id, 0),
+                spsMap.TryGetValue(s.Id, out var sps) ? MapToSectionProjectSettingDto(sps) : null
+            ));
 
             return Ok(result);
         }
@@ -747,7 +739,7 @@ namespace GraduationProject.API.Controllers
 
             return Ok(new
             {
-                message = $"Section {section.SectionNumber}: {added} added, {moved} moved.",
+                message = $"Section '{section.Name}': {added} added, {moved} moved.",
                 added,
                 moved,
                 skipped
@@ -818,7 +810,6 @@ namespace GraduationProject.API.Controllers
                 AcademicYear = e.Student.AcademicYear ?? string.Empty,
                 ProfilePictureBase64 = e.Student.ProfilePictureBase64,
                 SectionId = sectionId,
-                SectionNumber = section.SectionNumber,
                 EnrolledAt = e.CreatedAt
             });
 
@@ -964,7 +955,7 @@ namespace GraduationProject.API.Controllers
             if (course == null)
                 return NotFound(new { message = "Course not found." });
 
-            // ── Access guard: doctor owner OR enrolled student ────────────────
+            // Access guard: doctor owner OR enrolled student
             var role = AuthorizationHelper.GetRole(User);
             if (role == "doctor")
             {
@@ -976,10 +967,8 @@ namespace GraduationProject.API.Controllers
             {
                 var student = await GetCurrentStudentProfileAsync();
                 if (student == null) return Forbid();
-
                 var isEnrolled = await _db.CourseEnrollments
                     .AnyAsync(e => e.CourseId == courseId && e.StudentId == student.Id);
-
                 if (!isEnrolled)
                     return StatusCode(403, new { message = "Not authorized. You are not enrolled in this course." });
             }
@@ -988,46 +977,150 @@ namespace GraduationProject.API.Controllers
                 return StatusCode(403, new { message = "Not authorized." });
             }
 
-            if (!course.UseSharedProjectAcrossSections)
-                return BadRequest(new
-                {
-                    message = "This course uses per-section project settings. " +
-                              "Use GET /api/courses/sections/{sectionId}/projects instead."
-                });
-
-            var settings = await _db.CourseProjectSettings
+            // Return CourseProject (new multi-project model)
+            var projects = await _db.CourseProjects
                 .AsNoTracking()
-                .Where(ps => ps.CourseId == courseId)
-                .OrderByDescending(ps => ps.IsActive)
-                .ThenByDescending(ps => ps.CreatedAt)
+                .Include(p => p.CourseProjectSections)
+                    .ThenInclude(cps => cps.CourseSection)
+                .Where(p => p.CourseId == courseId)
+                .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
-            // Team counts per setting id (one grouped query)
-            var settingIds = settings.Select(s => s.Id).ToList();
-            var teamCounts = await _db.CourseTeams
-                .AsNoTracking()
-                .Where(t => settingIds.Contains(t.ProjectSettingId))
-                .GroupBy(t => t.ProjectSettingId)
-                .Select(g => new { SettingId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.SettingId, x => x.Count);
-
-            var result = settings.Select(ps => new CourseProjectSettingListItemDto
-            {
-                Id = ps.Id,
-                CourseId = ps.CourseId,
-                CourseSectionId = null,
-                Title = ps.Title,
-                Description = ps.Description,
-                TeamSize = ps.TeamSize,
-                IsActive = ps.IsActive,
-                TeamCount = teamCounts.GetValueOrDefault(ps.Id, 0),
-                CreatedAt = ps.CreatedAt,
-                UpdatedAt = ps.UpdatedAt,
-                FileUrl = ps.FileUrl,
-                FileName = ps.FileName
-            }).ToList();
+            var result = projects.Select(p =>
+                MapToCourseProjectDto(p, p.CourseProjectSections
+                    .Select(cps => cps.CourseSection)
+                    .Where(s => s != null)
+                    .ToList()!)).ToList();
 
             return Ok(result);
+        }
+
+        // =====================================================================
+        // POST /api/courses/{courseId}/projects
+        // Create a new CourseProject — doctor (owner) only.
+        // =====================================================================
+        [HttpPost("{courseId:int}/projects")]
+        public async Task<IActionResult> CreateCourseProject(
+            int courseId, [FromBody] CreateCourseProjectDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var (_, guardResult) = await GetCourseWithDoctorGuardAsync(courseId);
+            if (guardResult != null) return guardResult;
+
+            List<CourseSection> targetSections = new();
+            if (!dto.ApplyToAllSections)
+            {
+                if (dto.SectionIds == null || dto.SectionIds.Count == 0)
+                    return BadRequest(new { message = "Provide at least one sectionId when ApplyToAllSections is false." });
+
+                targetSections = await _db.CourseSections
+                    .Where(s => s.CourseId == courseId && dto.SectionIds.Contains(s.Id))
+                    .ToListAsync();
+
+                if (targetSections.Count != dto.SectionIds.Distinct().Count())
+                    return BadRequest(new { message = "One or more section IDs are invalid or do not belong to this course." });
+            }
+
+            var project = new CourseProject
+            {
+                CourseId = courseId,
+                Title = dto.Title.Trim(),
+                Description = dto.Description?.Trim(),
+                TeamSize = dto.TeamSize,
+                ApplyToAllSections = dto.ApplyToAllSections,
+                AllowCrossSectionTeams = dto.AllowCrossSectionTeams,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _db.CourseProjects.Add(project);
+            await _db.SaveChangesAsync();
+
+            if (!dto.ApplyToAllSections)
+            {
+                foreach (var sec in targetSections)
+                    _db.CourseProjectSections.Add(new CourseProjectSection
+                    { CourseProjectId = project.Id, CourseSectionId = sec.Id });
+                await _db.SaveChangesAsync();
+            }
+
+            return StatusCode(201, MapToCourseProjectDto(project, targetSections));
+        }
+
+        // =====================================================================
+        // PUT /api/courses/projects/{projectId}
+        // Update a CourseProject — doctor (owner) only.
+        // =====================================================================
+        [HttpPut("projects/{projectId:int}")]
+        public async Task<IActionResult> UpdateCourseProject(
+            int projectId, [FromBody] UpdateCourseProjectDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var project = await _db.CourseProjects
+                .Include(p => p.CourseProjectSections)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            var (_, guardResult) = await GetCourseWithDoctorGuardAsync(project.CourseId);
+            if (guardResult != null) return guardResult;
+
+            List<CourseSection> targetSections = new();
+            if (!dto.ApplyToAllSections)
+            {
+                if (dto.SectionIds == null || dto.SectionIds.Count == 0)
+                    return BadRequest(new { message = "Provide at least one sectionId when ApplyToAllSections is false." });
+
+                targetSections = await _db.CourseSections
+                    .Where(s => s.CourseId == project.CourseId && dto.SectionIds.Contains(s.Id))
+                    .ToListAsync();
+
+                if (targetSections.Count != dto.SectionIds.Distinct().Count())
+                    return BadRequest(new { message = "One or more section IDs are invalid or do not belong to this course." });
+            }
+
+            project.Title = dto.Title.Trim();
+            project.Description = dto.Description?.Trim();
+            project.TeamSize = dto.TeamSize;
+            project.ApplyToAllSections = dto.ApplyToAllSections;
+            project.AllowCrossSectionTeams = dto.AllowCrossSectionTeams;
+
+            _db.CourseProjectSections.RemoveRange(project.CourseProjectSections);
+            if (!dto.ApplyToAllSections)
+            {
+                foreach (var sec in targetSections)
+                    _db.CourseProjectSections.Add(new CourseProjectSection
+                    { CourseProjectId = project.Id, CourseSectionId = sec.Id });
+            }
+
+            await _db.SaveChangesAsync();
+            return Ok(MapToCourseProjectDto(project, targetSections));
+        }
+
+        // =====================================================================
+        // DELETE /api/courses/projects/{projectId}
+        // Delete a CourseProject — doctor (owner) only.
+        // =====================================================================
+        [HttpDelete("projects/{projectId:int}")]
+        public async Task<IActionResult> DeleteCourseProject(int projectId)
+        {
+            var project = await _db.CourseProjects
+                .Include(p => p.CourseProjectSections)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            var (_, guardResult) = await GetCourseWithDoctorGuardAsync(project.CourseId);
+            if (guardResult != null) return guardResult;
+
+            _db.CourseProjectSections.RemoveRange(project.CourseProjectSections);
+            _db.CourseProjects.Remove(project);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Project deleted successfully." });
         }
 
         // =====================================================================
@@ -1299,6 +1392,95 @@ namespace GraduationProject.API.Controllers
                 UseSharedProjectAcrossSections = course.UseSharedProjectAcrossSections,
                 AllowCrossSectionTeams = course.AllowCrossSectionTeams,
                 CreatedAt = course.CreatedAt
+            };
+
+        // ── Section helpers ───────────────────────────────────────────────────
+        //
+        // Days are stored as a JSON array of lowercase weekday ids:
+        //   ["mon","tue","wed","thu","fri","sat","sun"]
+        // ParseDays tolerates null / invalid JSON by returning an empty list.
+        // ─────────────────────────────────────────────────────────────────────
+
+        private static readonly HashSet<string> AllowedWeekdays =
+            new(StringComparer.OrdinalIgnoreCase)
+            { "mon", "tue", "wed", "thu", "fri", "sat", "sun" };
+
+        private static List<string> ParseDays(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new List<string>();
+            try
+            {
+                return System.Text.Json.JsonSerializer
+                    .Deserialize<List<string>>(json.Trim()) ?? new List<string>();
+            }
+            catch
+            {
+                return new List<string>();
+            }
+        }
+
+        private static string SerializeDays(IEnumerable<string>? days)
+        {
+            var normalized = (days ?? Enumerable.Empty<string>())
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Select(d => d.Trim().ToLowerInvariant())
+                .Where(d => AllowedWeekdays.Contains(d))
+                .Distinct()
+                .ToList();
+            return System.Text.Json.JsonSerializer.Serialize(normalized);
+        }
+
+        private static TimeOnly? ParseTimeOnly(string? hhmm)
+        {
+            if (string.IsNullOrWhiteSpace(hhmm)) return null;
+            // Accept both "HH:mm" and "HH:mm:ss".
+            if (TimeOnly.TryParseExact(hhmm.Trim(), new[] { "HH:mm", "HH:mm:ss", "H:mm" },
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var t))
+                return t;
+            return null;
+        }
+
+        private static string? FormatTimeOnly(TimeOnly? t) =>
+            t.HasValue ? t.Value.ToString("HH:mm") : null;
+
+        private static CourseSectionDto MapToCourseSectionDto(
+            CourseSection sec,
+            int studentCount,
+            SectionProjectSettingDto? projectSetting) =>
+            new()
+            {
+                Id = sec.Id,
+                CourseId = sec.CourseId,
+                Name = sec.Name,
+                Days = ParseDays(sec.Days),
+                TimeFrom = FormatTimeOnly(sec.TimeFrom),
+                TimeTo = FormatTimeOnly(sec.TimeTo),
+                Capacity = sec.Capacity,
+                StudentCount = studentCount,
+                CreatedAt = sec.CreatedAt,
+                ProjectSetting = projectSetting
+            };
+
+
+        private static CourseProjectDto MapToCourseProjectDto(
+            CourseProject project,
+            List<CourseSection> sections) =>
+            new()
+            {
+                Id = project.Id,
+                CourseId = project.CourseId,
+                Title = project.Title,
+                Description = project.Description,
+                TeamSize = project.TeamSize,
+                ApplyToAllSections = project.ApplyToAllSections,
+                AllowCrossSectionTeams = project.AllowCrossSectionTeams,
+                CreatedAt = project.CreatedAt,
+                Sections = sections.Select(s => new CourseProjectSectionDto
+                {
+                    SectionId = s.Id,
+                    SectionName = s.Name
+                }).ToList()
             };
 
         private static CourseProjectSettingDto MapToProjectSettingDto(CourseProjectSetting ps) =>
