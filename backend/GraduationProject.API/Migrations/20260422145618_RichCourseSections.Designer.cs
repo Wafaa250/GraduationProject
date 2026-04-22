@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260421132537_Init")]
-    partial class Init
+    [Migration("20260422145618_RichCourseSections")]
+    partial class RichCourseSections
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -367,6 +367,12 @@ namespace GraduationProject.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Capacity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("capacity");
+
                     b.Property<int>("CourseId")
                         .HasColumnType("integer")
                         .HasColumnName("course_id");
@@ -375,11 +381,33 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("SectionNumber")
+                    b.Property<string>("Days")
+                        .HasColumnType("text")
+                        .HasColumnName("days");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int?>("SectionNumber")
                         .HasColumnType("integer")
                         .HasColumnName("section_number");
 
+                    b.Property<TimeOnly?>("TimeFrom")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("time_from");
+
+                    b.Property<TimeOnly?>("TimeTo")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("time_to");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CourseId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_course_sections_course_name");
 
                     b.HasIndex("CourseId", "SectionNumber")
                         .IsUnique()
@@ -442,6 +470,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("joined_at");
 
+                    b.Property<int>("ProjectSettingId")
+                        .HasColumnType("integer")
+                        .HasColumnName("project_setting_id");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -460,11 +492,13 @@ namespace GraduationProject.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CourseId");
+
                     b.HasIndex("StudentId");
 
-                    b.HasIndex("CourseId", "StudentId")
+                    b.HasIndex("ProjectSettingId", "StudentId")
                         .IsUnique()
-                        .HasDatabaseName("ix_course_team_members_course_student");
+                        .HasDatabaseName("ix_course_team_members_project_student");
 
                     b.HasIndex("TeamId", "StudentId")
                         .IsUnique()

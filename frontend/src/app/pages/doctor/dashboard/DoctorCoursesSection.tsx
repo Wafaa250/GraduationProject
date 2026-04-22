@@ -69,7 +69,9 @@ export function DoctorCoursesSection({ uiCourses = [] }: Props) {
       });
       return;
     }
-    openManage(row.course.courseId);
+    navigate(`/courses/${row.course.courseId}`, {
+      state: { courseName: row.course.name, courseCode: row.course.code },
+    });
   };
 
   const rowKey = (row: CourseListRow) =>
