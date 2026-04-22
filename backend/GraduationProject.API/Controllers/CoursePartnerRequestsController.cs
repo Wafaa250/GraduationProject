@@ -133,8 +133,9 @@ namespace GraduationProject.API.Controllers
             if (sectionError != null) return sectionError;
 
             // ── 8. Active project setting must exist (defines TeamSize) ───────
-            var (_, teamSize, settingError) = await ResolveTeamSizeAsync(courseId, course!, senderProfile.Id);
+            var (activeSetting, teamSize, settingError) = await ResolveTeamSizeAsync(courseId, course!, senderProfile.Id);
             if (settingError != null) return settingError;
+            var activeSettingId = activeSetting!.Id; // anchor project-setting id
 
             // ── 9. No existing pending request between this pair ──────────────
             var pendingExists = await _db.CoursePartnerRequests
@@ -149,12 +150,16 @@ namespace GraduationProject.API.Controllers
             if (pendingExists)
                 return Conflict(new { message = "A pending partner request already exists between you and this student." });
 
-            // ── 10. Sender must not be in a full team ─────────────────────────
-            var senderTeamError = await CheckTeamNotFullAsync(courseId, senderProfile.Id, teamSize, "You are already in a full team.");
+            // ── 10. Sender must not be in a full team IN THIS PROJECT ─────────
+            //        (students may be in a team in a DIFFERENT project in the
+            //         same course — that no longer blocks them here)
+            var senderTeamError = await CheckTeamNotFullAsync(
+                activeSettingId, senderProfile.Id, teamSize, "You are already in a full team for this project.");
             if (senderTeamError != null) return senderTeamError;
 
-            // ── 11. Receiver must not be in a full team ───────────────────────
-            var receiverTeamError = await CheckTeamNotFullAsync(courseId, receiverProfile.Id, teamSize, "The receiver is already in a full team.");
+            // ── 11. Receiver must not be in a full team IN THIS PROJECT ───────
+            var receiverTeamError = await CheckTeamNotFullAsync(
+                activeSettingId, receiverProfile.Id, teamSize, "The receiver is already in a full team for this project.");
             if (receiverTeamError != null) return receiverTeamError;
 
             // ── 12. Create request ────────────────────────────────────────────
@@ -267,10 +272,11 @@ namespace GraduationProject.API.Controllers
                 courseId, course!, request.SenderStudentId, receiverProfile.Id);
             if (sectionError != null) return sectionError;
 
-            // ── 5. Resolve team size ──────────────────────────────────────────
-            var (_, teamSize, settingError) = await ResolveTeamSizeAsync(
+            // ── 5. Resolve team size (+ active project setting anchor) ────────
+            var (activeSetting, teamSize, settingError) = await ResolveTeamSizeAsync(
                 courseId, course!, receiverProfile.Id);
             if (settingError != null) return settingError;
+            var activeSettingId = activeSetting!.Id;
 
             // ── 6. Re-validate enrollment for sender ──────────────────────────
             var senderEnrolled = await _db.CourseEnrollments
@@ -279,28 +285,25 @@ namespace GraduationProject.API.Controllers
             if (!senderEnrolled)
                 return BadRequest(new { message = "The request sender is no longer enrolled in this course." });
 
-            // ── 7. Resolve existing teams ──────────────────────────────────────
+            // ── 7. Resolve existing teams IN THIS PROJECT ─────────────────────
+            //        (a student may be in another team in a different project —
+            //         that is irrelevant here)
             var senderMembership = await _db.CourseTeamMembers
                 .Include(ctm => ctm.Team).ThenInclude(t => t.Members)
-                .FirstOrDefaultAsync(ctm => ctm.CourseId == courseId && ctm.StudentId == request.SenderStudentId);
+                .FirstOrDefaultAsync(ctm => ctm.ProjectSettingId == activeSettingId
+                                            && ctm.StudentId == request.SenderStudentId);
 
             var receiverMembership = await _db.CourseTeamMembers
                 .Include(ctm => ctm.Team).ThenInclude(t => t.Members)
-                .FirstOrDefaultAsync(ctm => ctm.CourseId == courseId && ctm.StudentId == receiverProfile.Id);
+                .FirstOrDefaultAsync(ctm => ctm.ProjectSettingId == activeSettingId
+                                            && ctm.StudentId == receiverProfile.Id);
 
             // ── 8. Cannot merge two existing teams ────────────────────────────
             if (senderMembership != null && receiverMembership != null)
-                return BadRequest(new { message = "Both students are already in teams. Teams cannot be merged." });
+                return BadRequest(new { message = "Both students are already in teams for this project. Teams cannot be merged." });
 
-            // ── 9. Resolve active shared setting (needed for CourseTeam.ProjectSettingId FK) ──
-            var sharedSetting = await _db.CourseProjectSettings
-                .AsNoTracking()
-                .Where(ps => ps.CourseId == courseId && ps.IsActive)
-                .OrderByDescending(ps => ps.CreatedAt)
-                .FirstOrDefaultAsync();
-
-            if (sharedSetting == null)
-                return BadRequest(new { message = "No active project setting found. The doctor must define one first." });
+            // ── 9. (active setting already resolved above — used as the FK) ──
+            var sharedSetting = activeSetting; // alias preserved for readability
 
             // ── 10. Execute inside a transaction ──────────────────────────────
             await using var tx = await _db.Database.BeginTransactionAsync();
@@ -316,30 +319,32 @@ namespace GraduationProject.API.Controllers
 
                     resolvedTeam = new CourseTeam
                     {
-                        CourseId         = courseId,
+                        CourseId = courseId,
                         ProjectSettingId = sharedSetting.Id,
-                        LeaderStudentId  = request.SenderStudentId, // sender becomes leader
-                        CreatedAt        = DateTime.UtcNow
+                        LeaderStudentId = request.SenderStudentId, // sender becomes leader
+                        CreatedAt = DateTime.UtcNow
                     };
                     _db.CourseTeams.Add(resolvedTeam);
                     await _db.SaveChangesAsync(); // flush to get resolvedTeam.Id
 
                     _db.CourseTeamMembers.Add(new CourseTeamMember
                     {
-                        TeamId    = resolvedTeam.Id,
-                        CourseId  = courseId,
+                        TeamId = resolvedTeam.Id,
+                        CourseId = courseId,
+                        ProjectSettingId = sharedSetting.Id,
                         StudentId = request.SenderStudentId,
-                        Role      = "leader",
-                        JoinedAt  = DateTime.UtcNow
+                        Role = "leader",
+                        JoinedAt = DateTime.UtcNow
                     });
 
                     _db.CourseTeamMembers.Add(new CourseTeamMember
                     {
-                        TeamId    = resolvedTeam.Id,
-                        CourseId  = courseId,
+                        TeamId = resolvedTeam.Id,
+                        CourseId = courseId,
+                        ProjectSettingId = sharedSetting.Id,
                         StudentId = receiverProfile.Id,
-                        Role      = "member",
-                        JoinedAt  = DateTime.UtcNow
+                        Role = "member",
+                        JoinedAt = DateTime.UtcNow
                     });
                 }
                 else if (senderMembership != null)
@@ -353,11 +358,12 @@ namespace GraduationProject.API.Controllers
 
                     _db.CourseTeamMembers.Add(new CourseTeamMember
                     {
-                        TeamId    = resolvedTeam.Id,
-                        CourseId  = courseId,
+                        TeamId = resolvedTeam.Id,
+                        CourseId = courseId,
+                        ProjectSettingId = resolvedTeam.ProjectSettingId,
                         StudentId = receiverProfile.Id,
-                        Role      = "member",
-                        JoinedAt  = DateTime.UtcNow
+                        Role = "member",
+                        JoinedAt = DateTime.UtcNow
                     });
                 }
                 else
@@ -371,17 +377,18 @@ namespace GraduationProject.API.Controllers
 
                     _db.CourseTeamMembers.Add(new CourseTeamMember
                     {
-                        TeamId    = resolvedTeam.Id,
-                        CourseId  = courseId,
+                        TeamId = resolvedTeam.Id,
+                        CourseId = courseId,
+                        ProjectSettingId = resolvedTeam.ProjectSettingId,
                         StudentId = request.SenderStudentId,
-                        Role      = "member",
-                        JoinedAt  = DateTime.UtcNow
+                        Role = "member",
+                        JoinedAt = DateTime.UtcNow
                     });
                 }
 
                 // ── Finalise the request row ───────────────────────────────────
-                request.Status      = "accepted";
-                request.TeamId      = resolvedTeam.Id;
+                request.Status = "accepted";
+                request.TeamId = resolvedTeam.Id;
                 request.RespondedAt = DateTime.UtcNow;
 
                 var finalMemberCount = await _db.CourseTeamMembers
@@ -389,6 +396,15 @@ namespace GraduationProject.API.Controllers
 
                 if (finalMemberCount >= teamSize)
                 {
+                    // When the team is full, cancel all still-pending partner
+                    // requests that involve any of this team's members.
+                    //
+                    // NOTE: CoursePartnerRequest has no ProjectSettingId — a
+                    // request implicitly targets whatever project is active at
+                    // accept time. Because AT MOST ONE project is active per
+                    // course, scoping this cancellation by CourseId is
+                    // equivalent to scoping by the active project. When a new
+                    // project is later activated, fresh requests can be sent.
                     var teamMemberIds = await _db.CourseTeamMembers
                         .Where(m => m.TeamId == resolvedTeam.Id)
                         .Select(m => m.StudentId)
@@ -453,7 +469,7 @@ namespace GraduationProject.API.Controllers
                 return BadRequest(new { message = $"Request is already '{request.Status}' and cannot be rejected." });
 
             // ── 5. Update status ──────────────────────────────────────────────
-            request.Status      = "rejected";
+            request.Status = "rejected";
             request.RespondedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
@@ -529,7 +545,7 @@ namespace GraduationProject.API.Controllers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.CourseId == courseId && e.StudentId == receiverStudentId);
 
-            var senderSection   = senderEnrollment?.CourseSectionId;
+            var senderSection = senderEnrollment?.CourseSectionId;
             var receiverSection = receiverEnrollment?.CourseSectionId;
 
             if (senderSection != receiverSection)
@@ -596,19 +612,24 @@ namespace GraduationProject.API.Controllers
 
         /// <summary>
         /// Returns a 400 error result when the student already belongs to a team
-        /// that is at or above the defined TeamSize; returns null when all is fine.
-        /// A student who has no team yet always passes this check.
+        /// IN THE GIVEN PROJECT that is at or above the defined TeamSize;
+        /// returns null when all is fine. A student who has no team for this
+        /// project yet always passes this check.
+        ///
+        /// NOTE: scope is PROJECT (ProjectSettingId), not course — a student
+        /// may be in another team in the same course under a different project.
         /// </summary>
         private async Task<IActionResult?> CheckTeamNotFullAsync(
-            int courseId, int studentId, int teamSize, string errorMessage)
+            int projectSettingId, int studentId, int teamSize, string errorMessage)
         {
             var membership = await _db.CourseTeamMembers
                 .AsNoTracking()
                 .Include(ctm => ctm.Team)
-                .FirstOrDefaultAsync(ctm => ctm.CourseId == courseId && ctm.StudentId == studentId);
+                .FirstOrDefaultAsync(ctm => ctm.ProjectSettingId == projectSettingId
+                                            && ctm.StudentId == studentId);
 
             if (membership == null)
-                return null; // no team yet — always OK
+                return null; // no team in this project yet — always OK
 
             var memberCount = await _db.CourseTeamMembers
                 .CountAsync(m => m.TeamId == membership.Team.Id);

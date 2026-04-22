@@ -295,4 +295,31 @@ namespace GraduationProject.API.DTOs
         public List<PartnerRequestListItemDto> Incoming { get; set; } = new();
         public List<PartnerRequestListItemDto> Outgoing { get; set; } = new();
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    // MULTI-PROJECT SUPPORT  (NEW)
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Lightweight list item returned from GET /api/courses/{courseId}/projects
+    /// and GET /api/courses/sections/{sectionId}/projects.
+    ///
+    /// Used to let the doctor see every project setting they have created for
+    /// a course/section (active + inactive) so they can switch between them.
+    /// </summary>
+    public class CourseProjectSettingListItemDto
+    {
+        public int Id { get; set; }
+        public int? CourseId { get; set; }           // populated for shared-course projects
+        public int? CourseSectionId { get; set; }    // populated for per-section projects
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int TeamSize { get; set; }
+        public bool IsActive { get; set; }
+        public int TeamCount { get; set; }           // how many teams are using this project
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public string? FileUrl { get; set; }
+        public string? FileName { get; set; }
+    }
 }

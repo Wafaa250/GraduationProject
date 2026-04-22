@@ -53,11 +53,11 @@ namespace GraduationProject.API.Controllers
     [Authorize]
     public class CoursePartnerRecommendationsController : ControllerBase
     {
-        private readonly ApplicationDbContext            _db;
+        private readonly ApplicationDbContext _db;
         private readonly IAiPartnerRecommendationService _ai;
 
         public CoursePartnerRecommendationsController(
-            ApplicationDbContext            db,
+            ApplicationDbContext db,
             IAiPartnerRecommendationService ai)
         {
             _db = db;
@@ -84,7 +84,7 @@ namespace GraduationProject.API.Controllers
         // =====================================================================
         [HttpGet("recommended-partners")]
         public async Task<IActionResult> GetRecommendedPartners(
-            int    courseId,
+            int courseId,
             [FromQuery] string mode = "complementary")
         {
             // ── 1. Validate mode ──────────────────────────────────────────────
@@ -96,7 +96,7 @@ namespace GraduationProject.API.Controllers
             if (AuthorizationHelper.GetRole(User) != "student")
                 return StatusCode(403, new { message = "Only students can access this endpoint." });
 
-            var userId  = AuthorizationHelper.GetUserId(User);
+            var userId = AuthorizationHelper.GetUserId(User);
             var current = await _db.StudentProfiles
                 .Include(s => s.User)
                 .FirstOrDefaultAsync(s => s.UserId == userId);
@@ -122,27 +122,34 @@ namespace GraduationProject.API.Controllers
             // Caller's section (may be null when no sections defined / assigned).
             var callerSectionId = callerEnrollment.CourseSectionId;
 
-            // ── 5. Active project setting (provides TeamSize) ─────────────────
+            // ── 5. Active project setting (provides TeamSize + scoping id) ────
             //   Resolution logic:
             //     UseSharedProjectAcrossSections == true  → CourseProjectSetting
             //     UseSharedProjectAcrossSections == false → SectionProjectSetting (of caller's section)
             //
-            // If nothing is found we still proceed; we just won't be able to
-            // filter out "full" teams (there is no defined max size).
+            //   activeProjectSettingId is the SHARED CourseProjectSetting id
+            //   (because CourseTeam.ProjectSettingId always points at that row
+            //   — SectionProjectSetting only overrides team size).
+            //
+            //   If there is no active CourseProjectSetting, team-based exclusion
+            //   cannot be scoped to a project, so we fall back to "no team
+            //   restriction" (teamSize = MaxValue, no project filter).
             int teamSize = int.MaxValue;
+            int? activeProjectSettingId = null;
 
-            if (course.UseSharedProjectAcrossSections)
+            var activeSharedSetting = await _db.CourseProjectSettings
+                .AsNoTracking()
+                .Where(ps => ps.CourseId == courseId && ps.IsActive)
+                .OrderByDescending(ps => ps.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (activeSharedSetting != null)
             {
-                var sharedSetting = await _db.CourseProjectSettings
-                    .AsNoTracking()
-                    .Where(ps => ps.CourseId == courseId && ps.IsActive)
-                    .OrderByDescending(ps => ps.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-                if (sharedSetting != null)
-                    teamSize = sharedSetting.TeamSize;
+                activeProjectSettingId = activeSharedSetting.Id;
+                teamSize = activeSharedSetting.TeamSize;
             }
-            else if (callerSectionId.HasValue)
+
+            if (!course.UseSharedProjectAcrossSections && callerSectionId.HasValue)
             {
                 var sectionSetting = await _db.SectionProjectSettings
                     .AsNoTracking()
@@ -150,6 +157,8 @@ namespace GraduationProject.API.Controllers
                     .OrderByDescending(sps => sps.CreatedAt)
                     .FirstOrDefaultAsync();
 
+                // Section setting only overrides TeamSize — the shared setting
+                // remains the anchor project-id for team exclusion.
                 if (sectionSetting != null)
                     teamSize = sectionSetting.TeamSize;
             }
@@ -188,47 +197,72 @@ namespace GraduationProject.API.Controllers
             if (enrolledStudentIds.Count == 0)
                 return Ok(new List<object>());
 
-            // ── 8. Determine caller's own teamId (nullable) ───────────────────
-            var callerMembership = await _db.CourseTeamMembers
-                .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.CourseId == courseId && m.StudentId == current.Id);
+            // ── 8. Determine caller's own teamId IN THIS PROJECT (nullable) ───
+            //       Scoped by ProjectSettingId — a caller may have a team in a
+            //       different project, which is irrelevant for exclusion here.
+            int? callerTeamId = null;
+            Dictionary<int, int> studentTeamMap = new();    // sid → teamId (in this project)
+            Dictionary<int, int> teamSizeMap = new();    // teamId → member count
 
-            var callerTeamId = callerMembership?.TeamId; // null → caller has no team yet
+            if (activeProjectSettingId.HasValue)
+            {
+                var callerMembership = await _db.CourseTeamMembers
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.ProjectSettingId == activeProjectSettingId.Value
+                                              && m.StudentId == current.Id);
 
-            // ── 9. Load team membership for all enrolled candidates ───────────
-            //   For each team: count members so we can skip full ones.
-            var membershipRows = await _db.CourseTeamMembers
-                .AsNoTracking()
-                .Where(m => m.CourseId == courseId)
-                .GroupBy(m => m.TeamId)
-                .Select(g => new { TeamId = g.Key, MemberCount = g.Count() })
-                .ToListAsync();
+                callerTeamId = callerMembership?.TeamId;
 
-            var teamSizeMap = membershipRows.ToDictionary(x => x.TeamId, x => x.MemberCount);
+                // ── 9. Load team membership for candidates — SAME PROJECT only ──
+                var membershipRows = await _db.CourseTeamMembers
+                    .AsNoTracking()
+                    .Where(m => m.ProjectSettingId == activeProjectSettingId.Value)
+                    .GroupBy(m => m.TeamId)
+                    .Select(g => new { TeamId = g.Key, MemberCount = g.Count() })
+                    .ToListAsync();
 
-            // StudentId → their teamId (null if not yet in a team)
-            var studentTeamMap = await _db.CourseTeamMembers
-                .AsNoTracking()
-                .Where(m => m.CourseId == courseId && enrolledStudentIds.Contains(m.StudentId))
-                .ToDictionaryAsync(m => m.StudentId, m => m.TeamId);
+                teamSizeMap = membershipRows.ToDictionary(x => x.TeamId, x => x.MemberCount);
+
+                studentTeamMap = await _db.CourseTeamMembers
+                    .AsNoTracking()
+                    .Where(m => m.ProjectSettingId == activeProjectSettingId.Value
+                                && enrolledStudentIds.Contains(m.StudentId))
+                    .ToDictionaryAsync(m => m.StudentId, m => m.TeamId);
+            }
 
             // ── 10. Filter candidates ─────────────────────────────────────────
             //   Exclude:
-            //     a) students in the same team as the caller
-            //     b) students whose team is already full
+            //     a) students in the same team as the caller (same project)
+            //     b) students whose team is already full    (same project)
+            //     c) students who are in ANY team for the active project
+            //        (they cannot be recruited into another team for the same
+            //         project — but remain eligible in other projects)
+            //
+            //   Candidates with NO team in the active project → always eligible.
             var eligibleIds = enrolledStudentIds
                 .Where(sid =>
                 {
+                    if (!activeProjectSettingId.HasValue)
+                        return true;   // no active project → no team exclusion
+
                     // (a) same team as caller
                     if (callerTeamId.HasValue &&
                         studentTeamMap.TryGetValue(sid, out var theirTeamId) &&
                         theirTeamId == callerTeamId.Value)
                         return false;
 
-                    // (b) their team is full
+                    // (b) their team (in this project) is full
                     if (studentTeamMap.TryGetValue(sid, out var tid) &&
                         teamSizeMap.TryGetValue(tid, out var count) &&
                         count >= teamSize)
+                        return false;
+
+                    // (c) they are already in ANY team for the active project
+                    //     and the caller is NOT in the same team — i.e. they
+                    //     cannot accept the caller (one-team-per-project rule).
+                    //     (If caller is in the same team, case (a) already
+                    //      filtered them out above.)
+                    if (studentTeamMap.ContainsKey(sid))
                         return false;
 
                     return true;
@@ -253,8 +287,8 @@ namespace GraduationProject.API.Controllers
             {
                 var skills = await SkillHelper.IdsJsonToNames(_db, cp.TechnicalSkills);
                 // Also include roles and tools so the AI has richer context
-                var roles  = await SkillHelper.IdsJsonToNames(_db, cp.Roles);
-                var tools  = await SkillHelper.IdsJsonToNames(_db, cp.Tools);
+                var roles = await SkillHelper.IdsJsonToNames(_db, cp.Roles);
+                var tools = await SkillHelper.IdsJsonToNames(_db, cp.Tools);
                 candidateSkillsMap[cp.Id] = skills
                     .Concat(roles)
                     .Concat(tools)
@@ -275,19 +309,19 @@ namespace GraduationProject.API.Controllers
             var aiCurrent = new AiPartnerCurrentStudent
             {
                 StudentId = current.Id,
-                Name      = current.User?.Name ?? string.Empty,
-                Skills    = currentAllSkills,
-                Major     = current.Major ?? string.Empty,
-                Bio       = current.Bio   ?? string.Empty
+                Name = current.User?.Name ?? string.Empty,
+                Skills = currentAllSkills,
+                Major = current.Major ?? string.Empty,
+                Bio = current.Bio ?? string.Empty
             };
 
             var aiCandidates = candidateProfiles.Select(cp => new AiPartnerCandidate
             {
                 StudentId = cp.Id,
-                Name      = cp.User?.Name ?? string.Empty,
-                Skills    = candidateSkillsMap.GetValueOrDefault(cp.Id, new List<string>()),
-                Major     = cp.Major ?? string.Empty,
-                Bio       = cp.Bio   ?? string.Empty
+                Name = cp.User?.Name ?? string.Empty,
+                Skills = candidateSkillsMap.GetValueOrDefault(cp.Id, new List<string>()),
+                Major = cp.Major ?? string.Empty,
+                Bio = cp.Bio ?? string.Empty
             }).ToList();
 
             // ── 14. Call AI ───────────────────────────────────────────────────
@@ -327,7 +361,7 @@ namespace GraduationProject.API.Controllers
                                 .Count();
                             var denominator = Math.Max(
                                 currentAllSkills.Count + c.Skills.Count - intersection, 1);
-                            score  = (int)Math.Round((double)intersection / denominator * 100);
+                            score = (int)Math.Round((double)intersection / denominator * 100);
                             reason = intersection > 0
                                 ? $"Shares {intersection} skill(s) with you."
                                 : "No overlapping skills found.";
@@ -340,7 +374,7 @@ namespace GraduationProject.API.Controllers
                                     .Except(currentAllSkills, StringComparer.OrdinalIgnoreCase)
                                     .Count();
                             var denominator = Math.Max(c.Skills.Count, 1);
-                            score  = (int)Math.Round((double)missing / denominator * 100);
+                            score = (int)Math.Round((double)missing / denominator * 100);
                             reason = missing > 0
                                 ? $"Brings {missing} skill(s) you don't have."
                                 : "Skills overlap significantly with yours.";
@@ -353,7 +387,7 @@ namespace GraduationProject.API.Controllers
 
             // ── 16. Build response ────────────────────────────────────────────
             var profileMap = candidateProfiles.ToDictionary(p => p.Id);
-            var scoreMap   = scores.ToDictionary(s => s.StudentId);
+            var scoreMap = scores.ToDictionary(s => s.StudentId);
 
             var response = eligibleIds
                 .Where(id => profileMap.ContainsKey(id) && scoreMap.ContainsKey(id))
@@ -363,12 +397,12 @@ namespace GraduationProject.API.Controllers
                     var s = scoreMap[id];
                     return new
                     {
-                        studentId  = id,
-                        userId     = p.UserId,
-                        name       = p.User?.Name ?? string.Empty,
-                        skills     = candidateSkillsMap.GetValueOrDefault(id, new List<string>()),
+                        studentId = id,
+                        userId = p.UserId,
+                        name = p.User?.Name ?? string.Empty,
+                        skills = candidateSkillsMap.GetValueOrDefault(id, new List<string>()),
                         matchScore = s.Score,
-                        reason     = s.Reason
+                        reason = s.Reason
                     };
                 })
                 .OrderByDescending(x => x.matchScore)
