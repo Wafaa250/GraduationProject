@@ -176,6 +176,20 @@ namespace GraduationProject.API.Models
         [Column("team_id")] public int TeamId { get; set; }
         [Column("course_id")] public int CourseId { get; set; }
         [Column("student_id")] public int StudentId { get; set; }
+
+        // ── NEW ──────────────────────────────────────────────────────────────
+        /// <summary>
+        /// Denormalised from CourseTeam.ProjectSettingId.
+        /// Always equals <c>Team.ProjectSettingId</c>; set by the service layer
+        /// when adding a member.
+        ///
+        /// Powers the uniqueness constraint (ProjectSettingId, StudentId):
+        /// a student can belong to AT MOST ONE team per project setting
+        /// (but may belong to different teams under different projects in
+        /// the same course).
+        /// </summary>
+        [Column("project_setting_id")] public int ProjectSettingId { get; set; }
+
         [Column("role")] public string Role { get; set; } = "member";
         [Column("joined_at")] public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 

@@ -390,13 +390,32 @@ namespace GraduationProject.API.Data
                  .IsUnique()
                  .HasDatabaseName("ix_course_team_members_team_student");
 
-                // ── ONE-TEAM-PER-COURSE CONSTRAINT ────────────────────────────
-                // A student can belong to at most one team within a given course.
-                // CourseId is denormalised from CourseTeam and must always equal
-                // Team.CourseId; it is set by the service layer when adding a member.
-                e.HasIndex(ctm => new { ctm.CourseId, ctm.StudentId })
+                // ── ONE-TEAM-PER-PROJECT CONSTRAINT (UPDATED) ─────────────────
+                // A student can belong to at most one team within a given
+                // PROJECT SETTING (not per course). This allows a student to
+                // participate in multiple teams across different projects in
+                // the SAME course, while still preventing duplicate membership
+                // inside the same project.
+                //
+                // ProjectSettingId is denormalised from CourseTeam and must
+                // always equal Team.ProjectSettingId; it is set by the service
+                // layer when adding a member.
+                //
+                // MIGRATION NOTE (existing DBs):
+                //   1. ADD COLUMN project_setting_id INT NOT NULL DEFAULT 0 to
+                //      course_team_members.
+                //   2. Back-fill:
+                //        UPDATE course_team_members m
+                //        SET project_setting_id = t.project_setting_id
+                //        FROM course_teams t
+                //        WHERE m.team_id = t.id;
+                //   3. DROP INDEX ix_course_team_members_course_student (old).
+                //   4. CREATE UNIQUE INDEX ix_course_team_members_project_student
+                //      ON course_team_members(project_setting_id, student_id);
+                //   5. Remove the DEFAULT 0 once back-fill completes.
+                e.HasIndex(ctm => new { ctm.ProjectSettingId, ctm.StudentId })
                  .IsUnique()
-                 .HasDatabaseName("ix_course_team_members_course_student");
+                 .HasDatabaseName("ix_course_team_members_project_student");
 
                 e.Property(ctm => ctm.Role)
                  .HasColumnName("role")
