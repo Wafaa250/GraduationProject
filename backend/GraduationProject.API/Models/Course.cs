@@ -139,6 +139,8 @@ namespace GraduationProject.API.Models
         [Column("team_size")] public int TeamSize { get; set; } = 2;
         [Column("apply_to_all_sections")] public bool ApplyToAllSections { get; set; }
         [Column("allow_cross_section_teams")] public bool AllowCrossSectionTeams { get; set; }
+        /// <summary>"doctor" = AI assigns teams; "student" = students choose partners.</summary>
+        [Column("ai_mode")] public string AiMode { get; set; } = "doctor";
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public Course Course { get; set; } = null!;

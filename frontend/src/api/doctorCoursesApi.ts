@@ -441,6 +441,7 @@ export interface DoctorCourseProject {
     teamSize: number
     applyToAllSections: boolean
     allowCrossSectionTeams: boolean
+    aiMode: "doctor" | "student"
     createdAt: string
     sections: DoctorCourseProjectSection[]
 }
@@ -470,6 +471,7 @@ function mapDoctorCourseProject(raw: unknown): DoctorCourseProject {
         allowCrossSectionTeams: Boolean(
             r.allowCrossSectionTeams ?? r.AllowCrossSectionTeams ?? false,
         ),
+        aiMode: (r.aiMode ?? r.AiMode ?? 'doctor') === 'student' ? 'student' : 'doctor',
         createdAt: String(r.createdAt ?? r.CreatedAt ?? ''),
         sections: Array.isArray(sectionsRaw)
             ? sectionsRaw.map(mapDoctorCourseProjectSection)
@@ -492,6 +494,7 @@ export interface CreateCourseProjectBody {
     teamSize: number
     applyToAllSections: boolean
     allowCrossSectionTeams: boolean
+    aiMode: "doctor" | "student"
     sectionIds: number[]
 }
 

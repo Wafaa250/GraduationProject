@@ -383,6 +383,11 @@ namespace GraduationProject.API.Data
                 e.HasIndex(cp => cp.CourseId)
                  .HasDatabaseName("ix_course_projects_course");
 
+                e.Property(cp => cp.AiMode)
+                 .HasMaxLength(20)
+                 .HasDefaultValue("doctor")
+                 .IsRequired();
+
                 e.HasOne(cp => cp.Course)
                  .WithMany(c => c.CourseProjects)
                  .HasForeignKey(cp => cp.CourseId)

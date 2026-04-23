@@ -236,6 +236,9 @@ namespace GraduationProject.API.DTOs
 
         public bool AllowCrossSectionTeams { get; set; }
 
+        /// <summary>"doctor" (default) or "student".</summary>
+        public string AiMode { get; set; } = "doctor";
+
         /// <summary>Course section IDs when <see cref="ApplyToAllSections"/> is false.</summary>
         public List<int> SectionIds { get; set; } = new();
     }
@@ -255,6 +258,8 @@ namespace GraduationProject.API.DTOs
 
         public bool AllowCrossSectionTeams { get; set; }
 
+        public string AiMode { get; set; } = "doctor";
+
         public List<int> SectionIds { get; set; } = new();
     }
 
@@ -273,6 +278,7 @@ namespace GraduationProject.API.DTOs
         public int TeamSize { get; set; }
         public bool ApplyToAllSections { get; set; }
         public bool AllowCrossSectionTeams { get; set; }
+        public string AiMode { get; set; } = "doctor";
         public DateTime CreatedAt { get; set; }
 
         /// <summary>
