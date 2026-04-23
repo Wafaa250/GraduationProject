@@ -107,14 +107,21 @@ export default function CourseProjectCreatePage() {
                     ? []
                     : [Number(sectionId)].filter((n) => Number.isFinite(n) && n > 0);
 
-                await createDoctorCourseProject(backendCourseId, {
+                const created = await createDoctorCourseProject(backendCourseId, {
                     title: t,
                     description: abstract.trim(),
                     teamSize: ts,
                     applyToAllSections: allSections,
                     allowCrossSectionTeams: false,
+                    aiMode: aiMode,
                     sectionIds: selectedSectionIds,
                 });
+                if (aiMode === "doctor") {
+                    navigate(`/courses/${courseId}/projects/${created.id}/teams`, {
+                        state: { projectName: t, projectId: created.id },
+                    });
+                    return;
+                }
             } catch (err) {
                 showToast(parseApiErrorMessage(err), "error");
                 setSubmitting(false);
@@ -124,7 +131,7 @@ export default function CourseProjectCreatePage() {
             }
         }
 
-        // Original navigation — unchanged
+        // Original navigation for temp courses — unchanged
         if (aiMode === "doctor") {
             const tempProjectId = `temp-${Date.now()}`;
             navigate(`/courses/${courseId}/projects/${tempProjectId}/teams`, {

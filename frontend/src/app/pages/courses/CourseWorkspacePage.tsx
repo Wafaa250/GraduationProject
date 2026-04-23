@@ -722,20 +722,32 @@ export default function CourseWorkspacePage() {
                                         <ul style={{ listStyle: "none", margin: 0, padding: "16px 20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
                                             {isReal
                                                 ? (apiProjects as DoctorCourseProject[]).map((p) => (
-                                                    <li key={p.id} style={{ ...card, padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8 }}>
-                                                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text, lineHeight: 1.3 }}>
-                                                            {p.title}
-                                                        </h3>
-                                                        <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                            <span style={{ fontWeight: 700, color: dash.text }}>Sections:</span>{" "}
-                                                            {p.applyToAllSections ? "All sections" : p.sections.map((s) => s.sectionName).join(", ") || "—"}
-                                                        </p>
-                                                        <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                            <span style={{ fontWeight: 700, color: dash.text }}>Team size:</span> {p.teamSize}
-                                                        </p>
-                                                        {p.description ? (
-                                                            <p style={{ margin: 0, fontSize: 12, color: dash.subtle, lineHeight: 1.45 }}>{p.description}</p>
-                                                        ) : null}
+                                                    <li key={p.id}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { if (p.aiMode !== "student") navigate(`/courses/${courseId}/projects/${p.id}/teams`, { state: { projectName: p.title, projectId: p.id } }); }}
+                                                            style={{ ...card, width: "100%", padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8, textAlign: "left", cursor: "pointer", fontFamily: "inherit", border: `1px solid ${dash.border}`, transition: "transform 0.12s ease, box-shadow 0.12s ease" }}
+                                                            className="dd-course-card-btn"
+                                                        >
+                                                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text, lineHeight: 1.3 }}>
+                                                                {p.title}
+                                                            </h3>
+                                                            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
+                                                                <span style={{ fontWeight: 700, color: dash.text }}>Sections:</span>{" "}
+                                                                {p.applyToAllSections ? "All sections" : p.sections.map((s) => s.sectionName).join(", ") || "—"}
+                                                            </p>
+                                                            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
+                                                                <span style={{ fontWeight: 700, color: dash.text }}>Team size:</span> {p.teamSize}
+                                                            </p>
+                                                            {p.description ? (
+                                                                <p style={{ margin: 0, fontSize: 12, color: dash.subtle, lineHeight: 1.45 }}>{p.description}</p>
+                                                            ) : null}
+                                                            {p.aiMode !== "student" && (
+                                                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+                                                                    <span style={{ fontSize: 12, fontWeight: 700, color: dash.accent }}>View AI teams →</span>
+                                                                </div>
+                                                            )}
+                                                        </button>
                                                     </li>
                                                 ))
                                                 : (projects as WorkspaceProject[]).map((p) => (

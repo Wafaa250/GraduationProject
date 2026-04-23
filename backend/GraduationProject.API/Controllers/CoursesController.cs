@@ -1030,6 +1030,7 @@ namespace GraduationProject.API.Controllers
                 TeamSize = dto.TeamSize,
                 ApplyToAllSections = dto.ApplyToAllSections,
                 AllowCrossSectionTeams = dto.AllowCrossSectionTeams,
+                AiMode = (dto.AiMode ?? "doctor").Trim().ToLowerInvariant() == "student" ? "student" : "doctor",
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -1086,6 +1087,7 @@ namespace GraduationProject.API.Controllers
             project.TeamSize = dto.TeamSize;
             project.ApplyToAllSections = dto.ApplyToAllSections;
             project.AllowCrossSectionTeams = dto.AllowCrossSectionTeams;
+            project.AiMode = (dto.AiMode ?? "doctor").Trim().ToLowerInvariant() == "student" ? "student" : "doctor";
 
             _db.CourseProjectSections.RemoveRange(project.CourseProjectSections);
             if (!dto.ApplyToAllSections)
@@ -1475,6 +1477,7 @@ namespace GraduationProject.API.Controllers
                 TeamSize = project.TeamSize,
                 ApplyToAllSections = project.ApplyToAllSections,
                 AllowCrossSectionTeams = project.AllowCrossSectionTeams,
+                AiMode = project.AiMode,
                 CreatedAt = project.CreatedAt,
                 Sections = sections.Select(s => new CourseProjectSectionDto
                 {
