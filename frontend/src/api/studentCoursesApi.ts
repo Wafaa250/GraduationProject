@@ -179,6 +179,43 @@ export interface RecommendedPartner {
   reason?: string
 }
 
+export interface StudentViewCourse {
+  id: number
+  name: string
+  code: string
+  semester?: string | null
+  doctorName?: string
+}
+
+export interface StudentViewSection {
+  id: number
+  name: string
+  schedule?: string
+  capacity?: number
+}
+
+export interface StudentViewStudent {
+  id: number
+  name: string
+  email?: string
+  sectionId: number
+}
+
+export interface StudentViewProject {
+  id: number
+  title: string
+  description?: string | null
+  applyToAllSections: boolean
+  sectionIds: number[]
+}
+
+export interface StudentCourseView {
+  course: StudentViewCourse
+  mySection: StudentViewSection | null
+  students: StudentViewStudent[]
+  projects: StudentViewProject[]
+}
+
 export const getEnrolledCourses = async (): Promise<EnrolledCourse[]> => {
   const response = await api.get('/courses/enrolled')
   return response.data
@@ -186,6 +223,13 @@ export const getEnrolledCourses = async (): Promise<EnrolledCourse[]> => {
 
 export const getCourseById = async (courseId: number): Promise<CourseDetails> => {
   const response = await api.get(`/courses/${courseId}`)
+  return response.data
+}
+
+export const getCourseStudentView = async (
+  courseId: number,
+): Promise<StudentCourseView> => {
+  const response = await api.get(`/courses/${courseId}/student-view`)
   return response.data
 }
 

@@ -233,6 +233,132 @@ namespace GraduationProject.API.Controllers
         }
 
         // =====================================================================
+        // GET /api/courses/{courseId}/student-view
+        // Student-only summary for StudentCoursesPage.
+        // Returns: course info, my section, students in my section, projects for my section.
+        // =====================================================================
+        [HttpGet("{courseId:int}/student-view")]
+        public async Task<IActionResult> GetStudentCourseView(int courseId)
+        {
+            var student = await GetCurrentStudentProfileAsync();
+            if (student == null)
+                return StatusCode(403, new { message = "Only students can access this endpoint." });
+
+            var course = await _db.Courses
+                .Include(c => c.Doctor).ThenInclude(d => d.User)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+
+            if (course == null)
+                return NotFound(new { message = "Course not found." });
+
+            var enrollment = await _db.CourseEnrollments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.CourseId == courseId && e.StudentId == student.Id);
+
+            if (enrollment == null)
+                return StatusCode(403, new { message = "Not authorized. You are not enrolled in this course." });
+
+            var mySectionId = enrollment.CourseSectionId;
+            CourseSection? mySectionEntity = null;
+            if (mySectionId.HasValue)
+            {
+                mySectionEntity = await _db.CourseSections
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.Id == mySectionId.Value && s.CourseId == courseId);
+            }
+
+            var sectionStudents = new List<StudentCourseViewStudentDto>();
+            if (mySectionId.HasValue)
+            {
+                sectionStudents = await _db.CourseEnrollments
+                    .Include(e => e.Student).ThenInclude(s => s.User)
+                    .Where(e => e.CourseId == courseId && e.CourseSectionId == mySectionId.Value)
+                    .OrderBy(e => e.Student.User.Name)
+                    .AsNoTracking()
+                    .Select(e => new StudentCourseViewStudentDto
+                    {
+                        Id = e.StudentId,
+                        Name = e.Student.User != null ? e.Student.User.Name : string.Empty,
+                        Email = e.Student.User != null ? e.Student.User.Email : string.Empty,
+                        SectionId = mySectionId.Value
+                    })
+                    .ToListAsync();
+            }
+
+            var projectsQuery = _db.CourseProjects
+                .Include(p => p.CourseProjectSections)
+                .Where(p => p.CourseId == courseId);
+
+            if (mySectionId.HasValue)
+            {
+                projectsQuery = projectsQuery.Where(p =>
+                    p.ApplyToAllSections ||
+                    p.CourseProjectSections.Any(ps => ps.CourseSectionId == mySectionId.Value));
+            }
+            else
+            {
+                projectsQuery = projectsQuery.Where(p => p.ApplyToAllSections);
+            }
+
+            var projectEntities = await projectsQuery
+                .OrderByDescending(p => p.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var projects = projectEntities
+                .Select(p => new StudentCourseViewProjectDto
+                {
+                    Id = p.Id,
+                    Title = p.Title,
+                    Description = p.Description,
+                    ApplyToAllSections = p.ApplyToAllSections,
+                    SectionIds = p.CourseProjectSections
+                        .Select(ps => ps.CourseSectionId)
+                        .Distinct()
+                        .ToList()
+                })
+                .ToList();
+
+            StudentCourseViewSectionDto? mySectionDto = null;
+            if (mySectionEntity != null)
+            {
+                var days = ParseDays(mySectionEntity.Days);
+                var dayLabel = days.Count > 0 ? string.Join(", ", days) : "Schedule not specified";
+                var from = FormatTimeOnly(mySectionEntity.TimeFrom);
+                var to = FormatTimeOnly(mySectionEntity.TimeTo);
+                var schedule = !string.IsNullOrWhiteSpace(from) && !string.IsNullOrWhiteSpace(to)
+                    ? $"{dayLabel} · {from} - {to}"
+                    : dayLabel;
+
+                mySectionDto = new StudentCourseViewSectionDto
+                {
+                    Id = mySectionEntity.Id,
+                    Name = mySectionEntity.Name,
+                    Schedule = schedule,
+                    Capacity = mySectionEntity.Capacity
+                };
+            }
+
+            var response = new StudentCourseViewResponseDto
+            {
+                Course = new StudentCourseViewCourseDto
+                {
+                    Id = course.Id,
+                    Name = course.Name,
+                    Code = course.Code,
+                    Semester = course.Semester,
+                    DoctorName = course.Doctor?.User?.Name ?? string.Empty
+                },
+                MySection = mySectionDto,
+                Students = sectionStudents,
+                Projects = projects
+            };
+
+            return Ok(response);
+        }
+
+        // =====================================================================
         // POST /api/courses/{courseId}/students   ── DEPRECATED / DISABLED ──
         //
         // Students are no longer added at the course level. Enrollment is now

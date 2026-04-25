@@ -24,6 +24,7 @@ import CourseWorkspacePage from "./pages/courses/CourseWorkspacePage";
 import SectionStudentsPage from "./pages/courses/SectionStudentsPage";
 import CourseProjectCreatePage from "./pages/courses/CourseProjectCreatePage";
 import ProjectTeamsPage from "./pages/courses/ProjectTeamsPage";
+import StudentCoursesPage from "./pages/courses/StudentCoursesPage";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token')
@@ -127,6 +128,13 @@ function ProjectTeamsDoctorRoute() {
     return <Navigate to="/" replace />;
 }
 
+function StudentCoursesRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentCoursesPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 export default function App() {
     return (
         <ToastProvider>
@@ -142,6 +150,8 @@ export default function App() {
                     <Route path="/dashboard" element={<ProtectedRoute><StudentDashboardRoute /></ProtectedRoute>} />
                     <Route path="/profile" element={<ProtectedRoute><ProfileRoute /></ProtectedRoute>} />
                     <Route path="/edit-profile" element={<ProtectedRoute><EditProfileRoute /></ProtectedRoute>} />
+                    <Route path="/student/courses" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
+                    <Route path="/student/courses/:courseId" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
 
                     {/* Protected – Doctor */}
                     <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardRoute /></ProtectedRoute>} />

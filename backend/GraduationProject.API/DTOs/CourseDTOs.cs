@@ -347,4 +347,50 @@ namespace GraduationProject.API.DTOs
         public string? FileUrl { get; set; }
         public string? FileName { get; set; }
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    // STUDENT COURSE VIEW (GET /courses/{courseId}/student-view)
+    // ══════════════════════════════════════════════════════════════════
+
+    public class StudentCourseViewResponseDto
+    {
+        public StudentCourseViewCourseDto Course { get; set; } = new();
+        public StudentCourseViewSectionDto? MySection { get; set; }
+        public List<StudentCourseViewStudentDto> Students { get; set; } = new();
+        public List<StudentCourseViewProjectDto> Projects { get; set; } = new();
+    }
+
+    public class StudentCourseViewCourseDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string? Semester { get; set; }
+        public string DoctorName { get; set; } = string.Empty;
+    }
+
+    public class StudentCourseViewSectionDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Schedule { get; set; } = string.Empty;
+        public int Capacity { get; set; }
+    }
+
+    public class StudentCourseViewStudentDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public int SectionId { get; set; }
+    }
+
+    public class StudentCourseViewProjectDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public bool ApplyToAllSections { get; set; }
+        public List<int> SectionIds { get; set; } = new();
+    }
 }
