@@ -26,22 +26,53 @@ export default function TeamManagementPage() {
     const parsedTeamId = Number(teamId ?? 0);
     const initialMembers = useMemo(() => teamMembersSeed[parsedTeamId] ?? [], [parsedTeamId]);
     const [members, setMembers] = useState<TeamMember[]>(initialMembers);
+    const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+    const [studentIdInput, setStudentIdInput] = useState("");
+    const [selectedStudent, setSelectedStudent] = useState("");
+    const mockStudents = [
+        { id: "121", name: "Ahmad" },
+        { id: "122", name: "Sara" },
+        { id: "123", name: "Lina" },
+    ];
 
     const handleRemoveMember = (memberId: number) => {
         setMembers((prev) => prev.filter((member) => member.id !== memberId));
     };
 
     const handleAddStudent = () => {
+        setShowAddStudentModal(true);
+    };
+
+    const handleConfirmAddStudent = () => {
+        const typedId = studentIdInput.trim();
+        const pickedStudentId = selectedStudent.trim();
+
+        if (typedId && pickedStudentId) {
+            alert("Please use only one option (ID or select).");
+            return;
+        }
+
+        if (!typedId && !pickedStudentId) {
+            alert("Please enter student ID or select a student.");
+            return;
+        }
+
+        const pickedId = typedId || pickedStudentId;
+        const pickedFromList = mockStudents.find((student) => student.id === pickedId);
         setMembers((prev) => {
             const nextId = prev.reduce((max, current) => Math.max(max, current.id), 0) + 1;
             return [
                 ...prev,
                 {
                     id: nextId,
-                    name: `Student ${nextId}`,
+                    name: pickedFromList?.name ?? `Student ${pickedId}`,
                 },
             ];
         });
+        console.log("Add student:", pickedId);
+        setStudentIdInput("");
+        setSelectedStudent("");
+        setShowAddStudentModal(false);
     };
 
     return (
@@ -104,6 +135,60 @@ export default function TeamManagementPage() {
                     )}
                 </section>
             </div>
+            {showAddStudentModal ? (
+                <div style={S.modalOverlay}>
+                    <div style={S.modalCard}>
+                        <h3 style={S.modalTitle}>Add Student</h3>
+
+                        <input
+                            type="text"
+                            placeholder="Enter student ID"
+                            value={studentIdInput}
+                            onChange={(e) => setStudentIdInput(e.target.value)}
+                            disabled={selectedStudent !== ""}
+                            style={S.modalInput}
+                        />
+
+                        <div style={S.orText}>OR</div>
+
+                        <select
+                            value={selectedStudent}
+                            onChange={(e) => setSelectedStudent(e.target.value)}
+                            disabled={studentIdInput.trim() !== ""}
+                            style={S.modalInput}
+                        >
+                            <option value="">Select student</option>
+                            {mockStudents.map((student) => (
+                                <option key={student.id} value={student.id}>
+                                    {student.name}
+                                </option>
+                            ))}
+                        </select>
+
+                        <div style={S.modalActions}>
+                            <button
+                                type="button"
+                                style={S.modalCancelBtn}
+                                onClick={() => {
+                                    setShowAddStudentModal(false);
+                                    setStudentIdInput("");
+                                    setSelectedStudent("");
+                                }}
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                style={S.modalAddBtn}
+                                onClick={handleConfirmAddStudent}
+                            >
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }
@@ -250,5 +335,79 @@ const S: Record<string, CSSProperties> = {
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
+    },
+    modalOverlay: {
+        position: "fixed",
+        inset: 0,
+        background: "rgba(15,23,42,0.3)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        zIndex: 50,
+    },
+    modalCard: {
+        width: "100%",
+        maxWidth: 400,
+        borderRadius: 14,
+        border: "1px solid #e2e8f0",
+        background: "#fff",
+        padding: 20,
+        boxShadow: "0 16px 40px rgba(15,23,42,0.2)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+    },
+    modalTitle: {
+        margin: 0,
+        fontSize: 18,
+        fontWeight: 800,
+        color: "#111827",
+    },
+    modalInput: {
+        width: "100%",
+        border: "1px solid #cbd5e1",
+        borderRadius: 10,
+        padding: "10px 12px",
+        fontSize: 14,
+        color: "#0f172a",
+        fontFamily: "inherit",
+        boxSizing: "border-box",
+        background: "#fff",
+    },
+    orText: {
+        textAlign: "center",
+        color: "#94a3b8",
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+    },
+    modalActions: {
+        display: "flex",
+        justifyContent: "flex-end",
+        gap: 8,
+        marginTop: 4,
+    },
+    modalCancelBtn: {
+        border: "1px solid #e2e8f0",
+        borderRadius: 10,
+        background: "#fff",
+        color: "#334155",
+        fontSize: 13,
+        fontWeight: 700,
+        padding: "8px 12px",
+        cursor: "pointer",
+        fontFamily: "inherit",
+    },
+    modalAddBtn: {
+        border: "none",
+        borderRadius: 10,
+        background: "#7c3aed",
+        color: "#fff",
+        fontSize: 13,
+        fontWeight: 700,
+        padding: "8px 14px",
+        cursor: "pointer",
+        fontFamily: "inherit",
     },
 };
