@@ -93,6 +93,7 @@ namespace GraduationProject.API.Models
         public ICollection<SectionProjectSetting> ProjectSettings { get; set; } = new List<SectionProjectSetting>();
         public ICollection<CourseProjectSection> CourseProjectSections { get; set; } =
             new List<CourseProjectSection>();
+        public ICollection<SectionChatMessage> ChatMessages { get; set; } = new List<SectionChatMessage>();
     }
 
     // ===========================

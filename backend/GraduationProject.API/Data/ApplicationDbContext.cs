@@ -36,6 +36,7 @@ namespace GraduationProject.API.Data
         public DbSet<CourseTeam> CourseTeams => Set<CourseTeam>();
         public DbSet<CourseTeamMember> CourseTeamMembers => Set<CourseTeamMember>();
         public DbSet<CoursePartnerRequest> CoursePartnerRequests => Set<CoursePartnerRequest>();
+        public DbSet<SectionChatMessage> SectionChatMessages => Set<SectionChatMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -500,6 +501,33 @@ namespace GraduationProject.API.Data
                 e.HasOne(ctm => ctm.Student)
                  .WithMany()
                  .HasForeignKey(ctm => ctm.StudentId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ── SECTION CHAT MESSAGE ──────────────────────────────────────────
+            modelBuilder.Entity<SectionChatMessage>(e =>
+            {
+                e.ToTable("section_chat_messages");
+
+                e.Property(m => m.Text)
+                 .HasColumnName("text")
+                 .HasMaxLength(4000)
+                 .IsRequired();
+
+                // Index for fast history fetch per section ordered by time
+                e.HasIndex(m => new { m.SectionId, m.SentAt })
+                 .HasDatabaseName("ix_section_chat_messages_section_sent");
+
+                // Section deleted → cascade delete its messages
+                e.HasOne(m => m.Section)
+                 .WithMany(s => s.ChatMessages)
+                 .HasForeignKey(m => m.SectionId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                // User deleted → restrict (keep messages, don't cascade)
+                e.HasOne(m => m.Sender)
+                 .WithMany()
+                 .HasForeignKey(m => m.SenderUserId)
                  .OnDelete(DeleteBehavior.Restrict);
             });
 

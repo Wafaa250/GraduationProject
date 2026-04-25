@@ -508,6 +508,7 @@ export const createDoctorCourseProject = async (
         teamSize: body.teamSize,
         applyToAllSections: body.applyToAllSections,
         allowCrossSectionTeams: body.allowCrossSectionTeams,
+        aiMode: body.aiMode,
         sectionIds: body.sectionIds,
     })
     return mapDoctorCourseProject(response.data)
@@ -526,6 +527,7 @@ export const updateDoctorCourseProject = async (
         teamSize: body.teamSize,
         applyToAllSections: body.applyToAllSections,
         allowCrossSectionTeams: body.allowCrossSectionTeams,
+        aiMode: body.aiMode,
         sectionIds: body.sectionIds,
     })
     return mapDoctorCourseProject(response.data)
