@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, BookOpen, FolderKanban, Inbox, Layers, Sparkles, Users } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
@@ -6,12 +6,56 @@ import {
     getCourseById,
     getCourseStudents,
     getEnrolledCourses,
-    normalizeCourseProjectsFromDetail,
     type CourseDetails,
-    type CourseProjectSummary,
     type CourseStudent,
     type EnrolledCourse,
 } from "../../../api/studentCoursesApi";
+
+// ── Project types (matches GET /api/courses/{courseId}/projects response) ──
+type CourseProjectSection = { sectionId: number; sectionName: string };
+type CourseProjectRaw = {
+    // camelCase (when JsonNamingPolicy is set)
+    id?: number; courseId?: number; title?: string; description?: string | null;
+    teamSize?: number; applyToAllSections?: boolean; allowCrossSectionTeams?: boolean;
+    aiMode?: string; createdAt?: string; sections?: CourseProjectSection[];
+    // PascalCase (default ASP.NET without naming policy)
+    Id?: number; CourseId?: number; Title?: string; Description?: string | null;
+    TeamSize?: number; ApplyToAllSections?: boolean; AllowCrossSectionTeams?: boolean;
+    AiMode?: string; CreatedAt?: string; Sections?: CourseProjectSection[];
+};
+
+type CourseProject = {
+    id: number;
+    courseId: number;
+    title: string;
+    description?: string | null;
+    teamSize: number;
+    applyToAllSections: boolean;
+    allowCrossSectionTeams: boolean;
+    aiMode: "doctor" | "student";
+    createdAt: string;
+    sections: CourseProjectSection[];
+};
+
+function normalizeCourseProject(raw: CourseProjectRaw): CourseProject {
+    const aiModeRaw = (raw.aiMode ?? raw.AiMode ?? "doctor").toLowerCase().trim();
+    return {
+        id: raw.id ?? raw.Id ?? 0,
+        courseId: raw.courseId ?? raw.CourseId ?? 0,
+        title: raw.title ?? raw.Title ?? "",
+        description: raw.description ?? raw.Description ?? null,
+        teamSize: raw.teamSize ?? raw.TeamSize ?? 2,
+        applyToAllSections: raw.applyToAllSections ?? raw.ApplyToAllSections ?? false,
+        allowCrossSectionTeams: raw.allowCrossSectionTeams ?? raw.AllowCrossSectionTeams ?? false,
+        aiMode: aiModeRaw === "student" ? "student" : "doctor",
+        createdAt: raw.createdAt ?? raw.CreatedAt ?? "",
+        sections: (raw.sections ?? raw.Sections ?? []).map(s => ({
+            sectionId: (s as { sectionId?: number; SectionId?: number }).sectionId ?? (s as { sectionId?: number; SectionId?: number }).SectionId ?? 0,
+            sectionName: (s as { sectionName?: string; SectionName?: string }).sectionName ?? (s as { sectionName?: string; SectionName?: string }).SectionName ?? "",
+        })),
+    };
+}
+
 import { getCourseId } from "../../../utils/normalize";
 
 function asText(value: unknown, fallback = "—"): string {
@@ -19,8 +63,19 @@ function asText(value: unknown, fallback = "—"): string {
 }
 
 function getStudentProfileIdFromUser(user: unknown): number | null {
-    const obj = user as { studentProfileId?: unknown; StudentProfileId?: unknown };
-    const raw = obj.studentProfileId ?? obj.StudentProfileId;
+    // /api/me returns: { profileId, studentProfileId, ... }
+    // Support all known casing variants to be safe
+    const obj = user as {
+        profileId?: unknown;
+        ProfileId?: unknown;
+        studentProfileId?: unknown;
+        StudentProfileId?: unknown;
+    };
+    const raw =
+        obj.profileId ??
+        obj.ProfileId ??
+        obj.studentProfileId ??
+        obj.StudentProfileId;
     return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
 }
 
@@ -42,7 +97,14 @@ type CourseBundle = {
 };
 
 type CourseTab = "section" | "chat" | "projects";
-type ChatMessage = { text: string; senderId: number | null; time: number };
+type ChatMessage = {
+    id: number;
+    sectionId: number;
+    senderUserId: number;
+    senderName: string;
+    text: string;
+    sentAt: string; // ISO string
+};
 
 export default function StudentCoursesPage() {
     const navigate = useNavigate();
@@ -55,8 +117,10 @@ export default function StudentCoursesPage() {
     const [coursesError, setCoursesError] = useState<string | null>(null);
     const [selectedCourseId, setSelectedCourseId] = useState<number | null>(routeCourseId);
     const [activeTab, setActiveTab] = useState<CourseTab>("section");
-    const [showSectionStudents, setShowSectionStudents] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [chatLoading, setChatLoading] = useState(false);
+    const [chatError, setChatError] = useState<string | null>(null);
+    const [chatSending, setChatSending] = useState(false);
     const [input, setInput] = useState("");
     const [showMembers, setShowMembers] = useState(false);
     const [hoveredCourseId, setHoveredCourseId] = useState<number | null>(null);
@@ -65,6 +129,7 @@ export default function StudentCoursesPage() {
     const [bundle, setBundle] = useState<CourseBundle | null>(null);
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [detailsError, setDetailsError] = useState<string | null>(null);
+    const [allProjects, setAllProjects] = useState<CourseProject[]>([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -97,6 +162,7 @@ export default function StudentCoursesPage() {
     useEffect(() => {
         if (selectedCourseId == null) {
             setBundle(null);
+            setAllProjects([]);
             setDetailsError(null);
             return;
         }
@@ -105,12 +171,14 @@ export default function StudentCoursesPage() {
             setDetailsLoading(true);
             setDetailsError(null);
             try {
-                const [detail, roster] = await Promise.all([
+                const [detail, roster, projectsRes] = await Promise.all([
                     getCourseById(selectedCourseId),
                     getCourseStudents(selectedCourseId),
+                    api.get<CourseProjectRaw[]>(`/courses/${selectedCourseId}/projects`),
                 ]);
                 if (cancelled) return;
                 setBundle({ detail, roster });
+                setAllProjects((projectsRes.data ?? []).map(normalizeCourseProject));
             } catch (err) {
                 if (cancelled) return;
                 console.error(`Failed loading student course details for course ${selectedCourseId}`, err);
@@ -147,12 +215,6 @@ export default function StudentCoursesPage() {
         return myStudent.sectionId ?? myStudent.SectionId ?? null;
     }, [myStudent]);
 
-    useEffect(() => {
-        console.log("user:", user);
-        console.log("courseStudents:", bundle?.roster ?? []);
-        console.log("myStudent:", myStudent);
-        console.log("mySection:", mySectionId);
-    }, [user, bundle, myStudent, mySectionId]);
 
     const mySection = useMemo(() => {
         if (!bundle || mySectionId == null) return null;
@@ -160,26 +222,20 @@ export default function StudentCoursesPage() {
         return sections.find((section) => section.id === mySectionId) ?? null;
     }, [bundle, mySectionId]);
 
-    const courseProjects = useMemo((): CourseProjectSummary[] => {
-        if (!bundle) return [];
-        return normalizeCourseProjectsFromDetail(bundle.detail);
-    }, [bundle]);
-
     const courseStudents = useMemo((): CourseStudent[] => {
         return bundle?.roster ?? [];
     }, [bundle]);
 
-    const mySectionProjects = useMemo((): CourseProjectSummary[] => {
-        if (!bundle) return [];
-        // Fallback: when section is missing, show available course projects.
-        if (mySectionId == null) return courseProjects;
-        const projects = courseProjects;
-        return projects.filter(
-            (project) =>
-                project.applyToAllSections ||
-                project.sections.some((sectionRef) => sectionRef.sectionId === mySectionId),
+    // Filter projects visible to this student's section
+    const mySectionProjects = useMemo((): CourseProject[] => {
+        if (allProjects.length === 0) return [];
+        if (mySectionId == null) return allProjects.filter(p => p.applyToAllSections);
+        return allProjects.filter(
+            (p) =>
+                p.applyToAllSections ||
+                p.sections.some((s) => s.sectionId === mySectionId),
         );
-    }, [bundle, mySectionId, courseProjects]);
+    }, [allProjects, mySectionId]);
 
     const mySectionStudents = useMemo(() => {
         if (!bundle) return [];
@@ -201,8 +257,8 @@ export default function StudentCoursesPage() {
         if (selectedCourseId === courseIdValue) {
             setSelectedCourseId(null);
             setActiveTab("section");
-            setShowSectionStudents(false);
             setMessages([]);
+            setChatError(null);
             setInput("");
             setShowMembers(false);
             navigate("/student/courses");
@@ -211,29 +267,64 @@ export default function StudentCoursesPage() {
         if (selectedCourseId !== courseIdValue) {
             setSelectedCourseId(courseIdValue);
             setActiveTab("section");
-            setShowSectionStudents(false);
             setMessages([]);
+            setChatError(null);
             setInput("");
             setShowMembers(false);
             navigate(`/student/courses/${courseIdValue}`);
         }
     };
 
-    const sendMessage = () => {
+    // ── Derive the current section id from the loaded bundle ────────────────
+    const currentSectionId = useMemo(() => {
+        if (!bundle) return null;
+        // mySection is already resolved; get its id
+        if (!myStudent) return null;
+        return myStudent.sectionId ?? (myStudent as { SectionId?: number }).SectionId ?? null;
+    }, [bundle, myStudent]);
+
+    // ── Fetch messages for the active section ────────────────────────────────
+    const fetchMessages = useCallback(async (sectionId: number) => {
+        setChatLoading(true);
+        setChatError(null);
+        try {
+            const res = await api.get<ChatMessage[]>(`/sections/${sectionId}/chat?limit=100`);
+            setMessages(res.data);
+        } catch (err) {
+            setChatError(parseApiErrorMessage(err));
+        } finally {
+            setChatLoading(false);
+        }
+    }, []);
+
+    // Load messages when switching to chat tab or when section changes
+    useEffect(() => {
+        if (activeTab === "chat" && currentSectionId != null) {
+            void fetchMessages(currentSectionId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, currentSectionId]);
+
+    const sendMessage = async () => {
         const text = input.trim();
-        if (!text) return;
-        setMessages((prev) => [...prev, { text, senderId: authUserId, time: Date.now() }]);
+        if (!text || !currentSectionId || chatSending) return;
         setInput("");
+        setChatSending(true);
+        try {
+            const res = await api.post<ChatMessage>(`/sections/${currentSectionId}/chat`, { text });
+            setMessages((prev) => [...prev, res.data]);
+        } catch (err) {
+            setChatError(parseApiErrorMessage(err));
+            setInput(text); // restore so the user can retry
+        } finally {
+            setChatSending(false);
+        }
     };
 
     useEffect(() => {
         chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }, [messages]);
 
-    useEffect(() => {
-        console.log("courseStudents:", courseStudents);
-        console.log("courseProjects:", courseProjects);
-    }, [courseStudents, courseProjects]);
 
     return (
         <div
@@ -399,72 +490,51 @@ export default function StudentCoursesPage() {
                                                                 Capacity: <strong>{mySection.capacity}</strong>
                                                             </p>
                                                         </div>
-                                                        <button
-                                                            type="button"
-                                                            style={S.aiActionBtn}
-                                                            onClick={() =>
-                                                                setShowSectionStudents((prev) => !prev)
-                                                            }
-                                                        >
-                                                            <Users size={14} />
-                                                            {showSectionStudents
-                                                                ? "Hide Students in My Section"
-                                                                : "Show Students in My Section"}
-                                                        </button>
-                                                        <div
-                                                            style={{
-                                                                maxHeight: showSectionStudents ? 480 : 0,
-                                                                opacity: showSectionStudents ? 1 : 0,
-                                                                overflow: "hidden",
-                                                                transition: "max-height 0.24s ease, opacity 0.18s ease",
-                                                            }}
-                                                        >
-                                                            <div style={S.subCard}>
-                                                                <p style={S.subCardTitle}>Students In My Section</p>
-                                                                {mySectionStudents.length === 0 ? (
-                                                                    <div style={S.emptyState}>
-                                                                        <Users size={20} color="#94a3b8" />
-                                                                        <p style={S.emptyTitle}>
-                                                                            No students found in your section.
-                                                                        </p>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div style={S.list}>
-                                                                        {mySectionStudents.map((student, index) => {
-                                                                            const studentName = asText(
-                                                                                student.name ?? student.Name,
-                                                                                "Student",
-                                                                            );
-                                                                            const emailRaw = student.email ?? student.Email;
-                                                                            const email =
-                                                                                typeof emailRaw === "string" &&
+                                                        <div style={S.subCard}>
+                                                            <p style={S.subCardTitle}>Students in My Section ({mySectionStudents.length})</p>
+                                                            {mySectionStudents.length === 0 ? (
+                                                                <div style={S.emptyState}>
+                                                                    <Users size={20} color="#94a3b8" />
+                                                                    <p style={S.emptyTitle}>
+                                                                        No students found in your section.
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <div style={S.list}>
+                                                                    {mySectionStudents.map((student, index) => {
+                                                                        const studentName = asText(
+                                                                            student.name ?? student.Name,
+                                                                            "Student",
+                                                                        );
+                                                                        const emailRaw = student.email ?? student.Email;
+                                                                        const email =
+                                                                            typeof emailRaw === "string" &&
                                                                                 emailRaw.trim()
-                                                                                    ? emailRaw.trim()
-                                                                                    : null;
-                                                                            return (
-                                                                                <div
-                                                                                    key={`${studentName}-${index}-my-section`}
-                                                                                    style={S.studentRow}
-                                                                                >
-                                                                                    <div style={S.studentAvatar}>
-                                                                                        {studentName.charAt(0).toUpperCase()}
-                                                                                    </div>
-                                                                                    <div style={{ minWidth: 0 }}>
-                                                                                        <p style={S.studentName}>
-                                                                                            {studentName}
-                                                                                        </p>
-                                                                                        {email ? (
-                                                                                            <p style={S.studentEmail}>
-                                                                                                {email}
-                                                                                            </p>
-                                                                                        ) : null}
-                                                                                    </div>
+                                                                                ? emailRaw.trim()
+                                                                                : null;
+                                                                        return (
+                                                                            <div
+                                                                                key={`${studentName}-${index}-my-section`}
+                                                                                style={S.studentRow}
+                                                                            >
+                                                                                <div style={S.studentAvatar}>
+                                                                                    {studentName.charAt(0).toUpperCase()}
                                                                                 </div>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                                                <div style={{ minWidth: 0 }}>
+                                                                                    <p style={S.studentName}>
+                                                                                        {studentName}
+                                                                                    </p>
+                                                                                    {email ? (
+                                                                                        <p style={S.studentEmail}>
+                                                                                            {email}
+                                                                                        </p>
+                                                                                    ) : null}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -523,79 +593,108 @@ export default function StudentCoursesPage() {
                                                     <Users size={16} />
                                                     Chat
                                                 </h3>
-                                                <section style={S.chatMainPanel}>
-                                                    <div style={S.chatHeader}>
-                                                        <p style={S.chatHeaderTitle}>Section Chat</p>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowMembers(true)}
-                                                            style={S.chatMembersBtn}
-                                                        >
-                                                            Members
-                                                        </button>
+
+                                                {currentSectionId == null ? (
+                                                    <div style={S.emptyState}>
+                                                        <Inbox size={20} color="#94a3b8" />
+                                                        <p style={S.emptyTitle}>You need to be assigned to a section to use chat.</p>
                                                     </div>
-                                                    <div style={S.chatMessages}>
-                                                        {messages.length === 0 ? (
-                                                            <div style={S.emptyState}>
-                                                                <Inbox size={20} color="#94a3b8" />
-                                                                <p style={S.emptyTitle}>
-                                                                    Start chatting with your section 👋
-                                                                </p>
+                                                ) : (
+                                                    <section style={S.chatMainPanel}>
+                                                        <div style={S.chatHeader}>
+                                                            <p style={S.chatHeaderTitle}>Section Chat</p>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                                {chatLoading && (
+                                                                    <span style={{ fontSize: 11, color: "#94a3b8" }}>loading…</span>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => void fetchMessages(currentSectionId)}
+                                                                    style={S.chatMembersBtn}
+                                                                    title="Refresh messages"
+                                                                >
+                                                                    ↻
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowMembers(true)}
+                                                                    style={S.chatMembersBtn}
+                                                                >
+                                                                    Members
+                                                                </button>
                                                             </div>
-                                                        ) : (
-                                                            messages.map((msg) => {
-                                                                const mine =
-                                                                    authUserId != null &&
-                                                                    msg.senderId === authUserId;
-                                                                return (
-                                                                    <div
-                                                                        key={`${msg.time}-${msg.text}`}
-                                                                        style={{
-                                                                            ...S.chatRow,
-                                                                            justifyContent: mine
-                                                                                ? "flex-end"
-                                                                                : "flex-start",
-                                                                        }}
-                                                                    >
+                                                        </div>
+                                                        <div style={S.chatMessages}>
+                                                            {chatError ? (
+                                                                <p style={{ ...S.error, padding: "8px 12px" }}>{chatError}</p>
+                                                            ) : messages.length === 0 && !chatLoading ? (
+                                                                <div style={S.emptyState}>
+                                                                    <Inbox size={20} color="#94a3b8" />
+                                                                    <p style={S.emptyTitle}>
+                                                                        Start chatting with your section 👋
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                messages.map((msg) => {
+                                                                    const mine = msg.senderUserId === authUserId;
+                                                                    return (
                                                                         <div
+                                                                            key={msg.id}
                                                                             style={{
-                                                                                ...S.chatBubble,
-                                                                                ...(mine
-                                                                                    ? S.chatBubbleMine
-                                                                                    : S.chatBubbleOther),
+                                                                                ...S.chatRow,
+                                                                                justifyContent: mine ? "flex-end" : "flex-start",
                                                                             }}
                                                                         >
-                                                                            <p style={S.chatText}>{msg.text}</p>
+                                                                            <div style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", gap: 2, maxWidth: "65%" }}>
+                                                                                {!mine && (
+                                                                                    <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", paddingLeft: 4 }}>
+                                                                                        {msg.senderName}
+                                                                                    </span>
+                                                                                )}
+                                                                                <div
+                                                                                    style={{
+                                                                                        ...S.chatBubble,
+                                                                                        ...(mine ? S.chatBubbleMine : S.chatBubbleOther),
+                                                                                    }}
+                                                                                >
+                                                                                    <p style={S.chatText}>{msg.text}</p>
+                                                                                </div>
+                                                                                <span style={{ fontSize: 10, color: "#94a3b8", paddingLeft: 4, paddingRight: 4 }}>
+                                                                                    {new Date(msg.sentAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                                                                                </span>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                );
-                                                            })
-                                                        )}
-                                                        <div ref={chatBottomRef} />
-                                                    </div>
-                                                    <div style={S.chatInputRow}>
-                                                        <input
-                                                            type="text"
-                                                            value={input}
-                                                            onChange={(e) => setInput(e.target.value)}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === "Enter") {
-                                                                    e.preventDefault();
-                                                                    sendMessage();
-                                                                }
-                                                            }}
-                                                            placeholder="Type a message..."
-                                                            style={S.chatInput}
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={sendMessage}
-                                                            style={S.chatSendBtn}
-                                                        >
-                                                            Send
-                                                        </button>
-                                                    </div>
-                                                </section>
+                                                                    );
+                                                                })
+                                                            )}
+                                                            <div ref={chatBottomRef} />
+                                                        </div>
+                                                        <div style={S.chatInputRow}>
+                                                            <input
+                                                                type="text"
+                                                                value={input}
+                                                                onChange={(e) => setInput(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === "Enter") {
+                                                                        e.preventDefault();
+                                                                        void sendMessage();
+                                                                    }
+                                                                }}
+                                                                placeholder="Type a message…"
+                                                                style={S.chatInput}
+                                                                disabled={chatSending}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void sendMessage()}
+                                                                style={{ ...S.chatSendBtn, opacity: chatSending ? 0.6 : 1 }}
+                                                                disabled={chatSending}
+                                                            >
+                                                                {chatSending ? "…" : "Send"}
+                                                            </button>
+                                                        </div>
+                                                    </section>
+                                                )}
                                                 {showMembers ? (
                                                     <div style={S.membersOverlay} onClick={() => setShowMembers(false)}>
                                                         <div style={S.membersModal} onClick={(e) => e.stopPropagation()}>
@@ -659,133 +758,79 @@ export default function StudentCoursesPage() {
                                                         Projects
                                                     </h3>
                                                 </div>
-                                                {mySectionProjects.length === 0 ? (
+
+                                                {detailsLoading ? (
+                                                    <p style={S.note}>Loading projects…</p>
+                                                ) : mySectionProjects.length === 0 ? (
                                                     <div style={S.emptyState}>
                                                         <FolderKanban size={20} color="#94a3b8" />
-                                                        <p style={S.emptyTitle}>
-                                                            No projects have been posted by the doctor yet.
-                                                        </p>
+                                                        <p style={S.emptyTitle}>No projects posted yet.</p>
+                                                        <p style={S.emptyText}>The doctor hasn't added any projects to your section.</p>
                                                     </div>
-                                        ) : (
-                                            <div style={S.list}>
-                                                {mySectionProjects.map((project) => (
-                                                    <div key={`api-${project.id}`} style={S.projectCard}>
-                                                        <p style={S.projectTitle}>{project.title}</p>
-                                                        <p style={S.courseMetaLine}>Team size: {project.teamSize}</p>
-                                                        {project.description ? (
-                                                            <p style={S.projectDesc}>{project.description}</p>
-                                                        ) : null}
-                                                        {(() => {
-                                                            const modeRaw = (
-                                                                project as { teamFormationMode?: string; TeamFormationMode?: string }
-                                                            ).teamFormationMode ??
-                                                                (
-                                                                    project as {
-                                                                        teamFormationMode?: string;
-                                                                        TeamFormationMode?: string;
-                                                                    }
-                                                                ).TeamFormationMode ??
-                                                                "SECTION";
-                                                            const mode =
-                                                                modeRaw === "AI" ||
-                                                                modeRaw === "SECTION" ||
-                                                                modeRaw === "COURSE"
-                                                                    ? modeRaw
-                                                                    : "SECTION";
-                                                            const teamMembersRaw = (
-                                                                project as {
-                                                                    teamMembers?: Array<{ name?: string; Name?: string }>;
-                                                                    TeamMembers?: Array<{ name?: string; Name?: string }>;
-                                                                }
-                                                            ).teamMembers ??
-                                                                (
-                                                                    project as {
-                                                                        teamMembers?: Array<{ name?: string; Name?: string }>;
-                                                                        TeamMembers?: Array<{ name?: string; Name?: string }>;
-                                                                    }
-                                                                ).TeamMembers ??
-                                                                [];
-                                                            const teamMembers = Array.isArray(teamMembersRaw)
-                                                                ? teamMembersRaw
-                                                                : [];
-
-                                                            if (mode === "AI") {
-                                                                return (
-                                                                    <div style={S.projectModeBlock}>
-                                                                        <span style={{ ...S.modeBadge, ...S.modeBadgeAi }}>
-                                                                            <Sparkles size={13} />
-                                                                            Doctor assigned teams
-                                                                        </span>
-                                                                        <p style={S.projectModeTitle}>My Team</p>
-                                                                        {teamMembers.length > 0 ? (
-                                                                            <div style={S.list}>
-                                                                                {teamMembers.map((member, index) => {
-                                                                                    const memberName = asText(
-                                                                                        member.name ?? member.Name,
-                                                                                        "Team member",
-                                                                                    );
-                                                                                    return (
-                                                                                        <div
-                                                                                            key={`${project.id}-member-${index}`}
-                                                                                            style={S.teamMemberRow}
-                                                                                        >
-                                                                                            <div style={S.studentAvatar}>
-                                                                                                {memberName
-                                                                                                    .charAt(0)
-                                                                                                    .toUpperCase()}
-                                                                                            </div>
-                                                                                            <p style={S.studentName}>{memberName}</p>
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
+                                                ) : (
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                                        {mySectionProjects.map((project) => (
+                                                            <div key={project.id} style={S.projectCard}>
+                                                                {/* Header row */}
+                                                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+                                                                    <p style={S.projectTitle}>{project.title}</p>
+                                                                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                                                                        {/* AI mode badge */}
+                                                                        {project.aiMode === "doctor" ? (
+                                                                            <span style={{ ...S.modeBadge, ...S.modeBadgeAi }}>
+                                                                                <Sparkles size={11} />
+                                                                                Doctor assigns
+                                                                            </span>
                                                                         ) : (
-                                                                            <p style={S.projectHintText}>
-                                                                                Your team will be assigned automatically.
-                                                                            </p>
+                                                                            <span style={{ ...S.modeBadge, ...S.modeBadgeSection }}>
+                                                                                <Users size={11} />
+                                                                                Students choose
+                                                                            </span>
+                                                                        )}
+                                                                        {/* Scope badge */}
+                                                                        {project.applyToAllSections ? (
+                                                                            <span style={{ ...S.modeBadge, ...S.modeBadgeCourse }}>All sections</span>
+                                                                        ) : (
+                                                                            <span style={{ ...S.modeBadge, background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0" }}>
+                                                                                My section
+                                                                            </span>
                                                                         )}
                                                                     </div>
-                                                                );
-                                                            }
+                                                                </div>
 
-                                                            if (mode === "COURSE") {
-                                                                return (
-                                                                    <div style={S.projectModeBlock}>
-                                                                        <span style={{ ...S.modeBadge, ...S.modeBadgeCourse }}>
-                                                                            <Users size={13} />
-                                                                            Choose from entire course
-                                                                        </span>
-                                                                        <button type="button" style={S.aiActionBtn}>
-                                                                            <Users size={14} />
-                                                                            Choose Teammates
-                                                                        </button>
-                                                                        <p style={S.projectHintText}>
-                                                                            You can select students from any section in this
-                                                                            course.
-                                                                        </p>
-                                                                    </div>
-                                                                );
-                                                            }
+                                                                {/* Description */}
+                                                                {project.description ? (
+                                                                    <p style={S.projectDesc}>{project.description}</p>
+                                                                ) : null}
 
-                                                            return (
-                                                                <div style={S.projectModeBlock}>
-                                                                    <span style={{ ...S.modeBadge, ...S.modeBadgeSection }}>
-                                                                        <Users size={13} />
-                                                                        Choose from my section
+                                                                {/* Meta */}
+                                                                <div style={{ marginTop: 10, display: "flex", gap: 16, flexWrap: "wrap" as const }}>
+                                                                    <span style={S.projectMetaChip}>
+                                                                        <Users size={12} />
+                                                                        Team size: {project.teamSize}
                                                                     </span>
-                                                                    <button type="button" style={S.aiActionBtn}>
+                                                                    {project.allowCrossSectionTeams && (
+                                                                        <span style={S.projectMetaChip}>
+                                                                            Cross-section teams allowed
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Action */}
+                                                                {project.aiMode === "student" && (
+                                                                    <button type="button" style={{ ...S.aiActionBtn, marginTop: 12 }}>
                                                                         <Users size={14} />
                                                                         Choose Teammates
                                                                     </button>
-                                                                    <p style={S.projectHintText}>
-                                                                        You can only select students from your section.
+                                                                )}
+                                                                {project.aiMode === "doctor" && (
+                                                                    <p style={{ ...S.projectHintText, marginTop: 10 }}>
+                                                                        Your team will be assigned by the doctor.
                                                                     </p>
-                                                                </div>
-                                                            );
-                                                        })()}
+                                                                )}
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
                                                 )}
                                             </>
                                         ) : null}
@@ -928,38 +973,6 @@ const S: Record<string, CSSProperties> = {
         transition: "transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease",
         boxShadow: "0 3px 10px rgba(15,23,42,0.04)",
     },
-    sectionGroupCard: {
-        border: "1px solid #e5e7eb",
-        borderRadius: 12,
-        background: "#fff",
-        padding: "12px 14px",
-        boxShadow: "0 4px 12px rgba(15,23,42,0.04)",
-    },
-    sectionGroupHeader: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 10,
-        marginBottom: 8,
-    },
-    sectionGroupTitle: {
-        margin: 0,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 13,
-        fontWeight: 800,
-        color: "#1f2937",
-    },
-    sectionCountBadge: {
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#6d28d9",
-        background: "#ede9fe",
-        border: "1px solid #ddd6fe",
-        borderRadius: 999,
-        padding: "4px 8px",
-    },
     projectTitle: {
         margin: 0,
         fontSize: 14,
@@ -995,12 +1008,6 @@ const S: Record<string, CSSProperties> = {
     },
     studentEmail: { margin: "4px 0 0", fontSize: 12, color: "#6b7280" },
     projectDesc: { margin: "6px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 },
-    projectModeBlock: {
-        marginTop: 10,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-    },
     modeBadge: {
         display: "inline-flex",
         alignItems: "center",
@@ -1026,28 +1033,23 @@ const S: Record<string, CSSProperties> = {
         background: "#dcfce7",
         border: "1px solid #bbf7d0",
     },
-    projectModeTitle: {
-        margin: 0,
-        fontSize: 12,
-        fontWeight: 800,
-        color: "#374151",
-        letterSpacing: "0.02em",
-        textTransform: "uppercase",
-    },
     projectHintText: {
         margin: 0,
         fontSize: 12,
         color: "#6b7280",
         lineHeight: 1.45,
     },
-    teamMemberRow: {
-        border: "1px solid #e5e7eb",
-        borderRadius: 10,
-        background: "#f8fafc",
-        padding: "8px 10px",
-        display: "flex",
+    projectMetaChip: {
+        display: "inline-flex",
         alignItems: "center",
-        gap: 8,
+        gap: 5,
+        fontSize: 12,
+        fontWeight: 600,
+        color: "#6b7280",
+        background: "#f8fafc",
+        border: "1px solid #e5e7eb",
+        borderRadius: 8,
+        padding: "3px 8px",
     },
     emptyState: {
         marginTop: 16,
@@ -1112,8 +1114,8 @@ const S: Record<string, CSSProperties> = {
         background: "#fff",
         display: "flex",
         flexDirection: "column",
-        minHeight: 0,
-        height: 380,
+        height: 400,
+        overflow: "hidden",
     },
     chatHeader: {
         padding: "10px 12px",
@@ -1126,28 +1128,27 @@ const S: Record<string, CSSProperties> = {
         fontWeight: 800,
         color: "#1f2937",
     },
-    chatHeaderSubTitle: {
-        margin: "4px 0 0",
-        fontSize: 12,
-        color: "#6b7280",
-    },
     chatMessages: {
         flex: 1,
-        overflowY: "auto",
-        padding: 10,
+        overflowY: "auto" as const,
+        overflowX: "hidden" as const,
+        padding: "12px 14px",
         background: "#ffffff",
         display: "flex",
-        flexDirection: "column",
-        gap: 8,
+        flexDirection: "column" as const,
+        gap: 10,
     },
     chatRow: {
         display: "flex",
         width: "100%",
     },
     chatBubble: {
-        maxWidth: "60%",
+        maxWidth: "65%",
+        minWidth: 60,
         borderRadius: 14,
-        padding: "8px 11px",
+        padding: "8px 12px",
+        wordBreak: "break-word",
+        overflowWrap: "break-word",
     },
     chatBubbleMine: {
         background: "#7c3aed",
@@ -1162,9 +1163,10 @@ const S: Record<string, CSSProperties> = {
     chatText: {
         margin: 0,
         fontSize: 13,
-        lineHeight: 1.45,
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
+        lineHeight: 1.5,
+        wordBreak: "break-word" as const,
+        overflowWrap: "break-word" as const,
+        whiteSpace: "normal",
     },
     chatInputRow: {
         display: "flex",
@@ -1271,15 +1273,6 @@ const S: Record<string, CSSProperties> = {
         fontWeight: 700,
         cursor: "pointer",
         fontFamily: "inherit",
-    },
-    manualSelectionLabel: {
-        margin: "10px 0 0",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 12,
-        fontWeight: 700,
-        color: "#6b7280",
     },
 };
 

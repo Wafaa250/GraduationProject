@@ -118,7 +118,7 @@ namespace GraduationProject.API.Controllers
                 .Include(e => e.Course)
                     .ThenInclude(c => c.Doctor)
                     .ThenInclude(d => d.User)
-                .Where(e => e.StudentId == student.Id)
+                .Where(e => e.StudentId == student.Id && e.CourseSectionId != null)
                 .OrderByDescending(e => e.CreatedAt)
                 .AsNoTracking()
                 .ToListAsync();
@@ -167,7 +167,8 @@ namespace GraduationProject.API.Controllers
                 if (student == null)
                     return Forbid();
 
-                var isEnrolled = course.Enrollments.Any(e => e.StudentId == student.Id);
+                // Student must be enrolled AND assigned to a section
+                var isEnrolled = course.Enrollments.Any(e => e.StudentId == student.Id && e.CourseSectionId != null);
                 if (!isEnrolled)
                     return StatusCode(403, new { message = "Not authorized. You are not enrolled in this course." });
             }
@@ -221,7 +222,7 @@ namespace GraduationProject.API.Controllers
                 Semester = course.Semester,
                 UseSharedProjectAcrossSections = course.UseSharedProjectAcrossSections,
                 AllowCrossSectionTeams = course.AllowCrossSectionTeams,
-                StudentCount = course.Enrollments.Count,
+                StudentCount = course.Enrollments.Count(e => e.CourseSectionId != null),
                 TeamCount = course.Teams.Count,
                 SectionCount = course.Sections.Count,
                 CreatedAt = course.CreatedAt,
@@ -370,17 +371,19 @@ namespace GraduationProject.API.Controllers
         // API stability — old clients receive a clear 400 explaining where to
         // send the request. Existing CourseEnrollment rows are untouched.
         // =====================================================================
+        // =====================================================================
+        // POST /api/courses/{courseId}/students   ── REMOVED ──
+        // Course-level enrollment without a section is no longer supported.
+        // Enrollment is section-first: create a section, then add students to it.
+        // =====================================================================
         [HttpPost("{courseId:int}/students")]
-        public async Task<IActionResult> AddStudents(int courseId, [FromBody] AddStudentsDto dto)
+        public IActionResult AddStudents(int courseId)
         {
-            var (_, guardResult) = await GetCourseWithDoctorGuardAsync(courseId);
-            if (guardResult != null) return guardResult;
-
-            return BadRequest(new
+            return StatusCode(410, new
             {
-                message = "Course-level enrollment is disabled. " +
-                          "Create a section first, then use " +
-                          "POST /api/courses/sections/{sectionId}/students to enrol students."
+                message = "Direct course enrollment is no longer supported. " +
+                          "Students must be added to a section. " +
+                          "Use: POST /api/courses/sections/{sectionId}/students"
             });
         }
 
@@ -403,6 +406,8 @@ namespace GraduationProject.API.Controllers
 
             if (enrollment == null)
                 return NotFound(new { message = "Student is not enrolled in this course." });
+
+            // Note: removal works regardless of whether the student has a section assigned.
 
             // ── Remove from any team in this course ───────────────────────────
             await RemoveStudentFromCourseTeamsAsync(courseId, studentId);
@@ -471,7 +476,7 @@ namespace GraduationProject.API.Controllers
                 if (student == null) return Forbid();
 
                 var isEnrolled = await _db.CourseEnrollments
-                    .AnyAsync(e => e.CourseId == courseId && e.StudentId == student.Id);
+                    .AnyAsync(e => e.CourseId == courseId && e.StudentId == student.Id && e.CourseSectionId != null);
 
                 if (!isEnrolled)
                     return StatusCode(403, new { message = "Not authorized. You are not enrolled in this course." });
@@ -481,11 +486,12 @@ namespace GraduationProject.API.Controllers
                 return StatusCode(403, new { message = "Not authorized." });
             }
 
-            // ── Fetch enrollments with student data (and section) ─────────────
+            // ── Fetch enrollments with student data (section required) ──────
+            // Only students assigned to a section are considered enrolled.
             var enrollments = await _db.CourseEnrollments
                 .Include(e => e.Student).ThenInclude(s => s.User)
                 .Include(e => e.Section)
-                .Where(e => e.CourseId == courseId)
+                .Where(e => e.CourseId == courseId && e.CourseSectionId != null)
                 .OrderBy(e => e.Student.User.Name)
                 .AsNoTracking()
                 .ToListAsync();
@@ -906,7 +912,7 @@ namespace GraduationProject.API.Controllers
                 if (student == null) return Forbid();
 
                 var isEnrolled = await _db.CourseEnrollments
-                    .AnyAsync(e => e.CourseId == section.CourseId && e.StudentId == student.Id);
+                    .AnyAsync(e => e.CourseId == section.CourseId && e.StudentId == student.Id && e.CourseSectionId != null);
 
                 if (!isEnrolled)
                     return StatusCode(403, new { message = "Not authorized. You are not enrolled in this course." });
