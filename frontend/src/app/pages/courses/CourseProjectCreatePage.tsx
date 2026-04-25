@@ -107,7 +107,7 @@ export default function CourseProjectCreatePage() {
                     ? []
                     : [Number(sectionId)].filter((n) => Number.isFinite(n) && n > 0);
 
-                const created = await createDoctorCourseProject(backendCourseId, {
+                const newProject = await createDoctorCourseProject(backendCourseId, {
                     title: t,
                     description: abstract.trim(),
                     teamSize: ts,
@@ -116,12 +116,12 @@ export default function CourseProjectCreatePage() {
                     aiMode: aiMode,
                     sectionIds: selectedSectionIds,
                 });
-                if (aiMode === "doctor") {
-                    navigate(`/courses/${courseId}/projects/${created.id}/teams`, {
-                        state: { projectName: t, projectId: created.id },
-                    });
-                    return;
+                if (newProject.aiMode === "doctor") {
+                    navigate(`/doctor/projects/${newProject.id}/teams`);
+                } else {
+                    navigate(`/courses/${courseId}`);
                 }
+                return;
             } catch (err) {
                 showToast(parseApiErrorMessage(err), "error");
                 setSubmitting(false);

@@ -837,11 +837,17 @@ export default function CourseWorkspacePage() {
                                             {isReal
                                                 ? (apiProjects as DoctorCourseProject[]).map((project) => {
                                                     console.log("RENDER PROJECT", project);
+                                                    const isDoctorAssignedProject = isDoctor && project.aiMode === "doctor";
                                                     return (
                                                     <li key={project.id}>
                                                         <div
-                                                            style={{ ...card, width: "100%", padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8, textAlign: "left", cursor: "default", fontFamily: "inherit", border: `1px solid ${dash.border}`, transition: "transform 0.12s ease, box-shadow 0.12s ease" }}
+                                                            style={{ ...card, width: "100%", padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8, textAlign: "left", cursor: isDoctorAssignedProject ? "pointer" : "default", fontFamily: "inherit", border: `1px solid ${dash.border}`, transition: "transform 0.12s ease, box-shadow 0.12s ease" }}
                                                             className="dd-course-card-btn"
+                                                            onClick={() => {
+                                                                if (isDoctorAssignedProject) {
+                                                                    navigate(`/doctor/projects/${project.id}/teams`);
+                                                                }
+                                                            }}
                                                         >
                                                             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text, lineHeight: 1.3 }}>
                                                                 {project.title}
