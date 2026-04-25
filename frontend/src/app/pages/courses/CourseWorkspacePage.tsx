@@ -29,7 +29,13 @@ import { useToast } from "../../../context/ToastContext";
 
 type WorkspaceTab = "sections" | "projects" | "settings";
 
-type WorkspaceSection = NewSectionPayload & { id: string };
+type SectionStudent = {
+    id: string;
+    name: string;
+    email?: string;
+};
+
+type WorkspaceSection = NewSectionPayload & { id: string; students?: SectionStudent[] };
 
 // WorkspaceProject is now the real API type for numeric courseIds.
 // For temp courses it falls back to the local draft shape.
@@ -191,12 +197,35 @@ function readJsonStorage<T>(key: string | null, fallback: T): T {
     }
 }
 
+function normalizeSectionStudents(raw: unknown): SectionStudent[] {
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .map((item, index) => {
+            const student = item as Record<string, unknown>;
+            const nameRaw =
+                student.name ??
+                student.Name ??
+                student.fullName ??
+                student.FullName ??
+                student.studentName ??
+                student.StudentName;
+            const emailRaw = student.email ?? student.Email;
+            const idRaw = student.id ?? student.Id ?? student.studentId ?? student.StudentId ?? index;
+            const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+            if (!name) return null;
+            const email = typeof emailRaw === "string" && emailRaw.trim() ? emailRaw.trim() : undefined;
+            return { id: String(idRaw), name, email };
+        })
+        .filter((student): student is SectionStudent => student !== null);
+}
+
 export default function CourseWorkspacePage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { courseId } = useParams<{ courseId: string }>();
     const [activeTab, setActiveTab] = useState<WorkspaceTab>("sections");
     const [sections, setSections] = useState<WorkspaceSection[]>([]);
+    const [openedSectionId, setOpenedSectionId] = useState<string | null>(null);
     const [projects, setProjects] = useState<WorkspaceProject[]>([]);
     const [apiProjects, setApiProjects] = useState<DoctorCourseProject[]>([]);
     const [showCreateSection, setShowCreateSection] = useState(false);
@@ -260,6 +289,7 @@ export default function CourseWorkspacePage() {
                         timeFrom: s.timeFrom ?? "",
                         timeTo: s.timeTo ?? "",
                         capacity: s.capacity,
+                        students: normalizeSectionStudents((s as unknown as { students?: unknown }).students),
                     })),
                 );
             })
@@ -354,6 +384,7 @@ export default function CourseWorkspacePage() {
                     timeFrom: created.timeFrom ?? "",
                     timeTo: created.timeTo ?? "",
                     capacity: created.capacity,
+                    students: normalizeSectionStudents((created as unknown as { students?: unknown }).students),
                 },
             ]);
             setShowCreateSection(false);
@@ -575,6 +606,11 @@ export default function CourseWorkspacePage() {
                                     }}
                                 >
                                     {sections.map((s) => (
+                                        (() => {
+                                            const students = s.students ?? [];
+                                            const hasStudents = students.length > 0;
+                                            const isOpen = openedSectionId === s.id;
+                                            return (
                                         <li
                                             key={s.id}
                                             style={{
@@ -635,8 +671,66 @@ export default function CourseWorkspacePage() {
                                                     <Users size={16} />
                                                     Manage Students
                                                 </button>
+                                                {hasStudents ? (
+                                                    <button
+                                                        type="button"
+                                                        style={S.secondaryBtn}
+                                                        onClick={() =>
+                                                            setOpenedSectionId((prev) => (prev === s.id ? null : s.id))
+                                                        }
+                                                    >
+                                                        <Users size={16} />
+                                                        {isOpen ? "Hide Students" : "View Students"}
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                            <div
+                                                style={{
+                                                    maxHeight: isOpen ? 1000 : 0,
+                                                    opacity: isOpen ? 1 : 0,
+                                                    overflow: "hidden",
+                                                    transition: "max-height 0.25s ease, opacity 0.2s ease",
+                                                }}
+                                            >
+                                                {hasStudents ? (
+                                                    <div
+                                                        style={{
+                                                            border: `1px solid ${dash.border}`,
+                                                            borderRadius: 12,
+                                                            background: dash.surface,
+                                                            padding: "10px 12px",
+                                                        }}
+                                                    >
+                                                        {students.map((student, index) => (
+                                                            <div
+                                                                key={student.id}
+                                                                style={{
+                                                                    padding: "10px 6px",
+                                                                    borderBottom:
+                                                                        index < students.length - 1
+                                                                            ? `1px solid ${dash.border}`
+                                                                            : "none",
+                                                                    display: "flex",
+                                                                    flexDirection: "column",
+                                                                    gap: 2,
+                                                                }}
+                                                            >
+                                                                <span style={{ fontSize: 13, fontWeight: 700, color: dash.text }}>
+                                                                    {student.name}
+                                                                </span>
+                                                                {student.email ? (
+                                                                    <span style={{ fontSize: 12, color: dash.subtle }}>
+                                                                        {student.email}
+                                                                    </span>
+                                                                ) : null}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </li>
+                                            );
+                                        })()
                                     ))}
                                 </ul>
                             ) : !showCreateSection ? (

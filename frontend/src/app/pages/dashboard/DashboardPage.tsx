@@ -699,8 +699,9 @@ export default function DashboardPage() {
             setCtDetailsError("You are not allowed to access this course");
             showToast("You are not allowed to access this course", "error");
           } else {
-            setCtDetailsError("Unexpected error while loading course");
-            showToast("Unexpected error while loading course", "error");
+            console.error("Failed to load selected course teams details", err);
+            setCtDetailsError("We could not load this course right now. Please try again.");
+            showToast("We could not load this course right now. Please try again.", "error");
           }
         }
       } finally {
@@ -3391,7 +3392,7 @@ export default function DashboardPage() {
               </p>
               <button
                 type="button"
-                onClick={() => setCourseTeamsModalOpen(true)}
+                onClick={() => navigate("/student/courses")}
                 style={{
                   width: "100%",
                   marginTop: "auto",
