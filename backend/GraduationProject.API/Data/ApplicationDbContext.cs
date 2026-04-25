@@ -514,17 +514,14 @@ namespace GraduationProject.API.Data
                  .HasMaxLength(4000)
                  .IsRequired();
 
-                // Index for fast history fetch per section ordered by time
                 e.HasIndex(m => new { m.SectionId, m.SentAt })
                  .HasDatabaseName("ix_section_chat_messages_section_sent");
 
-                // Section deleted → cascade delete its messages
                 e.HasOne(m => m.Section)
                  .WithMany(s => s.ChatMessages)
                  .HasForeignKey(m => m.SectionId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-                // User deleted → restrict (keep messages, don't cascade)
                 e.HasOne(m => m.Sender)
                  .WithMany()
                  .HasForeignKey(m => m.SenderUserId)

@@ -47,6 +47,7 @@ builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
 builder.Services.AddHttpClient<IAiPartnerRecommendationService, OpenAiPartnerRecommendationService>();
+builder.Services.AddHttpClient<IAiTeamFormationService, OpenAiTeamFormationService>();
 
 // ===========================
 // CORS - ✅ مرة وحدة بس
@@ -65,15 +66,7 @@ builder.Services.AddCors(options =>
 // ===========================
 // CONTROLLERS + SWAGGER
 // ===========================
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        // Return camelCase JSON from all endpoints (matches frontend expectations)
-        options.JsonSerializerOptions.PropertyNamingPolicy =
-            System.Text.Json.JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.DictionaryKeyPolicy =
-            System.Text.Json.JsonNamingPolicy.CamelCase;
-    });
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

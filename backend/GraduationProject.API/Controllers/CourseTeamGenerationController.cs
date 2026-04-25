@@ -30,13 +30,16 @@ namespace GraduationProject.API.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly IAiPartnerRecommendationService _ai;
+        private readonly IAiTeamFormationService _teamAi;
 
         public CourseTeamGenerationController(
             ApplicationDbContext db,
-            IAiPartnerRecommendationService ai)
+            IAiPartnerRecommendationService ai,
+            IAiTeamFormationService teamAi)
         {
             _db = db;
             _ai = ai;
+            _teamAi = teamAi;
         }
 
         // =====================================================================
@@ -130,124 +133,118 @@ namespace GraduationProject.API.Controllers
                     .ToList();
             }
 
-            // ── 6. AI ranking — use complementary mode for team formation ─────
-            // We pick the first student as the "anchor" and rank everyone else.
-            // Then we use a greedy grouping algorithm to form balanced teams.
-            var anchor = profiles[0];
-            var aiAnchor = new AiPartnerCurrentStudent
+            // ── 6. Build AI request ───────────────────────────────────────────
+            var aiRequest = new AiTeamFormationRequest
             {
-                StudentId = anchor.Id,
-                Name = anchor.User?.Name ?? string.Empty,
-                Skills = skillsMap.GetValueOrDefault(anchor.Id, new List<string>()),
-                Major = anchor.Major ?? string.Empty,
-                Bio = anchor.Bio ?? string.Empty
-            };
-
-            var aiCandidates = profiles
-                .Where(p => p.Id != anchor.Id)
-                .Select(p => new AiPartnerCandidate
+                ProjectTitle = project.Title,
+                ProjectDescription = project.Description,
+                TeamSize = teamSize,
+                Students = profiles.Select(p => new AiTeamStudent
                 {
                     StudentId = p.Id,
                     Name = p.User?.Name ?? string.Empty,
                     Skills = skillsMap.GetValueOrDefault(p.Id, new List<string>()),
                     Major = p.Major ?? string.Empty,
-                    Bio = p.Bio ?? string.Empty
-                }).ToList();
+                    Bio = p.Bio ?? string.Empty,
+                }).ToList()
+            };
 
-            // Score map: studentId → matchScore (0-100)
-            var scoreMap = new Dictionary<int, int>();
-            scoreMap[anchor.Id] = 100; // anchor always scores 100 vs itself
+            // ── 7. Call OpenAI team formation service ─────────────────────────
+            var aiTeams = await _teamAi.FormTeamsAsync(aiRequest);
 
-            if (aiCandidates.Count > 0)
+            // Profle lookup map
+            var profileMap = profiles.ToDictionary(p => p.Id);
+
+            List<List<StudentProfile>> teams;
+
+            if (aiTeams != null && aiTeams.Count > 0)
             {
-                var aiResults = await _ai.RankPartnersAsync(aiAnchor, aiCandidates, "complementary");
+                // ── AI success: use AI grouping ───────────────────────────────
+                teams = new List<List<StudentProfile>>();
+                var assignedIds = new HashSet<int>();
 
-                if (aiResults != null && aiResults.Count > 0)
+                foreach (var aiTeam in aiTeams.OrderBy(t => t.TeamIndex))
                 {
-                    var aiMap = aiResults.ToDictionary(r => r.StudentId, r => r.MatchScore);
-                    foreach (var c in aiCandidates)
-                        scoreMap[c.StudentId] = aiMap.TryGetValue(c.StudentId, out var s) ? s : 50;
-                }
-                else
-                {
-                    // Fallback: skill-count-based complementary scoring
-                    var anchorSkills = skillsMap.GetValueOrDefault(anchor.Id, new List<string>());
-                    foreach (var c in aiCandidates)
+                    var group = new List<StudentProfile>();
+                    foreach (var sid in aiTeam.StudentIds)
                     {
-                        var cSkills = skillsMap.GetValueOrDefault(c.StudentId, new List<string>());
-                        var unique = cSkills.Except(anchorSkills, StringComparer.OrdinalIgnoreCase).Count();
-                        scoreMap[c.StudentId] = cSkills.Count == 0
-                            ? 10
-                            : (int)Math.Round((double)unique / cSkills.Count * 100);
+                        if (profileMap.TryGetValue(sid, out var prof) && assignedIds.Add(sid))
+                            group.Add(prof);
+                    }
+                    if (group.Count > 0)
+                        teams.Add(group);
+                }
+
+                // Absorb any students the AI missed (shouldn't happen but just in case)
+                var unassigned = profiles.Where(p => !assignedIds.Contains(p.Id)).ToList();
+                if (unassigned.Count > 0)
+                {
+                    var weakest = teams.OrderBy(t => t.Count).FirstOrDefault();
+                    if (weakest != null)
+                        foreach (var s in unassigned) weakest.Add(s);
+                    else
+                        teams.Add(unassigned);
+                }
+            }
+            else
+            {
+                // ── Fallback: skill-overlap greedy grouping ───────────────────
+                var scoreMap = new Dictionary<int, int>();
+                foreach (var p in profiles)
+                {
+                    var mySkills = skillsMap.GetValueOrDefault(p.Id, new List<string>());
+                    // Score = unique skills count (students with more diverse skills first)
+                    scoreMap[p.Id] = mySkills.Count;
+                }
+
+                var ranked = profiles
+                    .OrderByDescending(p => scoreMap.GetValueOrDefault(p.Id, 0))
+                    .ThenBy(p => p.User?.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var fullTeamCount = ranked.Count / teamSize;
+                var remainder = ranked.Count % teamSize;
+                var teamCount = fullTeamCount > 0 ? fullTeamCount : 1;
+
+                teams = new List<List<StudentProfile>>();
+                for (var i = 0; i < teamCount; i++) teams.Add(new List<StudentProfile>());
+
+                var mainStudents = ranked.Take(teamCount * teamSize).ToList();
+                for (var i = 0; i < mainStudents.Count; i++)
+                    teams[i % teamCount].Add(mainStudents[i]);
+
+                if (remainder > 0)
+                {
+                    var leftoverStudents = ranked.Skip(teamCount * teamSize).ToList();
+                    foreach (var leftover in leftoverStudents)
+                    {
+                        var weakestTeam = teams.OrderBy(t => t.Count).First();
+                        weakestTeam.Add(leftover);
                     }
                 }
             }
 
-            // ── 7. Greedy team formation ──────────────────────────────────────
-            // Sort students by AI score descending (complementary skills first).
-            // Use interleaving so each team gets a mix of skill levels:
-            //   rank 1, rank (teamSize+1), ... → Team 1
-            //   rank 2, rank (teamSize+2), ... → Team 2
-            //
-            // Remainder handling (odd numbers):
-            //   Instead of leaving a student alone in a tiny team, we find the
-            //   "weakest" team (lowest average matchScore) and add the leftover
-            //   student to it. The AI already ranked the leftover student, so
-            //   this keeps the most complementary pairing.
-            var ranked = profiles
-                .OrderByDescending(p => scoreMap.GetValueOrDefault(p.Id, 50))
-                .ThenBy(p => p.User?.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            // Determine how many full teams we need — use Floor so we never
-            // create a team of 1 (the remainder goes into an existing team).
-            var fullTeamCount = ranked.Count / teamSize;
-            var remainder = ranked.Count % teamSize;
-
-            // If everyone fits perfectly, teamCount = fullTeamCount.
-            // If there is a remainder, we still use fullTeamCount teams and
-            // absorb the extra student(s) into the weakest team(s).
-            var teamCount = fullTeamCount > 0 ? fullTeamCount : 1;
-
-            var teams = new List<List<StudentProfile>>();
-            for (var i = 0; i < teamCount; i++)
-                teams.Add(new List<StudentProfile>());
-
-            // Fill teams by interleaving ranked students (skip remainder slots).
-            var mainStudents = ranked.Take(teamCount * teamSize).ToList();
-            for (var i = 0; i < mainStudents.Count; i++)
-                teams[i % teamCount].Add(mainStudents[i]);
-
-            // Absorb remainder students into the weakest team(s).
-            // "Weakest" = lowest average matchScore among current members.
-            if (remainder > 0)
-            {
-                var leftoverStudents = ranked.Skip(teamCount * teamSize).ToList();
-                foreach (var leftover in leftoverStudents)
-                {
-                    // Find the team with the lowest average score
-                    var weakestTeam = teams
-                        .OrderBy(t => t.Count == 0
-                            ? 0
-                            : t.Average(p => scoreMap.GetValueOrDefault(p.Id, 50)))
-                        .First();
-                    weakestTeam.Add(leftover);
-                }
-            }
-
             // ── 8. Build response ─────────────────────────────────────────────
+            // Build aiReason map from AI result (if available)
+            var reasonMap = aiTeams?.SelectMany(t =>
+                t.StudentIds.Select(sid => new { sid, t.Reason }))
+                .GroupBy(x => x.sid)
+                .ToDictionary(g => g.Key, g => g.First().Reason)
+                ?? new Dictionary<int, string>();
+
             var result = teams
                 .Where(t => t.Count > 0)
                 .Select((t, idx) => new
                 {
                     teamIndex = idx + 1,
                     memberCount = t.Count,
+                    teamReason = aiTeams != null ? (aiTeams.ElementAtOrDefault(idx)?.Reason ?? string.Empty) : string.Empty,
                     members = t.Select(p => new
                     {
                         studentId = p.Id,
                         userId = p.UserId,
                         name = p.User?.Name ?? string.Empty,
-                        matchScore = scoreMap.GetValueOrDefault(p.Id, 50),
+                        matchScore = 0, // score is now a team-level concept, not per-student
                         skills = skillsMap.GetValueOrDefault(p.Id, new List<string>())
                     }).ToList()
                 }).ToList();
@@ -261,5 +258,164 @@ namespace GraduationProject.API.Controllers
                 teams = result
             });
         }
+
+        // =====================================================================
+        // POST /api/courses/{courseId}/projects/{projectId}/save-teams
+        //
+        // Persists AI-generated teams to the DB.
+        // Body: { teams: [ { members: [ { studentId, userId } ] } ] }
+        //
+        // - Creates one CourseTeam per group.
+        // - First member becomes the leader.
+        // - Idempotent: deletes any existing teams for this project before saving.
+        // - Requires a CourseProjectSetting row (legacy FK). If none exists,
+        //   creates a minimal one so the FK constraint is satisfied.
+        // =====================================================================
+        [HttpPost("save-teams")]
+        public async Task<IActionResult> SaveTeams(
+            int courseId,
+            int projectId,
+            [FromBody] SaveTeamsDto dto)
+        {
+            // ── 1. Doctor only + ownership ────────────────────────────────────
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can save teams." });
+
+            var userId = AuthorizationHelper.GetUserId(User);
+            var doctor = await _db.DoctorProfiles.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+            if (doctor == null)
+                return StatusCode(403, new { message = "Doctor profile not found." });
+
+            var course = await _db.Courses.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+            if (course == null)
+                return NotFound(new { message = "Course not found." });
+            if (course.DoctorId != doctor.Id)
+                return StatusCode(403, new { message = "You do not own this course." });
+
+            // ── 2. Load the CourseProject ─────────────────────────────────────
+            var project = await _db.CourseProjects.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == projectId && p.CourseId == courseId);
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            if (dto?.Teams == null || dto.Teams.Count == 0)
+                return BadRequest(new { message = "No teams provided." });
+
+            // ── 3. Resolve / create a CourseProjectSetting (legacy FK) ────────
+            var setting = await _db.CourseProjectSettings
+                .FirstOrDefaultAsync(s => s.CourseId == courseId);
+
+            if (setting == null)
+            {
+                setting = new CourseProjectSetting
+                {
+                    CourseId = courseId,
+                    Title = project.Title,
+                    Description = project.Description,
+                    TeamSize = project.TeamSize,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                };
+                _db.CourseProjectSettings.Add(setting);
+                await _db.SaveChangesAsync();
+            }
+
+            // ── 4. Delete existing teams for this project ─────────────────────
+            var existing = await _db.CourseTeams
+                .Include(t => t.Members)
+                .Where(t => t.CourseProjectId == projectId)
+                .ToListAsync();
+
+            if (existing.Count > 0)
+            {
+                _db.CourseTeamMembers.RemoveRange(existing.SelectMany(t => t.Members));
+                _db.CourseTeams.RemoveRange(existing);
+                await _db.SaveChangesAsync();
+            }
+
+            // ── 5. Validate all student IDs exist ─────────────────────────────
+            var allStudentIds = dto.Teams
+                .SelectMany(t => t.Members.Select(m => m.StudentId))
+                .Distinct()
+                .ToList();
+
+            var validProfiles = await _db.StudentProfiles.AsNoTracking()
+                .Where(s => allStudentIds.Contains(s.Id))
+                .Select(s => s.Id)
+                .ToListAsync();
+
+            var invalidIds = allStudentIds.Except(validProfiles).ToList();
+            if (invalidIds.Count > 0)
+                return BadRequest(new { message = $"Unknown student IDs: {string.Join(", ", invalidIds)}" });
+
+            // ── 6. Save new teams ─────────────────────────────────────────────
+            var savedTeams = new List<object>();
+
+            foreach (var teamDto in dto.Teams)
+            {
+                if (teamDto.Members == null || teamDto.Members.Count == 0)
+                    continue;
+
+                var leaderId = teamDto.Members[0].StudentId;
+
+                var team = new CourseTeam
+                {
+                    CourseId = courseId,
+                    ProjectSettingId = setting.Id,
+                    CourseProjectId = projectId,
+                    LeaderStudentId = leaderId,
+                    CreatedAt = DateTime.UtcNow,
+                };
+                _db.CourseTeams.Add(team);
+                await _db.SaveChangesAsync(); // get team.Id
+
+                var members = teamDto.Members.Select(m => new CourseTeamMember
+                {
+                    TeamId = team.Id,
+                    CourseId = courseId,
+                    StudentId = m.StudentId,
+                    ProjectSettingId = setting.Id,
+                    Role = m.StudentId == leaderId ? "leader" : "member",
+                    JoinedAt = DateTime.UtcNow,
+                }).ToList();
+
+                _db.CourseTeamMembers.AddRange(members);
+                await _db.SaveChangesAsync();
+
+                savedTeams.Add(new
+                {
+                    teamId = team.Id,
+                    leaderId = leaderId,
+                    memberCount = members.Count,
+                });
+            }
+
+            return StatusCode(201, new
+            {
+                message = $"{savedTeams.Count} teams saved successfully.",
+                projectId = project.Id,
+                teams = savedTeams,
+            });
+        }
+    }
+
+    // ── DTOs for save-teams ───────────────────────────────────────────────────
+    public class SaveTeamMemberDto
+    {
+        public int StudentId { get; set; }
+        public int UserId { get; set; }
+    }
+
+    public class SaveTeamDto
+    {
+        public List<SaveTeamMemberDto> Members { get; set; } = new();
+    }
+
+    public class SaveTeamsDto
+    {
+        public List<SaveTeamDto> Teams { get; set; } = new();
     }
 }

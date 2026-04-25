@@ -87,19 +87,19 @@ namespace GraduationProject.API.Controllers
 
             var response = new
             {
-                teamId   = team.Id,
+                teamId = team.Id,
                 courseId = team.CourseId,
                 projectSettingId = team.ProjectSettingId,
                 leaderId = team.LeaderStudentId,
-                myRole   = membership.Role,
+                myRole = membership.Role,
                 createdAt = team.CreatedAt,
-                members  = members.Select(m => new
+                members = members.Select(m => new
                 {
                     studentId = m.StudentId,
-                    userId    = m.Student?.UserId ?? 0,
-                    name      = m.Student?.User?.Name ?? string.Empty,
-                    role      = m.Role,
-                    joinedAt  = m.JoinedAt
+                    userId = m.Student?.UserId ?? 0,
+                    name = m.Student?.User?.Name ?? string.Empty,
+                    role = m.Role,
+                    joinedAt = m.JoinedAt
                 }).ToList()
             };
 
@@ -131,27 +131,109 @@ namespace GraduationProject.API.Controllers
 
             var result = teams.Select(t => new
             {
-                teamId           = t.Id,
-                courseId         = t.CourseId,
+                teamId = t.Id,
+                courseId = t.CourseId,
                 projectSettingId = t.ProjectSettingId,
-                projectTitle     = t.ProjectSetting?.Title ?? string.Empty,
-                leaderId         = t.LeaderStudentId,
-                memberCount      = t.Members.Count,
-                createdAt        = t.CreatedAt,
+                projectTitle = t.ProjectSetting?.Title ?? string.Empty,
+                leaderId = t.LeaderStudentId,
+                memberCount = t.Members.Count,
+                createdAt = t.CreatedAt,
                 members = t.Members
                     .OrderBy(m => m.StudentId == t.LeaderStudentId ? 0 : 1)
                     .ThenBy(m => m.JoinedAt)
                     .Select(m => new
                     {
                         studentId = m.StudentId,
-                        userId    = m.Student?.UserId ?? 0,
-                        name      = m.Student?.User?.Name ?? string.Empty,
-                        role      = m.Role,
-                        joinedAt  = m.JoinedAt
+                        userId = m.Student?.UserId ?? 0,
+                        name = m.Student?.User?.Name ?? string.Empty,
+                        role = m.Role,
+                        joinedAt = m.JoinedAt
                     }).ToList()
             }).ToList();
 
             return Ok(result);
+        }
+
+        // =====================================================================
+        // GET /api/courses/projects/{projectId}
+        //
+        // Lookup helper: fetches a CourseProject by its id only.
+        // Used by frontend redirects when courseId is unknown (e.g. dashboard links).
+        // =====================================================================
+        [HttpGet("/api/courses/projects/{projectId:int}")]
+        public async Task<IActionResult> GetProjectById(int projectId)
+        {
+            // Doctor or student must be authenticated; we just return basic info.
+            var project = await _db.CourseProjects
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            return Ok(new
+            {
+                id = project.Id,
+                courseId = project.CourseId,
+                title = project.Title,
+                description = project.Description,
+                teamSize = project.TeamSize,
+                aiMode = project.AiMode,
+            });
+        }
+
+        // =====================================================================
+        // GET /api/courses/{courseId}/projects/{projectId}/saved-teams
+        //
+        // Returns all saved teams for a specific CourseProject.
+        // Doctor only.
+        // =====================================================================
+        [HttpGet("projects/{projectId:int}/saved-teams")]
+        public async Task<IActionResult> GetSavedTeams(int courseId, int projectId)
+        {
+            var (_, error) = await GetCourseWithDoctorGuardAsync(courseId);
+            if (error != null) return error;
+
+            var teams = await _db.CourseTeams
+                .AsNoTracking()
+                .Include(t => t.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
+                .Where(t => t.CourseId == courseId && t.CourseProjectId == projectId)
+                .OrderBy(t => t.CreatedAt)
+                .ToListAsync();
+
+            // Resolve skills for each member
+            var result = new List<object>();
+            foreach (var team in teams)
+            {
+                var membersData = new List<object>();
+                foreach (var m in team.Members.OrderBy(m => m.StudentId == team.LeaderStudentId ? 0 : 1))
+                {
+                    var skills = await SkillHelper.IdsJsonToNames(_db, m.Student?.TechnicalSkills);
+                    membersData.Add(new
+                    {
+                        studentId = m.StudentId,
+                        userId = m.Student?.UserId ?? 0,
+                        name = m.Student?.User?.Name ?? string.Empty,
+                        role = m.Role,
+                        skills = skills,
+                    });
+                }
+                result.Add(new
+                {
+                    teamId = team.Id,
+                    leaderId = team.LeaderStudentId,
+                    memberCount = team.Members.Count,
+                    createdAt = team.CreatedAt,
+                    members = membersData,
+                });
+            }
+
+            return Ok(new
+            {
+                projectId = projectId,
+                teamCount = result.Count,
+                teams = result,
+            });
         }
 
         // =====================================================================
