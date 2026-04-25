@@ -101,6 +101,9 @@ namespace GraduationProject.API.DTOs
         [Required(ErrorMessage = "Faculty is required")]
         public string Faculty { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Department is required")]
+        public string Department { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Specialization is required")]
         public string Specialization { get; set; } = string.Empty;
 
@@ -165,4 +168,19 @@ namespace GraduationProject.API.DTOs
         public string AcademicYear { get; set; } = string.Empty;
         public List<string> Skills { get; set; } = new();
     }
+
+    // ===========================
+    // GOOGLE LOGIN
+    // ===========================
+    public class GoogleLoginDto
+    {
+        // الـ ID Token اللي بيرجع من Google Sign-In على الفرونت
+        [Required(ErrorMessage = "Google token is required")]
+        public string IdToken { get; set; } = string.Empty;
+
+        // اختياري — لو الفرونت أرسل الدور المطلوب ("student" | "doctor")
+        // لو مش موجود نعتبره student افتراضياً
+        public string? Role { get; set; }
+    }
+
 }

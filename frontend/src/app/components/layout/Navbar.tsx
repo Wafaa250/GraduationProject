@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-
+import React from 'react'
 export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
@@ -18,45 +18,34 @@ export function Navbar() {
               />
             </svg>
           </div>
-
           <span className="text-xl font-bold text-slate-800">
             Skill<span className="text-blue-600">Swap</span>
           </span>
         </Link>
 
-        {/* Nav Links */}
-        <div className="hidden md:flex items-center gap-8">
-          {["How It Works", "Features", "For Who", "About"].map((item) => (
-            <a
-              key={item}
-              href="#"
-              className="text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium"
-            >
-              {item}
-            </a>
-          ))}
-        </div>
-
-        {/* CTA */}
+        {/* Actions */}
         <div className="flex items-center gap-3">
+          <a
+            href="#how-it-works"
+            className="hidden md:block text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
+          >
+            How It Works
+          </a>
 
-          {/* Sign In */}
           <Link
             to="/login"
-            className="hidden md:block text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
+            className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors px-4 py-2"
           >
             Sign In
           </Link>
-
-          {/* Get Started */}
           <Link
             to="/register"
             className="text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-blue-200"
           >
-            Get Started
+            Register
           </Link>
-
         </div>
+
       </div>
     </nav>
   );

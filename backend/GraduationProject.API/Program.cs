@@ -1,9 +1,12 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using GraduationProject.API.Data;
+using GraduationProject.API.Middleware;
 using GraduationProject.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,39 +44,40 @@ builder.Services.AddAuthorization();
 // ===========================
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
-
-// File storage — swap implementation here to change storage backend
-// Local disk (current) → later replace with Cloudinary/S3 without touching controllers
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
+builder.Services.AddHttpClient<IAiPartnerRecommendationService, OpenAiPartnerRecommendationService>();
 
 // ===========================
-// CORS - React Frontend
+// CORS - ✅ مرة وحدة بس
 // ===========================
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReact", policy =>
-    {
+    options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins(
                 "http://localhost:3000",
                 "http://localhost:5173"
               )
               .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+              .AllowAnyMethod());
 });
 
 // ===========================
 // CONTROLLERS + SWAGGER
 // ===========================
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Return camelCase JSON from all endpoints (matches frontend expectations)
+        options.JsonSerializerOptions.PropertyNamingPolicy =
+            System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.DictionaryKeyPolicy =
+            System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "SkillSwap API",
-        Version = "v1"
-    });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SkillSwap API", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "Enter: Bearer {token}",
@@ -87,7 +91,11 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id   = "Bearer"
+                }
             },
             Array.Empty<string>()
         }
@@ -97,21 +105,18 @@ builder.Services.AddSwaggerGen(c =>
 // ===========================
 // BUILD
 // ===========================
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod());
-});
-
-
-
-
 var app = builder.Build();
 
-app.UseCors("AllowFrontend");
+// OpenAI: read from appsettings*, user secrets, or environment (e.g. OpenAI__ApiKey → OpenAI:ApiKey).
+if (string.IsNullOrWhiteSpace(app.Configuration["OpenAI:ApiKey"]))
+{
+    var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("OpenAI");
+    log.LogWarning(
+        "OpenAI:ApiKey is not configured. Set it in appsettings.Development.json, user secrets, or environment variable OpenAI__ApiKey. AI ranking will use fallback logic.");
+}
 
+// ✅ CORS أول شي
+app.UseCors("AllowFrontend");
 
 if (app.Environment.IsDevelopment())
 {
@@ -123,12 +128,14 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseCors("AllowReact");
-app.UseStaticFiles(); // serves wwwroot/uploads/* for uploaded project files
+app.UseStaticFiles();
+
+// ✅ Middleware مسجل هون
+app.UseMiddleware<RoleAuthorizationMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseStaticFiles();
 app.MapControllers();
-
-
 
 app.Run();
