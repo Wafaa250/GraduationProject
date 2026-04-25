@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -71,6 +72,45 @@ namespace GraduationProject.API.Controllers
 
             await _db.SaveChangesAsync();
             return Ok(new { message = "Profile updated successfully" });
+        }
+
+        [HttpPut("doctor")]
+        public async Task<IActionResult> UpdateDoctorProfile([FromBody] UpdateDoctorProfileDto dto)
+        {
+            var userId = AuthorizationHelper.GetUserId(User);
+
+            var profile = await _db.DoctorProfiles
+                .Include(d => d.User)
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            if (profile == null)
+                return NotFound(new { message = "Doctor profile not found" });
+
+            // User
+            if (!string.IsNullOrWhiteSpace(dto.FullName))
+                profile.User.Name = dto.FullName;
+
+            // Basic
+            if (dto.Department != null) profile.Department = dto.Department;
+            if (dto.Faculty != null) profile.Faculty = dto.Faculty;
+            if (dto.Specialization != null) profile.Specialization = dto.Specialization;
+
+            // New fields
+            if (dto.YearsOfExperience != null) profile.YearsOfExperience = dto.YearsOfExperience;
+            if (dto.Linkedin != null) profile.Linkedin = dto.Linkedin;
+            if (dto.OfficeHours != null) profile.OfficeHours = dto.OfficeHours;
+
+            if (dto.Bio != null) profile.Bio = dto.Bio;
+            if (dto.ProfilePictureBase64 != null)
+                profile.ProfilePictureBase64 = dto.ProfilePictureBase64;
+
+            // Skills — DB columns are text (JSON string arrays)
+            profile.TechnicalSkills = JsonSerializer.Serialize(dto.TechnicalSkills ?? new List<string>());
+            profile.ResearchSkills = JsonSerializer.Serialize(dto.ResearchSkills ?? new List<string>());
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Doctor profile updated successfully" });
         }
     }
 }

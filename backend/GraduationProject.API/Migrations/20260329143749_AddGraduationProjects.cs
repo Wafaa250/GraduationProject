@@ -6,10 +6,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace GraduationProject.API.Migrations
 {
-    /// <inheritdoc />
     public partial class AddGraduationProjects : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -29,12 +27,7 @@ namespace GraduationProject.API.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_graduation_projects", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_graduation_projects_student_profiles_owner_id",
-                        column: x => x.owner_id,
-                        principalTable: "student_profiles",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
+                    // ❌ حذفنا FK مؤقتًا
                 });
 
             migrationBuilder.CreateTable(
@@ -50,18 +43,15 @@ namespace GraduationProject.API.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_graduation_project_members", x => x.id);
+
                     table.ForeignKey(
                         name: "FK_graduation_project_members_graduation_projects_project_id",
                         column: x => x.project_id,
                         principalTable: "graduation_projects",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_graduation_project_members_student_profiles_student_id",
-                        column: x => x.student_id,
-                        principalTable: "student_profiles",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
+
+                    // ❌ حذفنا FK مع student_profiles مؤقتًا
                 });
 
             migrationBuilder.CreateIndex(
@@ -82,7 +72,6 @@ namespace GraduationProject.API.Migrations
                 unique: true);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

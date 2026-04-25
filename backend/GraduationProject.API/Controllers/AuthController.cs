@@ -104,5 +104,24 @@ namespace GraduationProject.API.Controllers
 
             return Ok(result);
         }
+
+        // =====================================================
+        // POST /api/auth/google
+        // يستقبل Google ID Token من الفرونت ويرجع JWT خاص بنا
+        // =====================================================
+        [HttpPost("google")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var (result, error) = await _authService.GoogleLoginAsync(dto);
+
+            if (error != null)
+                return Unauthorized(new { message = error });
+
+            return Ok(result);
+        }
+
     }
 }

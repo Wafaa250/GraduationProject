@@ -3,13 +3,14 @@ import studentImg from "../../../assets/images/student.jpg";
 import doctorImg from "../../../assets/images/doctor.jpg";
 import companyImg from "../../../assets/images/company.jpg";
 import assocImg from "../../../assets/images/association.jpg";
+
 const userTypes = [
   {
     image: studentImg,
     role: "Students",
     icon: "🎓",
-    description: "Find teammates with complementary skills, join exciting projects, and build your academic portfolio with real collaboration.",
-    perks: ["Skill-based team matching", "Join & publish projects", "Peer reviews & feedback"],
+    want: "Find teammates and projects that match their skills.",
+    aiHelp: "AI analyzes their skill profile and suggests compatible teammates, fitting projects, and supervisors — based on requirements, not friendships.",
     gradient: "from-blue-600 to-blue-700",
     light: "bg-blue-50",
     accent: "text-blue-600",
@@ -17,10 +18,10 @@ const userTypes = [
   },
   {
     image: doctorImg,
-    role: "Doctors & Supervisors",
+    role: "Supervisors",
     icon: "🏫",
-    description: "Supervise the right student projects based on your expertise. Discover talented students ready to work on meaningful research.",
-    perks: ["Tailored student discovery", "Project supervision tools", "Research collaboration"],
+    want: "Supervise projects that align with their expertise.",
+    aiHelp: "AI matches supervisors to projects based on topic and required expertise, so they only see relevant collaboration requests.",
     gradient: "from-purple-600 to-purple-700",
     light: "bg-purple-50",
     accent: "text-purple-600",
@@ -30,8 +31,8 @@ const userTypes = [
     image: companyImg,
     role: "Companies",
     icon: "🏢",
-    description: "Post real-world challenges and connect with student teams that have the skills to bring your projects to life.",
-    perks: ["Post industry challenges", "Access skilled teams", "Early talent discovery"],
+    want: "Connect with student teams capable of solving real problems.",
+    aiHelp: "AI matches their posted project requests with student teams whose combined skills meet the required technical profile.",
     gradient: "from-indigo-600 to-indigo-700",
     light: "bg-indigo-50",
     accent: "text-indigo-600",
@@ -39,10 +40,10 @@ const userTypes = [
   },
   {
     image: assocImg,
-    role: "Student Associations",
+    role: "Associations",
     icon: "🤝",
-    description: "Organize events, recruit members with the right skill sets, and collaborate with other associations on campus-wide initiatives.",
-    perks: ["Event & project management", "Smart member recruitment", "Inter-association networking"],
+    want: "Recruit members with the right skills for their initiatives.",
+    aiHelp: "AI identifies students whose skills fit the association's open roles and project needs, enabling targeted and effective recruitment.",
     gradient: "from-teal-600 to-teal-700",
     light: "bg-teal-50",
     accent: "text-teal-600",
@@ -59,9 +60,9 @@ export function UserTypes() {
           <span className="inline-block bg-indigo-50 text-indigo-600 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
             Who It's For
           </span>
-          <h2 className="text-4xl font-bold text-slate-900 mb-4">Built for Every Academic Role</h2>
+          <h2 className="text-4xl font-bold text-slate-900 mb-4">How AI Helps Each Role</h2>
           <p className="text-slate-500 max-w-xl mx-auto">
-            SkillSwap serves all stakeholders in the academic ecosystem — from students to supervisors, companies to associations.
+            Every role on SkillSwap interacts with the AI matching system differently — but all get the same result: the right connection, based on skills.
           </p>
         </div>
 
@@ -85,25 +86,19 @@ export function UserTypes() {
 
               {/* Content */}
               <div className="p-5">
-                <h3 className="text-lg font-bold text-slate-800 mb-2">{type.role}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed mb-4">{type.description}</p>
+                <h3 className="text-lg font-bold text-slate-800 mb-4">{type.role}</h3>
 
-                {/* Perks */}
-                <ul className="space-y-1.5">
-                  {type.perks.map((perk) => (
-                    <li key={perk} className="flex items-center gap-2 text-sm text-slate-600">
-                      <svg className={`w-4 h-4 ${type.accent} flex-shrink-0`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                      {perk}
-                    </li>
-                  ))}
-                </ul>
+                {/* Want */}
+                <div className="mb-3">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">They want</span>
+                  <p className="text-sm text-slate-600 leading-relaxed mt-1">{type.want}</p>
+                </div>
 
-                {/* CTA */}
-                <button className={`mt-5 w-full py-2.5 rounded-full text-sm font-semibold ${type.light} ${type.accent} hover:opacity-80 transition-opacity`}>
-                  Join as {type.role.split(" ")[0]} →
-                </button>
+                {/* AI Help */}
+                <div className={`rounded-2xl ${type.light} px-4 py-3`}>
+                  <span className={`text-xs font-bold uppercase tracking-wide ${type.accent}`}>AI does</span>
+                  <p className={`text-sm leading-relaxed mt-1 ${type.accent} opacity-90`}>{type.aiHelp}</p>
+                </div>
               </div>
             </div>
           ))}
