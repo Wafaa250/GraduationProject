@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { ArrowLeft, RefreshCw, Users } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { dash, card } from "../doctor/dashboard/doctorDashTokens";
 import api from "../../../api/axiosInstance";
@@ -11,6 +11,7 @@ import { useToast } from "../../../context/ToastContext";
 type TeamsLocationState = {
     projectName?: string;
     projectId?: number;
+    sectionName?: string;
 };
 
 type GeneratedMember = {
@@ -68,6 +69,7 @@ export default function ProjectTeamsPage() {
     const [teams, setTeams] = useState<GeneratedTeam[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [teamSize, setTeamSize] = useState<number | null>(null);
 
     // ── Fetch teams ────────────────────────────────────────────────────────────
     const fetchTeams = useCallback(async () => {
@@ -79,6 +81,7 @@ export default function ProjectTeamsPage() {
                 `/courses/${backendCourseId}/projects/${backendProjectId}/generate-teams`
             );
             setTeams(res.data.teams);
+            setTeamSize(res.data.teamSize);
         } catch (err) {
             const msg = parseApiErrorMessage(err);
             setError(msg);
@@ -112,37 +115,38 @@ export default function ProjectTeamsPage() {
 
                 <header style={{ ...card, padding: "22px 24px", marginTop: 20 }}>
                     <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Preview
+                        Doctor Management
                     </p>
                     <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: dash.fontDisplay, lineHeight: 1.25 }}>
-                        AI Generated Teams
+                        Project Teams
                     </h1>
                     <p style={{ margin: "10px 0 0", fontSize: 14, fontWeight: 600, color: dash.muted, lineHeight: 1.45 }}>
                         {projectName}
                     </p>
+                    <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <span style={S.metaChip}>
+                            <strong style={{ color: dash.text }}>Section:</strong>{" "}
+                            {st?.sectionName?.trim() ? st.sectionName.trim() : "—"}
+                        </span>
+                        <span style={S.metaChip}>
+                            <strong style={{ color: dash.text }}>Team size:</strong> {teamSize ?? "—"}
+                        </span>
+                    </div>
                 </header>
 
                 <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
                     <button
                         type="button"
-                        style={{ ...S.secondaryBtn, opacity: loading ? 0.6 : 1 }}
-                        onClick={() => void fetchTeams()}
-                        disabled={loading}
+                        style={{ ...S.primaryBtn, opacity: backendProjectId == null ? 0.6 : 1 }}
+                        onClick={() => {
+                            if (backendProjectId == null) return;
+                            navigate(`/doctor/projects/${backendProjectId}/teams`);
+                        }}
+                        disabled={backendProjectId == null}
                     >
-                        <RefreshCw size={16} style={{ animation: loading ? "spin 1s linear infinite" : undefined }} />
-                        {loading ? "Generating…" : "Regenerate teams"}
+                        Assign Teams
                     </button>
                 </div>
-
-                {/* Loading state */}
-                {loading && teams.length === 0 && (
-                    <div style={{ ...card, marginTop: 20, padding: "48px 24px", textAlign: "center" }}>
-                        <RefreshCw size={32} color={dash.accent} style={{ animation: "spin 1s linear infinite", marginBottom: 14 }} />
-                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: dash.muted }}>
-                            AI is forming teams based on student skills…
-                        </p>
-                    </div>
-                )}
 
                 {/* Error / no backend id */}
                 {!loading && error && (
@@ -159,52 +163,7 @@ export default function ProjectTeamsPage() {
                         </p>
                     </div>
                 )}
-
-                {/* Teams grid */}
-                {teams.length > 0 && (
-                    <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-                        {teams.map((team) => (
-                            <article
-                                key={team.teamIndex}
-                                style={{ ...card, padding: "20px 18px 18px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 14 }}
-                            >
-                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-                                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text, lineHeight: 1.25 }}>
-                                        Team {team.teamIndex}
-                                    </h2>
-                                    <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "5px 9px", borderRadius: 8, background: dash.accentMuted, color: dash.accent, border: "1px solid #c7d2fe" }}>
-                                        <Users size={13} />
-                                        {team.memberCount}
-                                    </span>
-                                </div>
-
-                                <div>
-                                    <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
-                                        MEMBERS
-                                    </p>
-                                    <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-                                        {team.members.map((m) => (
-                                            <li key={m.studentId} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                                                <span style={{ fontSize: 14, fontWeight: 700, color: dash.text }}>{m.name}</span>
-                                                {m.skills.length > 0 && (
-                                                    <span style={{ fontSize: 11, color: dash.subtle, lineHeight: 1.4 }}>
-                                                        {m.skills.slice(0, 3).join(", ")}
-                                                        {m.skills.length > 3 ? ` +${m.skills.length - 3}` : ""}
-                                                    </span>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-                )}
             </div>
-
-            <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
         </div>
     );
 }
@@ -219,5 +178,16 @@ const S: Record<string, CSSProperties> = {
         display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 16px",
         borderRadius: 10, border: `1px solid ${dash.border}`, background: dash.surface,
         color: dash.muted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: dash.font,
+    },
+    primaryBtn: {
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 16px",
+        borderRadius: 10, border: "none", background: `linear-gradient(135deg,${dash.accent},#7c3aed)`,
+        color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: dash.font,
+        boxShadow: "0 4px 16px rgba(79,70,229,0.3)",
+    },
+    metaChip: {
+        display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px",
+        borderRadius: 8, border: `1px solid ${dash.border}`, background: dash.surface,
+        color: dash.muted, fontSize: 12, fontWeight: 600, fontFamily: dash.font,
     },
 };

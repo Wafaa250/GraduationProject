@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, BookOpen, FolderKanban, Inbox, Layers, Sparkles, Users } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
@@ -602,8 +602,25 @@ export default function StudentCoursesPage() {
                                                 ) : (
                                                     <section style={S.chatMainPanel}>
                                                         <div style={S.chatHeader}>
-                                                            <p style={S.chatHeaderTitle}>Section Chat</p>
-                                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                            <div style={S.chatHeaderLeft}>
+                                                                <div style={S.chatGroupAvatar}>
+                                                                    {(mySection?.name ?? "Section")
+                                                                        .split(/\s+/)
+                                                                        .filter(Boolean)
+                                                                        .slice(0, 2)
+                                                                        .map((part) => part[0]?.toUpperCase() ?? "")
+                                                                        .join("")}
+                                                                </div>
+                                                                <div style={{ minWidth: 0 }}>
+                                                                    <p style={S.chatHeaderTitle}>
+                                                                        {mySection?.name ?? "Section Chat"}
+                                                                    </p>
+                                                                    <p style={S.chatHeaderSubTitle}>
+                                                                        {mySectionStudents.length} members
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
                                                                 {chatLoading && (
                                                                     <span style={{ fontSize: 11, color: "#94a3b8" }}>loading…</span>
                                                                 )}
@@ -617,136 +634,151 @@ export default function StudentCoursesPage() {
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => setShowMembers(true)}
+                                                                    onClick={() => setShowMembers((prev) => !prev)}
                                                                     style={S.chatMembersBtn}
                                                                 >
                                                                     Members
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        <div style={S.chatMessages}>
-                                                            {chatError ? (
-                                                                <p style={{ ...S.error, padding: "8px 12px" }}>{chatError}</p>
-                                                            ) : messages.length === 0 && !chatLoading ? (
-                                                                <div style={S.emptyState}>
-                                                                    <Inbox size={20} color="#94a3b8" />
-                                                                    <p style={S.emptyTitle}>
-                                                                        Start chatting with your section 👋
-                                                                    </p>
-                                                                </div>
-                                                            ) : (
-                                                                messages.map((msg) => {
-                                                                    const mine = msg.senderUserId === authUserId;
-                                                                    return (
-                                                                        <div
-                                                                            key={msg.id}
-                                                                            style={{
-                                                                                ...S.chatRow,
-                                                                                justifyContent: mine ? "flex-end" : "flex-start",
-                                                                            }}
-                                                                        >
-                                                                            <div style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", gap: 2, maxWidth: "65%" }}>
-                                                                                {!mine && (
-                                                                                    <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", paddingLeft: 4 }}>
-                                                                                        {msg.senderName}
-                                                                                    </span>
-                                                                                )}
+                                                        <div
+                                                            style={{
+                                                                ...S.chatBody,
+                                                                gridTemplateColumns: showMembers
+                                                                    ? "minmax(0,1fr) 250px"
+                                                                    : "minmax(0,1fr)",
+                                                            }}
+                                                        >
+                                                            <div style={S.chatConversationCol}>
+                                                                <div style={S.chatMessages}>
+                                                                    {chatError ? (
+                                                                        <p style={{ ...S.error, padding: "8px 12px" }}>{chatError}</p>
+                                                                    ) : messages.length === 0 && !chatLoading ? (
+                                                                        <div style={S.emptyState}>
+                                                                            <Inbox size={20} color="#94a3b8" />
+                                                                            <p style={S.emptyTitle}>
+                                                                                Start chatting with your section 👋
+                                                                            </p>
+                                                                        </div>
+                                                                    ) : (
+                                                                        messages.map((msg) => {
+                                                                            const mine = msg.senderUserId === authUserId;
+                                                                            return (
                                                                                 <div
+                                                                                    key={msg.id}
                                                                                     style={{
-                                                                                        ...S.chatBubble,
-                                                                                        ...(mine ? S.chatBubbleMine : S.chatBubbleOther),
+                                                                                        ...S.chatRow,
+                                                                                        justifyContent: mine ? "flex-end" : "flex-start",
                                                                                     }}
                                                                                 >
-                                                                                    <p style={S.chatText}>{msg.text}</p>
+                                                                                    {!mine ? (
+                                                                                        <div style={S.chatOtherAvatar}>
+                                                                                            {(msg.senderName || "M").charAt(0).toUpperCase()}
+                                                                                        </div>
+                                                                                    ) : null}
+                                                                                    <div style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", gap: 2, maxWidth: "60%" }}>
+                                                                                        {!mine ? (
+                                                                                            <span style={S.chatSenderName}>
+                                                                                                {msg.senderName}
+                                                                                            </span>
+                                                                                        ) : null}
+                                                                                        <div
+                                                                                            style={{
+                                                                                                ...S.chatBubble,
+                                                                                                ...(mine ? S.chatBubbleMine : S.chatBubbleOther),
+                                                                                            }}
+                                                                                        >
+                                                                                            <p style={S.chatText}>{msg.text}</p>
+                                                                                        </div>
+                                                                                        <span style={S.chatTimestamp}>
+                                                                                            {new Date(msg.sentAt).toLocaleTimeString(undefined, {
+                                                                                                hour: "2-digit",
+                                                                                                minute: "2-digit",
+                                                                                            })}
+                                                                                        </span>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <span style={{ fontSize: 10, color: "#94a3b8", paddingLeft: 4, paddingRight: 4 }}>
-                                                                                    {new Date(msg.sentAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-                                                                                </span>
-                                                                            </div>
+                                                                            );
+                                                                        })
+                                                                    )}
+                                                                    <div ref={chatBottomRef} />
+                                                                </div>
+                                                                <div style={S.chatInputRow}>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={input}
+                                                                        onChange={(e) => setInput(e.target.value)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === "Enter") {
+                                                                                e.preventDefault();
+                                                                                void sendMessage();
+                                                                            }
+                                                                        }}
+                                                                        placeholder="Type a message..."
+                                                                        style={S.chatInput}
+                                                                        disabled={chatSending}
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => void sendMessage()}
+                                                                        style={{ ...S.chatSendBtn, opacity: chatSending ? 0.6 : 1 }}
+                                                                        disabled={chatSending}
+                                                                    >
+                                                                        {chatSending ? "…" : "➤"}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            {showMembers ? (
+                                                                <aside style={S.chatMembersSidePanel}>
+                                                                    <div style={S.membersDropdownHeader}>
+                                                                        <p style={S.membersModalTitle}>Section Members</p>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setShowMembers(false)}
+                                                                            style={S.membersCloseBtn}
+                                                                        >
+                                                                            Close
+                                                                        </button>
+                                                                    </div>
+                                                                    {mySectionStudents.length === 0 ? (
+                                                                        <p style={S.chatMembersEmpty}>No members in your section.</p>
+                                                                    ) : (
+                                                                        <div style={S.chatMembersList}>
+                                                                            {mySectionStudents.map((student, index) => {
+                                                                                const studentName = asText(
+                                                                                    student.name ?? student.Name,
+                                                                                    "Student",
+                                                                                );
+                                                                                const studentProfileId =
+                                                                                    getCourseStudentProfileId(student);
+                                                                                const isCurrentUser =
+                                                                                    studentProfileId != null &&
+                                                                                    studentProfileId === getStudentProfileIdFromUser(user);
+                                                                                return (
+                                                                                    <div
+                                                                                        key={`chat-member-${studentProfileId ?? index}`}
+                                                                                        style={{
+                                                                                            ...S.chatMemberRow,
+                                                                                            ...(isCurrentUser ? S.chatMemberRowActive : {}),
+                                                                                        }}
+                                                                                    >
+                                                                                        <div style={S.studentAvatar}>
+                                                                                            {studentName.charAt(0).toUpperCase()}
+                                                                                        </div>
+                                                                                        <p style={S.chatMemberName}>
+                                                                                            {studentName}
+                                                                                            {isCurrentUser ? " (You)" : ""}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
                                                                         </div>
-                                                                    );
-                                                                })
-                                                            )}
-                                                            <div ref={chatBottomRef} />
-                                                        </div>
-                                                        <div style={S.chatInputRow}>
-                                                            <input
-                                                                type="text"
-                                                                value={input}
-                                                                onChange={(e) => setInput(e.target.value)}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === "Enter") {
-                                                                        e.preventDefault();
-                                                                        void sendMessage();
-                                                                    }
-                                                                }}
-                                                                placeholder="Type a message…"
-                                                                style={S.chatInput}
-                                                                disabled={chatSending}
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => void sendMessage()}
-                                                                style={{ ...S.chatSendBtn, opacity: chatSending ? 0.6 : 1 }}
-                                                                disabled={chatSending}
-                                                            >
-                                                                {chatSending ? "…" : "Send"}
-                                                            </button>
+                                                                    )}
+                                                                </aside>
+                                                            ) : null}
                                                         </div>
                                                     </section>
                                                 )}
-                                                {showMembers ? (
-                                                    <div style={S.membersOverlay} onClick={() => setShowMembers(false)}>
-                                                        <div style={S.membersModal} onClick={(e) => e.stopPropagation()}>
-                                                            <div style={S.membersModalHeader}>
-                                                                <p style={S.membersModalTitle}>Section Members</p>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setShowMembers(false)}
-                                                                    style={S.membersCloseBtn}
-                                                                >
-                                                                    Close
-                                                                </button>
-                                                            </div>
-                                                            {mySectionStudents.length === 0 ? (
-                                                                <p style={S.chatMembersEmpty}>No members in your section.</p>
-                                                            ) : (
-                                                                <div style={S.chatMembersList}>
-                                                                    {mySectionStudents.map((student, index) => {
-                                                                        const studentName = asText(
-                                                                            student.name ?? student.Name,
-                                                                            "Student",
-                                                                        );
-                                                                        const studentProfileId =
-                                                                            getCourseStudentProfileId(student);
-                                                                        const isCurrentUser =
-                                                                            studentProfileId != null &&
-                                                                            studentProfileId === getStudentProfileIdFromUser(user);
-                                                                        return (
-                                                                            <div
-                                                                                key={`chat-member-${studentProfileId ?? index}`}
-                                                                                style={{
-                                                                                    ...S.chatMemberRow,
-                                                                                    ...(isCurrentUser
-                                                                                        ? S.chatMemberRowActive
-                                                                                        : {}),
-                                                                                }}
-                                                                            >
-                                                                                <div style={S.studentAvatar}>
-                                                                                    {studentName.charAt(0).toUpperCase()}
-                                                                                </div>
-                                                                                <p style={S.chatMemberName}>
-                                                                                    {studentName}
-                                                                                    {isCurrentUser ? " (You)" : ""}
-                                                                                </p>
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ) : null}
                                             </>
                                         ) : null}
 
@@ -769,32 +801,90 @@ export default function StudentCoursesPage() {
                                                     </div>
                                                 ) : (
                                                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                                        {mySectionProjects.map((project) => (
+                                                        {mySectionProjects.map((project) => {
+                                                            console.log("REAL PROJECT", project);
+                                                            console.log("PROJECT MODE DATA", project);
+                                                            const sectionName =
+                                                                project.applyToAllSections
+                                                                    ? "All sections"
+                                                                    : (mySection?.name ?? "My section");
+                                                            const projectRaw = project as {
+                                                                teamFormationMode?: string;
+                                                                assignmentMode?: string;
+                                                                teamMode?: string;
+                                                                formationMode?: string;
+                                                                isDoctorAssigned?: boolean;
+                                                                allowStudentSelection?: boolean;
+                                                                hasTeam?: boolean;
+                                                            };
+                                                            const modeText = String(
+                                                                projectRaw.teamFormationMode ??
+                                                                    projectRaw.assignmentMode ??
+                                                                    projectRaw.teamMode ??
+                                                                    projectRaw.formationMode ??
+                                                                    "",
+                                                            )
+                                                                .trim()
+                                                                .toLowerCase();
+                                                            const doctorAssignedByMode =
+                                                                modeText.includes("doctor") ||
+                                                                modeText.includes("ai") ||
+                                                                modeText.includes("auto");
+                                                            const studentAssignedByMode =
+                                                                modeText.includes("student") ||
+                                                                modeText.includes("manual") ||
+                                                                modeText.includes("self");
+                                                            const isDoctorAssigned =
+                                                                typeof projectRaw.isDoctorAssigned === "boolean"
+                                                                    ? projectRaw.isDoctorAssigned
+                                                                    : (typeof projectRaw.allowStudentSelection === "boolean"
+                                                                        ? !projectRaw.allowStudentSelection
+                                                                        : (doctorAssignedByMode
+                                                                            ? true
+                                                                            : (studentAssignedByMode ? false : project.aiMode === "doctor")));
+                                                            const hasTeam = projectRaw.hasTeam === true;
+                                                            return (
                                                             <div key={project.id} style={S.projectCard}>
-                                                                {/* Header row */}
-                                                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-                                                                    <p style={S.projectTitle}>{project.title}</p>
-                                                                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                                                                        {/* AI mode badge */}
-                                                                        {project.aiMode === "doctor" ? (
-                                                                            <span style={{ ...S.modeBadge, ...S.modeBadgeAi }}>
-                                                                                <Sparkles size={11} />
-                                                                                Doctor assigns
+                                                                <div style={S.projectTopRow}>
+                                                                    <div style={S.projectLeftCol}>
+                                                                        <p style={S.projectTitle}>{project.title}</p>
+                                                                        <span style={S.projectMetaLineCompact}>Team size: {project.teamSize}</span>
+                                                                        <span style={S.projectMetaLineCompact}>Section: {sectionName}</span>
+                                                                    </div>
+                                                                    <div style={S.projectRightCol}>
+                                                                        <div style={S.projectActionRow}>
+                                                                            <span
+                                                                                style={
+                                                                                    isDoctorAssigned
+                                                                                        ? S.assignedBadge
+                                                                                        : S.studentSelectionBadge
+                                                                                }
+                                                                            >
+                                                                                {isDoctorAssigned
+                                                                                    ? "Assigned by Doctor"
+                                                                                    : "Student Selection"}
                                                                             </span>
-                                                                        ) : (
-                                                                            <span style={{ ...S.modeBadge, ...S.modeBadgeSection }}>
-                                                                                <Users size={11} />
-                                                                                Students choose
-                                                                            </span>
-                                                                        )}
-                                                                        {/* Scope badge */}
-                                                                        {project.applyToAllSections ? (
-                                                                            <span style={{ ...S.modeBadge, ...S.modeBadgeCourse }}>All sections</span>
-                                                                        ) : (
-                                                                            <span style={{ ...S.modeBadge, background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0" }}>
-                                                                                My section
-                                                                            </span>
-                                                                        )}
+                                                                            {isDoctorAssigned || hasTeam ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    style={S.teamViewBtn}
+                                                                                    onClick={() => navigate(`/student/team/${project.id}`)}
+                                                                                >
+                                                                                    View My Team
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    style={S.generateTeamBtn}
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        navigate(`/student/projects/${project.id}/ai-team`);
+                                                                                    }}
+                                                                                >
+                                                                                    ✨ Generate Team
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
 
@@ -805,31 +895,20 @@ export default function StudentCoursesPage() {
 
                                                                 {/* Meta */}
                                                                 <div style={{ marginTop: 10, display: "flex", gap: 16, flexWrap: "wrap" as const }}>
-                                                                    <span style={S.projectMetaChip}>
-                                                                        <Users size={12} />
-                                                                        Team size: {project.teamSize}
-                                                                    </span>
                                                                     {project.allowCrossSectionTeams && (
                                                                         <span style={S.projectMetaChip}>
                                                                             Cross-section teams allowed
                                                                         </span>
                                                                     )}
                                                                 </div>
-
-                                                                {/* Action */}
-                                                                {project.aiMode === "student" && (
-                                                                    <button type="button" style={{ ...S.aiActionBtn, marginTop: 12 }}>
-                                                                        <Users size={14} />
-                                                                        Choose Teammates
-                                                                    </button>
-                                                                )}
-                                                                {project.aiMode === "doctor" && (
-                                                                    <p style={{ ...S.projectHintText, marginTop: 10 }}>
-                                                                        Your team will be assigned by the doctor.
-                                                                    </p>
-                                                                )}
+                                                                <p style={S.projectHintText}>
+                                                                    {project.applyToAllSections
+                                                                        ? "You can choose teammates from the whole course."
+                                                                        : "You can choose teammates from your section only."}
+                                                                </p>
                                                             </div>
-                                                        ))}
+                                                            );
+                                                        })}
                                                     </div>
                                                 )}
                                             </>
@@ -973,11 +1052,95 @@ const S: Record<string, CSSProperties> = {
         transition: "transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease",
         boxShadow: "0 3px 10px rgba(15,23,42,0.04)",
     },
+    projectTopRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 14,
+    },
+    projectLeftCol: {
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+    },
+    projectRightCol: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexShrink: 0,
+    },
+    projectActionRow: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+    },
     projectTitle: {
         margin: 0,
         fontSize: 14,
         fontWeight: 800,
         color: "#1f2937",
+    },
+    projectMetaLineCompact: {
+        fontSize: 12,
+        color: "#6b7280",
+        lineHeight: 1.4,
+    },
+    assignedBadge: {
+        display: "inline-flex",
+        alignItems: "center",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "#6d28d9",
+        background: "#f3e8ff",
+        border: "1px solid #e9d5ff",
+        borderRadius: 999,
+        padding: "4px 8px",
+    },
+    studentSelectionBadge: {
+        display: "inline-flex",
+        alignItems: "center",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "#1d4ed8",
+        background: "#dbeafe",
+        border: "1px solid #bfdbfe",
+        borderRadius: 999,
+        padding: "4px 8px",
+    },
+    teamViewBtn: {
+        border: "none",
+        borderRadius: 10,
+        background: "#7c3aed",
+        color: "#fff",
+        fontSize: 12,
+        fontWeight: 700,
+        padding: "8px 12px",
+        cursor: "pointer",
+        fontFamily: "inherit",
+    },
+    chooseTeamBtn: {
+        border: "1px solid #c4b5fd",
+        borderRadius: 10,
+        background: "#f5f3ff",
+        color: "#6d28d9",
+        fontSize: 12,
+        fontWeight: 700,
+        padding: "8px 12px",
+        cursor: "pointer",
+        fontFamily: "inherit",
+    },
+    generateTeamBtn: {
+        border: "none",
+        borderRadius: 10,
+        background: "linear-gradient(135deg,#7c3aed,#8b5cf6)",
+        color: "#fff",
+        fontSize: 12,
+        fontWeight: 700,
+        padding: "8px 12px",
+        cursor: "pointer",
+        fontFamily: "inherit",
+        boxShadow: "0 4px 14px rgba(124,58,237,0.28)",
     },
     studentRow: {
         borderBottom: "1px solid #e5e7eb",
@@ -1117,16 +1280,55 @@ const S: Record<string, CSSProperties> = {
         height: 400,
         overflow: "hidden",
     },
+    chatBody: {
+        display: "grid",
+        flex: 1,
+        minHeight: 0,
+    },
+    chatConversationCol: {
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+        minHeight: 0,
+    },
     chatHeader: {
         padding: "10px 12px",
         borderBottom: "1px solid #e5e7eb",
         background: "#fafafa",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+    },
+    chatHeaderLeft: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        minWidth: 0,
+    },
+    chatGroupAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
+        color: "#fff",
+        fontSize: 12,
+        fontWeight: 800,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
     },
     chatHeaderTitle: {
         margin: 0,
         fontSize: 14,
         fontWeight: 800,
         color: "#1f2937",
+    },
+    chatHeaderSubTitle: {
+        margin: "3px 0 0",
+        fontSize: 11,
+        color: "#6b7280",
     },
     chatMessages: {
         flex: 1,
@@ -1141,6 +1343,8 @@ const S: Record<string, CSSProperties> = {
     chatRow: {
         display: "flex",
         width: "100%",
+        alignItems: "flex-end",
+        gap: 8,
     },
     chatBubble: {
         maxWidth: "65%",
@@ -1168,6 +1372,33 @@ const S: Record<string, CSSProperties> = {
         overflowWrap: "break-word" as const,
         whiteSpace: "normal",
     },
+    chatOtherAvatar: {
+        width: 26,
+        height: 26,
+        borderRadius: "50%",
+        background: "#e5e7eb",
+        color: "#475569",
+        fontSize: 11,
+        fontWeight: 700,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+    },
+    chatSenderName: {
+        margin: "0 0 2px",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "#6b7280",
+        paddingLeft: 2,
+    },
+    chatTimestamp: {
+        margin: "2px 0 0",
+        fontSize: 10,
+        color: "#94a3b8",
+        paddingLeft: 2,
+        paddingRight: 2,
+    },
     chatInputRow: {
         display: "flex",
         alignItems: "center",
@@ -1175,6 +1406,15 @@ const S: Record<string, CSSProperties> = {
         padding: 10,
         borderTop: "1px solid #e5e7eb",
         background: "#fafafa",
+    },
+    chatMembersSidePanel: {
+        borderLeft: "1px solid #e5e7eb",
+        background: "#ffffff",
+        padding: 8,
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        overflow: "hidden",
     },
     membersOverlay: {
         position: "fixed",
@@ -1226,9 +1466,9 @@ const S: Record<string, CSSProperties> = {
     chatInput: {
         flex: 1,
         border: "1px solid #d1d5db",
-        borderRadius: 10,
+        borderRadius: 999,
         background: "#fff",
-        padding: "10px 12px",
+        padding: "10px 14px",
         fontSize: 13,
         color: "#1f2937",
         fontFamily: "inherit",
@@ -1236,14 +1476,42 @@ const S: Record<string, CSSProperties> = {
     },
     chatSendBtn: {
         border: "none",
-        borderRadius: 10,
-        padding: "10px 14px",
+        borderRadius: "50%",
+        width: 36,
+        height: 36,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
         background: "#7c3aed",
         color: "#fff",
-        fontSize: 12,
+        fontSize: 16,
         fontWeight: 700,
         cursor: "pointer",
         fontFamily: "inherit",
+    },
+    membersDropdown: {
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        width: 280,
+        maxHeight: 300,
+        overflow: "hidden",
+        borderRadius: 12,
+        border: "1px solid #e5e7eb",
+        background: "#fff",
+        boxShadow: "0 12px 28px rgba(15,23,42,0.18)",
+        zIndex: 20,
+        padding: 8,
+    },
+    membersDropdownHeader: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+        padding: "4px 2px 8px",
+        borderBottom: "1px solid #f1f5f9",
+        marginBottom: 8,
     },
     subCard: {
         border: "1px solid #e5e7eb",
