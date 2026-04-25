@@ -229,12 +229,19 @@ export default function CourseWorkspacePage() {
     const [projects, setProjects] = useState<WorkspaceProject[]>([]);
     const [apiProjects, setApiProjects] = useState<DoctorCourseProject[]>([]);
     const [showCreateSection, setShowCreateSection] = useState(false);
+    const [openedTeamProjectId, setOpenedTeamProjectId] = useState<number | null>(null);
+    const [teamMessages, setTeamMessages] = useState<
+        { id: number; sender: string; text: string }[]
+    >([{ id: 1, sender: "Mohammad", text: "Hello team!" }]);
+    const [teamChatInput, setTeamChatInput] = useState("");
     const [courseSettings, setCourseSettings] = useState<CourseWorkspaceSettingsForm>(defaultCourseWorkspaceSettings);
     const [courseHeader, setCourseHeader] = useState<CourseHeaderMeta>(() => readCourseHeaderMeta(courseId));
     const [copiedCode, setCopiedCode] = useState(false);
     const [creatingSection, setCreatingSection] = useState(false);
     const { showToast } = useToast();
     const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    const isDoctor = role === "doctor";
 
     useEffect(() => {
         return () => {
@@ -420,6 +427,19 @@ export default function CourseWorkspacePage() {
     const saveCourseSettings = () => {
         // eslint-disable-next-line no-console
         console.log("Course settings (local draft)", courseSettings);
+    };
+
+    const sectionName = "Software - Section 1";
+    const teamMembers = [
+        { id: 1, name: "Mohammad", role: "Leader" },
+        { id: 2, name: "Ahmad", role: "Member" },
+    ];
+
+    const handleSendTeamMessage = () => {
+        const text = teamChatInput.trim();
+        if (!text) return;
+        setTeamMessages((prev) => [...prev, { id: Date.now(), sender: "You", text }]);
+        setTeamChatInput("");
     };
 
     return (
@@ -815,35 +835,179 @@ export default function CourseWorkspacePage() {
                                     return (
                                         <ul style={{ listStyle: "none", margin: 0, padding: "16px 20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
                                             {isReal
-                                                ? (apiProjects as DoctorCourseProject[]).map((p) => (
-                                                    <li key={p.id}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => { if (p.aiMode !== "student") navigate(`/courses/${courseId}/projects/${p.id}/teams`, { state: { projectName: p.title, projectId: p.id } }); }}
-                                                            style={{ ...card, width: "100%", padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8, textAlign: "left", cursor: "pointer", fontFamily: "inherit", border: `1px solid ${dash.border}`, transition: "transform 0.12s ease, box-shadow 0.12s ease" }}
+                                                ? (apiProjects as DoctorCourseProject[]).map((project) => {
+                                                    console.log("RENDER PROJECT", project);
+                                                    return (
+                                                    <li key={project.id}>
+                                                        <div
+                                                            style={{ ...card, width: "100%", padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8, textAlign: "left", cursor: "default", fontFamily: "inherit", border: `1px solid ${dash.border}`, transition: "transform 0.12s ease, box-shadow 0.12s ease" }}
                                                             className="dd-course-card-btn"
                                                         >
                                                             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text, lineHeight: 1.3 }}>
-                                                                {p.title}
+                                                                {project.title}
                                                             </h3>
                                                             <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                                <span style={{ fontWeight: 700, color: dash.text }}>Sections:</span>{" "}
-                                                                {p.applyToAllSections ? "All sections" : p.sections.map((s) => s.sectionName).join(", ") || "—"}
+                                                                <span style={{ fontWeight: 700, color: dash.text }}>Section:</span>{" "}
+                                                                {sectionName}
                                                             </p>
                                                             <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                                <span style={{ fontWeight: 700, color: dash.text }}>Team size:</span> {p.teamSize}
+                                                                <span style={{ fontWeight: 700, color: dash.text }}>Team size:</span> {project.teamSize}
                                                             </p>
-                                                            {p.description ? (
-                                                                <p style={{ margin: 0, fontSize: 12, color: dash.subtle, lineHeight: 1.45 }}>{p.description}</p>
+                                                            {project.description ? (
+                                                                <p style={{ margin: 0, fontSize: 12, color: dash.subtle, lineHeight: 1.45 }}>{project.description}</p>
                                                             ) : null}
-                                                            {p.aiMode !== "student" && (
-                                                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
-                                                                    <span style={{ fontSize: 12, fontWeight: 700, color: dash.accent }}>View AI teams →</span>
+                                                            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+                                                                {isDoctor ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            navigate(`/doctor/projects/${project.id}/teams`)
+                                                                        }
+                                                                        style={S.primaryBtn}
+                                                                    >
+                                                                        Assign Teams
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setOpenedTeamProjectId((prev) =>
+                                                                                prev === project.id ? null : project.id,
+                                                                            )
+                                                                        }
+                                                                        style={S.secondaryBtn}
+                                                                    >
+                                                                        View My Team
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            {!isDoctor ? (
+                                                                <div
+                                                                    style={{
+                                                                        maxHeight: openedTeamProjectId === project.id ? 420 : 0,
+                                                                        opacity: openedTeamProjectId === project.id ? 1 : 0,
+                                                                        overflow: "hidden",
+                                                                        transition: "max-height 0.25s ease, opacity 0.2s ease",
+                                                                    }}
+                                                                >
+                                                                    <div
+                                                                        style={{
+                                                                            marginTop: 8,
+                                                                            border: `1px solid ${dash.border}`,
+                                                                            borderRadius: 12,
+                                                                            padding: 12,
+                                                                            background: "#f8fafc",
+                                                                            display: "flex",
+                                                                            flexDirection: "column",
+                                                                            gap: 12,
+                                                                        }}
+                                                                    >
+                                                                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                                                            {teamMembers.map((member) => (
+                                                                                <div
+                                                                                    key={member.id}
+                                                                                    style={{ display: "flex", alignItems: "center", gap: 10 }}
+                                                                                >
+                                                                                    <div
+                                                                                        style={{
+                                                                                            width: 32,
+                                                                                            height: 32,
+                                                                                            borderRadius: "50%",
+                                                                                            background: "#ddd6fe",
+                                                                                            color: "#6d28d9",
+                                                                                            display: "inline-flex",
+                                                                                            alignItems: "center",
+                                                                                            justifyContent: "center",
+                                                                                            fontSize: 12,
+                                                                                            fontWeight: 800,
+                                                                                        }}
+                                                                                    >
+                                                                                        {member.name.charAt(0)}
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: dash.text }}>
+                                                                                            {member.name}
+                                                                                        </p>
+                                                                                        <p style={{ margin: "2px 0 0", fontSize: 11, color: dash.subtle }}>
+                                                                                            {member.role}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                        <div style={{ borderTop: `1px solid ${dash.border}`, paddingTop: 10 }}>
+                                                                            <div
+                                                                                style={{
+                                                                                    maxHeight: 120,
+                                                                                    overflowY: "auto",
+                                                                                    display: "flex",
+                                                                                    flexDirection: "column",
+                                                                                    gap: 6,
+                                                                                    marginBottom: 8,
+                                                                                }}
+                                                                            >
+                                                                                {teamMessages.map((m) => (
+                                                                                    <div
+                                                                                        key={m.id}
+                                                                                        style={{
+                                                                                            alignSelf: m.sender === "You" ? "flex-end" : "flex-start",
+                                                                                            background: m.sender === "You" ? dash.accent : "#e5e7eb",
+                                                                                            color: m.sender === "You" ? "#fff" : "#1f2937",
+                                                                                            borderRadius: 12,
+                                                                                            padding: "6px 10px",
+                                                                                            fontSize: 12,
+                                                                                            maxWidth: "85%",
+                                                                                        }}
+                                                                                    >
+                                                                                        {m.text}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                                                <input
+                                                                                    value={teamChatInput}
+                                                                                    onChange={(e) => setTeamChatInput(e.target.value)}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === "Enter") {
+                                                                                            e.preventDefault();
+                                                                                            handleSendTeamMessage();
+                                                                                        }
+                                                                                    }}
+                                                                                    placeholder="Type a message..."
+                                                                                    style={{
+                                                                                        flex: 1,
+                                                                                        border: `1px solid ${dash.border}`,
+                                                                                        borderRadius: 999,
+                                                                                        padding: "8px 12px",
+                                                                                        fontSize: 12,
+                                                                                        fontFamily: dash.font,
+                                                                                    }}
+                                                                                />
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={handleSendTeamMessage}
+                                                                                    style={{
+                                                                                        width: 30,
+                                                                                        height: 30,
+                                                                                        borderRadius: "50%",
+                                                                                        border: "none",
+                                                                                        background: dash.accent,
+                                                                                        color: "#fff",
+                                                                                        fontWeight: 800,
+                                                                                        cursor: "pointer",
+                                                                                    }}
+                                                                                >
+                                                                                    ➤
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                            )}
-                                                        </button>
+                                                            ) : null}
+                                                        </div>
                                                     </li>
-                                                ))
+                                                    );
+                                                })
                                                 : (projects as WorkspaceProject[]).map((p) => (
                                                     <li key={p.id} style={{ ...card, padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8 }}>
                                                         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text }}>{p.title}</h3>

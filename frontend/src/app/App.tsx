@@ -24,7 +24,11 @@ import CourseWorkspacePage from "./pages/courses/CourseWorkspacePage";
 import SectionStudentsPage from "./pages/courses/SectionStudentsPage";
 import CourseProjectCreatePage from "./pages/courses/CourseProjectCreatePage";
 import ProjectTeamsPage from "./pages/courses/ProjectTeamsPage";
+import DoctorProjectTeamsPage from "./pages/doctor/ProjectTeamsPage";
+import TeamManagementPage from "./pages/doctor/TeamManagementPage";
 import StudentCoursesPage from "./pages/courses/StudentCoursesPage";
+import StudentTeamPage from "./pages/team/StudentTeamPage";
+import StudentAiTeamPage from "./pages/projects/StudentAiTeamPage";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token')
@@ -128,9 +132,37 @@ function ProjectTeamsDoctorRoute() {
     return <Navigate to="/" replace />;
 }
 
+function DoctorProjectTeamsRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <DoctorProjectTeamsPage />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function TeamManagementDoctorRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <TeamManagementPage />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 function StudentCoursesRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "student") return <StudentCoursesPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function StudentTeamRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentTeamPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function StudentAiTeamRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentAiTeamPage />;
     if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
     return <Navigate to="/" replace />;
 }
@@ -152,6 +184,8 @@ export default function App() {
                     <Route path="/edit-profile" element={<ProtectedRoute><EditProfileRoute /></ProtectedRoute>} />
                     <Route path="/student/courses" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
                     <Route path="/student/courses/:courseId" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
+                    <Route path="/student/team/:projectId" element={<ProtectedRoute><StudentTeamRoute /></ProtectedRoute>} />
+                    <Route path="/student/projects/:projectId/ai-team" element={<ProtectedRoute><StudentAiTeamRoute /></ProtectedRoute>} />
 
                     {/* Protected – Doctor */}
                     <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardRoute /></ProtectedRoute>} />
@@ -172,6 +206,14 @@ export default function App() {
                     <Route
                         path="/courses/:courseId/projects/:projectId/teams"
                         element={<ProtectedRoute><ProjectTeamsDoctorRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/doctor/projects/:projectId/teams"
+                        element={<ProtectedRoute><DoctorProjectTeamsRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/doctor/projects/:projectId/teams/:teamId"
+                        element={<ProtectedRoute><TeamManagementDoctorRoute /></ProtectedRoute>}
                     />
                     <Route path="/courses/:courseId" element={<ProtectedRoute><CourseWorkspaceDoctorRoute /></ProtectedRoute>} />
 
