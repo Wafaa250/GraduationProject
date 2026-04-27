@@ -29,6 +29,7 @@ export default function CourseProjectCreatePage() {
     const [teamSize, setTeamSize] = useState(2);
     const [duration, setDuration] = useState("");
     const [allSections, setAllSections] = useState(true);
+    const [allowCrossSectionTeams, setAllowCrossSectionTeams] = useState(false);
     const [sectionId, setSectionId] = useState("");
     const [aiMode, setAiMode] = useState<"doctor" | "student">("doctor");
     const [fileLabel, setFileLabel] = useState<string | null>(null);
@@ -53,6 +54,12 @@ export default function CourseProjectCreatePage() {
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [backendCourseId]);
+
+    useEffect(() => {
+        if (!allSections) {
+            setAllowCrossSectionTeams(false);
+        }
+    }, [allSections]);
 
     const backToWorkspace = () => {
         if (!courseId) {
@@ -112,7 +119,7 @@ export default function CourseProjectCreatePage() {
                     description: abstract.trim(),
                     teamSize: ts,
                     applyToAllSections: allSections,
-                    allowCrossSectionTeams: false,
+                    allowCrossSectionTeams: allSections ? allowCrossSectionTeams : false,
                     aiMode: aiMode,
                     sectionIds: selectedSectionIds,
                 });
@@ -284,6 +291,17 @@ export default function CourseProjectCreatePage() {
                             />
                             <span style={F.checkLabel}>All sections</span>
                         </label>
+                        {allSections ? (
+                            <label style={F.checkRow}>
+                                <input
+                                    type="checkbox"
+                                    checked={allowCrossSectionTeams}
+                                    onChange={(e) => setAllowCrossSectionTeams(e.target.checked)}
+                                    style={F.checkbox}
+                                />
+                                <span style={F.checkLabel}>Allow cross-section teams</span>
+                            </label>
+                        ) : null}
                         <label style={{ ...F.label, marginBottom: 0, marginTop: 12 }}>
                             <span style={{ ...F.labelText, display: "block", marginBottom: 6 }}>Specific section</span>
                             <select

@@ -132,36 +132,6 @@ export default function CreateCoursePage() {
                                 autoComplete="off"
                             />
                         </label>
-                        <div style={S.checkRow}>
-                            <input
-                                id="create-course-shared"
-                                type="checkbox"
-                                style={S.checkbox}
-                                checked={useSharedProjectAcrossSections}
-                                onChange={(e) => {
-                                    const on = e.target.checked;
-                                    setUseSharedProjectAcrossSections(on);
-                                    if (!on) setAllowCrossSectionTeams(false);
-                                }}
-                            />
-                            <label htmlFor="create-course-shared" style={S.checkLabel}>
-                                Shared project across sections
-                            </label>
-                        </div>
-                        {useSharedProjectAcrossSections && (
-                            <div style={S.checkRow}>
-                                <input
-                                    id="create-course-cross"
-                                    type="checkbox"
-                                    style={S.checkbox}
-                                    checked={allowCrossSectionTeams}
-                                    onChange={(e) => setAllowCrossSectionTeams(e.target.checked)}
-                                />
-                                <label htmlFor="create-course-cross" style={S.checkLabel}>
-                                    Allow cross-section teams
-                                </label>
-                            </div>
-                        )}
                         <div style={S.actions}>
                             <button
                                 type="button"

@@ -160,6 +160,12 @@ export function DoctorCourseManagePanel({ open, courseId: courseIdProp, onClose 
   const [cpAllowCrossSectionTeams, setCpAllowCrossSectionTeams] =
     useState(false);
 
+  useEffect(() => {
+    if (!cpApplyAllSections) {
+      setCpAllowCrossSectionTeams(false);
+    }
+  }, [cpApplyAllSections]);
+
   const [ptTitle, setPtTitle] = useState("");
   const [ptDescription, setPtDescription] = useState("");
   const [ptTeamSize, setPtTeamSize] = useState(2);
@@ -1710,18 +1716,20 @@ export function DoctorCourseManagePanel({ open, courseId: courseIdProp, onClose 
                           )}
                         </div>
                       ) : null}
-                      <label style={S.checkboxLabel}>
-                        <input
-                          type="checkbox"
-                          checked={cpAllowCrossSectionTeams}
-                          onChange={(e) =>
-                            setCpAllowCrossSectionTeams(e.target.checked)
-                          }
-                          style={S.checkboxInput}
-                          disabled={createProjectSubmitting}
-                        />
-                        <span>Allow cross-section teams</span>
-                      </label>
+                      {cpApplyAllSections ? (
+                        <label style={S.checkboxLabel}>
+                          <input
+                            type="checkbox"
+                            checked={cpAllowCrossSectionTeams}
+                            onChange={(e) =>
+                              setCpAllowCrossSectionTeams(e.target.checked)
+                            }
+                            style={S.checkboxInput}
+                            disabled={createProjectSubmitting}
+                          />
+                          <span>Allow cross-section teams</span>
+                        </label>
+                      ) : null}
                       <div style={S.createProjectActions}>
                         <button
                           type="button"
