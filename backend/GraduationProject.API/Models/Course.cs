@@ -122,37 +122,93 @@ namespace GraduationProject.API.Models
         public CourseSection Section { get; set; } = null!;
     }
 
+
     [Table("course_teams")]
     public class CourseTeam
     {
         [Column("id")] public int Id { get; set; }
         [Column("course_id")] public int CourseId { get; set; }
-        [Column("project_setting_id")] public int ProjectSettingId { get; set; }
+
+        // PHASE 4: nullable — no longer the source of truth for team ownership.
+        // Kept in DB for backward compatibility until the column is dropped in
+        // a future cleanup migration.
+        [Column("project_setting_id")] public int? ProjectSettingId { get; set; }
+
+        // New-system anchor — always set for all teams going forward.
         [Column("course_project_id")] public int? CourseProjectId { get; set; }
+
         [Column("leader_student_id")] public int LeaderStudentId { get; set; }
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // PHASE 4: navigation is now nullable to match the nullable FK above.
         public Course Course { get; set; } = null!;
-        public CourseProjectSetting ProjectSetting { get; set; } = null!;
+        public CourseProjectSetting? ProjectSetting { get; set; }   // was non-nullable
         public CourseProject? CourseProject { get; set; }
         public StudentProfile Leader { get; set; } = null!;
         public ICollection<CourseTeamMember> Members { get; set; } = new List<CourseTeamMember>();
     }
 
+    /* [Table("course_team_members")]
+     public class CourseTeamMember
+     {
+         [Column("id")] public int Id { get; set; }
+         [Column("team_id")] public int TeamId { get; set; }
+         [Column("course_id")] public int CourseId { get; set; }
+         [Column("student_id")] public int StudentId { get; set; }
+
+         // PHASE 4: nullable — written as null for all new members going forward.
+         // Kept in DB for backward compatibility.
+         [Column("project_setting_id")] public int? ProjectSettingId { get; set; }
+         [Column("course_project_id")]
+         public int? CourseProjectId { get; set; }
+
+         public CourseProject? CourseProject { get; set; }
+
+         [Column("role")] public string Role { get; set; } = "member";
+         [Column("joined_at")] public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+
+         public CourseTeam Team { get; set; } = null!;
+         public Course Course { get; set; } = null!;
+         public StudentProfile Student { get; set; } = null!;
+     }
+    */
+
     [Table("course_team_members")]
     public class CourseTeamMember
     {
-        [Column("id")] public int Id { get; set; }
-        [Column("team_id")] public int TeamId { get; set; }
-        [Column("course_id")] public int CourseId { get; set; }
-        [Column("student_id")] public int StudentId { get; set; }
-        [Column("project_setting_id")] public int ProjectSettingId { get; set; }
-        [Column("role")] public string Role { get; set; } = "member";
-        [Column("joined_at")] public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+        [Column("id")]
+        public int Id { get; set; }
 
+        [Column("team_id")]
+        public int TeamId { get; set; }
+
+        [Column("course_id")]
+        public int CourseId { get; set; }
+
+        [Column("student_id")]
+        public int StudentId { get; set; }
+
+        // PHASE 4: nullable — kept only for backward compatibility
+        [Column("project_setting_id")]
+        public int? ProjectSettingId { get; set; }
+
+        // NEW SYSTEM: anchor for CourseProject
+        [Column("course_project_id")]
+        public int? CourseProjectId { get; set; }
+
+        [Column("role")]
+        public string Role { get; set; } = "member";
+
+        [Column("joined_at")]
+        public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation properties
         public CourseTeam Team { get; set; } = null!;
         public Course Course { get; set; } = null!;
         public StudentProfile Student { get; set; } = null!;
+
+        // NEW navigation
+        public CourseProject? CourseProject { get; set; }
     }
 
     [Table("course_partner_requests")]
@@ -163,13 +219,26 @@ namespace GraduationProject.API.Models
         [Column("sender_student_id")] public int SenderStudentId { get; set; }
         [Column("receiver_student_id")] public int ReceiverStudentId { get; set; }
         [Column("team_id")] public int? TeamId { get; set; }
+
+        // ── PHASE 1: new column ───────────────────────────────────────────────
+        // Nullable: existing rows keep NULL; future rows can carry a project id.
+        // The column name follows the same snake_case convention used throughout.
+        [Column("course_project_id")] public int? CourseProjectId { get; set; }
+        // ─────────────────────────────────────────────────────────────────────
+
         [Column("status")] public string Status { get; set; } = "pending";
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("responded_at")] public DateTime? RespondedAt { get; set; }
 
+        // ── Existing navigation properties (unchanged) ────────────────────────
         public Course Course { get; set; } = null!;
         public StudentProfile Sender { get; set; } = null!;
         public StudentProfile Receiver { get; set; } = null!;
         public CourseTeam? Team { get; set; }
+
+        // ── PHASE 1: new navigation property ─────────────────────────────────
+        // Nullable because the FK is nullable — no existing code is broken.
+        public CourseProject? CourseProject { get; set; }
+        // ─────────────────────────────────────────────────────────────────────
     }
 }

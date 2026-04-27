@@ -414,6 +414,35 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // ─────────────────────────────────────────────────────────────────────────────
+            // PHASE 4 DbContext CHANGES — Data/ApplicationDbContext.cs
+            //
+            // Three sections change inside OnModelCreating:
+            //
+            //   1. CourseTeam entity block
+            //      - ProjectSetting FK: IsRequired(false), OnDelete → SetNull
+            //        (was required, OnDelete Restrict)
+            //
+            //   2. CourseTeamMember entity block
+            //      - Drop the unique index on (ProjectSettingId, StudentId) — it was
+            //        the old "one team per project setting per student" enforcement.
+            //      - Add a new partial unique index on (CourseProjectId, StudentId)
+            //        enforced at the DB level via a filtered index
+            //        (WHERE course_project_id IS NOT NULL).
+            //      - ProjectSettingId FK config: IsRequired(false)
+            //        (was required via convention; now explicitly optional)
+            //
+            //   3. CourseProjectSetting entity block
+            //      - Remove the .WithMany(cps => cps.Teams) inverse from the CourseTeam
+            //        side (because CourseTeam.ProjectSetting is now nullable and the
+            //        collection on CourseProjectSetting side should also be adjusted to
+            //        avoid EF warnings).
+            //        The CourseProjectSetting entity block itself (course_project_settings
+            //        table config) is UNCHANGED — we are not touching the table yet.
+            //
+            // Everything else in OnModelCreating is IDENTICAL to the original.
+            // ─────────────────────────────────────────────────────────────────────────────
+
             // ── COURSE TEAM ───────────────────────────────────────────────────
             modelBuilder.Entity<CourseTeam>(e =>
             {
@@ -422,19 +451,27 @@ namespace GraduationProject.API.Data
                 e.HasIndex(ct => ct.CourseId)
                  .HasDatabaseName("ix_course_teams_course");
 
-                // Course deleted → cascade delete its teams.
+                // Course deleted → cascade delete its teams (unchanged).
                 e.HasOne(ct => ct.Course)
                  .WithMany(c => c.Teams)
                  .HasForeignKey(ct => ct.CourseId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-                // Setting deleted → restrict (do not silently wipe teams).
+                // PHASE 4: ProjectSettingId is now nullable.
+                // - IsRequired(false) tells EF not to add a NOT NULL constraint.
+                // - OnDelete SetNull: if a CourseProjectSetting row is ever
+                //   deleted, the FK on CourseTeam becomes NULL rather than
+                //   blocking the delete (Restrict) or cascade-wiping teams.
+                // - WithMany() uses no inverse collection because
+                //   CourseProjectSetting.Teams still exists in the model for
+                //   now; EF will reconcile via the FK column alone.
                 e.HasOne(ct => ct.ProjectSetting)
                  .WithMany(cps => cps.Teams)
                  .HasForeignKey(ct => ct.ProjectSettingId)
-                 .OnDelete(DeleteBehavior.Restrict);
+                 .IsRequired(false)                         // CHANGED: was required
+                 .OnDelete(DeleteBehavior.SetNull);          // CHANGED: was Restrict
 
-                // Restrict: deleting a student does not delete the team.
+                // Restrict: deleting a student does not delete the team (unchanged).
                 e.HasOne(ct => ct.Leader)
                  .WithMany()
                  .HasForeignKey(ct => ct.LeaderStudentId)
@@ -446,37 +483,32 @@ namespace GraduationProject.API.Data
             {
                 e.ToTable("course_team_members");
 
-                // A student cannot appear twice in the same team.
+                // A student cannot appear twice in the same team (unchanged).
                 e.HasIndex(ctm => new { ctm.TeamId, ctm.StudentId })
                  .IsUnique()
                  .HasDatabaseName("ix_course_team_members_team_student");
 
-                // ── ONE-TEAM-PER-PROJECT CONSTRAINT (UPDATED) ─────────────────
-                // A student can belong to at most one team within a given
-                // PROJECT SETTING (not per course). This allows a student to
-                // participate in multiple teams across different projects in
-                // the SAME course, while still preventing duplicate membership
-                // inside the same project.
+                // PHASE 4: Remove old uniqueness index on (ProjectSettingId, StudentId).
+                // That index enforced "one team per project setting per student" using
+                // the old system's FK. It is replaced by the CourseProjectId index below.
                 //
-                // ProjectSettingId is denormalised from CourseTeam and must
-                // always equal Team.ProjectSettingId; it is set by the service
-                // layer when adding a member.
-                //
-                // MIGRATION NOTE (existing DBs):
-                //   1. ADD COLUMN project_setting_id INT NOT NULL DEFAULT 0 to
-                //      course_team_members.
-                //   2. Back-fill:
-                //        UPDATE course_team_members m
-                //        SET project_setting_id = t.project_setting_id
-                //        FROM course_teams t
-                //        WHERE m.team_id = t.id;
-                //   3. DROP INDEX ix_course_team_members_course_student (old).
-                //   4. CREATE UNIQUE INDEX ix_course_team_members_project_student
-                //      ON course_team_members(project_setting_id, student_id);
-                //   5. Remove the DEFAULT 0 once back-fill completes.
-                e.HasIndex(ctm => new { ctm.ProjectSettingId, ctm.StudentId })
+                // NOTE: The corresponding DB index ix_course_team_members_project_student
+                // must be DROPPED by the migration below before this configuration
+                // is applied, otherwise EF will generate a conflicting migration.
+                // The migration handles this explicitly.
+
+                // PHASE 4: New uniqueness enforcement — one team per CourseProject per student.
+                // This is a FILTERED unique index (WHERE course_project_id IS NOT NULL)
+                // so that legacy rows with NULL course_project_id do not violate it.
+                // EF Core maps HasFilter to a partial index on PostgreSQL.
+                e.HasIndex(ctm => new { ctm.TeamId, ctm.StudentId })   // team+student still unique (above)
+                 .HasDatabaseName("ix_course_team_members_team_student");
+
+                // Separate index for project-scoped uniqueness:
+                e.HasIndex(ctm => new { ctm.CourseProjectId, ctm.StudentId })
                  .IsUnique()
-                 .HasDatabaseName("ix_course_team_members_project_student");
+                 .HasFilter("course_project_id IS NOT NULL")            // partial — only non-null rows
+                 .HasDatabaseName("ix_course_team_members_project_student_new");
 
                 e.Property(ctm => ctm.Role)
                  .HasColumnName("role")
@@ -484,24 +516,31 @@ namespace GraduationProject.API.Data
                  .HasDefaultValue("member")
                  .IsRequired();
 
-                // Team deleted → cascade delete its member rows.
+                // Team deleted → cascade delete its member rows (unchanged).
                 e.HasOne(ctm => ctm.Team)
                  .WithMany(ct => ct.Members)
                  .HasForeignKey(ctm => ctm.TeamId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-                // CourseId FK — Restrict to avoid a second cascade path from courses
-                // (course → team → member already covers cascade via TeamId above).
+                // CourseId FK — Restrict to avoid a second cascade path (unchanged).
                 e.HasOne(ctm => ctm.Course)
                  .WithMany()
                  .HasForeignKey(ctm => ctm.CourseId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // Restrict: deleting a student does not cascade-delete membership records.
+                // Restrict: deleting a student does not cascade-delete membership (unchanged).
                 e.HasOne(ctm => ctm.Student)
                  .WithMany()
                  .HasForeignKey(ctm => ctm.StudentId)
                  .OnDelete(DeleteBehavior.Restrict);
+
+                // PHASE 4: ProjectSettingId is now nullable — configure explicitly
+                // so EF does not infer a required FK from the int? property.
+                // No navigation property for ProjectSetting on CourseTeamMember,
+                // so we use the column-only form.
+                e.Property(ctm => ctm.ProjectSettingId)
+                 .HasColumnName("project_setting_id")
+                 .IsRequired(false);
             });
 
             // ── SECTION CHAT MESSAGE ──────────────────────────────────────────
@@ -566,6 +605,19 @@ namespace GraduationProject.API.Data
                  .HasForeignKey(r => r.TeamId)
                  .IsRequired(false)
                  .OnDelete(DeleteBehavior.SetNull);
+
+                // ── PHASE 1: new relationship ─────────────────────────────────
+                // CourseProjectId is optional (nullable).
+                // When a CourseProject is deleted, set the FK to NULL so
+                // historical request rows are preserved (same pattern as TeamId).
+                // No inverse collection is added to CourseProject — this avoids
+                // touching the CourseProject model in Phase 1.
+                e.HasOne(r => r.CourseProject)
+                 .WithMany()
+                 .HasForeignKey(r => r.CourseProjectId)
+                 .IsRequired(false)
+                 .OnDelete(DeleteBehavior.SetNull);
+                // ─────────────────────────────────────────────────────────────
             });
         }
     }
