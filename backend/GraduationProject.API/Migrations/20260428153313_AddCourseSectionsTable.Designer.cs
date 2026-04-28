@@ -3,6 +3,7 @@ using System;
 using GraduationProject.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428153313_AddCourseSectionsTable")]
+    partial class AddCourseSectionsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -283,34 +286,6 @@ namespace GraduationProject.API.Migrations
                         .HasDatabaseName("ix_project_invitations_project_receiver");
 
                     b.ToTable("project_invitations", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.SectionEnrollment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseSectionId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("EnrolledAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("StudentProfileId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StudentProfileId");
-
-                    b.HasIndex("CourseSectionId", "StudentProfileId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_section_enrollments_section_student");
-
-                    b.ToTable("section_enrollments", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.Skill", b =>
@@ -777,25 +752,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Receiver");
 
                     b.Navigation("Sender");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.SectionEnrollment", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CourseSection", "Section")
-                        .WithMany()
-                        .HasForeignKey("CourseSectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Section");
-
-                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>
