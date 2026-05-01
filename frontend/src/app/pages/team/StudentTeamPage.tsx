@@ -178,21 +178,7 @@ export default function StudentTeamPage() {
                                 Team Members
                             </p>
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-<<<<<<< HEAD
-                                {members.map((member) => (
-                                    <div key={member.id} style={S.memberRow}>
-                                        <div style={S.avatar}>{member.name.charAt(0).toUpperCase()}</div>
-                                        <div>
-                                            <p style={S.memberName}>
-                                                <ProfileLink userId={member.id} role="student">{member.name}</ProfileLink>
-                                            </p>
-                                            <p style={S.memberRole}>{member.role}</p>
-=======
-                                {team.members.map((member) => (
-                                    <div key={member.studentId} style={S.memberRow}>
-                                        <div style={S.avatar}>
-                                            {member.name.charAt(0).toUpperCase()}
->>>>>>> 17e238352825efea3aed158919089d2bb60608e9
+
                                         </div>
                                         <div style={{ minWidth: 0 }}>
                                             <p style={S.memberName}>{member.name}</p>
