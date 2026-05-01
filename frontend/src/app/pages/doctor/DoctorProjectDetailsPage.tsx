@@ -9,6 +9,7 @@ import { appendDeletedProject } from "./doctorDeletedProjectsStorage";
 import type { DoctorSupervisedProject } from "./doctorDashboardTypes";
 import { SectionSpinner } from "./dashboard/SectionSpinner";
 import { card, dash } from "./dashboard/doctorDashTokens";
+import ProfileLink from "../../components/common/ProfileLink";
 
 function DoctorProjectDetailsInner() {
   const queryClient = useQueryClient();
@@ -193,7 +194,10 @@ function DoctorProjectDetailsInner() {
               {data.supervisor ? (
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: dash.text, lineHeight: 1.6 }}>
                   <li>
-                    <strong style={{ color: dash.muted }}>Name:</strong> {data.supervisor.name}
+                    <strong style={{ color: dash.muted }}>Name:</strong>{" "}
+                    <ProfileLink userId={data.supervisor.doctorId} role="doctor">
+                      {data.supervisor.name}
+                    </ProfileLink>
                   </li>
                   <li>
                     <strong style={{ color: dash.muted }}>Doctor ID:</strong> {data.supervisor.doctorId}
@@ -247,7 +251,11 @@ function DoctorProjectDetailsInner() {
                         background: "#f8fafc",
                       }}
                     >
-                      <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: dash.text }}>{m.name}</p>
+                      <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: dash.text }}>
+                        <ProfileLink userId={m.userId} role="student" style={{ color: dash.text }}>
+                          {m.name}
+                        </ProfileLink>
+                      </p>
                       <p style={{ margin: 0, fontSize: 12, color: dash.muted }}>
                         {String(m.role).toLowerCase() === "leader" ? "Leader" : "Member"}
                         {m.university ? ` · ${m.university}` : ""}

@@ -1,5 +1,5 @@
-import { useState, useEffect, type CSSProperties, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect, type CSSProperties, type FormEvent } from "react"
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
   CheckCircle2,
@@ -14,12 +14,14 @@ import {
   LayoutDashboard,
   Sparkles,
   X,
-} from 'lucide-react'
-import api from '../../../api/axiosInstance'
-import { navigateHome } from '../../../utils/homeNavigation'
+} from "lucide-react"
+import { apiClient } from "../../../api/client"
+import { parseApiErrorMessage } from "../../../api/axiosInstance"
+import { navigateHome } from "../../../utils/homeNavigation"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
+  userId: number
   name: string
   email: string
   role: string
@@ -40,13 +42,44 @@ interface ProfileTask {
   link: string
 }
 
-type SkillKind = 'general' | 'major'
+type SkillKind = "general" | "major"
+type ProfileMode = "me" | "public"
+type StudentTab = "about" | "skills" | "projects"
+
+interface PublicProject {
+  id: number
+  name: string
+  abstract: string
+}
+
+const FALLBACK_STUDENT: StudentProfile = {
+  userId: 0,
+  name: "Student",
+  email: "",
+  role: "student",
+  university: "",
+  faculty: "",
+  major: "",
+  academicYear: "",
+  gpa: "",
+  generalSkills: [],
+  majorSkills: [],
+  profilePic: null,
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { studentId } = useParams<{ studentId?: string }>()
   const [user, setUser] = useState<StudentProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<StudentTab>("about")
+  const [publicProjects, setPublicProjects] = useState<PublicProject[]>([])
+
+  const mode: ProfileMode = location.pathname === "/profile" ? "me" : "public"
+  const isPublic = mode === "public"
 
   /** Session-only skills (not persisted; merged with /me data for display). */
   const [addedGeneralSkills, setAddedGeneralSkills] = useState<string[]>([])
@@ -58,42 +91,76 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      setLoading(true)
+      setError(null)
       try {
-        const token = localStorage.getItem('token')
-        if (!token) {
-          navigate('/login')
-          return
+        if (mode === "me") {
+          const token = localStorage.getItem("token")
+          if (!token) {
+            navigate("/login")
+            return
+          }
+          const res = await apiClient.get("/me")
+          const data = res.data
+          setUser({
+            userId: Number(data.userId ?? data.id ?? 0),
+            name: data.name || data.fullName,
+            email: data.email,
+            role: data.role || localStorage.getItem("role") || "student",
+            university: data.university,
+            faculty: data.faculty,
+            major: data.major,
+            academicYear: data.academicYear,
+            gpa: data.gpa,
+            generalSkills: data.generalSkills || [],
+            majorSkills: data.majorSkills || [],
+            profilePic: data.profilePictureBase64 || null,
+          })
+        } else {
+          const id = Number(studentId)
+          if (!Number.isFinite(id) || id <= 0) return
+          const res = await apiClient.get(`/students/${id}`)
+          const raw = res.data ?? {}
+          const profile = raw.studentProfile ?? raw.StudentProfile ?? {}
+          const linkedUser = raw.user ?? raw.User ?? {}
+          setUser({
+            userId: Number(raw.userId ?? linkedUser.id ?? raw.id ?? 0),
+            name: raw.name || raw.fullName || "Student",
+            email: raw.email || "",
+            role: "student",
+            university: raw.university || profile.university || profile.University || "",
+            faculty: raw.faculty || profile.faculty || profile.Faculty || "",
+            major: raw.major || profile.major || profile.Major || "",
+            academicYear: raw.academicYear || profile.academicYear || profile.AcademicYear || "",
+            gpa: String(raw.gpa ?? profile.gpa ?? "").trim(),
+            generalSkills: Array.isArray(raw.generalSkills) ? raw.generalSkills : [],
+            majorSkills: Array.isArray(raw.majorSkills) ? raw.majorSkills : [],
+            profilePic: raw.profilePictureBase64 || profile.profilePictureBase64 || null,
+          })
+          try {
+            const projectsRes = await apiClient.get("/graduation-projects", { params: { studentId: id } })
+            const rows = Array.isArray(projectsRes.data) ? projectsRes.data : []
+            setPublicProjects(
+              rows.map((p: any) => ({
+                id: Number(p.id ?? p.Id ?? 0),
+                name: p.name ?? p.title ?? "Untitled Project",
+                abstract: p.abstract ?? p.description ?? "",
+              })),
+            )
+          } catch {
+            setPublicProjects([])
+          }
         }
-
-        const res = await api.get('/me')
-        const data = res.data
-        setUser({
-          name: data.name || data.fullName,
-          email: data.email,
-          role: data.role || localStorage.getItem('role') || 'student',
-          university: data.university,
-          faculty: data.faculty,
-          major: data.major,
-          academicYear: data.academicYear,
-          gpa: data.gpa,
-          generalSkills: data.generalSkills || [],
-          majorSkills: data.majorSkills || [],
-          profilePic: data.profilePictureBase64 || null,
-        })
       } catch {
-        setUser({
-          name: localStorage.getItem('name') || 'Student',
-          email: localStorage.getItem('email') || '',
-          role: localStorage.getItem('role') || 'student',
-          generalSkills: [],
-          majorSkills: [],
-        })
+        setUser(FALLBACK_STUDENT)
+        setPublicProjects([])
+        setError(null)
       } finally {
         setLoading(false)
       }
     }
-    fetchProfile()
-  }, [navigate])
+    void fetchProfile()
+  }, [mode, studentId, navigate])
 
   const generalSkills = [...(user?.generalSkills ?? []), ...addedGeneralSkills]
   const majorSkills = [...(user?.majorSkills ?? []), ...addedMajorSkills]
@@ -143,14 +210,19 @@ export default function ProfilePage() {
   )
 
   const PROFILE_TASKS: ProfileTask[] = [
-    { id: '1', label: 'Add a profile picture', done: !!user?.profilePic, link: '/edit-profile#basic' },
-    { id: '2', label: 'Add general skills', done: generalSkills.length > 0, link: '/edit-profile#skills' },
-    { id: '3', label: 'Add major skills', done: majorSkills.length > 0, link: '/edit-profile#skills' },
-    { id: '4', label: 'Complete academic info', done: !!user?.major && !!user?.university, link: '/edit-profile#basic' },
-    { id: '5', label: 'Add preferred project topics', done: false, link: '/edit-profile#work' },
+      { id: "1", label: "Add a profile picture", done: !!user?.profilePic, link: "/edit-profile#basic" },
+      { id: "2", label: "Add general skills", done: generalSkills.length > 0, link: "/edit-profile#skills" },
+      { id: "3", label: "Add major skills", done: majorSkills.length > 0, link: "/edit-profile#skills" },
+      { id: "4", label: "Complete academic info", done: !!user?.major && !!user?.university, link: "/edit-profile#basic" },
+      { id: "5", label: "Add preferred project topics", done: false, link: "/edit-profile#work" },
   ]
 
   const nextActions = PROFILE_TASKS.filter((t) => !t.done).slice(0, 3)
+
+  const handleMessage = () => {
+    if (!user?.userId || user.userId <= 0) return
+    navigate(`/messages?userId=${user.userId}`)
+  }
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading)
@@ -189,10 +261,33 @@ export default function ProfilePage() {
               />
             </svg>
           </div>
-          <p style={{ fontSize: 14, color: '#94a3b8', fontWeight: 600 }}>Loading profile...</p>
+          <p style={{ fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>Loading profile...</p>
         </div>
       </div>
     )
+  if (error || !user) {
+    return (
+      <div style={S.page}>
+        <div style={S.topBar}>
+          <div style={S.topBarInner}>
+            <button
+              type="button"
+              onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))}
+              style={S.backBtn}
+            >
+              <ArrowLeft size={16} />
+              <span>Back</span>
+            </button>
+          </div>
+        </div>
+        <div style={{ ...S.content, minHeight: 280, display: "grid", placeItems: "center" }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#b91c1c" }}>
+            {error || "Profile not found."}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={S.page}>
@@ -201,187 +296,140 @@ export default function ProfilePage() {
 
       <div style={S.topBar}>
         <div style={S.topBarInner}>
-          <button type="button" onClick={() => navigateHome(navigate)} style={S.backBtn}>
+          <button type="button" onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))} style={S.backBtn}>
             <ArrowLeft size={16} />
-            <span>Back to Dashboard</span>
+            <span>{isPublic ? "Back" : "Back to Dashboard"}</span>
           </button>
         </div>
       </div>
 
       <div style={S.content}>
         {/* Header: avatar + name + badges + edit (one horizontal band) */}
-        <div style={S.heroCard}>
-          <div style={S.avatarWrap}>
-            {user?.profilePic ? (
-              <img
-                src={user.profilePic}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' as const }}
-                alt=""
+        <ProfileHeader user={user} mode={mode} onMessage={handleMessage} />
+
+        {isPublic ? (
+          <div style={S.card}>
+            <div style={S.tabsRow}>
+              <button type="button" onClick={() => setActiveTab("about")} style={{ ...S.tabBtn, ...(activeTab === "about" ? S.tabBtnActive : {}) }}>About</button>
+              <button type="button" onClick={() => setActiveTab("skills")} style={{ ...S.tabBtn, ...(activeTab === "skills" ? S.tabBtnActive : {}) }}>Skills</button>
+              <button type="button" onClick={() => setActiveTab("projects")} style={{ ...S.tabBtn, ...(activeTab === "projects" ? S.tabBtnActive : {}) }}>Projects</button>
+            </div>
+            {activeTab === "about" && <AcademicInfoSection user={user} />}
+            {activeTab === "skills" && (
+              <SkillsSection
+                mode={mode}
+                allSkills={allSkills}
+                generalSkills={generalSkills}
+                majorSkills={majorSkills}
+                openSkillModal={openSkillModal}
               />
-            ) : (
-              <div style={S.avatarFallback}>
-                {user?.name
-                  ?.split(' ')
-                  .map((n) => n[0])
-                  .join('')
-                  .slice(0, 2) || 'ST'}
+            )}
+            {activeTab === "projects" && (
+              <div style={S.card}>
+                <div style={S.sectionHeader}>
+                  <BookOpen size={14} color="#6366f1" />
+                  <h2 style={S.sectionTitle}>Projects</h2>
+                </div>
+                {publicProjects.length === 0 ? (
+                  <p style={S.quickIntro}>No projects found.</p>
+                ) : (
+                  <div style={S.quickList}>
+                    {publicProjects.map((project) => (
+                      <div key={`pp-${project.id}`} style={S.quickRow}>
+                        <div>
+                          <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 13 }}>{project.name}</p>
+                          <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
+                            {project.abstract || "No abstract provided."}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
-
-          <div style={S.heroTextBlock}>
-            <h1 style={S.heroName}>{user?.name || 'Student'}</h1>
-            <p style={S.heroEmail}>{user?.email}</p>
-            <div style={S.heroBadges}>
-              {user?.major && (
-                <span style={S.badge}>
-                  <GraduationCap size={12} /> {user.major}
-                </span>
-              )}
-              {user?.university && (
-                <span style={{ ...S.badge, background: '#faf5ff', border: '1px solid #e9d5ff', color: '#7c3aed' }}>
-                  <MapPin size={12} /> {user.university}
-                </span>
-              )}
-              {user?.academicYear && (
-                <span style={{ ...S.badge, background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a' }}>
-                  <Star size={12} /> {user.academicYear}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <Link to="/edit-profile" style={S.heroEditBtn}>
-            <Pencil size={15} />
-            <span>Edit</span>
-          </Link>
-        </div>
-
+        ) : (
         <div className="profile-main-grid">
           <div style={S.col}>
-            <div style={S.card}>
-              <div style={S.sectionHeader}>
-                <BookOpen size={14} color="#6366f1" />
-                <h2 style={S.sectionTitle}>Academic Info</h2>
-              </div>
-              <div style={S.infoList}>
-                {[
-                  { label: 'Email', value: user?.email },
-                  { label: 'Faculty', value: user?.faculty },
-                  { label: 'Year', value: user?.academicYear },
-                  { label: 'GPA', value: user?.gpa },
-                ].map((item) => (
-                  <div key={item.label} className="profile-academic-row" style={S.infoRow}>
-                    <span style={S.infoLabel}>{item.label}</span>
-                    <span
-                      style={{
-                        ...S.infoValue,
-                        color: item.value ? '#0f172a' : '#cbd5e1',
-                      }}
-                    >
-                      {item.value || '—'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={S.card}>
-              <div style={S.sectionHeader}>
-                <Zap size={14} color="#a855f7" />
-                <h2 style={S.sectionTitle}>Skills</h2>
-                <button type="button" onClick={openSkillModal} style={S.inlineAddBtn}>
-                  + Add skills
-                </button>
-              </div>
-
-              {allSkills.length === 0 ? (
-                <div style={S.emptySkills}>
-                  <span style={{ fontSize: 22 }}>🧩</span>
-                  <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>No skills yet</p>
-                  <button type="button" onClick={openSkillModal} style={S.addSkillsBtn}>
-                    Add skills →
-                  </button>
-                </div>
-              ) : (
-                <div style={S.skillsInline}>
-                  {generalSkills.map((s, i) => (
-                    <span key={`g-${s}-${i}`} style={S.skillChip}>
-                      {s}
-                    </span>
-                  ))}
-                  {majorSkills.map((s, i) => (
-                    <span key={`m-${s}-${i}`} style={S.skillChipMajor}>
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+            <AcademicInfoSection user={user} />
+            <SkillsSection
+              mode={mode}
+              allSkills={allSkills}
+              generalSkills={generalSkills}
+              majorSkills={majorSkills}
+              openSkillModal={openSkillModal}
+            />
           </div>
 
           <div style={S.col}>
-            <div style={S.card}>
-              <div style={S.sectionHeader}>
-                <CheckCircle2 size={14} color="#6366f1" />
-                <h2 style={S.sectionTitle}>Profile Completeness</h2>
-              </div>
+            {!isPublic && (
+              <>
+                <div style={S.card}>
+                  <div style={S.sectionHeader}>
+                    <CheckCircle2 size={14} color="#6366f1" />
+                    <h2 style={S.sectionTitle}>Profile Completeness</h2>
+                  </div>
 
-              <div style={S.progressRow}>
-                <div style={S.progressTrack}>
-                  <div style={{ ...S.progressFill, width: `${completeness}%` }} />
-                </div>
-                <span style={S.progressPct}>{completeness}%</span>
-              </div>
-              <p style={S.progressHint}>
-                {completeness >= 80
-                  ? "Strong profile — you're ready to match."
-                  : 'Complete your profile for better AI matches.'}
-              </p>
-
-              {nextActions.length > 0 ? (
-                <div style={S.nextActions}>
-                  {nextActions.map((task) => (
-                    <div key={task.id} style={S.taskRow}>
-                      <Circle size={14} color="#cbd5e1" style={{ flexShrink: 0 }} />
-                      <span style={S.taskLabel}>{task.label}</span>
-                      <Link to={task.link} style={S.doItLink}>
-                        Do it →
-                      </Link>
+                  <div style={S.progressRow}>
+                    <div style={S.progressTrack}>
+                      <div style={{ ...S.progressFill, width: `${completeness}%` }} />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={S.allDoneHint}>You're on track — no urgent tasks.</p>
-              )}
-            </div>
+                    <span style={S.progressPct}>{completeness}%</span>
+                  </div>
+                  <p style={S.progressHint}>
+                    {completeness >= 80
+                      ? "Strong profile — you're ready to match."
+                      : "Complete your profile for better AI matches."}
+                  </p>
 
-            <div style={S.card}>
-              <div style={S.sectionHeader}>
-                <Sparkles size={14} color="#6366f1" />
-                <h2 style={S.sectionTitle}>Next Steps</h2>
-              </div>
-              <p style={S.quickIntro}>Suggestions to get the most from the platform.</p>
-              <div style={S.quickList}>
-                <Link to="/students" style={S.quickRow}>
-                  <Users size={16} color="#6366f1" style={{ flexShrink: 0 }} />
-                  <span>Browse students & find teammates</span>
-                </Link>
-                <Link to="/edit-profile" style={S.quickRow}>
-                  <Pencil size={16} color="#6366f1" style={{ flexShrink: 0 }} />
-                  <span>Update your profile details</span>
-                </Link>
-                <button type="button" onClick={() => navigateHome(navigate)} style={S.quickRowBtn}>
-                  <LayoutDashboard size={16} color="#6366f1" style={{ flexShrink: 0 }} />
-                  <span>Return to dashboard</span>
-                </button>
-              </div>
-            </div>
+                  {nextActions.length > 0 ? (
+                    <div style={S.nextActions}>
+                      {nextActions.map((task) => (
+                        <div key={task.id} style={S.taskRow}>
+                          <Circle size={14} color="#cbd5e1" style={{ flexShrink: 0 }} />
+                          <span style={S.taskLabel}>{task.label}</span>
+                          <Link to={task.link} style={S.doItLink}>
+                            Do it →
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={S.allDoneHint}>You're on track — no urgent tasks.</p>
+                  )}
+                </div>
+
+                <div style={S.card}>
+                  <div style={S.sectionHeader}>
+                    <Sparkles size={14} color="#6366f1" />
+                    <h2 style={S.sectionTitle}>Next Steps</h2>
+                  </div>
+                  <p style={S.quickIntro}>Suggestions to get the most from the platform.</p>
+                  <div style={S.quickList}>
+                    <Link to="/students" style={S.quickRow}>
+                      <Users size={16} color="#6366f1" style={{ flexShrink: 0 }} />
+                      <span>Browse students & find teammates</span>
+                    </Link>
+                    <Link to="/edit-profile" style={S.quickRow}>
+                      <Pencil size={16} color="#6366f1" style={{ flexShrink: 0 }} />
+                      <span>Update your profile details</span>
+                    </Link>
+                    <button type="button" onClick={() => navigateHome(navigate)} style={S.quickRowBtn}>
+                      <LayoutDashboard size={16} color="#6366f1" style={{ flexShrink: 0 }} />
+                      <span>Return to dashboard</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
+        )}
       </div>
 
-      {skillModalOpen && (
+      {!isPublic && skillModalOpen && (
         <div style={S.modalOverlay} onClick={closeSkillModal} role="presentation">
           <div
             style={S.modalBox}
@@ -465,6 +513,137 @@ export default function ProfilePage() {
           }
         }
       `}</style>
+    </div>
+  )
+}
+
+function ProfileHeader({ user, mode, onMessage }: { user: StudentProfile; mode: ProfileMode; onMessage: () => void }) {
+  return (
+    <div style={S.heroCard}>
+      <div style={S.avatarWrap}>
+        {user.profilePic ? (
+          <img src={user.profilePic} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
+        ) : (
+          <div style={S.avatarFallback}>
+            {user.name
+              ?.split(" ")
+              .map((n) => n[0])
+              .join("")
+              .slice(0, 2) || "ST"}
+          </div>
+        )}
+      </div>
+
+      <div style={S.heroTextBlock}>
+        <h1 style={S.heroName}>{user.name || "Student"}</h1>
+        <p style={S.heroEmail}>{user.email}</p>
+        <div style={S.heroBadges}>
+          {user.major && (
+            <span style={S.badge}>
+              <GraduationCap size={12} /> {user.major}
+            </span>
+          )}
+          {user.university && (
+            <span style={{ ...S.badge, background: "#faf5ff", border: "1px solid #e9d5ff", color: "#7c3aed" }}>
+              <MapPin size={12} /> {user.university}
+            </span>
+          )}
+          {user.academicYear && (
+            <span style={{ ...S.badge, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a" }}>
+              <Star size={12} /> {user.academicYear}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {mode === "public" ? (
+        <button type="button" onClick={onMessage} style={S.heroEditBtn}>
+          <span>Message</span>
+        </button>
+      ) : (
+        <Link to="/edit-profile" style={S.heroEditBtn}>
+          <Pencil size={15} />
+          <span>Edit</span>
+        </Link>
+      )}
+    </div>
+  )
+}
+
+function AcademicInfoSection({ user }: { user: StudentProfile }) {
+  return (
+    <div style={S.card}>
+      <div style={S.sectionHeader}>
+        <BookOpen size={14} color="#6366f1" />
+        <h2 style={S.sectionTitle}>Academic Info</h2>
+      </div>
+      <div style={S.infoList}>
+        {[
+          { label: "Email", value: user.email },
+          { label: "Faculty", value: user.faculty },
+          { label: "Year", value: user.academicYear },
+          { label: "GPA", value: user.gpa },
+        ].map((item) => (
+          <div key={item.label} className="profile-academic-row" style={S.infoRow}>
+            <span style={S.infoLabel}>{item.label}</span>
+            <span style={{ ...S.infoValue, color: item.value ? "#0f172a" : "#cbd5e1" }}>{item.value || "—"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SkillsSection({
+  mode,
+  allSkills,
+  generalSkills,
+  majorSkills,
+  openSkillModal,
+}: {
+  mode: ProfileMode
+  allSkills: string[]
+  generalSkills: string[]
+  majorSkills: string[]
+  openSkillModal: () => void
+}) {
+  const isPublic = mode === "public"
+  return (
+    <div style={S.card}>
+      <div style={S.sectionHeader}>
+        <Zap size={14} color="#a855f7" />
+        <h2 style={S.sectionTitle}>Skills</h2>
+        {!isPublic && (
+          <button type="button" onClick={openSkillModal} style={S.inlineAddBtn}>
+            + Add skills
+          </button>
+        )}
+      </div>
+
+      {allSkills.length === 0 ? (
+        <div style={S.emptySkills}>
+          <span style={{ fontSize: 22 }}>🧩</span>
+          <p style={{ margin: 0, fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>No skills yet</p>
+          {!isPublic && (
+            <button type="button" onClick={openSkillModal} style={S.addSkillsBtn}>
+              Add skills →
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={S.skillsInline}>
+          {generalSkills.map((s, i) => (
+            <span key={`g-${s}-${i}`} style={S.skillChip}>
+              {s}
+            </span>
+          ))}
+          {majorSkills.map((s, i) => (
+            <span key={`m-${s}-${i}`} style={S.skillChipMajor}>
+              {s}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -614,6 +793,30 @@ const S: Record<string, CSSProperties> = {
     boxShadow: '0 1px 8px rgba(99,102,241,0.04)',
   },
   sectionHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 },
+  tabsRow: {
+    display: "flex",
+    gap: 8,
+    overflowX: "auto",
+    paddingBottom: 6,
+    marginBottom: 12,
+    borderBottom: "1px solid #e2e8f0",
+  },
+  tabBtn: {
+    border: "none",
+    background: "transparent",
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: 700,
+    padding: "8px 12px",
+    borderRadius: 9,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    whiteSpace: "nowrap",
+  },
+  tabBtnActive: {
+    background: "#eef2ff",
+    color: "#4f46e5",
+  },
   sectionTitle: {
     margin: 0,
     fontSize: 11,

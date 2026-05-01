@@ -1,8 +1,11 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -28,7 +31,7 @@ export default function LoginScreen() {
     setApiError(null);
 
     try {
-      const response = await fetch("http://10.0.2.2:5262/api/auth/login", {
+      const response = await fetch("http://192.168.1.107:5262/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -67,98 +70,111 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <View style={styles.blobTop} />
-          <View style={styles.blobBottom} />
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.cardOuter}>
+            <View style={styles.card}>
+              <View style={styles.blobTop} />
+              <View style={styles.blobBottom} />
 
-          <View style={styles.content}>
-            <View style={styles.logoRow}>
-              <View style={styles.logoBox}>
-                <Text style={styles.logoIcon}>▲</Text>
-              </View>
-              <Text style={styles.logoText}>
-                Skill<Text style={styles.logoTextGradient}>Swap</Text>
-              </Text>
-            </View>
+              <View style={styles.content}>
+                <View style={styles.logoRow}>
+                  <View style={styles.logoBox}>
+                    <Text style={styles.logoIcon}>▲</Text>
+                  </View>
+                  <Text style={styles.logoText}>
+                    Skill<Text style={styles.logoTextGradient}>Swap</Text>
+                  </Text>
+                </View>
 
-            <Text style={styles.title}>Welcome back 👋</Text>
-          <Text style={styles.subtitle}>
-            Sign in to continue building your dream team
-          </Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@university.edu"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              style={styles.input}
-              editable={!isLoading}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordRow}>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                secureTextEntry={!showPassword}
-                style={[styles.input, styles.passwordInput]}
-                editable={!isLoading}
-              />
-              <Pressable
-                style={styles.toggleButton}
-                onPress={() => setShowPassword((prev) => !prev)}
-                disabled={isLoading}
-              >
-                <Text style={styles.toggleText}>
-                  {showPassword ? "Hide" : "Show"}
+                <Text style={styles.title}>Welcome back 👋</Text>
+                <Text style={styles.subtitle}>
+                  Sign in to continue building your dream team
                 </Text>
-              </Pressable>
-            </View>
-          </View>
 
-          {apiError ? <Text style={styles.errorText}>❌ {apiError}</Text> : null}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Email Address</Text>
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="you@university.edu"
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    style={styles.input}
+                    editable={!isLoading}
+                  />
+                </View>
 
-          <Pressable
-            style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <View style={styles.loadingRow}>
-                <ActivityIndicator size="small" color="#ffffff" />
-                <Text style={styles.submitText}>Signing in...</Text>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Password</Text>
+                  <View style={styles.passwordRow}>
+                    <TextInput
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Enter your password"
+                      secureTextEntry={!showPassword}
+                      style={[styles.input, styles.passwordInput]}
+                      editable={!isLoading}
+                    />
+                    <Pressable
+                      style={styles.toggleButton}
+                      onPress={() => setShowPassword((prev) => !prev)}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.toggleText}>
+                        {showPassword ? "Hide" : "Show"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                {apiError ? <Text style={styles.errorText}>❌ {apiError}</Text> : null}
+
+                <Pressable
+                  style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+                  onPress={handleSubmit}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <View style={styles.loadingRow}>
+                      <ActivityIndicator size="small" color="#ffffff" />
+                      <Text style={styles.submitText}>Signing in...</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.submitText}>Sign In</Text>
+                  )}
+                </Pressable>
+
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or continue with</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <Pressable style={styles.googleButton} disabled={isLoading}>
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </Pressable>
+
+                <Text style={styles.registerText}>
+                  Don't have an account?{" "}
+                  <Text style={styles.registerLink} onPress={() => router.push("/register")}>
+                    Sign up for free
+                  </Text>
+                </Text>
               </View>
-            ) : (
-              <Text style={styles.submitText}>Sign In</Text>
-            )}
-          </Pressable>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or continue with</Text>
-              <View style={styles.dividerLine} />
             </View>
-
-            <Pressable style={styles.googleButton} disabled={isLoading}>
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </Pressable>
-
-            <Text style={styles.registerText}>
-              Don't have an account?{" "}
-              <Text style={styles.registerLink} onPress={() => router.push("/register")}>
-                Sign up for free
-              </Text>
-            </Text>
           </View>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -168,11 +184,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8fafc",
   },
-  container: {
+  keyboardView: {
     flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  cardOuter: {
+    width: "100%",
+    maxWidth: 448,
+    alignItems: "stretch",
   },
   card: {
     width: "100%",

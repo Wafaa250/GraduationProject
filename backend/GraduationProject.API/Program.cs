@@ -1,13 +1,14 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using GraduationProject.API.Data;
 using GraduationProject.API.Middleware;
 using GraduationProject.API.Services;
+using GraduationProject.API.Interfaces;
+using GraduationProject.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,10 +47,13 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
-builder.Services.AddHttpClient<IAiPartnerRecommendationService, OpenAiPartnerRecommendationService>();
+
+// ── Courses ──────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<ICourseRepository, CourseRepository>();
+builder.Services.AddScoped<ICourseSectionRepository, CourseSectionRepository>();
 
 // ===========================
-// CORS - ✅ مرة وحدة بس
+// CORS
 // ===========================
 builder.Services.AddCors(options =>
 {
@@ -65,15 +69,7 @@ builder.Services.AddCors(options =>
 // ===========================
 // CONTROLLERS + SWAGGER
 // ===========================
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        // Return camelCase JSON from all endpoints (matches frontend expectations)
-        options.JsonSerializerOptions.PropertyNamingPolicy =
-            System.Text.Json.JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.DictionaryKeyPolicy =
-            System.Text.Json.JsonNamingPolicy.CamelCase;
-    });
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -107,15 +103,12 @@ builder.Services.AddSwaggerGen(c =>
 // ===========================
 var app = builder.Build();
 
-// OpenAI: read from appsettings*, user secrets, or environment (e.g. OpenAI__ApiKey → OpenAI:ApiKey).
 if (string.IsNullOrWhiteSpace(app.Configuration["OpenAI:ApiKey"]))
 {
     var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("OpenAI");
-    log.LogWarning(
-        "OpenAI:ApiKey is not configured. Set it in appsettings.Development.json, user secrets, or environment variable OpenAI__ApiKey. AI ranking will use fallback logic.");
+    log.LogWarning("OpenAI:ApiKey is not configured. AI ranking will use fallback logic.");
 }
 
-// ✅ CORS أول شي
 app.UseCors("AllowFrontend");
 
 if (app.Environment.IsDevelopment())
@@ -129,13 +122,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-
-// ✅ Middleware مسجل هون
 app.UseMiddleware<RoleAuthorizationMiddleware>();
-
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseStaticFiles();
 app.MapControllers();
 
 app.Run();

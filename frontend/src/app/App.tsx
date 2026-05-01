@@ -1,5 +1,5 @@
 // src/app/App.tsx
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastProvider } from "../context/ToastContext";
 import { UserProvider } from '../context/UserContext';
@@ -16,7 +16,6 @@ import EditDoctorProfilePage from "./pages/doctor/EditDoctorProfilePage";
 import ChannelPageWrapper from "./pages/doctor/ChannelPageWrapper";
 
 import StudentsPage from "./pages/students/StudentsPage";
-import StudentProfilePage from "./pages/students/StudentProfilePage"
 import ReceivedInvitationsPage from "./pages/invitations/ReceivedInvitationsPage";
 import ProjectWorkspacePage from "./pages/doctor/ProjectWorkspacePage";
 import CreateCoursePage from "./pages/courses/CreateCoursePage";
@@ -29,6 +28,8 @@ import TeamManagementPage from "./pages/doctor/TeamManagementPage";
 import StudentCoursesPage from "./pages/courses/StudentCoursesPage";
 import StudentTeamPage from "./pages/team/StudentTeamPage";
 import StudentAiTeamPage from "./pages/projects/StudentAiTeamPage";
+import DoctorsPage from "./pages/doctors/DoctorsPage";
+import ChatPage from "./pages/messages/ChatPage";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token')
@@ -177,6 +178,8 @@ export default function App() {
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/students/:studentId" element={<ProfilePage />} />
+                    <Route path="/doctors/:doctorId" element={<DoctorProfilePage />} />
 
                     {/* Protected – Student */}
                     <Route path="/dashboard" element={<ProtectedRoute><StudentDashboardRoute /></ProtectedRoute>} />
@@ -186,6 +189,7 @@ export default function App() {
                     <Route path="/student/courses/:courseId" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
                     <Route path="/student/team/:projectId" element={<ProtectedRoute><StudentTeamRoute /></ProtectedRoute>} />
                     <Route path="/student/projects/:projectId/ai-team" element={<ProtectedRoute><StudentAiTeamRoute /></ProtectedRoute>} />
+                    <Route path="/messages" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
 
                     {/* Protected – Doctor */}
                     <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardRoute /></ProtectedRoute>} />
@@ -219,7 +223,7 @@ export default function App() {
 
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
-                    <Route path="/students/:userId" element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>} />
+                    <Route path="/doctors" element={<ProtectedRoute><DoctorsPage /></ProtectedRoute>} />
                     <Route path="/invitations" element={<ProtectedRoute><ReceivedInvitationsPage /></ProtectedRoute>} />
 <Route path="/project/:projectId" element={<ProjectWorkspacePage />} />
                     {/* Catch-all */}

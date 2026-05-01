@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Loader2, X } from 'lucide-react'
 import api from '../../../api/axiosInstance'
 import React from 'react'
+import ProfileLink from '../common/ProfileLink'
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
 
 // ─── Types (strict, aligned with your gradProject + API contract) ───────────
@@ -159,7 +160,9 @@ export function SupervisorSection({
 
       {supervisor ? (
         <div style={styles.supervisorCard}>
-          <p style={styles.supervisorName}>{supervisor.name}</p>
+          <p style={styles.supervisorName}>
+            <ProfileLink userId={supervisor.doctorId} role="doctor">{supervisor.name}</ProfileLink>
+          </p>
           <p style={styles.supervisorMeta}>{supervisor.major}</p>
         </div>
       ) : (
@@ -245,7 +248,9 @@ export function SupervisorSection({
                     <li key={doc.doctorId} style={styles.listItem}>
                       <div style={styles.listItemRow}>
                         <div style={styles.listItemText}>
-                          <p style={styles.itemName}>{doc.name}</p>
+                          <p style={styles.itemName}>
+                            <ProfileLink userId={doc.doctorId} role="doctor">{doc.name}</ProfileLink>
+                          </p>
                           <p style={styles.itemMajor}>{doc.major}</p>
                         </div>
                         <div style={styles.listItemActions}>

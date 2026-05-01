@@ -4,6 +4,7 @@ import { Search, ArrowLeft, SlidersHorizontal, X, Users } from 'lucide-react'
 import api from '../../../api/axiosInstance'
 import { getHomePath, navigateHome } from '../../../utils/homeNavigation'
 import { sendInvitation } from '../../../api/invitationsApi'
+import ProfileLink, { getProfileUrl } from '../../components/common/ProfileLink'
 
 interface Student {
   userId: number; profileId: number; name: string; university: string
@@ -283,7 +284,10 @@ export default function StudentsPage() {
             <StudentCard
               key={s.userId}
               student={s}
-              onView={() => navigate(`/students/${s.userId}`)}
+              onView={() => {
+                const href = getProfileUrl({ role: "student", userId: s.userId })
+                navigate(href ?? "/students")
+              }}
               onInvite={projectId ? () => handleInvite(s) : undefined}
               isTeamFull={isTeamFull}
               isSending={invitingId === s.profileId}
@@ -375,7 +379,11 @@ function StudentCard({
         }
       </div>
       <div style={{ flex: 1 }}>
-        <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>{student.name}</p>
+        <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 2px' }}>
+          <ProfileLink userId={student.userId} role="student" style={{ color: '#0f172a' }}>
+            {student.name}
+          </ProfileLink>
+        </p>
         <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 2px', fontWeight: 500 }}>{student.major || '—'}</p>
         {student.university && (
           <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>

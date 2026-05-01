@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260413151032_AddCourseModule")]
-    partial class AddCourseModule
+    [Migration("20260428132858_AddCourses")]
+    partial class AddCourses
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -93,254 +93,36 @@ namespace GraduationProject.API.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("code");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("DoctorId")
-                        .HasColumnType("integer")
-                        .HasColumnName("doctor_id");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Semester")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DoctorId", "Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_courses_doctor_code");
+                    b.HasIndex("DoctorId")
+                        .HasDatabaseName("ix_courses_doctor");
 
                     b.ToTable("courses", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseEnrollment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer")
-                        .HasColumnName("course_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("student_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("CourseId", "StudentId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_course_enrollments_course_student");
-
-                    b.ToTable("course_enrollments", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CoursePartnerRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer")
-                        .HasColumnName("course_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("ReceiverStudentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("receiver_student_id");
-
-                    b.Property<DateTime?>("RespondedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("responded_at");
-
-                    b.Property<int>("SenderStudentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("sender_student_id");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("pending")
-                        .HasColumnName("status");
-
-                    b.Property<int?>("TeamId")
-                        .HasColumnType("integer")
-                        .HasColumnName("team_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseId")
-                        .HasDatabaseName("ix_course_partner_requests_course");
-
-                    b.HasIndex("ReceiverStudentId");
-
-                    b.HasIndex("SenderStudentId");
-
-                    b.HasIndex("TeamId");
-
-                    b.ToTable("course_partner_requests", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseProjectSetting", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer")
-                        .HasColumnName("course_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<int>("TeamSize")
-                        .HasColumnType("integer")
-                        .HasColumnName("team_size");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseId")
-                        .HasDatabaseName("ix_course_project_settings_course");
-
-                    b.ToTable("course_project_settings", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseTeam", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer")
-                        .HasColumnName("course_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("LeaderStudentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("leader_student_id");
-
-                    b.Property<int>("ProjectSettingId")
-                        .HasColumnType("integer")
-                        .HasColumnName("project_setting_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseId")
-                        .HasDatabaseName("ix_course_teams_course");
-
-                    b.HasIndex("LeaderStudentId");
-
-                    b.HasIndex("ProjectSettingId");
-
-                    b.ToTable("course_teams", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseTeamMember", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer")
-                        .HasColumnName("course_id");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("joined_at");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("member")
-                        .HasColumnName("role");
-
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("student_id");
-
-                    b.Property<int>("TeamId")
-                        .HasColumnType("integer")
-                        .HasColumnName("team_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("CourseId", "StudentId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_course_team_members_course_student");
-
-                    b.HasIndex("TeamId", "StudentId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_course_team_members_team_student");
-
-                    b.ToTable("course_team_members", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.DoctorProfile", b =>
@@ -873,128 +655,10 @@ namespace GraduationProject.API.Migrations
                     b.HasOne("GraduationProject.API.Models.DoctorProfile", "Doctor")
                         .WithMany()
                         .HasForeignKey("DoctorId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Doctor");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseEnrollment", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.Course", "Course")
-                        .WithMany("Enrollments")
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("Student");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CoursePartnerRequest", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.Course", "Course")
-                        .WithMany("PartnerRequests")
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Receiver")
-                        .WithMany()
-                        .HasForeignKey("ReceiverStudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderStudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.CourseTeam", "Team")
-                        .WithMany()
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Course");
-
-                    b.Navigation("Receiver");
-
-                    b.Navigation("Sender");
-
-                    b.Navigation("Team");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseProjectSetting", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.Course", "Course")
-                        .WithMany("ProjectSettings")
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseTeam", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.Course", "Course")
-                        .WithMany("Teams")
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Leader")
-                        .WithMany()
-                        .HasForeignKey("LeaderStudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.CourseProjectSetting", "ProjectSetting")
-                        .WithMany("Teams")
-                        .HasForeignKey("ProjectSettingId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("Leader");
-
-                    b.Navigation("ProjectSetting");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseTeamMember", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.CourseTeam", "Team")
-                        .WithMany("Members")
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("Student");
-
-                    b.Navigation("Team");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.DoctorProfile", b =>
@@ -1154,27 +818,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("Sender");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.Course", b =>
-                {
-                    b.Navigation("Enrollments");
-
-                    b.Navigation("PartnerRequests");
-
-                    b.Navigation("ProjectSettings");
-
-                    b.Navigation("Teams");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseProjectSetting", b =>
-                {
-                    b.Navigation("Teams");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseTeam", b =>
-                {
-                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.Skill", b =>
