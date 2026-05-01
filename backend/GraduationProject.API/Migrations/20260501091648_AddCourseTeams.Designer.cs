@@ -3,6 +3,7 @@ using System;
 using GraduationProject.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260501091648_AddCourseTeams")]
+    partial class AddCourseTeams
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -293,38 +296,6 @@ namespace GraduationProject.API.Migrations
                         .HasDatabaseName("ix_course_team_members_team_student");
 
                     b.ToTable("course_team_members", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseTeamMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseTeamId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SenderUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("SentAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseTeamId")
-                        .HasDatabaseName("ix_course_team_messages_team");
-
-                    b.HasIndex("SenderUserId");
-
-                    b.ToTable("course_team_messages", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.DoctorProfile", b =>
@@ -990,25 +961,6 @@ namespace GraduationProject.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Student");
-
-                    b.Navigation("Team");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CourseTeamMessage", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CourseTeam", "Team")
-                        .WithMany()
-                        .HasForeignKey("CourseTeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.User", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Sender");
 
                     b.Navigation("Team");
                 });

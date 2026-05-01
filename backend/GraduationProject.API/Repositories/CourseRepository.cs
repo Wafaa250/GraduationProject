@@ -59,5 +59,38 @@ namespace GraduationProject.API.Repositories
 
             return course;
         }
+
+        public async Task<Dictionary<int, string>> GetDoctorNamesByIdsAsync(List<int> doctorProfileIds)
+        {
+            if (doctorProfileIds == null || doctorProfileIds.Count == 0)
+                return new Dictionary<int, string>();
+
+            // Join DoctorProfiles → Users to get the name directly
+            // Key = DoctorProfile.Id, Value = User.Name
+            var result = await _context.DoctorProfiles
+                .Where(d => doctorProfileIds.Contains(d.Id))
+                .Select(d => new { d.Id, d.UserId })
+                .ToListAsync();
+
+            if (result.Count == 0)
+                return new Dictionary<int, string>();
+
+            var userIds = result.Select(x => x.UserId).ToList();
+            var userNames = await _context.Users
+                .Where(u => userIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.Name })
+                .ToDictionaryAsync(u => u.Id, u => u.Name);
+
+            return result.ToDictionary(
+                d => d.Id,
+                d => userNames.GetValueOrDefault(d.UserId, string.Empty));
+        }
+
+        public async Task<StudentProfile?> GetStudentByUniversityIdAsync(string universityId)
+        {
+            return await _context.StudentProfiles
+                .Include(s => s.User)
+                .FirstOrDefaultAsync(s => s.StudentId == universityId);
+        }
     }
 }

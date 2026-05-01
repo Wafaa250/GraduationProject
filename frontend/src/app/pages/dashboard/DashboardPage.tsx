@@ -422,8 +422,9 @@ export default function DashboardPage() {
       }
       setCtDashCardRequestsCount(total);
     } catch {
-      setCtDashCardCoursesCount(null);
-      setCtDashCardRequestsCount(null);
+        // Don't reset courses count if partner-requests fail
+        // setCtDashCardCoursesCount stays as-is
+        setCtDashCardRequestsCount(null);
     }
   }, []);
 
