@@ -28,6 +28,12 @@ namespace GraduationProject.API.Data
         public DbSet<Course> Courses => Set<Course>();
         public DbSet<CourseSection> CourseSections => Set<CourseSection>();
         public DbSet<SectionEnrollment> SectionEnrollments => Set<SectionEnrollment>();
+        public DbSet<SectionChatMessage> SectionChatMessages => Set<SectionChatMessage>();
+        public DbSet<CourseProject> CourseProjects => Set<CourseProject>();
+        public DbSet<CourseProjectSection> CourseProjectSections => Set<CourseProjectSection>();
+        public DbSet<CourseTeam> CourseTeams => Set<CourseTeam>();
+        public DbSet<CourseTeamMember> CourseTeamMembers => Set<CourseTeamMember>();
+        public DbSet<CourseTeamMessage> CourseTeamMessages => Set<CourseTeamMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
