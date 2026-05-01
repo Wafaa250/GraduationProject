@@ -845,7 +845,9 @@ export default function CourseWorkspacePage() {
                                                             className="dd-course-card-btn"
                                                             onClick={() => {
                                                                 if (isDoctorAssignedProject) {
-                                                                    navigate(`/doctor/projects/${project.id}/teams`);
+                                                                    navigate(`/doctor/projects/${project.id}/teams`, {
+                                                                        state: { courseId: parseBackendCourseId(courseId), projectName: project.title }
+                                                                    });
                                                                 }
                                                             }}
                                                         >
@@ -867,7 +869,9 @@ export default function CourseWorkspacePage() {
                                                                     <button
                                                                         type="button"
                                                                         onClick={() =>
-                                                                            navigate(`/doctor/projects/${project.id}/teams`)
+                                                                            navigate(`/doctor/projects/${project.id}/teams`, {
+                                                                                state: { courseId: parseBackendCourseId(courseId), projectName: project.title }
+                                                                            })
                                                                         }
                                                                         style={S.primaryBtn}
                                                                     >
