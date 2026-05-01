@@ -10,6 +10,7 @@ import {
     type CourseStudent,
     type EnrolledCourse,
 } from "../../../api/studentCoursesApi";
+import ProfileLink from "../../components/common/ProfileLink";
 
 // ── Project types (matches GET /api/courses/{courseId}/projects response) ──
 type CourseProjectSection = { sectionId: number; sectionName: string };
@@ -436,7 +437,12 @@ export default function StudentCoursesPage() {
                                                 <span style={S.metaBadge}>Semester: {bundle.detail.semester}</span>
                                             ) : null}
                                             {bundle.detail.doctorName ? (
-                                                <span style={S.metaBadge}>Doctor: {bundle.detail.doctorName}</span>
+                                                <span style={S.metaBadge}>
+                                                    Doctor:{" "}
+                                                    <ProfileLink userId={bundle.detail.doctorId} role="doctor">
+                                                        {bundle.detail.doctorName}
+                                                    </ProfileLink>
+                                                </span>
                                             ) : null}
                                         </div>
                                     </article>
@@ -522,7 +528,9 @@ export default function StudentCoursesPage() {
                                                                                 </div>
                                                                                 <div style={{ minWidth: 0 }}>
                                                                                     <p style={S.studentName}>
-                                                                                        {studentName}
+                                                                                        <ProfileLink userId={student.userId ?? student.UserId} role="student" style={{ color: "#1f2937" }}>
+                                                                                            {studentName}
+                                                                                        </ProfileLink>
                                                                                     </p>
                                                                                     {email ? (
                                                                                         <p style={S.studentEmail}>
@@ -573,7 +581,11 @@ export default function StudentCoursesPage() {
                                                                                     {studentName.charAt(0).toUpperCase()}
                                                                                 </div>
                                                                                 <div style={{ minWidth: 0 }}>
-                                                                                    <p style={S.studentName}>{studentName}</p>
+                                                                                    <p style={S.studentName}>
+                                                                                        <ProfileLink userId={student.userId ?? student.UserId} role="student" style={{ color: "#1f2937" }}>
+                                                                                            {studentName}
+                                                                                        </ProfileLink>
+                                                                                    </p>
                                                                                     {email ? <p style={S.studentEmail}>{email}</p> : null}
                                                                                 </div>
                                                                             </div>
@@ -766,7 +778,9 @@ export default function StudentCoursesPage() {
                                                                                             {studentName.charAt(0).toUpperCase()}
                                                                                         </div>
                                                                                         <p style={S.chatMemberName}>
-                                                                                            {studentName}
+                                                                                            <ProfileLink userId={student.userId ?? student.UserId} role="student" style={{ color: "#1f2937" }}>
+                                                                                                {studentName}
+                                                                                            </ProfileLink>
                                                                                             {isCurrentUser ? " (You)" : ""}
                                                                                         </p>
                                                                                     </div>

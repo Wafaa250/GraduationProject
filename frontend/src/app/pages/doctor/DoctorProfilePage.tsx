@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Building2, BriefcaseBusiness, Mail, Linkedin, Clock3, ShieldCheck } from 'lucide-react'
-import api from '../../../api/axiosInstance'
-import { mergeDoctorSkillsFromLists, normalizeSkillStringList } from '../../../context/UserContext'
 import { navigateHome } from '../../../utils/homeNavigation'
+import { apiClient } from '../../../api/client'
+import { parseApiErrorMessage } from '../../../api/axiosInstance'
 
 interface DoctorProfile {
+  userId: number
   fullName: string
   email: string
   title: string
@@ -15,88 +16,130 @@ interface DoctorProfile {
   faculty: string
   specialization: string
   yearsOfExperience: string
-  skills: string[]
   linkedin: string
   officeHours: string
   profilePictureBase64: string | null
 }
+type DoctorTab = 'about' | 'courses' | 'projects'
+type DoctorCourse = { id: number; name: string; code: string; semester: string }
+type DoctorProject = { id: number; name: string }
 
 function mapDoctorProfile(data: any): DoctorProfile {
-  const user = data?.user ?? data ?? {}
-  const dp = data?.doctorProfile ?? data?.DoctorProfile ?? {}
-
-  const technical = normalizeSkillStringList(
-    dp.technicalSkills ?? dp.TechnicalSkills ?? data?.technicalSkills ?? data?.TechnicalSkills,
-  )
-  const research = normalizeSkillStringList(
-    dp.researchSkills ?? dp.ResearchSkills ?? data?.researchSkills ?? data?.ResearchSkills,
-  )
-  const skills = mergeDoctorSkillsFromLists(technical, research)
+  const root = data?.doctor ?? data ?? {}
+  const user = root?.user ?? root?.User ?? root ?? {}
+  const dp = root?.doctorProfile ?? root?.DoctorProfile ?? {}
 
   return {
+    userId: Number(user?.id ?? root?.userId ?? 0),
     // Required mapping
-    fullName: user.name || user.fullName || '',
-    email: user.email || '',
-    faculty: dp.faculty ?? dp.Faculty ?? '',
-    department: dp.department ?? dp.Department ?? '',
-    specialization: dp.specialization ?? dp.Specialization ?? '',
+    fullName: user?.name ?? user?.fullName ?? '',
+    email: user?.email ?? '',
+    faculty: dp?.faculty ?? dp?.Faculty ?? '',
+    department: dp?.department ?? dp?.Department ?? '',
+    specialization: dp?.specialization ?? dp?.Specialization ?? '',
     yearsOfExperience:
-      dp.yearsOfExperience != null ? String(dp.yearsOfExperience) : '',
-    skills,
-
+      dp?.yearsOfExperience != null ? String(dp.yearsOfExperience) : '',
     // Additional display fields
-    title: dp.title || (user.role?.toLowerCase?.() === 'doctor' ? 'Doctor' : 'Professor'),
-    university: dp.university ?? dp.University ?? user.university ?? '',
-    bio: dp.bio ?? user.bio ?? '',
-    linkedin: dp.linkedin ?? user.linkedin ?? '',
-    officeHours: dp.officeHours ?? dp.OfficeHours ?? '',
-    profilePictureBase64: user.profilePictureBase64 ?? dp.profilePictureBase64 ?? null,
+    title: dp?.title ?? (user?.role?.toLowerCase?.() === 'doctor' ? 'Doctor' : 'Professor'),
+    university: dp?.university ?? dp?.University ?? user?.university ?? '',
+    bio: dp?.bio ?? user?.bio ?? '',
+    linkedin: dp?.linkedin ?? user?.linkedin ?? '',
+    officeHours: dp?.officeHours ?? dp?.OfficeHours ?? '',
+    profilePictureBase64: user?.profilePictureBase64 ?? dp?.profilePictureBase64 ?? null,
   }
 }
 
 function displayValue(value?: string | null): string {
-  if (value == null) return 'Not provided'
+  if (value == null) return '—'
   const text = String(value).trim()
-  return text.length > 0 ? text : 'Not provided'
+  return text.length > 0 ? text : '—'
 }
 
 export default function DoctorProfilePage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { doctorId } = useParams<{ doctorId?: string }>()
   const [profile, setProfile] = useState<DoctorProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<DoctorTab>('about')
+  const [publicCourses, setPublicCourses] = useState<DoctorCourse[]>([])
+  const [publicProjects, setPublicProjects] = useState<DoctorProject[]>([])
+  const mode: 'me' | 'public' = location.pathname === '/doctor/profile' ? 'me' : 'public'
+  const isPublic = mode === 'public'
 
   const fetchProfile = async () => {
     try {
       setLoading(true)
       setError(null)
-      const res = await api.get('/me', {
+      const endpoint =
+        mode === 'public' ? `/doctors/${doctorId}` : '/me'
+      const res = await apiClient.get(endpoint, {
         headers: {
           'Cache-Control': 'no-cache',
           Pragma: 'no-cache',
         },
       })
       const data = res.data
-      console.log('Fetched profile:', data)
+      if (mode === 'public') {
+        console.log('Doctor public profile response:', data)
+      }
       setProfile(mapDoctorProfile(data))
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load doctor profile.')
+      if (mode === 'public') {
+        const id = Number(doctorId)
+        const [coursesRes, projectsRes] = await Promise.allSettled([
+          apiClient.get('/courses', { params: { doctorId: id } }),
+          apiClient.get('/graduation-projects', { params: { doctorId: id } }),
+        ])
+        setPublicCourses(
+          coursesRes.status === 'fulfilled' && Array.isArray(coursesRes.value.data)
+            ? coursesRes.value.data.map((c: any) => ({
+                id: Number(c.courseId ?? c.id ?? 0),
+                name: c.name ?? 'Course',
+                code: c.code ?? '',
+                semester: c.semester ?? '',
+              }))
+            : [],
+        )
+        setPublicProjects(
+          projectsRes.status === 'fulfilled' && Array.isArray(projectsRes.value.data)
+            ? projectsRes.value.data.map((p: any) => ({
+                id: Number(p.id ?? p.projectId ?? 0),
+                name: p.name ?? p.title ?? 'Project',
+              }))
+            : [],
+        )
+      }
+    } catch (err: unknown) {
+      setError(parseApiErrorMessage(err) || 'Failed to load doctor profile.')
+      setPublicCourses([])
+      setPublicProjects([])
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchProfile()
-  }, [location.pathname, location.key])
+    if (mode === 'public') {
+      const id = Number(doctorId)
+      if (!Number.isFinite(id) || id <= 0) {
+        setError('Invalid doctor profile link.')
+        setLoading(false)
+        return
+      }
+    }
+    void fetchProfile()
+  }, [location.pathname, location.key, doctorId, mode])
 
   const initials = useMemo(
     () => (profile?.fullName || 'DR').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase(),
     [profile?.fullName],
   )
 
-  const skills = useMemo(() => profile?.skills ?? [], [profile?.skills])
+  const handleMessage = () => {
+    if (!profile?.userId || profile.userId <= 0) return
+    navigate(`/messages?userId=${profile.userId}`)
+  }
 
   if (loading) {
     return (
@@ -114,7 +157,7 @@ export default function DoctorProfilePage() {
       <div style={S.page}>
         <div style={S.centerState}>
           <p style={S.errorText}>{error || 'Profile not found.'}</p>
-          <button style={S.backButton} onClick={() => navigateHome(navigate)}>
+          <button style={S.backButton} onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))}>
             <ArrowLeft size={14} /> Back
           </button>
         </div>
@@ -129,12 +172,16 @@ export default function DoctorProfilePage() {
 
       <nav style={S.nav}>
         <div style={S.navInner}>
-          <button style={S.backButton} onClick={() => navigateHome(navigate)}>
-            <ArrowLeft size={14} /> Dashboard
+          <button style={S.backButton} onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))}>
+            <ArrowLeft size={14} /> {isPublic ? 'Back' : 'Dashboard'}
           </button>
-          <Link to="/doctor/edit-profile" style={S.editButton}>
-            Edit Doctor Profile
-          </Link>
+          {mode === 'me' ? (
+            <Link to="/doctor/edit-profile" style={S.editButton}>
+              Edit Doctor Profile
+            </Link>
+          ) : (
+            <button type="button" style={S.editButton} onClick={handleMessage}>Message</button>
+          )}
         </div>
       </nav>
 
@@ -168,6 +215,69 @@ export default function DoctorProfilePage() {
           </div>
         </section>
 
+        {isPublic ? (
+          <section style={S.card}>
+            <div style={S.tabsRow}>
+              <button type="button" style={{ ...S.tabBtn, ...(activeTab === 'about' ? S.tabBtnActive : {}) }} onClick={() => setActiveTab('about')}>About</button>
+              <button type="button" style={{ ...S.tabBtn, ...(activeTab === 'courses' ? S.tabBtnActive : {}) }} onClick={() => setActiveTab('courses')}>Courses</button>
+              <button type="button" style={{ ...S.tabBtn, ...(activeTab === 'projects' ? S.tabBtnActive : {}) }} onClick={() => setActiveTab('projects')}>Projects</button>
+            </div>
+            {activeTab === 'about' && (
+              <div style={S.grid}>
+                <section style={S.card}>
+                  <h2 style={S.sectionTitle}>Academic Info</h2>
+                  <div style={S.infoGrid}>
+                    <InfoCell label="Faculty" value={displayValue(profile.faculty)} />
+                    <InfoCell label="Department" value={displayValue(profile.department)} />
+                    <InfoCell label="Specialization" value={displayValue(profile.specialization)} />
+                    <InfoCell label="Experience" value={profile.yearsOfExperience ? `${profile.yearsOfExperience} years` : '—'} />
+                  </div>
+                </section>
+                <section style={S.card}>
+                  <h2 style={S.sectionTitle}>Contact</h2>
+                  <div style={S.contactCol}>
+                    <ContactRow icon={<Mail size={14} />} label="Email" value={profile.email} />
+                    <ContactRow icon={<Linkedin size={14} />} label="LinkedIn" value={profile.linkedin} isLink />
+                    <ContactRow icon={<Clock3 size={14} />} label="Office Hours" value={profile.officeHours} />
+                  </div>
+                </section>
+              </div>
+            )}
+            {activeTab === 'courses' && (
+              <div style={S.card}>
+                <h2 style={S.sectionTitle}>Courses</h2>
+                {publicCourses.length === 0 ? (
+                  <p style={S.muted}>No courses listed.</p>
+                ) : (
+                  <div style={S.contactCol}>
+                    {publicCourses.map((course) => (
+                      <div key={`c-${course.id}`} style={S.contactRow}>
+                        <span style={S.contactValue}>{course.name}</span>
+                        <span style={S.contactLabel}>{course.code || '—'} {course.semester ? `· ${course.semester}` : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {activeTab === 'projects' && (
+              <div style={S.card}>
+                <h2 style={S.sectionTitle}>Projects</h2>
+                {publicProjects.length === 0 ? (
+                  <p style={S.muted}>No supervised projects yet</p>
+                ) : (
+                  <div style={S.contactCol}>
+                    {publicProjects.map((project) => (
+                      <div key={`p-${project.id}`} style={S.contactRow}>
+                        <span style={S.contactValue}>{project.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        ) : (
         <div style={S.grid}>
           <section style={S.card}>
             <h2 style={S.sectionTitle}>Academic Info</h2>
@@ -177,7 +287,7 @@ export default function DoctorProfilePage() {
               <InfoCell label="Specialization" value={displayValue(profile.specialization)} />
               <InfoCell
                 label="Experience"
-                value={profile.yearsOfExperience ? `${profile.yearsOfExperience} years` : 'Not provided'}
+                value={profile.yearsOfExperience ? `${profile.yearsOfExperience} years` : '—'}
               />
             </div>
           </section>
@@ -191,19 +301,8 @@ export default function DoctorProfilePage() {
             </div>
           </section>
         </div>
+        )}
 
-        <section style={S.card}>
-          <h2 style={S.sectionTitle}>Skills</h2>
-          {skills.length === 0 ? (
-            <p style={S.muted}>Not provided</p>
-          ) : (
-            <div style={S.tagsRow}>
-              {(profile.skills || []).map((skill, index) => (
-                <span key={`skill-${skill}`} style={index % 2 === 0 ? S.techTag : S.researchTag}>{skill}</span>
-              ))}
-            </div>
-          )}
-        </section>
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -231,7 +330,7 @@ function ContactRow({
   value: string
   isLink?: boolean
 }) {
-  if (!value || !String(value).trim()) return <p style={S.muted}>Not provided</p>
+  if (!value || !String(value).trim()) return null
   const href = value.startsWith('http') ? value : (isLink ? `https://${value}` : value)
   return (
     <div style={S.contactRow}>
@@ -271,6 +370,9 @@ const S: Record<string, CSSProperties> = {
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 },
   card: { background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(99,102,241,0.06)', padding: 18 },
   sectionTitle: { margin: '0 0 14px', fontSize: 13, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' },
+  tabsRow: { display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, marginBottom: 12, borderBottom: '1px solid #e2e8f0' },
+  tabBtn: { border: 'none', background: 'transparent', color: '#64748b', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', whiteSpace: 'nowrap' },
+  tabBtnActive: { background: '#eef2ff', color: '#4f46e5' },
   infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 },
   infoCell: { padding: '10px 12px', border: '1px solid #e5eaf4', borderRadius: 10, background: '#f8fafc' },
   infoLabel: { margin: '0 0 4px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' },

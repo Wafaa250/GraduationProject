@@ -272,6 +272,7 @@ namespace GraduationProject.API.Data
                  .HasForeignKey(en => en.StudentProfileId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
+
         }
     }
 }

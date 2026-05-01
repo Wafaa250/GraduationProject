@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { ArrowLeft, Users } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import ProfileLink from "../../components/common/ProfileLink";
 
 type TeamMember = {
     id: number;
@@ -78,7 +79,9 @@ export default function StudentTeamPage() {
                                     <div key={member.id} style={S.memberRow}>
                                         <div style={S.avatar}>{member.name.charAt(0).toUpperCase()}</div>
                                         <div>
-                                            <p style={S.memberName}>{member.name}</p>
+                                            <p style={S.memberName}>
+                                                <ProfileLink userId={member.id} role="student">{member.name}</ProfileLink>
+                                            </p>
                                             <p style={S.memberRole}>{member.role}</p>
                                         </div>
                                     </div>

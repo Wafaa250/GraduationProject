@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactElement } from "react";
 import { AlertCircle, Loader2, Sparkles, Star, Users } from "lucide-react";
+import ProfileLink from "../common/ProfileLink";
 
 export type AiSupervisorRecommendUiState =
   | "idle"
@@ -275,7 +276,9 @@ export function AiSupervisorRecommendations({
                         )}
                       </div>
                       <div style={S.recMain}>
-                        <p style={S.recName}>{displayName}</p>
+                        <p style={S.recName}>
+                          <ProfileLink userId={row.doctorId} role="doctor">{displayName}</ProfileLink>
+                        </p>
                         {row.specialization && (
                           <p style={S.recSpec}>{row.specialization}</p>
                         )}
