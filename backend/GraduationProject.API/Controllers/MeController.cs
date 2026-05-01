@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,17 +22,38 @@ namespace GraduationProject.API.Controllers
         public async Task<IActionResult> GetMe()
         {
             var userId = AuthorizationHelper.GetUserId(User);
-            var role   = AuthorizationHelper.GetRole(User);
+            var role   = NormalizeRole(AuthorizationHelper.GetRole(User));
+
+            // Doctor (and other non-student roles) must never run student profile loading.
+            if (role == "doctor")
+                return await GetDoctorInfo(userId);
 
             return role switch
             {
                 "student"     => await GetStudentInfo(userId),
-                "doctor"      => await GetDoctorInfo(userId),
                 "company"     => await GetCompanyInfo(userId),
                 "association" => await GetAssociationInfo(userId),
                 "admin"       => await GetAdminInfo(userId),
                 _             => Unauthorized(new { message = "Unknown role." })
             };
+        }
+
+        private static string NormalizeRole(string? role) =>
+            (role ?? string.Empty).Trim().ToLowerInvariant();
+
+        /// <summary>DoctorProfiles stores TechnicalSkills / ResearchSkills as JSON text; tolerate null, empty, or invalid JSON.</summary>
+        private static List<string> DeserializeList(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return new List<string>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(json.Trim()) ?? new List<string>();
+            }
+            catch (JsonException)
+            {
+                return new List<string>();
+            }
         }
 
         // ── Student ──────────────────────────────────────────────────────────
@@ -82,23 +105,46 @@ namespace GraduationProject.API.Controllers
         // ── Doctor ───────────────────────────────────────────────────────────
         private async Task<IActionResult> GetDoctorInfo(int userId)
         {
-            var profile = await _db.DoctorProfiles
+            var dp = await _db.DoctorProfiles
+                .AsNoTracking()
                 .Include(d => d.User)
                 .FirstOrDefaultAsync(d => d.UserId == userId);
 
-            if (profile == null)
+            if (dp == null)
                 return NotFound(new { message = "Doctor profile not found." });
+
+            var u = dp.User;
+            var technicalSkills = DeserializeList(dp.TechnicalSkills);
+            var researchSkills = DeserializeList(dp.ResearchSkills);
 
             return Ok(new
             {
-                role                = "doctor",
-                userId              = profile.UserId,
-                profileId           = profile.Id,
-                name                = profile.User.Name,
-                email               = profile.User.Email,
-                specialization      = profile.Specialization,
-                supervisionCapacity = profile.SupervisionCapacity,
-                bio                 = profile.Bio
+                role = "doctor",
+                userId = dp.UserId,
+                profileId = dp.Id,
+                user = new
+                {
+                    userId = u.Id,
+                    name = u.Name,
+                    email = u.Email,
+                    profilePictureBase64 = dp.ProfilePictureBase64,
+                    role = "doctor",
+                },
+                doctorProfile = new
+                {
+                    profileId = dp.Id,
+                    department = dp.Department,
+                    faculty = dp.Faculty,
+                    specialization = dp.Specialization,
+                    university = dp.University,
+                    yearsOfExperience = dp.YearsOfExperience,
+                    linkedin = dp.Linkedin,
+                    officeHours = dp.OfficeHours,
+                    bio = dp.Bio,
+                    profilePictureBase64 = dp.ProfilePictureBase64,
+                    technicalSkills,
+                    researchSkills,
+                },
             });
         }
 

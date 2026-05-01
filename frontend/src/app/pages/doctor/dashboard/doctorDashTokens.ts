@@ -1,0 +1,26 @@
+import type { CSSProperties } from "react";
+
+export const dash = {
+  font: "DM Sans, ui-sans-serif, system-ui, sans-serif",
+  fontDisplay: "Syne, ui-sans-serif, system-ui, sans-serif",
+  bg: "#f1f5f9",
+  surface: "#ffffff",
+  border: "#e2e8f0",
+  text: "#0f172a",
+  muted: "#64748b",
+  subtle: "#94a3b8",
+  accent: "#4f46e5",
+  accentMuted: "#eef2ff",
+  danger: "#b91c1c",
+  radiusLg: 16,
+  radiusMd: 12,
+  shadow: "0 1px 2px rgba(15,23,42,0.04), 0 4px 16px rgba(15,23,42,0.06)",
+  shadowLg: "0 8px 30px rgba(15,23,42,0.08)",
+} as const;
+
+export const card: CSSProperties = {
+  background: dash.surface,
+  borderRadius: dash.radiusLg,
+  border: `1px solid ${dash.border}`,
+  boxShadow: dash.shadow,
+};
