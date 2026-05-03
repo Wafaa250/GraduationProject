@@ -52,8 +52,8 @@ namespace GraduationProject.API.Repositories
         public async Task<(List<SectionEnrollment> Added, List<string> NotFound, List<string> AlreadyEnrolled)>
             AddStudentsAsync(int sectionId, List<string> universityIds)
         {
-            var added           = new List<SectionEnrollment>();
-            var notFound        = new List<string>();
+            var added = new List<SectionEnrollment>();
+            var notFound = new List<string>();
             var alreadyEnrolled = new List<string>();
 
             var existingStudentIds = (await _context.SectionEnrollments
@@ -82,9 +82,9 @@ namespace GraduationProject.API.Repositories
 
                 var enrollment = new SectionEnrollment
                 {
-                    CourseSectionId  = sectionId,
+                    CourseSectionId = sectionId,
                     StudentProfileId = profile.Id,
-                    EnrolledAt       = DateTime.UtcNow,
+                    EnrolledAt = DateTime.UtcNow,
                 };
 
                 _context.SectionEnrollments.Add(enrollment);
@@ -107,8 +107,16 @@ namespace GraduationProject.API.Repositories
                 .Where(e => e.StudentProfileId == studentProfileId)
                 .Include(e => e.Section)
                     .ThenInclude(s => s.Course)
-                        .ThenInclude(c => c.Doctor)
-                            .ThenInclude(d => d.User)
+                .OrderBy(e => e.EnrolledAt)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<SectionEnrollment>> GetAllEnrollmentsByCourseIdAsync(int courseId)
+        {
+            return await _context.SectionEnrollments
+                .Where(e => e.Section.CourseId == courseId)
+                .Include(e => e.Student)
+                    .ThenInclude(s => s.User)
                 .OrderBy(e => e.EnrolledAt)
                 .ToListAsync();
         }

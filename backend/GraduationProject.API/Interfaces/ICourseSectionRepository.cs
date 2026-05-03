@@ -21,5 +21,8 @@ namespace GraduationProject.API.Interfaces
         /// Returns all sections (with their course) that the student is enrolled in.
         /// </summary>
         Task<IEnumerable<SectionEnrollment>> GetEnrolledSectionsByStudentAsync(int studentProfileId);
+
+        /// <summary>Returns all enrollments for all sections of a course.</summary>
+        Task<IEnumerable<SectionEnrollment>> GetAllEnrollmentsByCourseIdAsync(int courseId);
     }
 }

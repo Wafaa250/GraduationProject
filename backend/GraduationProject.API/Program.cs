@@ -51,6 +51,11 @@ builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRec
 // ── Courses ──────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ICourseSectionRepository, CourseSectionRepository>();
+builder.Services.AddScoped<ISectionChatRepository, SectionChatRepository>();
+builder.Services.AddScoped<ICourseProjectRepository, CourseProjectRepository>();
+builder.Services.AddScoped<ICourseTeamRepository, CourseTeamRepository>();
+builder.Services.AddScoped<ICourseTeamChatRepository, CourseTeamChatRepository>();
+builder.Services.AddHttpClient<ITeamGenerationService, OpenAiTeamGenerationService>();
 
 // ===========================
 // CORS

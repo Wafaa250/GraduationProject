@@ -10,5 +10,11 @@ namespace GraduationProject.API.Interfaces
 
         Task<int?> GetDoctorProfileIdByUserIdAsync(int userId);
         Task<int?> GetStudentProfileIdByUserIdAsync(int userId);
+
+        /// <summary>Returns a map of DoctorProfileId → DoctorUserName.</summary>
+        Task<Dictionary<int, string>> GetDoctorNamesByIdsAsync(List<int> doctorProfileIds);
+
+        /// <summary>Finds a StudentProfile by university student ID string.</summary>
+        Task<GraduationProject.API.Models.StudentProfile?> GetStudentByUniversityIdAsync(string universityId);
     }
 }

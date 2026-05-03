@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, RotateCw, Users } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { dash, card } from "../doctor/dashboard/doctorDashTokens";
 import api from "../../../api/axiosInstance";
@@ -51,7 +51,6 @@ export default function ProjectTeamsPage() {
         return n && n.length > 0 ? n : "Project";
     }, [st]);
 
-    // Use projectId from route params; fall back to location state for temp routes
     const backendProjectId = useMemo(() => {
         if (projectId && /^\d+$/.test(projectId)) return Number(projectId);
         if (st?.projectId) return st.projectId;
@@ -71,7 +70,27 @@ export default function ProjectTeamsPage() {
     const [error, setError] = useState<string | null>(null);
     const [teamSize, setTeamSize] = useState<number | null>(null);
 
-    // ── Fetch teams ────────────────────────────────────────────────────────────
+    // ── Load saved teams (GET) ─────────────────────────────────────────────────
+    const loadSavedTeams = useCallback(async () => {
+        if (backendCourseId == null || backendProjectId == null) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.get<GenerateTeamsResponse>(
+                `/courses/${backendCourseId}/projects/${backendProjectId}/teams`
+            );
+            setTeams(res.data.teams);
+            setTeamSize(res.data.teamSize);
+        } catch (err) {
+            const msg = parseApiErrorMessage(err);
+            setError(msg);
+            showToast(msg, "error");
+        } finally {
+            setLoading(false);
+        }
+    }, [backendCourseId, backendProjectId, showToast]);
+
+    // ── Regenerate teams (POST) ────────────────────────────────────────────────
     const fetchTeams = useCallback(async () => {
         if (backendCourseId == null || backendProjectId == null) return;
         setLoading(true);
@@ -92,21 +111,13 @@ export default function ProjectTeamsPage() {
     }, [backendCourseId, backendProjectId, showToast]);
 
     useEffect(() => {
-        void fetchTeams();
+        void loadSavedTeams();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
-        <div
-            style={{
-                minHeight: "100vh",
-                background: dash.bg,
-                fontFamily: dash.font,
-                color: dash.text,
-                padding: "24px 28px 40px",
-            }}
-        >
+        <div style={{ minHeight: "100vh", background: dash.bg, fontFamily: dash.font, color: dash.text, padding: "24px 28px 40px" }}>
             <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                 <button type="button" onClick={() => navigate(backHref)} style={S.backBtn}>
                     <ArrowLeft size={18} />
@@ -120,50 +131,99 @@ export default function ProjectTeamsPage() {
                     <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: dash.fontDisplay, lineHeight: 1.25 }}>
                         Project Teams
                     </h1>
-                    <p style={{ margin: "10px 0 0", fontSize: 14, fontWeight: 600, color: dash.muted, lineHeight: 1.45 }}>
-                        {projectName}
-                    </p>
+                    <p style={{ margin: "10px 0 0", fontSize: 14, fontWeight: 600, color: dash.muted }}>{projectName}</p>
                     <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <span style={S.metaChip}>
-                            <strong style={{ color: dash.text }}>Section:</strong>{" "}
-                            {st?.sectionName?.trim() ? st.sectionName.trim() : "—"}
-                        </span>
-                        <span style={S.metaChip}>
-                            <strong style={{ color: dash.text }}>Team size:</strong> {teamSize ?? "—"}
-                        </span>
+                        <span style={S.metaChip}><strong style={{ color: dash.text }}>Section:</strong> {st?.sectionName?.trim() || "—"}</span>
+                        <span style={S.metaChip}><strong style={{ color: dash.text }}>Team size:</strong> {teamSize ?? "—"}</span>
+                        <span style={S.metaChip}><strong style={{ color: dash.text }}>Teams:</strong> {teams.length > 0 ? teams.length : "—"}</span>
                     </div>
                 </header>
 
-                <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+                {/* Actions */}
+                <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10 }}>
                     <button
                         type="button"
-                        style={{ ...S.primaryBtn, opacity: backendProjectId == null ? 0.6 : 1 }}
-                        onClick={() => {
-                            if (backendProjectId == null) return;
-                            navigate(`/doctor/projects/${backendProjectId}/teams`);
-                        }}
-                        disabled={backendProjectId == null}
+                        style={{ ...S.secondaryBtn, display: "inline-flex", alignItems: "center", gap: 8 }}
+                        onClick={() => void fetchTeams()}
+                        disabled={loading || backendProjectId == null}
                     >
-                        Assign Teams
+                        <RotateCw size={15} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+                        Regenerate
                     </button>
                 </div>
 
-                {/* Error / no backend id */}
+                {/* Loading */}
+                {loading && (
+                    <div style={{ ...card, marginTop: 20, padding: "48px 24px", textAlign: "center" }}>
+                        <p style={{ margin: 0, fontSize: 14, color: dash.muted }}>Generating teams with AI…</p>
+                    </div>
+                )}
+
+                {/* Error */}
                 {!loading && error && (
                     <div style={{ ...card, marginTop: 20, padding: "24px", background: "#fef2f2", border: "1px solid #fecaca" }}>
                         <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: dash.danger }}>{error}</p>
                     </div>
                 )}
 
-                {/* No project id (temp route) */}
+                {/* No project id */}
                 {!loading && !error && backendProjectId == null && (
                     <div style={{ ...card, marginTop: 20, padding: "48px 24px", textAlign: "center" }}>
                         <p style={{ margin: 0, fontSize: 14, color: dash.muted }}>
-                            Project was not saved yet — please create the project first and try again.
+                            Project was not saved yet — please create the project first.
+                        </p>
+                    </div>
+                )}
+
+                {/* Teams grid */}
+                {!loading && !error && teams.length > 0 && (
+                    <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+                        {teams.map((team) => (
+                            <article key={team.teamIndex} style={{ ...card, padding: "18px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                                {/* Team header */}
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: dash.text }}>
+                                        Team {team.teamIndex + 1}
+                                    </h2>
+                                    <span style={S.countChip}>
+                                        <Users size={12} />
+                                        {team.memberCount}
+                                    </span>
+                                </div>
+
+                                {/* Members */}
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    {team.members.map((member) => (
+                                        <div key={member.studentId} style={S.memberRow}>
+                                            <div style={S.avatar}>{member.name.charAt(0).toUpperCase()}</div>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: dash.text }}>{member.name}</p>
+                                                {member.skills.length > 0 && (
+                                                    <p style={{ margin: "2px 0 0", fontSize: 11, color: dash.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                        {member.skills.slice(0, 3).join(", ")}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <span style={S.scoreBadge}>{member.matchScore.toFixed(0)}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
+
+                {/* No teams yet */}
+                {!loading && !error && teams.length === 0 && backendProjectId != null && (
+                    <div style={{ ...card, marginTop: 20, padding: "48px 24px", textAlign: "center" }}>
+                        <p style={{ margin: 0, fontSize: 14, color: dash.muted }}>
+                            No teams generated yet. Click <strong>Regenerate</strong> to start.
                         </p>
                     </div>
                 )}
             </div>
+
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 }
@@ -175,19 +235,34 @@ const S: Record<string, CSSProperties> = {
         color: dash.muted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: dash.font,
     },
     secondaryBtn: {
-        display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 16px",
-        borderRadius: 10, border: `1px solid ${dash.border}`, background: dash.surface,
-        color: dash.muted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: dash.font,
-    },
-    primaryBtn: {
-        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 16px",
-        borderRadius: 10, border: "none", background: `linear-gradient(135deg,${dash.accent},#7c3aed)`,
-        color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: dash.font,
-        boxShadow: "0 4px 16px rgba(79,70,229,0.3)",
+        padding: "9px 16px", borderRadius: 10, border: `1px solid ${dash.border}`,
+        background: dash.surface, color: dash.muted, fontSize: 13, fontWeight: 700,
+        cursor: "pointer", fontFamily: dash.font,
     },
     metaChip: {
         display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px",
         borderRadius: 8, border: `1px solid ${dash.border}`, background: dash.surface,
         color: dash.muted, fontSize: 12, fontWeight: 600, fontFamily: dash.font,
+    },
+    countChip: {
+        display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
+        color: dash.accent, background: dash.accentMuted, border: `1px solid #c7d2fe`,
+        borderRadius: 999, padding: "4px 8px",
+    },
+    memberRow: {
+        display: "flex", alignItems: "center", gap: 10,
+        border: `1px solid ${dash.border}`, borderRadius: 10,
+        background: dash.surface, padding: "8px 10px",
+    },
+    avatar: {
+        width: 32, height: 32, borderRadius: "50%",
+        background: dash.accentMuted, color: dash.accent,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        fontSize: 13, fontWeight: 800, flexShrink: 0,
+    },
+    scoreBadge: {
+        fontSize: 11, fontWeight: 800, color: dash.accent,
+        background: dash.accentMuted, border: `1px solid #c7d2fe`,
+        borderRadius: 999, padding: "3px 8px", flexShrink: 0,
     },
 };
