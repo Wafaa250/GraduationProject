@@ -48,10 +48,26 @@ namespace GraduationProject.API.Models
         [Column("supervision_capacity")]  public int SupervisionCapacity { get; set; } = 0;
         [Column("bio")]                   public string? Bio { get; set; }
 
-        // ── حقول جديدة ──────────────────────────────────────────────────────
         [Column("university")]             public string? University { get; set; }
         [Column("faculty")]                public string? Faculty { get; set; }
+        [Column("department")]             public string Department { get; set; } = string.Empty;
         [Column("profile_picture_base64")] public string? ProfilePictureBase64 { get; set; }
+
+       
+        [Column("years_of_experience")]
+        public int? YearsOfExperience { get; set; }
+
+        [Column("linkedin")]
+        public string? Linkedin { get; set; }
+
+        [Column("office_hours")]
+        public string? OfficeHours { get; set; }
+
+        [Column("technical_skills")]
+        public string? TechnicalSkills { get; set; }
+
+        [Column("research_skills")]
+        public string? ResearchSkills { get; set; }
 
         public User User { get; set; } = null!;
     }

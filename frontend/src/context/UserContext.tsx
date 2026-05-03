@@ -29,6 +29,8 @@ export interface UserProfile {
   // Skills (NEW SYSTEM)
   roles: string[]
   technicalSkills: string[]
+  /** Doctor profile only; empty for students */
+  researchSkills: string[]
   tools: string[]
 
   // Work style
@@ -46,6 +48,9 @@ export interface UserProfile {
   // Meta
   isOwnProfile: boolean
   completeness: number
+
+  // Auth
+  role: string
 }
 
 // ─── Default empty profile ────────────────────────────────────────────────────
@@ -63,6 +68,7 @@ export const EMPTY_PROFILE: UserProfile = {
   gpa: '',
   roles: [],
   technicalSkills: [],
+  researchSkills: [],
   tools: [],
   bio: '',
   preferredRole: '',
@@ -74,6 +80,7 @@ export const EMPTY_PROFILE: UserProfile = {
   portfolio: '',
   isOwnProfile: true,
   completeness: 0,
+  role: '',
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -84,7 +91,7 @@ interface UserContextType {
   updateProfile: (partial: Partial<UserProfile>) => void
   loading: boolean
   error: string | null
-  refetch: () => void
+  refetch: (silent?: boolean) => Promise<any | null>
 }
 
 const UserContext = createContext<UserContextType>({
@@ -93,40 +100,103 @@ const UserContext = createContext<UserContextType>({
   updateProfile: () => {},
   loading: false,
   error: null,
-  refetch: () => {},
+  refetch: async (_silent?: boolean) => null,
 })
+
+// ─── Skills: API may return string[], objects, or a comma-separated string ───
+
+export function normalizeSkillStringList(raw: unknown): string[] {
+  if (raw == null) return []
+  if (typeof raw === 'string') {
+    return raw
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+  }
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item: unknown) => {
+      if (typeof item === 'string') return item.trim()
+      if (item && typeof item === 'object') {
+        const o = item as Record<string, unknown>
+        const s = o.label ?? o.name ?? o.skill ?? o.title
+        return s != null ? String(s).trim() : ''
+      }
+      return String(item).trim()
+    })
+    .filter(Boolean)
+}
+
+/** Doctor UI: merged skills for display — never use backend `skills` (merged). */
+export function mergeDoctorSkillsFromLists(
+  technicalSkills: string[] | undefined,
+  researchSkills: string[] | undefined,
+): string[] {
+  return [...(technicalSkills || []), ...(researchSkills || [])]
+}
 
 // ─── Helper: map API response → UserProfile ───────────────────────────────────
 
 function mapApiToProfile(data: any): UserProfile {
+  const isDoctor = String(data.role || '').toLowerCase() === 'doctor'
+  const doctorProfile = data?.doctorProfile ?? data?.DoctorProfile ?? {}
+
+  const roles = isDoctor ? [] : normalizeSkillStringList(data.roles ?? data.generalSkills)
+  const technicalSkills = isDoctor
+    ? normalizeSkillStringList(
+        doctorProfile.technicalSkills ??
+          doctorProfile.TechnicalSkills ??
+          data.technicalSkills ??
+          data.TechnicalSkills,
+      )
+    : normalizeSkillStringList(data.technicalSkills ?? data.majorSkills)
+  const researchSkills = isDoctor
+    ? normalizeSkillStringList(
+        doctorProfile.researchSkills ?? doctorProfile.ResearchSkills ?? data.researchSkills ?? data.ResearchSkills,
+      )
+    : []
+  const tools = isDoctor ? [] : normalizeSkillStringList(data.tools)
+
   const mapped: UserProfile = {
-    fullName: data.name || data.fullName || '',
-    email: data.email || '',
-    profilePic: data.profilePictureBase64 || null,
+    fullName: isDoctor
+      ? data.user?.name || data.user?.fullName || data.name || data.fullName || ''
+      : data.name || data.fullName || '',
+    email: isDoctor ? data.user?.email || data.email || '' : data.email || '',
+    profilePic: isDoctor
+      ? data.user?.profilePictureBase64 ?? doctorProfile.profilePictureBase64 ?? data.profilePictureBase64 ?? null
+      : data.profilePictureBase64 || null,
     coverImage: data.coverImage || null,
     studentId: data.studentId || '',
-    university: data.university || '',
-    faculty: data.faculty || '',
+    university: isDoctor
+      ? (doctorProfile.university ?? doctorProfile.University ?? data.university) || ''
+      : data.university || '',
+    faculty: isDoctor
+      ? (doctorProfile.faculty ?? doctorProfile.Faculty ?? data.faculty) || ''
+      : data.faculty || '',
     major: data.major || '',
     academicYear: data.academicYear || '',
     gpa: data.gpa != null ? String(data.gpa) : '',
 
-    roles: data.roles || [],
-    technicalSkills: data.technicalSkills || [],
-    tools: data.tools || [],
+    roles,
+    technicalSkills,
+    researchSkills,
+    tools,
 
-    bio: data.bio || '',
+    bio: isDoctor ? (doctorProfile.bio ?? data.bio) || '' : data.bio || '',
     preferredRole: data.preferredRole || '',
     availability: data.availability || '',
     lookingFor: data.lookingFor || '',
     languages: data.languages || [],
 
     github: data.github || '',
-    linkedin: data.linkedin || '',
+    linkedin: isDoctor
+      ? (doctorProfile.linkedin ?? doctorProfile.Linkedin ?? data.linkedin) || ''
+      : data.linkedin || '',
     portfolio: data.portfolio || '',
 
     isOwnProfile: true,
     completeness: 0,
+    role: data.role || localStorage.getItem('role') || '',
   }
 
   mapped.completeness = calcCompleteness(mapped)
@@ -140,21 +210,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (silent = false) => {
     const token = localStorage.getItem('token')
     if (!token) {
-      setLoading(false)
-      return
+      if (!silent) setLoading(false)
+      return null
     }
 
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setError(null)
 
       const res = await api.get('/me')
       const mapped = mapApiToProfile(res.data)
 
       setProfileState(mapped)
+      return res.data
     } catch (err: any) {
       setError('Failed to load profile')
 
@@ -168,8 +239,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           email
         }))
       }
+      return null
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
