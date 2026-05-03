@@ -496,7 +496,7 @@ export default function DashboardPage() {
       }
       setCtDashCardRequestsCount(total);
     } catch {
-      setCtDashCardCoursesCount(null);
+      // Don't reset courses count if partner-requests fail — keep last known enrollment count.
       setCtDashCardRequestsCount(null);
     }
   }, []);

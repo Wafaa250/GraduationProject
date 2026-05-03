@@ -16,6 +16,7 @@ import EditDoctorProfilePage from "./pages/doctor/EditDoctorProfilePage";
 import ChannelPageWrapper from "./pages/doctor/ChannelPageWrapper";
 
 import StudentsPage from "./pages/students/StudentsPage";
+import StudentProfilePage from "./pages/students/StudentProfilePage";
 import ReceivedInvitationsPage from "./pages/invitations/ReceivedInvitationsPage";
 import ProjectWorkspacePage from "./pages/doctor/ProjectWorkspacePage";
 import CreateCoursePage from "./pages/courses/CreateCoursePage";
@@ -223,9 +224,13 @@ export default function App() {
 
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
+                    <Route
+                        path="/students/profile/:userId"
+                        element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>}
+                    />
                     <Route path="/doctors" element={<ProtectedRoute><DoctorsPage /></ProtectedRoute>} />
                     <Route path="/invitations" element={<ProtectedRoute><ReceivedInvitationsPage /></ProtectedRoute>} />
-<Route path="/project/:projectId" element={<ProjectWorkspacePage />} />
+                    <Route path="/project/:projectId" element={<ProjectWorkspacePage />} />
                     {/* Catch-all */}
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

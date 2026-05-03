@@ -26,6 +26,12 @@ namespace GraduationProject.API.DTOs
         public string? Major { get; set; }
         public string? Email { get; set; }
         public DateTime EnrolledAt { get; set; }
+
+        /// <summary>
+        /// Section this student is enrolled in (e.g. course-wide lists, StudentCoursesPage).
+        /// Null when the API does not attach section context.
+        /// </summary>
+        public int? SectionId { get; set; }
     }
 
     // ── Add result ────────────────────────────────────────────────────────────
