@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, Send, Users } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
+import { useToast } from "../../../context/ToastContext";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 type TeamMember = {
     studentId: number;
@@ -178,7 +182,10 @@ export default function StudentTeamPage() {
                                 Team Members
                             </p>
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-
+                                {team.members.map((member) => (
+                                    <div key={member.studentId} style={S.memberRow}>
+                                        <div style={S.avatar}>
+                                            {member.name.charAt(0).toUpperCase()}
                                         </div>
                                         <div style={{ minWidth: 0 }}>
                                             <p style={S.memberName}>{member.name}</p>

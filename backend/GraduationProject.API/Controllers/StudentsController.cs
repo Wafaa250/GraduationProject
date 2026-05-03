@@ -55,8 +55,7 @@ namespace GraduationProject.API.Controllers
             // جلب كل الطلاب ما عدا الحالي
             var query = _db.StudentProfiles
                 .Include(s => s.User)
-                .Where(s => s.UserId != userId)
-                .AsNoTracking();
+                .Where(s => s.UserId != userId);
 
             // فلتر بالجامعة
             if (!string.IsNullOrEmpty(university))
@@ -85,36 +84,9 @@ namespace GraduationProject.API.Controllers
                 }
             }
 
-            // بحث عام (الاسم/الإيميل/التخصص/الكلية/الجامعة/المهارات)
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var term = search.Trim().ToLower();
-                var matchingSkillIds = await _db.Skills
-                    .AsNoTracking()
-                    .Where(sk => sk.Name.ToLower().Contains(term))
-                    .Select(sk => sk.Id.ToString())
-                    .ToListAsync();
-
-                query = query.Where(s =>
-                    (s.User.Name != null && s.User.Name.ToLower().Contains(term)) ||
-                    (s.User.Email != null && s.User.Email.ToLower().Contains(term)) ||
-                    (s.Major != null && s.Major.ToLower().Contains(term)) ||
-                    (s.Faculty != null && s.Faculty.ToLower().Contains(term)) ||
-                    (s.University != null && s.University.ToLower().Contains(term)) ||
-                    (s.Roles != null && (
-                        s.Roles.ToLower().Contains(term) ||
-                        matchingSkillIds.Any(id => s.Roles.Contains(id))
-                    )) ||
-                    (s.TechnicalSkills != null && (
-                        s.TechnicalSkills.ToLower().Contains(term) ||
-                        matchingSkillIds.Any(id => s.TechnicalSkills.Contains(id))
-                    )) ||
-                    (s.Tools != null && (
-                        s.Tools.ToLower().Contains(term) ||
-                        matchingSkillIds.Any(id => s.Tools.Contains(id))
-                    ))
-                );
-            }
+            // بحث بالاسم
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(s => s.User.Name.Contains(search));
 
             // فلتر الطلاب المتاحين فقط (ما عندهم مشروع كـ owner أو member)
             if (availableOnly)
@@ -185,80 +157,77 @@ namespace GraduationProject.API.Controllers
         // الوصول: الطالب نفسه أو doctor
         // =====================================================
         [HttpGet("{userId:int}")]
-        [AllowAnonymous]
         public async Task<IActionResult> GetStudentById(int userId)
         {
-            try
+            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var role = AuthorizationHelper.GetRole(User);
+
+            // صلاحية: الطالب نفسه أو doctor
+            var isDoctor = role == "doctor";
+            var isSelf   = role == "student" && currentUserId == userId;
+
+            if (!isDoctor && !isSelf)
+                return Forbid();
+
+            // جلب البروفايل مع User
+            var profile = await _db.StudentProfiles
+                .Include(s => s.User)
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (profile == null)
+                return NotFound(new { message = "Student profile not found." });
+
+            // IDs → أسماء
+            var roles           = await SkillHelper.IdsJsonToNames(_db, profile.Roles);
+            var technicalSkills = await SkillHelper.IdsJsonToNames(_db, profile.TechnicalSkills);
+            var tools           = await SkillHelper.IdsJsonToNames(_db, profile.Tools);
+
+            // حساب الـ matchScore (بس إذا الطالب الحالي مش نفسه)
+            int? matchScore = null;
+            if (role == "student" && currentUserId != userId)
             {
-                // جلب البروفايل مع User
-                var student = await _db.StudentProfiles
-                    .Include(s => s.User)
-                    .FirstOrDefaultAsync(s => s.UserId == userId);
+                var myIds = SkillHelper.ParseIntList(
+                    (await _db.StudentProfiles
+                        .FirstOrDefaultAsync(s => s.UserId == currentUserId))?.Roles);
+                var theirIds = SkillHelper.ParseIntList(profile.Roles);
 
-                if (student == null)
-                    return NotFound();
-
-                // IDs → أسماء
-                var roles           = await SkillHelper.IdsJsonToNames(_db, student.Roles);
-                var technicalSkills = await SkillHelper.IdsJsonToNames(_db, student.TechnicalSkills);
-                var tools           = await SkillHelper.IdsJsonToNames(_db, student.Tools);
-
-                // حساب الـ matchScore فقط إذا المستخدم الحالي طالب ومسجّل دخول
-                int? matchScore = null;
-                var currentUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var role = AuthorizationHelper.GetRole(User);
-                if (!string.IsNullOrWhiteSpace(currentUserIdClaim)
-                    && int.TryParse(currentUserIdClaim, out var currentUserId)
-                    && role == "student"
-                    && currentUserId != userId)
-                {
-                    var myIds = SkillHelper.ParseIntList(
-                        (await _db.StudentProfiles
-                            .FirstOrDefaultAsync(s => s.UserId == currentUserId))?.Roles);
-                    var theirIds = SkillHelper.ParseIntList(student.Roles);
-
-                    var common        = myIds.Intersect(theirIds).Count();
-                    var complementary = theirIds.Except(myIds).Count();
-                    matchScore = (int)(
-                        (common        * 0.6 / Math.Max(myIds.Count,    1) * 100) +
-                        (complementary * 0.4 / Math.Max(theirIds.Count, 1) * 100)
-                    );
-                    matchScore = Math.Min(matchScore.Value, 100);
-                }
-
-                return Ok(new
-                {
-                    userId               = student.UserId,
-                    profileId            = student.Id,
-                    name                 = student.User?.Name ?? "",
-                    email                = student.User?.Email ?? "",
-                    studentId            = student.StudentId   ?? "",
-                    university           = student.University  ?? "",
-                    faculty              = student.Faculty     ?? "",
-                    major                = student.Major       ?? "",
-                    academicYear         = student.AcademicYear ?? "",
-                    gpa                  = student.Gpa,
-                    bio                  = student.Bio         ?? "",
-                    availability         = student.Availability ?? "",
-                    lookingFor           = student.LookingFor  ?? "",
-                    github               = student.Github      ?? "",
-                    linkedin             = student.Linkedin    ?? "",
-                    portfolio            = student.Portfolio   ?? "",
-                    profilePictureBase64 = student.ProfilePictureBase64,
-                    languages            = SkillHelper.ParseStringList(student.Languages),
-                    roles,
-                    technicalSkills,
-                    tools,
-                    // للتوافق مع الفرونت
-                    generalSkills = roles,
-                    majorSkills   = technicalSkills,
-                    matchScore,
-                });
+                var common        = myIds.Intersect(theirIds).Count();
+                var complementary = theirIds.Except(myIds).Count();
+                matchScore = (int)(
+                    (common        * 0.6 / Math.Max(myIds.Count,    1) * 100) +
+                    (complementary * 0.4 / Math.Max(theirIds.Count, 1) * 100)
+                );
+                matchScore = Math.Min(matchScore.Value, 100);
             }
-            catch (Exception)
+
+            return Ok(new
             {
-                return StatusCode(500, "Internal server error");
-            }
+                userId               = profile.UserId,
+                profileId            = profile.Id,
+                name                 = profile.User.Name,
+                email                = profile.User.Email,
+                studentId            = profile.StudentId   ?? "",
+                university           = profile.University  ?? "",
+                faculty              = profile.Faculty     ?? "",
+                major                = profile.Major       ?? "",
+                academicYear         = profile.AcademicYear ?? "",
+                gpa                  = profile.Gpa,
+                bio                  = profile.Bio         ?? "",
+                availability         = profile.Availability ?? "",
+                lookingFor           = profile.LookingFor  ?? "",
+                github               = profile.Github      ?? "",
+                linkedin             = profile.Linkedin    ?? "",
+                portfolio            = profile.Portfolio   ?? "",
+                profilePictureBase64 = profile.ProfilePictureBase64,
+                languages            = SkillHelper.ParseStringList(profile.Languages),
+                roles,
+                technicalSkills,
+                tools,
+                // للتوافق مع الفرونت
+                generalSkills = roles,
+                majorSkills   = technicalSkills,
+                matchScore,
+            });
         }
 
         // =====================================================

@@ -279,6 +279,112 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // ── COURSE PROJECTS ───────────────────────────────────────────────
+            modelBuilder.Entity<CourseProject>(e =>
+            {
+                e.ToTable("course_projects");
+                e.HasKey(p => p.Id);
+                e.Property(p => p.Title).IsRequired().HasMaxLength(300);
+                e.Property(p => p.Description).HasMaxLength(2000);
+                e.Property(p => p.AiMode).IsRequired().HasMaxLength(20).HasDefaultValue("doctor");
+                e.HasIndex(p => p.CourseId).HasDatabaseName("ix_course_projects_course");
+                e.HasOne(p => p.Course)
+                 .WithMany()
+                 .HasForeignKey(p => p.CourseId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── COURSE PROJECT SECTIONS ───────────────────────────────────────
+            modelBuilder.Entity<CourseProjectSection>(e =>
+            {
+                e.ToTable("course_project_sections");
+                e.HasKey(s => s.Id);
+                e.HasIndex(s => new { s.CourseProjectId, s.CourseSectionId })
+                 .IsUnique()
+                 .HasDatabaseName("ix_course_project_sections_project_section");
+                e.HasOne(s => s.Project)
+                 .WithMany(p => p.Sections)
+                 .HasForeignKey(s => s.CourseProjectId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(s => s.Section)
+                 .WithMany()
+                 .HasForeignKey(s => s.CourseSectionId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── COURSE TEAMS ──────────────────────────────────────────────────────
+            modelBuilder.Entity<CourseTeam>(e =>
+            {
+                e.ToTable("course_teams");
+                e.HasKey(t => t.Id);
+                e.HasIndex(t => new { t.CourseProjectId, t.TeamIndex })
+                 .IsUnique()
+                 .HasDatabaseName("ix_course_teams_project_index");
+                e.HasOne(t => t.Project)
+                 .WithMany()
+                 .HasForeignKey(t => t.CourseProjectId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── COURSE TEAM MEMBERS ────────────────────────────────────────────
+            modelBuilder.Entity<CourseTeamMember>(e =>
+            {
+                e.ToTable("course_team_members");
+                e.HasKey(m => m.Id);
+                e.HasIndex(m => new { m.CourseTeamId, m.StudentProfileId })
+                 .IsUnique()
+                 .HasDatabaseName("ix_course_team_members_team_student");
+                e.HasOne(m => m.Team)
+                 .WithMany(t => t.Members)
+                 .HasForeignKey(m => m.CourseTeamId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(m => m.Student)
+                 .WithMany()
+                 .HasForeignKey(m => m.StudentProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── COURSE TEAM MESSAGES ──────────────────────────────────────────────
+            modelBuilder.Entity<CourseTeamMessage>(e =>
+            {
+                e.ToTable("course_team_messages");
+                e.HasKey(m => m.Id);
+                e.Property(m => m.Text).IsRequired().HasMaxLength(2000);
+
+                e.HasIndex(m => m.CourseTeamId)
+                 .HasDatabaseName("ix_course_team_messages_team");
+
+                e.HasOne(m => m.Team)
+                 .WithMany()
+                 .HasForeignKey(m => m.CourseTeamId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(m => m.Sender)
+                 .WithMany()
+                 .HasForeignKey(m => m.SenderUserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── SECTION CHAT MESSAGES ─────────────────────────────────────────────
+            modelBuilder.Entity<SectionChatMessage>(e =>
+            {
+                e.ToTable("section_chat_messages");
+                e.HasKey(m => m.Id);
+                e.Property(m => m.Text).IsRequired().HasMaxLength(2000);
+
+                e.HasIndex(m => m.CourseSectionId)
+                 .HasDatabaseName("ix_section_chat_messages_section");
+
+                e.HasOne(m => m.Section)
+                 .WithMany()
+                 .HasForeignKey(m => m.CourseSectionId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(m => m.Sender)
+                 .WithMany()
+                 .HasForeignKey(m => m.SenderUserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }
