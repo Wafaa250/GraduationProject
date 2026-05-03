@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
   Search,
@@ -66,7 +66,6 @@ import {
   type AiSupervisorRecommendUiState,
   type EnrichedAiSupervisorRow,
 } from "../../components/project/AiSupervisorRecommendations";
-import ProfileLink, { getProfileUrl } from "../../components/common/ProfileLink";
 import { useToast } from "../../../context/ToastContext";
 import {
   acceptPartnerRequest,
@@ -119,25 +118,6 @@ interface StudentProfile {
   generalSkills?: string[];
   majorSkills?: string[];
   profilePic?: string | null;
-}
-
-interface GlobalSearchStudentResult {
-  id: number;
-  name: string;
-  email: string;
-  major: string;
-}
-
-interface GlobalSearchDoctorResult {
-  id: number;
-  name: string;
-  email: string;
-  specialization: string;
-}
-
-interface GlobalSearchResponse {
-  students: GlobalSearchStudentResult[];
-  doctors: GlobalSearchDoctorResult[];
 }
 
 interface RecommendedProject {
@@ -290,11 +270,7 @@ function ctIncomingSenderRow(sender: CourseStudent | undefined): {
 export default function DashboardPage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [globalSearchResults, setGlobalSearchResults] =
-    useState<GlobalSearchResponse | null>(null);
-  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
   const [user, setUser] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [teammates, setTeammates] = useState<SuggestedTeammate[]>([]);
@@ -305,7 +281,6 @@ export default function DashboardPage() {
     RecommendedProject[]
   >([]);
   const [applications, setApplications] = useState<Application[]>([]);
-  const unreadMessagesCount = 0;
   const [inviteLoading, setInviteLoading] = useState<number | null>(null);
   const [inviteMsg, setInviteMsg] = useState<{
     id: number;
@@ -390,55 +365,6 @@ export default function DashboardPage() {
 
   /** Blocks double-clicks on Accept/Reject before React re-renders loading state. */
   const ctIncomingBusyRef = useRef<Set<number>>(new Set());
-  const globalSearchWrapRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const q = searchQuery.trim();
-    if (!q) {
-      setGlobalSearchResults(null);
-      setGlobalSearchLoading(false);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        setGlobalSearchLoading(true);
-        const res = await api.get<GlobalSearchResponse>("/search", {
-          params: { query: q },
-        });
-        setGlobalSearchResults(res.data);
-      } catch {
-        setGlobalSearchResults({ students: [], doctors: [] });
-      } finally {
-        setGlobalSearchLoading(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    const onDown = (event: MouseEvent) => {
-      if (!globalSearchWrapRef.current) return;
-      if (!globalSearchWrapRef.current.contains(event.target as Node)) {
-        setSearchQuery("");
-        setGlobalSearchResults(null);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSearchQuery("");
-        setGlobalSearchResults(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   const resetCourseTeamsModalState = useCallback(() => {
     setCtCourses([]);
@@ -496,8 +422,9 @@ export default function DashboardPage() {
       }
       setCtDashCardRequestsCount(total);
     } catch {
-      setCtDashCardCoursesCount(null);
-      setCtDashCardRequestsCount(null);
+        // Don't reset courses count if partner-requests fail
+        // setCtDashCardCoursesCount stays as-is
+        setCtDashCardRequestsCount(null);
     }
   }, []);
 
@@ -1761,80 +1688,14 @@ export default function DashboardPage() {
               Skill<span style={S.logoAccent}>Swap</span>
             </span>
           </Link>
-          <div style={S.searchWrap} ref={globalSearchWrapRef}>
+          <div style={S.searchWrap}>
             <Search size={14} style={S.searchIcon} />
             <input
               style={S.searchInput}
               placeholder="Search students, projects, skills, supervisors..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.preventDefault();
-              }}
             />
-            {searchQuery.trim() !== "" && (
-              <div style={S.searchDropdown}>
-                {globalSearchLoading ? (
-                  <div style={S.searchStateRow}>Searching...</div>
-                ) : (
-                  <>
-                    <div style={S.searchGroup}>
-                      <p style={S.searchGroupTitle}>Students</p>
-                      {(globalSearchResults?.students ?? []).length === 0 ? (
-                        <div style={S.searchItemMuted}>No students</div>
-                      ) : (
-                        (globalSearchResults?.students ?? []).map((student) => (
-                          <button
-                            key={`gs-st-${student.id}`}
-                            type="button"
-                            style={S.searchResultBtn}
-                            onClick={() => {
-                              navigate(`/students/${student.id}`);
-                              setSearchQuery("");
-                              setGlobalSearchResults(null);
-                            }}
-                          >
-                            <span style={S.searchResultName}>{student.name}</span>
-                            <span style={S.searchResultMeta}>{student.major || student.email}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-
-                    <div style={S.searchGroup}>
-                      <p style={S.searchGroupTitle}>Doctors</p>
-                      {(globalSearchResults?.doctors ?? []).length === 0 ? (
-                        <div style={S.searchItemMuted}>No doctors</div>
-                      ) : (
-                        (globalSearchResults?.doctors ?? []).map((doctor) => (
-                          <button
-                            key={`gs-dr-${doctor.id}`}
-                            type="button"
-                            style={S.searchResultBtn}
-                            onClick={() => {
-                              navigate(`/doctors/${doctor.id}`);
-                              setSearchQuery("");
-                              setGlobalSearchResults(null);
-                            }}
-                          >
-                            <span style={S.searchResultName}>{doctor.name}</span>
-                            <span style={S.searchResultMeta}>
-                              {doctor.specialization || doctor.email}
-                            </span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {!globalSearchLoading &&
-                  (globalSearchResults?.students?.length ?? 0) === 0 &&
-                  (globalSearchResults?.doctors?.length ?? 0) === 0 && (
-                    <div style={S.searchStateRow}>No results found</div>
-                  )}
-              </div>
-            )}
           </div>
           <div style={S.navActions}>
             <div style={{ position: "relative" as const }}>
@@ -1865,18 +1726,8 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            <button
-              style={{
-                ...S.navBtn,
-              }}
-              onClick={() => navigate("/messages")}
-            >
+            <button style={S.navBtn}>
               <MessageCircle size={17} />
-              {unreadMessagesCount > 0 && (
-                <span style={S.inviteBadge}>
-                  {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
-                </span>
-              )}
             </button>
             <button style={S.navBtn} onClick={openEditInfo}>
               <Settings size={17} />
@@ -3147,7 +2998,7 @@ export default function DashboardPage() {
                                   lineHeight: 1.3,
                                 }}
                               >
-                                <ProfileLink userId={sup.doctorId} role="doctor">{sup.name}</ProfileLink>
+                                {sup.name}
                               </p>
                               <span
                                 style={{
@@ -6475,7 +6326,7 @@ export default function DashboardPage() {
                           .slice(0, 2)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
+                        <p
                           style={{
                             fontSize: 13,
                             fontWeight: 700,
@@ -6483,10 +6334,8 @@ export default function DashboardPage() {
                             margin: "0 0 2px",
                           }}
                         >
-                          <ProfileLink userId={t.userId} role="student" style={{ color: "#0f172a" }}>
-                            {t.name}
-                          </ProfileLink>
-                        </div>
+                          {t.name}
+                        </p>
                         <p
                           style={{ fontSize: 11, color: "#64748b", margin: 0 }}
                         >
@@ -6511,13 +6360,13 @@ export default function DashboardPage() {
                         </span>
                         <button
                           onClick={() => {
-                            const href = getProfileUrl({ role: "student", userId: t.userId });
-                            navigate(href ?? "/students");
+                            navigate(`/students/${t.userId}`);
                             setAddTeammatesOpen(false);
                           }}
                           style={{
                             padding: "4px 10px",
-                            background: "linear-gradient(135deg,#6366f1,#a855f7)",
+                            background:
+                              "linear-gradient(135deg,#6366f1,#a855f7)",
                             border: "none",
                             borderRadius: 7,
                             fontSize: 11,
@@ -6812,69 +6661,6 @@ const S: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     fontFamily: "inherit",
   },
-  searchDropdown: {
-    position: "absolute",
-    top: "calc(100% + 8px)",
-    left: 0,
-    right: 0,
-    background: "white",
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
-    zIndex: 260,
-    padding: 8,
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    maxHeight: 320,
-    overflowY: "auto",
-  },
-  searchGroup: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-  },
-  searchGroupTitle: {
-    margin: "2px 4px",
-    fontSize: 11,
-    fontWeight: 800,
-    color: "#64748b",
-    textTransform: "uppercase",
-    letterSpacing: "0.06em",
-  },
-  searchResultBtn: {
-    width: "100%",
-    border: "1px solid #e2e8f0",
-    borderRadius: 10,
-    background: "#fff",
-    padding: "8px 10px",
-    textAlign: "left",
-    fontFamily: "inherit",
-    cursor: "pointer",
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-  },
-  searchResultName: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#0f172a",
-  },
-  searchResultMeta: {
-    fontSize: 11,
-    color: "#64748b",
-  },
-  searchItemMuted: {
-    fontSize: 12,
-    color: "#94a3b8",
-    padding: "2px 6px",
-  },
-  searchStateRow: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#64748b",
-    padding: "10px 8px",
-  },
   navActions: {
     display: "flex",
     alignItems: "center",
@@ -6894,11 +6680,6 @@ const S: Record<string, React.CSSProperties> = {
     borderRadius: 8,
     position: "relative",
     textDecoration: "none",
-  },
-  navBtnActive: {
-    background: "#eef2ff",
-    color: "#4f46e5",
-    border: "1px solid #c7d2fe",
   },
   notifDot: {
     position: "absolute",
@@ -7490,5 +7271,7 @@ const S: Record<string, React.CSSProperties> = {
     background: "#eef2ff",
     color: "#6366f1",
     fontFamily: "inherit",
+
+    //end
   },
 };
