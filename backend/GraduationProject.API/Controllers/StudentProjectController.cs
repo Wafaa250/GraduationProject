@@ -42,72 +42,18 @@ namespace GraduationProject.API.Controllers
         // Project Discovery — returns all projects for browsing and search.
         // =====================================================================
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int? studentId = null, [FromQuery] int? doctorId = null)
+        public async Task<IActionResult> GetAll()
         {
-            try
-            {
-                var callerProfileId = await GetCurrentStudentProfileIdAsync();
+            var callerProfileId = await GetCurrentStudentProfileIdAsync();
 
-                var query = _db.StudentProjects
-                    .Include(p => p.Owner).ThenInclude(o => o.User)
-                    .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
-                    .Include(p => p.Supervisor!).ThenInclude(s => s.User)
-                    .AsQueryable();
+            var projects = await _db.StudentProjects
+                .Include(p => p.Owner).ThenInclude(o => o.User)
+                .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor!).ThenInclude(s => s.User)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
 
-                // studentId is expected as StudentProfile.Id (OwnerId).
-                // Fallback: if caller passes UserId, resolve to StudentProfile.Id safely.
-                if (studentId.HasValue && studentId.Value > 0)
-                {
-                    var profileId = await _db.StudentProfiles
-                        .AsNoTracking()
-                        .Where(s => s.Id == studentId.Value)
-                        .Select(s => (int?)s.Id)
-                        .FirstOrDefaultAsync();
-
-                    if (!profileId.HasValue)
-                    {
-                        profileId = await _db.StudentProfiles
-                            .AsNoTracking()
-                            .Where(s => s.UserId == studentId.Value)
-                            .Select(s => (int?)s.Id)
-                            .FirstOrDefaultAsync();
-                    }
-
-                    if (!profileId.HasValue)
-                        return Ok(new List<StudentProjectResponseDto>());
-
-                    query = query.Where(p => p.OwnerId == profileId.Value);
-                }
-
-                // doctorId here is User.Id from frontend route (/doctors/:doctorId)
-                if (doctorId.HasValue && doctorId.Value > 0)
-                    query = query.Where(p => p.Supervisor != null && p.Supervisor.UserId == doctorId.Value);
-
-                var projects = await query
-                    .OrderByDescending(p => p.CreatedAt)
-                    .ToListAsync();
-
-                var result = new List<StudentProjectResponseDto>();
-                foreach (var project in projects)
-                {
-                    if (project == null) continue;
-                    try
-                    {
-                        result.Add(MapToDto(project, callerProfileId));
-                    }
-                    catch
-                    {
-                        // Skip malformed rows instead of failing whole request.
-                        continue;
-                    }
-                }
-
-                return Ok(result);
-            }
-            catch (Exception)
-            {
-                return StatusCode(500, "Internal server error");
-            }
+            return Ok(projects.Select(p => MapToDto(p, callerProfileId)));
         }
 
         // =====================================================================

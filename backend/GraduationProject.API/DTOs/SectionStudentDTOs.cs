@@ -26,6 +26,8 @@ namespace GraduationProject.API.DTOs
         public string? Major { get; set; }
         public string? Email { get; set; }
         public DateTime EnrolledAt { get; set; }
+        /// <summary>The section this student is enrolled in — used by StudentCoursesPage.</summary>
+        public int? SectionId { get; set; }
     }
 
     // ── Add result ────────────────────────────────────────────────────────────
@@ -35,5 +37,11 @@ namespace GraduationProject.API.DTOs
         public int Added { get; set; }
         public List<string> NotFound { get; set; } = new();
         public List<string> AlreadyEnrolled { get; set; } = new();
+    }
+
+    public class AddTeamMemberDto
+    {
+        [Required]
+        public string UniversityId { get; set; } = string.Empty;
     }
 }
