@@ -7490,5 +7490,7 @@ const S: Record<string, React.CSSProperties> = {
     background: "#eef2ff",
     color: "#6366f1",
     fontFamily: "inherit",
+
+    //end
   },
 };
