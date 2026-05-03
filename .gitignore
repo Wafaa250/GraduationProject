@@ -19,3 +19,5 @@ Thumbs.db
 
 # Local secrets (e.g. OpenAI key in Development)
 appsettings.Development.json
+
+.claude/

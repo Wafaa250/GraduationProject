@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Briefcase, ClipboardList } from "lucide-react";
 import type { DashboardSummary } from "../../../../api/dashboardApi";
 import type { DoctorMeResponse } from "../doctorDashboardTypes";
 import { SectionSpinner } from "./SectionSpinner";
 import { dash, card } from "./doctorDashTokens";
 import type { ProjectHighlight, SuggestionRow } from "./doctorDashboardHelpers";
-import ProfileLink from "../../../components/common/ProfileLink";
 
 type DoctorStats = {
   pendingRequestsCount: number;
@@ -233,9 +233,8 @@ export function OverviewSection({
                     }}
                   >
                     <div style={{ minWidth: 0 }}>
-                      <ProfileLink
-                        userId={s.userId}
-                        role="student"
+                      <Link
+                        to={`/students/${s.userId}`}
                         style={{
                           fontSize: 14,
                           fontWeight: 700,
@@ -244,7 +243,7 @@ export function OverviewSection({
                         }}
                       >
                         {s.name}
-                      </ProfileLink>
+                      </Link>
                       <p style={{ margin: "4px 0 0", fontSize: 12, color: dash.muted }}>
                         {s.major}
                         {s.university ? ` · ${s.university}` : ""}
