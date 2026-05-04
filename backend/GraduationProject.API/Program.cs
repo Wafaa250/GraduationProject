@@ -57,6 +57,7 @@ builder.Services.AddScoped<ICourseTeamRepository, CourseTeamRepository>();
 builder.Services.AddScoped<ICourseTeamChatRepository, CourseTeamChatRepository>();
 builder.Services.AddScoped<ITeamGenerationService, TeamGenerationService>();
 builder.Services.AddHttpClient<ITeamGenerationService, OpenAiTeamGenerationService>();
+builder.Services.AddScoped<IConversationService, ConversationService>();
 
 // ===========================
 // CORS

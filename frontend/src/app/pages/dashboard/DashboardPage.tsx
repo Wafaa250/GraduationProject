@@ -298,14 +298,11 @@ export default function DashboardPage() {
   const [user, setUser] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [teammates, setTeammates] = useState<SuggestedTeammate[]>([]);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [recommendedProjects, setRecommendedProjects] = useState<
     RecommendedProject[]
   >([]);
   const [applications, setApplications] = useState<Application[]>([]);
-  const unreadMessagesCount = 0;
   const [inviteLoading, setInviteLoading] = useState<number | null>(null);
   const [inviteMsg, setInviteMsg] = useState<{
     id: number;
@@ -655,7 +652,6 @@ export default function DashboardPage() {
           invitedBy: i.senderName,
         }));
       setInvitations(pendingOnly);
-      setPendingCount(pendingOnly.length);
     } catch {
       /* non-critical */
     }
@@ -1526,11 +1522,7 @@ export default function DashboardPage() {
     try {
       await api.post(`/invitations/${id}/${action}`);
 
-      setInvitations((prev) => {
-        const updated = prev.filter((i) => i.id !== id);
-        setPendingCount(updated.length);
-        return updated;
-      });
+      setInvitations((prev) => prev.filter((i) => i.id !== id));
 
       setInviteMsg({
         id,
@@ -1837,46 +1829,21 @@ export default function DashboardPage() {
             )}
           </div>
           <div style={S.navActions}>
-            <div style={{ position: "relative" as const }}>
-              <button style={S.navBtn} onClick={() => setNotifOpen((o) => !o)}>
-                <Bell size={17} />
-                {pendingCount > 0 && (
-                  <span style={S.inviteBadge}>
-                    {pendingCount > 9 ? "9+" : pendingCount}
-                  </span>
-                )}
-              </button>
-              {notifOpen && (
-                <div style={S.notifDropdown}>
-                  <p style={S.notifTitle}>🔔 Notifications</p>
-                  {invitations.length === 0 ? (
-                    <div style={S.notifItem}>No new notifications</div>
-                  ) : (
-                    invitations.slice(0, 5).map((inv) => (
-                      <div
-                        key={inv.id}
-                        style={{ ...S.notifItem, cursor: "default" }}
-                      >
-                        <strong>{inv.invitedBy}</strong> invited you to join{" "}
-                        <strong>{inv.project}</strong>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
             <button
-              style={{
-                ...S.navBtn,
-              }}
+              type="button"
+              style={S.navBtn}
+              onClick={() => navigate("/invitations")}
+              aria-label="Invitations"
+            >
+              <Bell size={17} />
+            </button>
+            <button
+              type="button"
+              style={S.navBtn}
               onClick={() => navigate("/messages")}
+              aria-label="Messages"
             >
               <MessageCircle size={17} />
-              {unreadMessagesCount > 0 && (
-                <span style={S.inviteBadge}>
-                  {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
-                </span>
-              )}
             </button>
             <button style={S.navBtn} onClick={openEditInfo}>
               <Settings size={17} />
@@ -6900,33 +6867,6 @@ const S: Record<string, React.CSSProperties> = {
     color: "#4f46e5",
     border: "1px solid #c7d2fe",
   },
-  notifDot: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 7,
-    height: 7,
-    borderRadius: "50%",
-    background: "#6366f1",
-    border: "1.5px solid #f8f7ff",
-  },
-  inviteBadge: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: "50%",
-    background: "#ef4444",
-    border: "1.5px solid #f8f7ff",
-    fontSize: 9,
-    fontWeight: 800,
-    color: "white",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0 3px",
-  },
   navAvatar: {
     width: 34,
     height: 34,
@@ -6947,33 +6887,6 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 800,
     color: "#fff",
-  },
-  notifDropdown: {
-    position: "absolute",
-    top: 44,
-    right: 0,
-    width: 280,
-    background: "white",
-    border: "1px solid #e2e8f0",
-    borderRadius: 14,
-    boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-    zIndex: 200,
-    overflow: "hidden",
-  },
-  notifTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#334155",
-    padding: "12px 16px",
-    borderBottom: "1px solid #f1f5f9",
-    margin: 0,
-  },
-  notifItem: {
-    fontSize: 13,
-    color: "#475569",
-    padding: "10px 16px",
-    borderBottom: "1px solid #f8fafc",
-    cursor: "pointer",
   },
   content: {
     maxWidth: 1200,

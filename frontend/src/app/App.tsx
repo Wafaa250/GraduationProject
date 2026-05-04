@@ -1,5 +1,6 @@
 // src/app/App.tsx
 import React, { type ReactNode } from "react";
+import { Toaster } from "react-hot-toast";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastProvider } from "../context/ToastContext";
 import { UserProvider } from '../context/UserContext';
@@ -172,6 +173,7 @@ function StudentAiTeamRoute() {
 export default function App() {
     return (
         <ToastProvider>
+        <Toaster position="top-right" />
         <UserProvider>
             <DoctorProvider>
                 <Routes>

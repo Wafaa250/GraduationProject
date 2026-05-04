@@ -219,6 +219,16 @@ function normalizeSectionStudents(raw: unknown): SectionStudent[] {
         .filter((student): student is SectionStudent => student !== null);
 }
 
+function doctorProjectSectionDisplayLabel(project: DoctorCourseProject): string {
+    if (project.applyToAllSections) {
+        return "All sections";
+    }
+    const names = project.sections
+        .map((s) => s.sectionName.trim())
+        .filter((n) => n.length > 0);
+    return names.length > 0 ? names.join(", ") : "Section";
+}
+
 export default function CourseWorkspacePage() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -429,7 +439,6 @@ export default function CourseWorkspacePage() {
         console.log("Course settings (local draft)", courseSettings);
     };
 
-    const sectionName = "Software - Section 1";
     const teamMembers = [
         { id: 1, name: "Mohammad", role: "Leader" },
         { id: 2, name: "Ahmad", role: "Member" },
@@ -856,7 +865,7 @@ export default function CourseWorkspacePage() {
                                                             </h3>
                                                             <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
                                                                 <span style={{ fontWeight: 700, color: dash.text }}>Section:</span>{" "}
-                                                                {sectionName}
+                                                                {doctorProjectSectionDisplayLabel(project)}
                                                             </p>
                                                             <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
                                                                 <span style={{ fontWeight: 700, color: dash.text }}>Team size:</span> {project.teamSize}

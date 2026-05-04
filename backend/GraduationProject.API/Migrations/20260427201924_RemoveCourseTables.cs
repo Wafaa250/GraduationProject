@@ -12,38 +12,38 @@ namespace GraduationProject.API.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "course_enrollments");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS course_enrollments CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "course_partner_requests");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS course_partner_requests CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "course_project_sections");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS course_project_sections CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "course_team_members");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS course_team_members CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "section_chat_messages");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS section_chat_messages CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "section_project_settings");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS section_project_settings CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "course_teams");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS course_teams CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "course_sections");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS course_sections CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "course_project_settings");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS course_project_settings CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "course_projects");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS course_projects CASCADE;");
 
-            migrationBuilder.DropTable(
-                name: "courses");
+            migrationBuilder.Sql(
+                "DROP TABLE IF EXISTS courses CASCADE;");
         }
 
         /// <inheritdoc />

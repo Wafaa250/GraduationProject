@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import * as signalR from "@microsoft/signalr";
 import { ArrowLeft, Pencil, Send, Trash2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { navigateHome } from "../../../utils/homeNavigation";
+import { apiClient } from "../../../api/client";
+import { getChatHubUrl } from "../../../utils/chatHubUrl";
 
 type Message = {
   id: number;
@@ -17,7 +20,41 @@ type Conversation = {
   id: number;
   users: number[];
   messages: Message[];
+  /** Display name from API when available (list/detail). */
+  otherUserName?: string;
 };
+
+type ApiConversationListItem = {
+  id: number;
+  otherUser?: { id: number; name?: string };
+  lastMessage?: ApiMessage | null;
+};
+
+type ApiConversationDetails = {
+  id: number;
+  users: { id: number; name?: string }[];
+  messages: ApiMessage[];
+};
+
+type ApiMessage = {
+  id: number;
+  senderId: number;
+  text: string;
+  createdAt: string | Date;
+  edited?: boolean;
+  deleted?: boolean;
+  seen?: boolean;
+};
+
+const mapApiMessage = (m: ApiMessage): Message => ({
+  id: m.id,
+  senderId: m.senderId,
+  text: m.text,
+  createdAt: new Date(m.createdAt),
+  edited: Boolean(m.edited),
+  deleted: Boolean(m.deleted),
+  seen: Boolean(m.seen),
+});
 
 export default function ChatPage() {
   const navigate = useNavigate();
@@ -31,37 +68,228 @@ export default function ChatPage() {
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [hoveredConversationId, setHoveredConversationId] = useState<number | null>(null);
-  const [nextMessageId, setNextMessageId] = useState(1);
-  const [nextConversationId, setNextConversationId] = useState(1);
   const onlineUsers = [1, 2];
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const hubRef = useRef<signalR.HubConnection | null>(null);
+  const selectedConversationIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(getChatHubUrl(), {
+        accessTokenFactory: () => localStorage.getItem("token") || "",
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    hubRef.current = connection;
+
+    const getConversationIdFromHubPayload = (payload: unknown): number | null => {
+      if (!payload || typeof payload !== "object") return null;
+      const cid = (payload as { conversationId?: unknown }).conversationId;
+      return typeof cid === "number" && Number.isFinite(cid) ? cid : null;
+    };
+
+    connection.on("ReceiveMessage", (payload: unknown) => {
+      try {
+        const convId = getConversationIdFromHubPayload(payload) ?? selectedConversationIdRef.current;
+        if (convId == null) return;
+        const msg = mapApiMessage(payload as ApiMessage);
+
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id !== convId) return c;
+            if (c.messages.some((m) => m.id === msg.id)) return c;
+            return {
+              ...c,
+              messages: [...c.messages, msg].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+            };
+          }),
+        );
+      } catch (err) {
+        console.error("SignalR ReceiveMessage", err);
+      }
+    });
+
+    connection.on("MessageEdited", (payload: unknown) => {
+      try {
+        const convId = getConversationIdFromHubPayload(payload) ?? selectedConversationIdRef.current;
+        if (convId == null) return;
+        const msg = mapApiMessage(payload as ApiMessage);
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id !== convId) return c;
+            const next = c.messages.map((m) => (m.id === msg.id ? msg : m));
+            return { ...c, messages: next.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) };
+          }),
+        );
+      } catch (err) {
+        console.error("SignalR MessageEdited", err);
+      }
+    });
+
+    connection.on("MessageDeleted", (payload: unknown) => {
+      try {
+        const convId = getConversationIdFromHubPayload(payload) ?? selectedConversationIdRef.current;
+        if (convId == null) return;
+        if (!payload || typeof payload !== "object" || !("id" in payload)) return;
+        const rawId = (payload as { id: unknown }).id;
+        const messageId = typeof rawId === "number" ? rawId : Number(rawId);
+        if (!Number.isFinite(messageId)) return;
+
+        if ("createdAt" in (payload as object)) {
+          const msg = mapApiMessage(payload as ApiMessage);
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id !== convId) return c;
+              const next = c.messages.map((m) => (m.id === msg.id ? msg : m));
+              return { ...c, messages: next.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) };
+            }),
+          );
+          return;
+        }
+
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id !== convId) return c;
+            return {
+              ...c,
+              messages: c.messages.map((m) => {
+                if (m.id !== messageId) return m;
+                const p = payload as { text?: unknown; deleted?: unknown; edited?: unknown; seen?: unknown };
+                return {
+                  ...m,
+                  deleted: typeof p.deleted === "boolean" ? p.deleted : true,
+                  text: typeof p.text === "string" ? p.text : "Message removed",
+                  edited: typeof p.edited === "boolean" ? p.edited : false,
+                  seen: typeof p.seen === "boolean" ? p.seen : m.seen,
+                };
+              }),
+            };
+          }),
+        );
+      } catch (err) {
+        console.error("SignalR MessageDeleted", err);
+      }
+    });
+
+    connection.onreconnected(() => {
+      const id = selectedConversationIdRef.current;
+      if (id == null) return;
+      connection.invoke("JoinConversation", id.toString()).catch((err) => {
+        console.error("SignalR JoinConversation after reconnect", err);
+      });
+    });
+
+    connection
+      .start()
+      .then(() => {
+        const id = selectedConversationIdRef.current;
+        if (id == null) return;
+        return connection.invoke("JoinConversation", id.toString());
+      })
+      .catch((err) => {
+        console.error("SignalR connection start", err);
+      });
+
+    return () => {
+      connection.off("ReceiveMessage");
+      connection.off("MessageEdited");
+      connection.off("MessageDeleted");
+      hubRef.current = null;
+      connection.stop().catch((err) => {
+        console.error("SignalR connection stop", err);
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    const conn = hubRef.current;
+    if (selectedConversationId == null || !conn || conn.state !== signalR.HubConnectionState.Connected) return;
+    conn.invoke("JoinConversation", selectedConversationId.toString()).catch((err) => {
+      console.error("SignalR JoinConversation", err);
+    });
+  }, [selectedConversationId]);
+
+  const loadConversations = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get<ApiConversationListItem[]>("/conversations");
+
+      setConversations(
+        data.map((c) => {
+          const otherUserId = c.otherUser?.id ?? 0;
+          return {
+            id: c.id,
+            users: [currentUserId, otherUserId],
+            messages: c.lastMessage ? [mapApiMessage(c.lastMessage)] : [],
+            otherUserName: c.otherUser?.name,
+          };
+        }),
+      );
+    } catch (err) {
+      console.error("Failed to load conversations", err);
+    }
+  }, [currentUserId]);
+
+  const loadConversationById = useCallback(
+    async (conversationId: number) => {
+      try {
+        const { data } = await apiClient.get<ApiConversationDetails>(`/conversations/${conversationId}`);
+        const other = data.users.find((u) => u.id !== currentUserId);
+        const nameFromDetail = other?.name?.trim();
+        const mapped: Conversation = {
+          id: data.id,
+          users: data.users.map((u) => u.id),
+          messages: [...data.messages].map(mapApiMessage).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+          otherUserName: nameFromDetail,
+        };
+
+        setConversations((prev) => {
+          const idx = prev.findIndex((c) => c.id === mapped.id);
+          if (idx === -1) return [mapped, ...prev];
+          const next = [...prev];
+          const prevName = next[idx].otherUserName;
+          next[idx] = {
+            ...mapped,
+            otherUserName: mapped.otherUserName || prevName,
+          };
+          return next;
+        });
+
+        setSelectedConversationId(mapped.id);
+        return mapped.id;
+      } catch (err) {
+        console.error("Failed to load conversation details", err);
+        return null;
+      }
+    },
+    [currentUserId],
+  );
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   useEffect(() => {
     if (!targetUserId || !Number.isFinite(targetUserId) || targetUserId <= 0) return;
 
-    setConversations((prev) => {
-      const existing = prev.find(
-        (c) =>
-          c.users.length === 2 &&
-          c.users.includes(currentUserId) &&
-          c.users.includes(targetUserId),
-      );
-
-      if (existing) {
-        setSelectedConversationId(existing.id);
-        return prev;
+    (async () => {
+      try {
+        const { data } = await apiClient.post<{ conversationId?: number; id?: number }>(
+          `/conversations/start/${targetUserId}`,
+        );
+        const conversationId = data.conversationId ?? data.id;
+        if (!conversationId) return;
+        await loadConversationById(conversationId);
+        await loadConversations();
+      } catch (err) {
+        console.error("Failed to start conversation", err);
       }
-
-      const created: Conversation = {
-        id: nextConversationId,
-        users: [currentUserId, targetUserId],
-        messages: [],
-      };
-      setSelectedConversationId(created.id);
-      setNextConversationId((id) => id + 1);
-      return [created, ...prev];
-    });
-  }, [targetUserId, currentUserId, nextConversationId]);
+    })();
+  }, [targetUserId, loadConversationById, loadConversations]);
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedConversationId) ?? null,
@@ -70,16 +298,19 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!selectedConversationId) return;
+
     // Mark other user's messages as seen on open/select.
+    apiClient.post(`/messages/${selectedConversationId}/seen`).catch((err) => {
+      console.error("Failed to mark conversation as seen", err);
+    });
+
     setConversations((prev) =>
       prev.map((c) =>
         c.id !== selectedConversationId
           ? c
           : {
               ...c,
-              messages: c.messages.map((m) =>
-                m.senderId !== currentUserId ? { ...m, seen: true } : m,
-              ),
+              messages: c.messages.map((m) => (m.senderId !== currentUserId ? { ...m, seen: true } : m)),
             },
       ),
     );
@@ -89,23 +320,20 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [selectedConversation?.messages.length, selectedConversationId]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const text = input.trim();
     if (!text || !selectedConversationId) return;
 
-    const message: Message = {
-      id: nextMessageId,
-      senderId: currentUserId,
-      text,
-      createdAt: new Date(),
-      seen: false,
-    };
-
-    setConversations((prev) =>
-      prev.map((c) => (c.id === selectedConversationId ? { ...c, messages: [...c.messages, message] } : c)),
-    );
-    setNextMessageId((id) => id + 1);
-    setInput("");
+    try {
+      await apiClient.post<ApiMessage>("/messages", {
+        conversationId: selectedConversationId,
+        text,
+      });
+      await loadConversationById(selectedConversationId);
+      setInput("");
+    } catch (err) {
+      console.error("Failed to send message", err);
+    }
   };
 
   const startEditMessage = (message: Message) => {
@@ -114,54 +342,52 @@ export default function ChatPage() {
     setEditingText(message.text);
   };
 
-  const saveEditMessage = () => {
+  const saveEditMessage = async () => {
     const text = editingText.trim();
     if (!selectedConversationId || !editingMessageId || !text) return;
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id !== selectedConversationId
-          ? c
-          : {
-              ...c,
-              messages: c.messages.map((m) =>
-                m.id === editingMessageId ? { ...m, text, edited: true } : m,
-              ),
-            },
-      ),
-    );
-    setEditingMessageId(null);
-    setEditingText("");
+
+    try {
+      await apiClient.put<ApiMessage>(`/messages/${editingMessageId}`, { text });
+      await loadConversationById(selectedConversationId);
+      setEditingMessageId(null);
+      setEditingText("");
+    } catch (err) {
+      console.error("Failed to edit message", err);
+    }
   };
 
-  const unsendMessage = (messageId: number) => {
+  const unsendMessage = async (messageId: number) => {
     if (!selectedConversationId) return;
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id !== selectedConversationId
-          ? c
-          : {
-              ...c,
-              messages: c.messages.map((m) =>
-                m.id === messageId && m.senderId === currentUserId
-                  ? { ...m, deleted: true, text: "Message removed", edited: false }
-                  : m,
-              ),
-            },
-      ),
-    );
-    if (editingMessageId === messageId) {
-      setEditingMessageId(null);
-      setEditingText("");
+
+    try {
+      await apiClient.delete<ApiMessage>(`/messages/${messageId}`);
+      await loadConversationById(selectedConversationId);
+
+      if (editingMessageId === messageId) {
+        setEditingMessageId(null);
+        setEditingText("");
+      }
+    } catch (err) {
+      console.error("Failed to delete message", err);
     }
   };
 
-  const handleDeleteConversation = (id: number) => {
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    if (selectedConversationId === id) {
-      setSelectedConversationId(null);
-      setEditingMessageId(null);
-      setEditingText("");
+  const handleDeleteConversation = async (id: number) => {
+    try {
+      await apiClient.delete(`/conversations/${id}`);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (selectedConversationId === id) {
+        setSelectedConversationId(null);
+        setEditingMessageId(null);
+        setEditingText("");
+      }
+    } catch (err) {
+      console.error("Failed to delete conversation", err);
     }
+  };
+
+  const handleSelectConversation = async (id: number) => {
+    await loadConversationById(id);
   };
 
   const formatTime = (date: Date) =>
@@ -169,6 +395,12 @@ export default function ChatPage() {
 
   const getOtherUserId = (conversation: Conversation) =>
     conversation.users.find((u) => u !== currentUserId) ?? conversation.users[0] ?? 0;
+
+  const getOtherUserDisplayName = (conversation: Conversation) => {
+    const n = conversation.otherUserName?.trim();
+    if (n) return n;
+    return `User ${getOtherUserId(conversation)}`;
+  };
 
   return (
     <div style={S.page}>
@@ -186,41 +418,48 @@ export default function ChatPage() {
           ) : (
             conversations.map((c) => {
               const otherId = getOtherUserId(c);
+              const displayName = getOtherUserDisplayName(c);
               const last = c.messages[c.messages.length - 1];
+              const preview =
+                last == null ? "No messages yet" : last.deleted ? "Message removed" : last.text;
               return (
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => setSelectedConversationId(c.id)}
+                  onClick={() => handleSelectConversation(c.id)}
                   onMouseEnter={() => setHoveredConversationId(c.id)}
                   onMouseLeave={() => setHoveredConversationId(null)}
                   style={{
                     ...S.convBtn,
+                    ...(hoveredConversationId === c.id ? S.convBtnHover : {}),
                     ...(c.id === selectedConversationId ? S.convBtnActive : {}),
                   }}
                 >
                   <div style={S.convTopRow}>
                     <span style={S.convName}>
-                      User {otherId}
+                      {displayName}
                       <span style={{ ...S.onlineDot, background: onlineUsers.includes(otherId) ? "#22c55e" : "#94a3b8" }} />
                     </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteConversation(c.id);
-                      }}
-                      style={{
-                        ...S.deleteIconBtn,
-                        opacity: hoveredConversationId === c.id ? 1 : 0,
-                      }}
-                      aria-label="Delete conversation"
-                      title="Delete chat"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    <span style={S.convTopRight}>
+                      {last ? <span style={S.convTime}>{formatTime(last.createdAt)}</span> : null}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteConversation(c.id);
+                        }}
+                        style={{
+                          ...S.deleteIconBtn,
+                          opacity: hoveredConversationId === c.id ? 1 : 0,
+                        }}
+                        aria-label="Delete conversation"
+                        title="Delete chat"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </span>
                   </div>
-                  <span style={S.convMeta}>{last ? last.text : "No messages yet"}</span>
+                  <span style={S.convMeta}>{preview}</span>
                 </button>
               );
             })
@@ -234,7 +473,7 @@ export default function ChatPage() {
             <>
               <div style={S.chatHeader}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>User {getOtherUserId(selectedConversation)}</span>
+                  <span style={S.chatHeaderName}>{getOtherUserDisplayName(selectedConversation)}</span>
                   <span style={S.statusText}>
                     {onlineUsers.includes(getOtherUserId(selectedConversation)) ? "Online" : "Offline"}
                   </span>
@@ -279,9 +518,7 @@ export default function ChatPage() {
                             {m.edited && !m.deleted ? <span style={S.editedText}>(edited)</span> : null}
                             {m.senderId === currentUserId ? (
                               <>
-                                <span style={S.seenText}>
-                                  {m.seen ? "✔✔ seen" : "✔ sent"}
-                                </span>
+                                <span style={S.seenText}>{m.seen ? "✔✔" : "✔"}</span>
                                 {!m.deleted ? (
                                   <>
                                     <button type="button" style={S.iconBtn} onClick={() => startEditMessage(m)}>
@@ -331,8 +568,8 @@ export default function ChatPage() {
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { minHeight: "100vh", background: "#f8fafc", fontFamily: "DM Sans, sans-serif" },
-  topBar: { padding: "12px 16px", borderBottom: "1px solid #e2e8f0", background: "#fff" },
+  page: { minHeight: "100vh", background: "#eef2f7", fontFamily: "DM Sans, sans-serif" },
+  topBar: { padding: "12px 16px", borderBottom: "1px solid #e8edf3", background: "#fff" },
   backBtn: {
     border: "1px solid #e2e8f0",
     borderRadius: 9,
@@ -356,31 +593,36 @@ const S: Record<string, CSSProperties> = {
     height: "calc(100vh - 66px)",
   },
   sidebar: {
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    borderRadius: 12,
+    border: "1px solid #e8edf3",
+    background: "#ffffff",
+    borderRadius: 14,
     padding: 12,
     display: "flex",
     flexDirection: "column",
-    gap: 8,
+    gap: 10,
     minHeight: 0,
     overflowY: "auto",
+    boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
   },
   sideTitle: { margin: "0 0 4px", fontWeight: 800, fontSize: 14, color: "#0f172a" },
   convBtn: {
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    borderRadius: 10,
-    padding: "10px 12px",
+    border: "1px solid #eef1f6",
+    background: "#ffffff",
+    borderRadius: 12,
+    padding: "12px 14px",
     textAlign: "left",
     cursor: "pointer",
     display: "flex",
     flexDirection: "column",
-    gap: 4,
+    gap: 6,
+    transition: "background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
   },
+  convBtnHover: { background: "#f1f5f9" },
   convBtnActive: { border: "1px solid #c7d2fe", background: "#eef2ff" },
-  convTopRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  convName: { fontSize: 13, fontWeight: 700, color: "#0f172a", display: "inline-flex", alignItems: "center", gap: 6 },
+  convTopRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minWidth: 0 },
+  convTopRight: { display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 },
+  convName: { fontSize: 13, fontWeight: 700, color: "#0f172a", display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" },
+  convTime: { fontSize: 10, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap" },
   onlineDot: { width: 8, height: 8, borderRadius: "50%", display: "inline-block" },
   deleteIconBtn: {
     border: "none",
@@ -393,23 +635,52 @@ const S: Record<string, CSSProperties> = {
     justifyContent: "center",
     padding: 0,
   },
-  convMeta: { fontSize: 11, color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  convMeta: {
+    fontSize: 12,
+    color: "#64748b",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    lineHeight: 1.35,
+    paddingTop: 2,
+  },
   chatPanel: {
-    border: "1px solid #e2e8f0",
-    background: "#fff",
-    borderRadius: 12,
+    border: "1px solid #e8edf3",
+    background: "#ffffff",
+    borderRadius: 14,
     minHeight: 0,
     display: "flex",
     flexDirection: "column",
+    boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
   },
-  chatHeader: { padding: "12px 14px", borderBottom: "1px solid #e2e8f0", fontSize: 14, fontWeight: 800, color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  chatHeader: {
+    padding: "14px 16px",
+    borderBottom: "1px solid #e8edf3",
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#475569",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  chatHeaderName: { fontWeight: 800, color: "#0f172a", fontSize: 15, letterSpacing: "-0.01em" },
   statusText: { fontSize: 11, color: "#64748b", fontWeight: 600 },
-  messagesArea: { flex: 1, padding: 12, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" },
+  messagesArea: { flex: 1, padding: 16, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" },
   chatEmpty: { minHeight: 420, display: "grid", placeItems: "center", color: "#64748b", fontSize: 13 },
   emptyText: { margin: 0, fontSize: 12, color: "#94a3b8" },
-  bubble: { maxWidth: "75%", borderRadius: 10, padding: "8px 10px", fontSize: 13, display: "flex", flexDirection: "column", gap: 4 },
-  bubbleMe: { alignSelf: "flex-end", background: "#7c3aed", color: "#fff" },
-  bubbleThem: { alignSelf: "flex-start", background: "#f1f5f9", color: "#0f172a" },
+  bubble: {
+    maxWidth: "78%",
+    borderRadius: 16,
+    padding: "12px 16px",
+    fontSize: 13,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    lineHeight: 1.45,
+  },
+  bubbleMe: { alignSelf: "flex-end", background: "#7c3aed", color: "#ffffff", borderRadius: 16 },
+  bubbleThem: { alignSelf: "flex-start", background: "#eef2f7", color: "#0f172a", borderRadius: 16 },
   metaRow: { display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" },
   timeText: { fontSize: 10, opacity: 0.85 },
   editedText: { fontSize: 10, opacity: 0.85 },
@@ -418,8 +689,25 @@ const S: Record<string, CSSProperties> = {
   editRow: { display: "flex", alignItems: "center", gap: 6 },
   editInput: { flex: 1, border: "1px solid #d1d5db", borderRadius: 8, padding: "6px 8px", fontSize: 12, fontFamily: "inherit" },
   inlineActionBtn: { border: "1px solid #c7d2fe", background: "#eef2ff", color: "#4f46e5", borderRadius: 8, padding: "5px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" },
-  inputRow: { borderTop: "1px solid #e2e8f0", padding: 10, display: "flex", alignItems: "center", gap: 8 },
-  input: { flex: 1, border: "1px solid #d1d5db", borderRadius: 999, padding: "9px 12px", fontSize: 13, fontFamily: "inherit" },
+  inputRow: {
+    borderTop: "1px solid #e8edf3",
+    padding: "14px 16px",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    background: "#fafbfc",
+  },
+  input: {
+    flex: 1,
+    border: "1px solid #e2e8f0",
+    borderRadius: 999,
+    padding: "12px 18px",
+    fontSize: 14,
+    fontFamily: "inherit",
+    background: "#ffffff",
+    boxShadow: "0 1px 3px rgba(15, 23, 42, 0.06)",
+    outline: "none",
+  },
   sendBtn: {
     width: 34,
     height: 34,
