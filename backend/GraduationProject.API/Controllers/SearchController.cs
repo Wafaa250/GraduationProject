@@ -47,8 +47,8 @@ namespace GraduationProject.API.Controllers
                 )
                 .Select(s => new
                 {
-                    // Must be StudentProfile.Id to match /api/students/{id}
-                    id = s.Id,
+                    // /api/students/{id} resolves by UserId, so search must return UserId
+                    id = s.UserId,
                     name = s.User.Name,
                     email = s.User.Email,
                     major = s.Major ?? string.Empty
