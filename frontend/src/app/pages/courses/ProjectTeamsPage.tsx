@@ -229,17 +229,6 @@ export default function ProjectTeamsPage() {
                         <RotateCw size={15} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
                         Regenerate
                     </button>
-                    <button
-                        type="button"
-                        style={{ ...S.primaryBtn, opacity: backendProjectId == null ? 0.6 : 1 }}
-                        onClick={() => {
-                            if (courseId == null) return;
-                            navigate(`/courses/${courseId}`);
-                        }}
-                        disabled={backendProjectId == null}
-                    >
-                        Assign Teams
-                    </button>
                 </div>
 
                 {/* Loading */}
