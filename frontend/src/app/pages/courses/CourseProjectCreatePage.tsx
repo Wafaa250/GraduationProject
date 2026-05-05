@@ -124,7 +124,9 @@ export default function CourseProjectCreatePage() {
                     sectionIds: selectedSectionIds,
                 });
                 if (newProject.aiMode === "doctor") {
-                    navigate(`/doctor/projects/${newProject.id}/teams`);
+                    navigate(`/courses/${courseId}/projects/${newProject.id}/teams`, {
+                        state: { projectName: t, sectionName: sectionLabel },
+                    });
                 } else {
                     navigate(`/courses/${courseId}`);
                 }

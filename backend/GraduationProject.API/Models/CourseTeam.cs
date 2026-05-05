@@ -4,6 +4,7 @@ namespace GraduationProject.API.Models
     {
         public int Id { get; set; }
 
+        /// <summary>Teams are always scoped to a single course project; never shared across projects.</summary>
         public int CourseProjectId { get; set; }
 
         /// <summary>Display index used by frontend (0-based).</summary>

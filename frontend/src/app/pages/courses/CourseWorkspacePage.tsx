@@ -21,6 +21,7 @@ import type { CourseWorkspaceLocationState, NewWorkspaceProjectPayload } from ".
 import {
     createDoctorCourseSection,
     getDoctorCourseSections,
+    getDoctorProjectTeams,
     getDoctorCourseProjects,
     type DoctorCourseProject,
 } from "../../../api/doctorCoursesApi";
@@ -228,6 +229,7 @@ export default function CourseWorkspacePage() {
     const [openedSectionId, setOpenedSectionId] = useState<string | null>(null);
     const [projects, setProjects] = useState<WorkspaceProject[]>([]);
     const [apiProjects, setApiProjects] = useState<DoctorCourseProject[]>([]);
+    const [projectTeamCounts, setProjectTeamCounts] = useState<Record<number, number>>({});
     const [showCreateSection, setShowCreateSection] = useState(false);
     const [openedTeamProjectId, setOpenedTeamProjectId] = useState<number | null>(null);
     const [teamMessages, setTeamMessages] = useState<
@@ -321,6 +323,35 @@ export default function CourseWorkspacePage() {
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [courseId]);
+
+    useEffect(() => {
+        const backendId = parseBackendCourseId(courseId);
+        if (backendId == null || apiProjects.length === 0) {
+            setProjectTeamCounts({});
+            return;
+        }
+
+        let cancelled = false;
+        void (async () => {
+            const entries = await Promise.all(
+                apiProjects.map(async (project) => {
+                    try {
+                        const teamsRes = await getDoctorProjectTeams(backendId, project.id);
+                        return [project.id, teamsRes.teamCount] as const;
+                    } catch {
+                        return [project.id, 0] as const;
+                    }
+                }),
+            );
+
+            if (cancelled) return;
+            setProjectTeamCounts(Object.fromEntries(entries));
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [courseId, apiProjects]);
 
     useEffect(() => {
         // Real courses are persisted in the backend — no need to cache sections locally.
@@ -845,9 +876,7 @@ export default function CourseWorkspacePage() {
                                                             className="dd-course-card-btn"
                                                             onClick={() => {
                                                                 if (isDoctorAssignedProject) {
-                                                                    navigate(`/doctor/projects/${project.id}/teams`, {
-                                                                        state: { courseId: parseBackendCourseId(courseId), projectName: project.title }
-                                                                    });
+                                                                    navigate(`/courses/${courseId}/projects/${project.id}/teams`);
                                                                 }
                                                             }}
                                                         >
@@ -861,6 +890,9 @@ export default function CourseWorkspacePage() {
                                                             <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
                                                                 <span style={{ fontWeight: 700, color: dash.text }}>Team size:</span> {project.teamSize}
                                                             </p>
+                                                            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
+                                                                <span style={{ fontWeight: 700, color: dash.text }}>Teams:</span> {projectTeamCounts[project.id] ?? "—"}
+                                                            </p>
                                                             {project.description ? (
                                                                 <p style={{ margin: 0, fontSize: 12, color: dash.subtle, lineHeight: 1.45 }}>{project.description}</p>
                                                             ) : null}
@@ -869,9 +901,7 @@ export default function CourseWorkspacePage() {
                                                                     <button
                                                                         type="button"
                                                                         onClick={() =>
-                                                                            navigate(`/doctor/projects/${project.id}/teams`, {
-                                                                                state: { courseId: parseBackendCourseId(courseId), projectName: project.title }
-                                                                            })
+                                                                            navigate(`/courses/${courseId}/projects/${project.id}/teams`)
                                                                         }
                                                                         style={S.primaryBtn}
                                                                     >

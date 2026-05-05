@@ -1,10 +1,22 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import axios from "axios";
 import { ArrowLeft, RotateCw, Users } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { dash, card } from "../doctor/dashboard/doctorDashTokens";
 import api from "../../../api/axiosInstance";
 import { parseApiErrorMessage } from "../../../api/axiosInstance";
+import {
+    getDoctorCourseProjects,
+    type DoctorCourseProject,
+} from "../../../api/doctorCoursesApi";
 import { useToast } from "../../../context/ToastContext";
+
+function sectionLabelFromProject(p: DoctorCourseProject): string {
+    if (p.applyToAllSections) return "All sections";
+    const names = p.sections.map((s) => s.sectionName.trim()).filter((n) => n.length > 0);
+    if (names.length === 0) return "—";
+    return names.join(", ");
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -25,6 +37,8 @@ type GeneratedMember = {
 };
 
 type GeneratedTeam = {
+    /** DB id from API — use for stable React keys across projects */
+    teamId?: number;
     teamIndex: number;
     memberCount: number;
     members: GeneratedMember[];
@@ -74,26 +88,11 @@ export default function ProjectTeamsPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [teamSize, setTeamSize] = useState<number | null>(null);
-
-    // ── Load saved teams (GET) ─────────────────────────────────────────────────
-    const loadSavedTeams = useCallback(async () => {
-        if (backendCourseId == null || backendProjectId == null) return;
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await api.get<GenerateTeamsResponse>(
-                `/courses/${backendCourseId}/projects/${backendProjectId}/teams`
-            );
-            setTeams(res.data.teams);
-            setTeamSize(res.data.teamSize);
-        } catch (err) {
-            const msg = parseApiErrorMessage(err);
-            setError(msg);
-            showToast(msg, "error");
-        } finally {
-            setLoading(false);
-        }
-    }, [backendCourseId, backendProjectId, showToast]);
+    /** Filled from API so Section / title survive refresh and second visits (no location.state). */
+    const [projectMeta, setProjectMeta] = useState<{
+        title: string;
+        sectionLabel: string;
+    } | null>(null);
 
     // ── Regenerate teams (POST) ────────────────────────────────────────────────
     const fetchTeams = useCallback(async () => {
@@ -115,17 +114,76 @@ export default function ProjectTeamsPage() {
         }
     }, [backendCourseId, backendProjectId, showToast]);
 
+    // Load saved teams per (course, project). Clear stale UI + abort in-flight GET when switching projects.
     useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            await loadSavedTeams();
-            if (cancelled) return;
-            await fetchTeams();
+        if (backendCourseId == null || backendProjectId == null) {
+            setTeams([]);
+            setTeamSize(null);
+            setProjectMeta(null);
+            return;
+        }
+
+        const ac = new AbortController();
+        setTeams([]);
+        setTeamSize(null);
+        setProjectMeta(null);
+        setError(null);
+        setLoading(true);
+
+        void (async () => {
+            try {
+                const res = await api.get<GenerateTeamsResponse>(
+                    `/courses/${backendCourseId}/projects/${backendProjectId}/teams`,
+                    { signal: ac.signal },
+                );
+                if (ac.signal.aborted) return;
+
+                let meta: DoctorCourseProject | undefined;
+                try {
+                    const projects = await getDoctorCourseProjects(backendCourseId);
+                    if (!ac.signal.aborted) {
+                        meta = projects.find((p) => p.id === backendProjectId);
+                        if (meta) {
+                            setProjectMeta({
+                                title: meta.title.trim() || "Project",
+                                sectionLabel: sectionLabelFromProject(meta),
+                            });
+                        }
+                    }
+                } catch {
+                    /* section/title from navigation state only */
+                }
+
+                setTeams(res.data.teams);
+                setTeamSize(res.data.teamSize);
+
+                const hasSavedTeams =
+                    (res.data.teams?.length ?? 0) > 0 || (res.data.teamCount ?? 0) > 0;
+                if (hasSavedTeams) return;
+
+                if (!meta || meta.aiMode !== "doctor") return;
+
+                const gen = await api.post<GenerateTeamsResponse>(
+                    `/courses/${backendCourseId}/projects/${backendProjectId}/generate-teams`,
+                    null,
+                    { signal: ac.signal },
+                );
+                if (ac.signal.aborted) return;
+                setTeams(gen.data.teams);
+                setTeamSize(gen.data.teamSize);
+            } catch (err) {
+                if (ac.signal.aborted) return;
+                if (axios.isAxiosError(err) && err.code === "ERR_CANCELED") return;
+                const msg = parseApiErrorMessage(err);
+                setError(msg);
+                showToast(msg, "error");
+            } finally {
+                if (!ac.signal.aborted) setLoading(false);
+            }
         })();
-        return () => {
-            cancelled = true;
-        };
-    }, [loadSavedTeams, fetchTeams]);
+
+        return () => ac.abort();
+    }, [backendCourseId, backendProjectId, showToast]);
 
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
@@ -143,9 +201,18 @@ export default function ProjectTeamsPage() {
                     <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: dash.fontDisplay, lineHeight: 1.25 }}>
                         Project Teams
                     </h1>
-                    <p style={{ margin: "10px 0 0", fontSize: 14, fontWeight: 600, color: dash.muted, lineHeight: 1.45 }}>{projectName}</p>
+                    <p style={{ margin: "10px 0 0", fontSize: 14, fontWeight: 600, color: dash.muted, lineHeight: 1.45 }}>
+                        {projectMeta?.title?.trim() || projectName}
+                    </p>
                     <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <span style={S.metaChip}><strong style={{ color: dash.text }}>Section:</strong> {st?.sectionName?.trim() ? st.sectionName.trim() : "—"}</span>
+                        <span style={S.metaChip}>
+                            <strong style={{ color: dash.text }}>Section:</strong>{" "}
+                            {projectMeta?.sectionLabel?.trim()
+                                ? projectMeta.sectionLabel.trim()
+                                : st?.sectionName?.trim()
+                                  ? st.sectionName.trim()
+                                  : "—"}
+                        </span>
                         <span style={S.metaChip}><strong style={{ color: dash.text }}>Team size:</strong> {teamSize ?? "—"}</span>
                         <span style={S.metaChip}><strong style={{ color: dash.text }}>Teams:</strong> {teams.length > 0 ? teams.length : "—"}</span>
                     </div>
@@ -166,15 +233,8 @@ export default function ProjectTeamsPage() {
                         type="button"
                         style={{ ...S.primaryBtn, opacity: backendProjectId == null ? 0.6 : 1 }}
                         onClick={() => {
-                            if (backendProjectId == null) return;
-                            navigate(`/doctor/projects/${backendProjectId}/teams`, {
-                                state: {
-                                    courseId: backendCourseId ?? undefined,
-                                    projectId: backendProjectId,
-                                    projectName,
-                                    sectionName: st?.sectionName,
-                                },
-                            });
+                            if (courseId == null) return;
+                            navigate(`/courses/${courseId}`);
                         }}
                         disabled={backendProjectId == null}
                     >
@@ -209,7 +269,10 @@ export default function ProjectTeamsPage() {
                 {!loading && !error && teams.length > 0 && (
                     <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
                         {teams.map((team) => (
-                            <article key={team.teamIndex} style={{ ...card, padding: "18px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                            <article
+                                key={`${backendProjectId}-${team.teamId ?? team.teamIndex}`}
+                                style={{ ...card, padding: "18px 16px", display: "flex", flexDirection: "column", gap: 12 }}
+                            >
                                 {/* Team header */}
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                     <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: dash.text }}>
@@ -224,7 +287,10 @@ export default function ProjectTeamsPage() {
                                 {/* Members */}
                                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                     {team.members.map((member) => (
-                                        <div key={member.studentId} style={S.memberRow}>
+                                        <div
+                                            key={`${team.teamId ?? team.teamIndex}-${member.studentId}`}
+                                            style={S.memberRow}
+                                        >
                                             <div style={S.avatar}>{member.name.charAt(0).toUpperCase()}</div>
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: dash.text }}>{member.name}</p>

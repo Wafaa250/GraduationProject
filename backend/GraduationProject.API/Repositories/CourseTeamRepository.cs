@@ -14,7 +14,7 @@ namespace GraduationProject.API.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<CourseTeam>> GetByProjectIdAsync(int projectId)
+        public async Task<IEnumerable<CourseTeam>> GetTeamsByProjectAsync(int projectId)
         {
             return await _context.CourseTeams
                 .Where(t => t.CourseProjectId == projectId)
@@ -25,21 +25,46 @@ namespace GraduationProject.API.Repositories
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<CourseTeam>> SaveTeamsAsync(int projectId, List<CourseTeam> teams)
+        public async Task DeleteTeamsForProjectAsync(int projectId)
         {
-            // Delete existing teams for this project
             var existing = await _context.CourseTeams
                 .Where(t => t.CourseProjectId == projectId)
                 .ToListAsync();
 
+            if (existing.Count == 0)
+                return;
+
             _context.CourseTeams.RemoveRange(existing);
             await _context.SaveChangesAsync();
+        }
 
-            // Save new teams
-            _context.CourseTeams.AddRange(teams);
-            await _context.SaveChangesAsync();
+        public async Task<IEnumerable<CourseTeam>> SaveTeamsAsync(int projectId, List<CourseTeam> teams)
+        {
+            foreach (var t in teams)
+                t.CourseProjectId = projectId;
 
-            return await GetByProjectIdAsync(projectId);
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var existing = await _context.CourseTeams
+                    .Where(t => t.CourseProjectId == projectId)
+                    .ToListAsync();
+
+                _context.CourseTeams.RemoveRange(existing);
+                await _context.SaveChangesAsync();
+
+                _context.CourseTeams.AddRange(teams);
+                await _context.SaveChangesAsync();
+
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+
+            return await GetTeamsByProjectAsync(projectId);
         }
 
         public async Task<CourseTeam?> GetTeamByIndexAsync(int projectId, int teamIndex)

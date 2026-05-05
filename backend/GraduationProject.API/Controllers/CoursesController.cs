@@ -305,7 +305,7 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            var allTeams = await _teamRepo.GetByProjectIdAsync(projectId);
+            var allTeams = await _teamRepo.GetTeamsByProjectAsync(projectId);
             var myTeam = allTeams.FirstOrDefault(t =>
                 t.Members.Any(m => m.StudentProfileId == studentId.Value));
 
@@ -399,7 +399,6 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Course not found." });
 
             var aiMode = dto.AiMode == "student" ? "student" : "doctor";
-            var allowCross = dto.ApplyToAllSections && dto.AllowCrossSectionTeams;
 
             var project = new CourseProject
             {
@@ -408,7 +407,7 @@ namespace GraduationProject.API.Controllers
                 Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
                 TeamSize = dto.TeamSize,
                 ApplyToAllSections = dto.ApplyToAllSections,
-                AllowCrossSectionTeams = allowCross,
+                AllowCrossSectionTeams = dto.AllowCrossSectionTeams,
                 AiMode = aiMode,
                 CreatedAt = DateTime.UtcNow,
             };
@@ -444,13 +443,12 @@ namespace GraduationProject.API.Controllers
                 return Forbid();
 
             var aiMode = dto.AiMode == "student" ? "student" : "doctor";
-            var allowCross = dto.ApplyToAllSections && dto.AllowCrossSectionTeams;
 
             project.Title = dto.Title.Trim();
             project.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
             project.TeamSize = dto.TeamSize;
             project.ApplyToAllSections = dto.ApplyToAllSections;
-            project.AllowCrossSectionTeams = allowCross;
+            project.AllowCrossSectionTeams = dto.AllowCrossSectionTeams;
             project.AiMode = aiMode;
 
             var sectionIds = dto.ApplyToAllSections ? new List<int>() : dto.SectionIds;
@@ -535,6 +533,7 @@ namespace GraduationProject.API.Controllers
                 .ToList();
 
             var result = await _teamService.GenerateTeamsAsync(
+                courseId,
                 projectId,
                 project.Title,
                 project.Description,
@@ -574,7 +573,7 @@ namespace GraduationProject.API.Controllers
             if (project == null || project.CourseId != courseId)
                 return NotFound(new { message = "Project not found." });
 
-            var teams = (await _teamRepo.GetByProjectIdAsync(projectId)).ToList();
+            var teams = (await _teamRepo.GetTeamsByProjectAsync(projectId)).ToList();
             return Ok(MapTeamsResponse(teams, project, null));
         }
 

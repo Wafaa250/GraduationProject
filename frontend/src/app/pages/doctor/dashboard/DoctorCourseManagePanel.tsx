@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type FormEvent,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Briefcase,
   Calendar,
@@ -107,6 +108,7 @@ type Props = {
 
 export function DoctorCourseManagePanel({ open, courseId: courseIdProp, onClose }: Props) {
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   const courseId = courseIdProp ?? 0;
   const idInvalid = !open || courseIdProp == null || Number.isNaN(courseId) || courseId < 1;
@@ -386,10 +388,10 @@ export function DoctorCourseManagePanel({ open, courseId: courseIdProp, onClose 
   }, []);
 
   const openCreateProjectModal = useCallback(() => {
-    resetCreateProjectForm();
-    setEditingProjectId(null);
-    setCreateProjectModalOpen(true);
-  }, [resetCreateProjectForm]);
+    if (!idInvalid) {
+      navigate(`/courses/${courseId}/projects/create`);
+    }
+  }, [courseId, idInvalid, navigate]);
 
   const openEditProjectModal = useCallback((p: DoctorCourseProject) => {
     setCpTitle(p.title);
@@ -453,7 +455,8 @@ export function DoctorCourseManagePanel({ open, courseId: courseIdProp, onClose 
       description: cpDescription.trim() || "",
       teamSize: teamSizeRounded,
       applyToAllSections: cpApplyAllSections,
-      allowCrossSectionTeams: cpAllowCrossSectionTeams,
+      allowCrossSectionTeams: cpApplyAllSections ? cpAllowCrossSectionTeams : false,
+      aiMode: "doctor" as const,
       sectionIds: cpApplyAllSections
         ? []
         : [...cpSectionIds].sort((a, b) => a - b),

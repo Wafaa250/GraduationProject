@@ -24,7 +24,6 @@ import CourseWorkspacePage from "./pages/courses/CourseWorkspacePage";
 import SectionStudentsPage from "./pages/courses/SectionStudentsPage";
 import CourseProjectCreatePage from "./pages/courses/CourseProjectCreatePage";
 import ProjectTeamsPage from "./pages/courses/ProjectTeamsPage";
-import DoctorProjectTeamsPage from "./pages/doctor/ProjectTeamsPage";
 import TeamManagementPage from "./pages/doctor/TeamManagementPage";
 import StudentCoursesPage from "./pages/courses/StudentCoursesPage";
 import StudentTeamPage from "./pages/team/StudentTeamPage";
@@ -118,14 +117,6 @@ function SectionStudentsDoctorRoute() {
     return <Navigate to="/" replace />;
 }
 
-/** Doctor-only create project wizard for a course workspace. */
-function CourseProjectCreateDoctorRoute() {
-    const role = (localStorage.getItem("role") ?? "").toLowerCase();
-    if (role === "doctor") return <CourseProjectCreatePage />;
-    if (role === "student") return <Navigate to="/dashboard" replace />;
-    return <Navigate to="/" replace />;
-}
-
 /** Doctor-only AI teams preview (local UI; no API). */
 function ProjectTeamsDoctorRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
@@ -206,7 +197,7 @@ export default function App() {
                     />
                     <Route
                         path="/courses/:courseId/projects/create"
-                        element={<ProtectedRoute><CourseProjectCreateDoctorRoute /></ProtectedRoute>}
+                        element={<ProtectedRoute><CourseProjectCreatePage /></ProtectedRoute>}
                     />
                     <Route
                         path="/courses/:courseId/projects/:projectId/teams"

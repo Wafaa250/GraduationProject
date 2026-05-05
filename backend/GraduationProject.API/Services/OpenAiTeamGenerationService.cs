@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -24,36 +25,36 @@ namespace GraduationProject.API.Services
         }
 
         public async Task<GenerateTeamsResult> GenerateTeamsAsync(
+            int courseId,
             int projectId,
             string projectTitle,
             string? projectDescription,
             int teamSize,
             List<StudentForTeam> students)
         {
+            var workStudents = students
+                .OrderBy(s => s.StudentProfileId)
+                .ToList();
+
             // ── 1. Score students via OpenAI (fallback to equal scores if unavailable) ──
-            var scored = await ScoreStudentsAsync(projectTitle, projectDescription, students);
+            var scored = await ScoreStudentsAsync(courseId, projectId, projectTitle, projectDescription, workStudents);
 
-            // ── 2. Sort by score descending ───────────────────────────────────────────
-            scored.Sort((a, b) => b.Score.CompareTo(a.Score));
+            var scoreMap = scored.ToDictionary(x => x.StudentProfileId, x => x.Score);
 
-            // ── 3. Distribute into balanced teams ────────────────────────────────────
-            var teams = BuildBalancedTeams(scored, teamSize);
+            // ── 2. Complementary skill teams (deterministic; ties use project + student mix key) ──
+            var teams = ComplementaryTeamBuilder.BuildComplementaryTeams(workStudents, scoreMap, teamSize, projectId);
 
-            // ── 4. Map to response ────────────────────────────────────────────────────
+            // ── 3. Map to response ────────────────────────────────────────────────────
             var resultTeams = teams.Select((team, idx) => new GeneratedTeam(
                 TeamIndex:   idx,
                 MemberCount: team.Count,
-                Members: team.Select(s =>
-                {
-                    var orig = students.First(st => st.StudentProfileId == s.StudentProfileId);
-                    return new GeneratedTeamMember(
-                        StudentId:  s.StudentProfileId,
-                        UserId:     orig.UserId,
-                        Name:       orig.Name,
-                        MatchScore: Math.Round(s.Score, 1),
-                        Skills:     orig.Skills
-                    );
-                }).ToList()
+                Members: team.Select(s => new GeneratedTeamMember(
+                    StudentId:  s.StudentProfileId,
+                    UserId:     s.UserId,
+                    Name:       s.Name,
+                    MatchScore: Math.Round(scoreMap.GetValueOrDefault(s.StudentProfileId, 50.0), 1),
+                    Skills:     s.Skills
+                )).ToList()
             )).ToList();
 
             return new GenerateTeamsResult(
@@ -68,6 +69,8 @@ namespace GraduationProject.API.Services
         // ── AI Scoring ────────────────────────────────────────────────────────────────
 
         private async Task<List<ScoredStudent>> ScoreStudentsAsync(
+            int courseId,
+            int projectId,
             string projectTitle,
             string? projectDescription,
             List<StudentForTeam> students)
@@ -82,6 +85,8 @@ namespace GraduationProject.API.Services
             {
                 var payload = new
                 {
+                    courseId,
+                    projectId,
                     project = new
                     {
                         title       = projectTitle,
@@ -149,44 +154,6 @@ namespace GraduationProject.API.Services
                 _logger.LogError(ex, "OpenAI team scoring threw an exception");
                 return FallbackScores(students);
             }
-        }
-
-        // ── Team building algorithm ───────────────────────────────────────────────────
-        /// <summary>
-        /// Snake-draft distribution: fills teams in order then reverses to balance.
-        /// e.g. 6 students, teamSize 2 → [1,2], [3,4], [5,6]
-        /// e.g. 7 students, teamSize 2 → [1,2], [3,4], [5,6,7]  (last team gets extra)
-        /// </summary>
-        private static List<List<ScoredStudent>> BuildBalancedTeams(
-            List<ScoredStudent> sorted,
-            int teamSize)
-        {
-            int n         = sorted.Count;
-            int teamCount = n / teamSize;
-
-            // Edge case: fewer students than teamSize → one team
-            if (teamCount == 0) teamCount = 1;
-
-            var teams = Enumerable.Range(0, teamCount)
-                .Select(_ => new List<ScoredStudent>())
-                .ToList();
-
-            // Snake draft: 0,1,2,…,N-1,N-1,…,1,0,0,…
-            bool forward = true;
-            int  cursor  = 0;
-
-            foreach (var student in sorted)
-            {
-                teams[cursor].Add(student);
-
-                if (forward) { cursor++; if (cursor >= teamCount) { cursor = teamCount - 1; forward = false; } }
-                else         { cursor--; if (cursor < 0)          { cursor = 0;             forward = true;  } }
-            }
-
-            // Absorb any leftover teams that ended up empty
-            teams.RemoveAll(t => t.Count == 0);
-
-            return teams;
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────────────

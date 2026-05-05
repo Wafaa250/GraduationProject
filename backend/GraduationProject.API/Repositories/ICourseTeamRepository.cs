@@ -4,10 +4,13 @@ namespace GraduationProject.API.Interfaces
 {
     public interface ICourseTeamRepository
     {
-        /// <summary>Returns saved teams for a project. Empty if not generated yet.</summary>
-        Task<IEnumerable<CourseTeam>> GetByProjectIdAsync(int projectId);
+        /// <summary>Returns saved teams for one course project only.</summary>
+        Task<IEnumerable<CourseTeam>> GetTeamsByProjectAsync(int projectId);
 
-        /// <summary>Deletes all existing teams for a project then saves the new ones.</summary>
+        /// <summary>Removes all teams (and members) for <paramref name="projectId"/> only.</summary>
+        Task DeleteTeamsForProjectAsync(int projectId);
+
+        /// <summary>Atomically replaces teams for <paramref name="projectId"/>; other projects are untouched.</summary>
         Task<IEnumerable<CourseTeam>> SaveTeamsAsync(int projectId, List<CourseTeam> teams);
 
         Task<CourseTeam?> GetTeamByIndexAsync(int projectId, int teamIndex);

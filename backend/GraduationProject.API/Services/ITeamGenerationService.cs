@@ -34,6 +34,7 @@ namespace GraduationProject.API.Services
     public interface ITeamGenerationService
     {
         Task<GenerateTeamsResult> GenerateTeamsAsync(
+            int courseId,
             int projectId,
             string projectTitle,
             string? projectDescription,

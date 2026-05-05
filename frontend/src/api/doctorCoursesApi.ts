@@ -407,10 +407,103 @@ function mapDoctorCourseTeam(raw: unknown): DoctorCourseTeam {
 export const getDoctorCourseTeams = async (
     courseId: number,
 ): Promise<DoctorCourseTeam[]> => {
-    const response = await api.get(`/courses/${courseId}/teams`)
-    const data = response.data
-    if (!Array.isArray(data)) return []
-    return data.map(mapDoctorCourseTeam)
+    const projects = await getDoctorCourseProjects(courseId)
+    if (projects.length === 0) return []
+
+    const perProject = await Promise.all(
+        projects.map(async (project) => {
+            const teamsRes = await getDoctorProjectTeams(courseId, project.id)
+            return teamsRes.teams.map((team) => ({
+                teamId: team.teamId,
+                courseId,
+                projectSettingId: project.id,
+                projectTitle: project.title,
+                leaderId: team.members[0]?.studentId ?? 0,
+                memberCount: team.memberCount,
+                createdAt: "",
+                members: team.members.map((m) => ({
+                    studentId: m.studentId,
+                    userId: m.userId,
+                    name: m.name,
+                    role: "member",
+                })),
+            }))
+        }),
+    )
+
+    return perProject.flat()
+}
+
+export interface DoctorProjectTeamMember {
+    studentId: number
+    userId: number
+    name: string
+    universityId: string | null
+    matchScore: number
+    skills: string[]
+}
+
+export interface DoctorProjectTeam {
+    teamId: number
+    teamIndex: number
+    memberCount: number
+    members: DoctorProjectTeamMember[]
+}
+
+export interface DoctorProjectTeamsResponse {
+    projectId: number
+    projectTitle: string
+    teamSize: number
+    teamCount: number
+    teams: DoctorProjectTeam[]
+}
+
+function mapDoctorProjectTeamMember(raw: unknown): DoctorProjectTeamMember {
+    const r = raw as Record<string, unknown>
+    const uidRaw = r.universityId ?? r.UniversityId
+    return {
+        studentId: Number(r.studentId ?? r.StudentId ?? 0),
+        userId: Number(r.userId ?? r.UserId ?? 0),
+        name: String(r.name ?? r.Name ?? ''),
+        universityId: uidRaw === undefined || uidRaw === null ? null : String(uidRaw),
+        matchScore: Number(r.matchScore ?? r.MatchScore ?? 0),
+        skills: Array.isArray(r.skills ?? r.Skills)
+            ? ((r.skills ?? r.Skills) as unknown[]).map((s) => String(s))
+            : [],
+    }
+}
+
+function mapDoctorProjectTeam(raw: unknown): DoctorProjectTeam {
+    const r = raw as Record<string, unknown>
+    const membersRaw = r.members ?? r.Members
+    return {
+        teamId: Number(r.teamId ?? r.TeamId ?? 0),
+        teamIndex: Number(r.teamIndex ?? r.TeamIndex ?? 0),
+        memberCount: Number(r.memberCount ?? r.MemberCount ?? 0),
+        members: Array.isArray(membersRaw)
+            ? membersRaw.map(mapDoctorProjectTeamMember)
+            : [],
+    }
+}
+
+function mapDoctorProjectTeamsResponse(raw: unknown): DoctorProjectTeamsResponse {
+    const r = raw as Record<string, unknown>
+    const teamsRaw = r.teams ?? r.Teams
+    return {
+        projectId: Number(r.projectId ?? r.ProjectId ?? 0),
+        projectTitle: String(r.projectTitle ?? r.ProjectTitle ?? ''),
+        teamSize: Number(r.teamSize ?? r.TeamSize ?? 0),
+        teamCount: Number(r.teamCount ?? r.TeamCount ?? 0),
+        teams: Array.isArray(teamsRaw) ? teamsRaw.map(mapDoctorProjectTeam) : [],
+    }
+}
+
+export const getDoctorProjectTeams = async (
+    courseId: number,
+    projectId: number,
+): Promise<DoctorProjectTeamsResponse> => {
+    const response = await api.get(`/courses/${courseId}/projects/${projectId}/teams`)
+    return mapDoctorProjectTeamsResponse(response.data)
 }
 
 // ── Course sections (GET/POST /courses/{courseId}/sections, …/sections/{id}/…) ──
@@ -507,7 +600,7 @@ export const createDoctorCourseProject = async (
         description: body.description?.trim() ?? '',
         teamSize: body.teamSize,
         applyToAllSections: body.applyToAllSections,
-        allowCrossSectionTeams: body.allowCrossSectionTeams,
+        allowCrossSectionTeams: body.allowCrossSectionTeams ?? false,
         aiMode: body.aiMode,
         sectionIds: body.sectionIds,
     })
@@ -526,7 +619,7 @@ export const updateDoctorCourseProject = async (
         description: body.description?.trim() ?? '',
         teamSize: body.teamSize,
         applyToAllSections: body.applyToAllSections,
-        allowCrossSectionTeams: body.allowCrossSectionTeams,
+        allowCrossSectionTeams: body.allowCrossSectionTeams ?? false,
         aiMode: body.aiMode,
         sectionIds: body.sectionIds,
     })

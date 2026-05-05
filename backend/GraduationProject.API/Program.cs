@@ -55,7 +55,6 @@ builder.Services.AddScoped<ISectionChatRepository, SectionChatRepository>();
 builder.Services.AddScoped<ICourseProjectRepository, CourseProjectRepository>();
 builder.Services.AddScoped<ICourseTeamRepository, CourseTeamRepository>();
 builder.Services.AddScoped<ICourseTeamChatRepository, CourseTeamChatRepository>();
-builder.Services.AddScoped<ITeamGenerationService, TeamGenerationService>();
 builder.Services.AddHttpClient<ITeamGenerationService, OpenAiTeamGenerationService>();
 
 // ===========================
