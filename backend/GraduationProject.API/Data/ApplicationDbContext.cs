@@ -34,6 +34,9 @@ namespace GraduationProject.API.Data
         public DbSet<CourseTeam> CourseTeams => Set<CourseTeam>();
         public DbSet<CourseTeamMember> CourseTeamMembers => Set<CourseTeamMember>();
         public DbSet<CourseTeamMessage> CourseTeamMessages => Set<CourseTeamMessage>();
+        public DbSet<Conversation> Conversations => Set<Conversation>();
+        public DbSet<ConversationUser> ConversationUsers => Set<ConversationUser>();
+        public DbSet<Message> Messages => Set<Message>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -369,6 +372,61 @@ namespace GraduationProject.API.Data
                 e.HasOne(m => m.Sender)
                  .WithMany()
                  .HasForeignKey(m => m.SenderUserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── PRIVATE CONVERSATIONS ─────────────────────────────────────────────
+            modelBuilder.Entity<Conversation>(e =>
+            {
+                e.ToTable("conversations");
+                e.HasKey(c => c.Id);
+                e.Property(c => c.CreatedAt).IsRequired();
+            });
+
+            modelBuilder.Entity<ConversationUser>(e =>
+            {
+                e.ToTable("conversation_users");
+                e.HasKey(cu => cu.Id);
+
+                e.HasIndex(cu => new { cu.ConversationId, cu.UserId })
+                 .IsUnique()
+                 .HasDatabaseName("ix_conversation_users_conversation_user");
+
+                e.HasIndex(cu => cu.UserId)
+                 .HasDatabaseName("ix_conversation_users_user");
+
+                e.HasOne(cu => cu.Conversation)
+                 .WithMany(c => c.ConversationUsers)
+                 .HasForeignKey(cu => cu.ConversationId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(cu => cu.User)
+                 .WithMany()
+                 .HasForeignKey(cu => cu.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Message>(e =>
+            {
+                e.ToTable("messages");
+                e.HasKey(m => m.Id);
+                e.Property(m => m.Text).IsRequired().HasMaxLength(2000);
+                e.Property(m => m.CreatedAt).IsRequired();
+                e.Property(m => m.Edited).HasDefaultValue(false);
+                e.Property(m => m.Deleted).HasDefaultValue(false);
+                e.Property(m => m.Seen).HasDefaultValue(false);
+
+                e.HasIndex(m => new { m.ConversationId, m.CreatedAt })
+                 .HasDatabaseName("ix_messages_conversation_created_at");
+
+                e.HasOne(m => m.Conversation)
+                 .WithMany(c => c.Messages)
+                 .HasForeignKey(m => m.ConversationId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(m => m.Sender)
+                 .WithMany()
+                 .HasForeignKey(m => m.SenderId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
