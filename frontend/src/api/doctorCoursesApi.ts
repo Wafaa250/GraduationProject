@@ -531,6 +531,7 @@ export interface DoctorCourseProject {
     courseId: number
     title: string
     description: string | null
+    requiredSkills: string[]
     teamSize: number
     applyToAllSections: boolean
     allowCrossSectionTeams: boolean
@@ -550,6 +551,7 @@ function mapDoctorCourseProjectSection(raw: unknown): DoctorCourseProjectSection
 function mapDoctorCourseProject(raw: unknown): DoctorCourseProject {
     const r = raw as Record<string, unknown>
     const descRaw = r.description ?? r.Description
+    const reqRaw = r.requiredSkills ?? r.RequiredSkills
     const sectionsRaw = r.sections ?? r.Sections
     return {
         id: Number(r.id ?? r.Id ?? 0),
@@ -557,6 +559,7 @@ function mapDoctorCourseProject(raw: unknown): DoctorCourseProject {
         title: String(r.title ?? r.Title ?? ''),
         description:
             descRaw === undefined || descRaw === null ? null : String(descRaw),
+        requiredSkills: Array.isArray(reqRaw) ? reqRaw.map((x) => String(x)) : [],
         teamSize: Number(r.teamSize ?? r.TeamSize ?? 2),
         applyToAllSections: Boolean(
             r.applyToAllSections ?? r.ApplyToAllSections ?? false,
@@ -584,6 +587,7 @@ export const getDoctorCourseProjects = async (
 export interface CreateCourseProjectBody {
     title: string
     description: string
+    requiredSkills: string[]
     teamSize: number
     applyToAllSections: boolean
     allowCrossSectionTeams: boolean
@@ -598,6 +602,7 @@ export const createDoctorCourseProject = async (
     const response = await api.post(`/courses/${courseId}/projects`, {
         title: body.title.trim(),
         description: body.description?.trim() ?? '',
+        requiredSkills: body.requiredSkills,
         teamSize: body.teamSize,
         applyToAllSections: body.applyToAllSections,
         allowCrossSectionTeams: body.allowCrossSectionTeams ?? false,
@@ -617,6 +622,7 @@ export const updateDoctorCourseProject = async (
     const response = await api.put(`/courses/projects/${projectId}`, {
         title: body.title.trim(),
         description: body.description?.trim() ?? '',
+        requiredSkills: body.requiredSkills,
         teamSize: body.teamSize,
         applyToAllSections: body.applyToAllSections,
         allowCrossSectionTeams: body.allowCrossSectionTeams ?? false,

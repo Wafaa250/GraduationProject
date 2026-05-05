@@ -405,6 +405,9 @@ namespace GraduationProject.API.Controllers
                 CourseId = courseId,
                 Title = dto.Title.Trim(),
                 Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+                RequiredSkills = dto.RequiredSkills?.Count > 0
+                    ? JsonSerializer.Serialize(dto.RequiredSkills.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Distinct().ToList())
+                    : null,
                 TeamSize = dto.TeamSize,
                 ApplyToAllSections = dto.ApplyToAllSections,
                 AllowCrossSectionTeams = dto.AllowCrossSectionTeams,
@@ -446,6 +449,9 @@ namespace GraduationProject.API.Controllers
 
             project.Title = dto.Title.Trim();
             project.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
+            project.RequiredSkills = dto.RequiredSkills?.Count > 0
+                ? JsonSerializer.Serialize(dto.RequiredSkills.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Distinct().ToList())
+                : null;
             project.TeamSize = dto.TeamSize;
             project.ApplyToAllSections = dto.ApplyToAllSections;
             project.AllowCrossSectionTeams = dto.AllowCrossSectionTeams;
@@ -703,6 +709,7 @@ namespace GraduationProject.API.Controllers
                 CourseId = p.CourseId,
                 Title = p.Title,
                 Description = p.Description,
+                RequiredSkills = ParseStringJsonList(p.RequiredSkills),
                 TeamSize = p.TeamSize,
                 ApplyToAllSections = p.ApplyToAllSections,
                 AllowCrossSectionTeams = p.AllowCrossSectionTeams,
@@ -710,6 +717,19 @@ namespace GraduationProject.API.Controllers
                 CreatedAt = p.CreatedAt,
                 Sections = sections,
             };
+        }
+
+        private static List<string> ParseStringJsonList(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new List<string>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+            }
+            catch
+            {
+                return new List<string>();
+            }
         }
 
         private static object MapTeamsResponse(
