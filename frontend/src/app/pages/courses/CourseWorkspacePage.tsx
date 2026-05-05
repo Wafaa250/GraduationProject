@@ -1111,11 +1111,8 @@ export default function CourseWorkspacePage() {
                                                 color: dash.text,
                                             }}
                                         >
-                                            Course settings
+                                            Project settings
                                         </h2>
-                                        <p style={{ margin: "4px 0 0", fontSize: 12, color: dash.muted, lineHeight: 1.45 }}>
-                                            Team rules, AI behavior, and project deadlines (local only until an API is connected).
-                                        </p>
                                     </div>
                                 </div>
                                 <button type="button" style={S.primaryBtn} onClick={saveCourseSettings}>
@@ -1149,30 +1146,6 @@ export default function CourseWorkspacePage() {
                                         checked={courseSettings.allowCrossSectionTeams}
                                         onChange={(v) => setCourseSettings((s) => ({ ...s, allowCrossSectionTeams: v }))}
                                     />
-                                    <div style={SET.row}>
-                                        <label style={{ ...SET.label, flex: "1 1 140px", minWidth: 0 }}>
-                                            Min team size
-                                            <input
-                                                style={SET.input}
-                                                type="number"
-                                                min={1}
-                                                max={50}
-                                                value={courseSettings.minTeamSize}
-                                                onChange={(e) => setCourseSettings((s) => ({ ...s, minTeamSize: e.target.value }))}
-                                            />
-                                        </label>
-                                        <label style={{ ...SET.label, flex: "1 1 140px", minWidth: 0 }}>
-                                            Max team size
-                                            <input
-                                                style={SET.input}
-                                                type="number"
-                                                min={1}
-                                                max={50}
-                                                value={courseSettings.maxTeamSize}
-                                                onChange={(e) => setCourseSettings((s) => ({ ...s, maxTeamSize: e.target.value }))}
-                                            />
-                                        </label>
-                                    </div>
                                 </article>
 
                                 <article
@@ -1217,17 +1190,6 @@ export default function CourseWorkspacePage() {
                                         checked={courseSettings.allowMultipleProjectsPerSection}
                                         onChange={(v) => setCourseSettings((s) => ({ ...s, allowMultipleProjectsPerSection: v }))}
                                     />
-                                    <label style={SET.label}>
-                                        Max projects per course
-                                        <input
-                                            style={{ ...SET.input, maxWidth: 200 }}
-                                            type="number"
-                                            min={1}
-                                            max={99}
-                                            value={courseSettings.maxProjectsPerCourse}
-                                            onChange={(e) => setCourseSettings((s) => ({ ...s, maxProjectsPerCourse: e.target.value }))}
-                                        />
-                                    </label>
                                 </article>
 
                                 <article
