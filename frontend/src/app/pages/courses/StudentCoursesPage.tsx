@@ -895,7 +895,7 @@ export default function StudentCoursesPage() {
                                                                                         navigate(`/student/projects/${project.id}/ai-team`);
                                                                                     }}
                                                                                 >
-                                                                                    ✨ Generate Team
+                                                                                    Choose Teammates
                                                                                 </button>
                                                                             )}
                                                                         </div>

@@ -26,7 +26,8 @@ export default function CourseProjectCreatePage() {
 
     const [title, setTitle] = useState("");
     const [abstract, setAbstract] = useState("");
-    const [teamSize, setTeamSize] = useState(2);
+    const [requiredSkillsText, setRequiredSkillsText] = useState("");
+    const [teamSize, setTeamSize] = useState(1);
     const [duration, setDuration] = useState("");
     const [allSections, setAllSections] = useState(true);
     const [allowCrossSectionTeams, setAllowCrossSectionTeams] = useState(false);
@@ -61,6 +62,13 @@ export default function CourseProjectCreatePage() {
         }
     }, [allSections]);
 
+    useEffect(() => {
+        const s = (location.state as { requiredSkills?: string[] } | null)?.requiredSkills;
+        if (Array.isArray(s) && s.length > 0) {
+            setRequiredSkillsText(s.join(", "));
+        }
+    }, [location.state]);
+
     const backToWorkspace = () => {
         if (!courseId) {
             navigate("/doctor-dashboard");
@@ -85,10 +93,14 @@ export default function CourseProjectCreatePage() {
             }
         }
         const ts = Number(teamSize);
-        if (!Number.isFinite(ts) || ts < 2 || ts > 50) {
-            showToast("Team size must be between 2 and 50.", "error");
+        if (!Number.isFinite(ts) || ts < 1 || ts > 50) {
+            showToast("Team size must be between 1 and 50.", "error");
             return;
         }
+        const requiredSkills = requiredSkillsText
+            .split(",")
+            .map((x) => x.trim())
+            .filter((x) => x.length > 0);
         if (!courseId) { showToast("Missing course in route.", "error"); return; }
 
         let sectionLabel = "All sections";
@@ -117,6 +129,7 @@ export default function CourseProjectCreatePage() {
                 const newProject = await createDoctorCourseProject(backendCourseId, {
                     title: t,
                     description: abstract.trim(),
+                    requiredSkills,
                     teamSize: ts,
                     applyToAllSections: allSections,
                     allowCrossSectionTeams: allSections ? allowCrossSectionTeams : false,
@@ -224,6 +237,17 @@ export default function CourseProjectCreatePage() {
                         />
                     </label>
 
+                    <label style={F.label}>
+                        Required Skills
+                        <input
+                            style={F.input}
+                            value={requiredSkillsText}
+                            onChange={(e) => setRequiredSkillsText(e.target.value)}
+                            placeholder="e.g. React, Node, AI"
+                            autoComplete="off"
+                        />
+                    </label>
+
                     <div>
                         <span style={F.labelText}>Project file (UI only)</span>
                         <input
@@ -255,14 +279,14 @@ export default function CourseProjectCreatePage() {
                             Team size
                             <input
                                 type="number"
-                                min={2}
+                                min={1}
                                 max={50}
                                 step={1}
                                 style={F.input}
                                 value={teamSize}
                                 onChange={(e) => {
                                     const n = Number.parseInt(e.target.value, 10);
-                                    setTeamSize(Number.isFinite(n) ? n : 2);
+                                    setTeamSize(Number.isFinite(n) ? n : 1);
                                 }}
                             />
                         </label>

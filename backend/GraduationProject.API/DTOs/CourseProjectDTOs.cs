@@ -13,6 +13,8 @@ namespace GraduationProject.API.DTOs
         [StringLength(2000)]
         public string? Description { get; set; }
 
+        public List<string> RequiredSkills { get; set; } = new();
+
         [Range(1, 50)]
         public int TeamSize { get; set; } = 4;
 
@@ -60,6 +62,7 @@ namespace GraduationProject.API.DTOs
         public int CourseId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public List<string> RequiredSkills { get; set; } = new();
         public int TeamSize { get; set; }
         public bool ApplyToAllSections { get; set; }
         public bool AllowCrossSectionTeams { get; set; }

@@ -33,6 +33,7 @@ namespace GraduationProject.API.Data
         public DbSet<CourseProjectSection> CourseProjectSections => Set<CourseProjectSection>();
         public DbSet<CourseTeam> CourseTeams => Set<CourseTeam>();
         public DbSet<CourseTeamMember> CourseTeamMembers => Set<CourseTeamMember>();
+        public DbSet<CourseTeamInvitation> CourseTeamInvitations => Set<CourseTeamInvitation>();
         public DbSet<CourseTeamMessage> CourseTeamMessages => Set<CourseTeamMessage>();
         public DbSet<Conversation> Conversations => Set<Conversation>();
         public DbSet<ConversationUser> ConversationUsers => Set<ConversationUser>();
@@ -289,6 +290,7 @@ namespace GraduationProject.API.Data
                 e.HasKey(p => p.Id);
                 e.Property(p => p.Title).IsRequired().HasMaxLength(300);
                 e.Property(p => p.Description).HasMaxLength(2000);
+                e.Property(p => p.RequiredSkills);
                 e.Property(p => p.TeamSize).IsRequired().HasDefaultValue(4);
                 e.Property(p => p.ApplyToAllSections).IsRequired().HasDefaultValue(false);
                 e.Property(p => p.AllowCrossSectionTeams).IsRequired().HasDefaultValue(false);
@@ -352,6 +354,33 @@ namespace GraduationProject.API.Data
                  .WithMany()
                  .HasForeignKey(m => m.StudentProfileId)
                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── COURSE TEAM INVITATIONS ────────────────────────────────────────
+            modelBuilder.Entity<CourseTeamInvitation>(e =>
+            {
+                e.ToTable("course_team_invitations");
+                e.HasKey(i => i.Id);
+                e.Property(i => i.Status)
+                 .HasColumnName("status")
+                 .HasMaxLength(20)
+                 .HasDefaultValue("pending")
+                 .IsRequired();
+                e.Property(i => i.CreatedAt).IsRequired();
+                e.HasIndex(i => new { i.ProjectId, i.ReceiverId, i.Status })
+                 .HasDatabaseName("ix_course_team_invitations_project_receiver_status");
+                e.HasOne(i => i.Project)
+                 .WithMany(p => p.TeamInvitations)
+                 .HasForeignKey(i => i.ProjectId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(i => i.Sender)
+                 .WithMany()
+                 .HasForeignKey(i => i.SenderId)
+                 .OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(i => i.Receiver)
+                 .WithMany()
+                 .HasForeignKey(i => i.ReceiverId)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
 
             // ── COURSE TEAM MESSAGES ──────────────────────────────────────────────

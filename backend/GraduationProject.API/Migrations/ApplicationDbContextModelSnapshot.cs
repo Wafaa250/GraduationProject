@@ -312,6 +312,49 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("course_teams", (string)null);
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.CourseTeamInvitation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReceiverId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SenderId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("pending")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiverId");
+
+                    b.HasIndex("SenderId");
+
+                    b.HasIndex("ProjectId", "ReceiverId", "Status")
+                        .HasDatabaseName("ix_course_team_invitations_project_receiver_status");
+
+                    b.ToTable("course_team_invitations", (string)null);
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.CourseTeamMember", b =>
                 {
                     b.Property<int>("Id")
@@ -1091,6 +1134,33 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.CourseTeamInvitation", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CourseProject", "Project")
+                        .WithMany("TeamInvitations")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Receiver")
+                        .WithMany()
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.CourseTeamMember", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.CourseTeam", "Team")
@@ -1355,6 +1425,8 @@ namespace GraduationProject.API.Migrations
             modelBuilder.Entity("GraduationProject.API.Models.CourseProject", b =>
                 {
                     b.Navigation("Sections");
+
+                    b.Navigation("TeamInvitations");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.CourseTeam", b =>

@@ -10,7 +10,10 @@ namespace GraduationProject.API.Models
 
         public string? Description { get; set; }
 
-        public int TeamSize { get; set; } = 2;
+        /// <summary>JSON array of required skill names, e.g. ["React","Node.js"]</summary>
+        public string? RequiredSkills { get; set; }
+
+        public int TeamSize { get; set; } = 1;
 
         /// <summary>When true, project applies to all sections of the course.</summary>
         public bool ApplyToAllSections { get; set; } = true;
@@ -29,6 +32,7 @@ namespace GraduationProject.API.Models
         // Navigation
         public Course Course { get; set; } = null!;
         public ICollection<CourseProjectSection> Sections { get; set; } = new List<CourseProjectSection>();
+        public ICollection<CourseTeamInvitation> TeamInvitations { get; set; } = new List<CourseTeamInvitation>();
     }
 
     /// <summary>Join table: which sections a project targets when ApplyToAllSections = false.</summary>

@@ -216,6 +216,61 @@ export interface StudentCourseView {
   projects: StudentViewProject[]
 }
 
+export interface CourseTeamEligibleStudent {
+  studentId: number
+  userId: number
+  name: string
+  sectionId: number
+  matchScore?: number
+  matchReason?: string
+  canInvite: boolean
+  alreadyInvited: boolean
+  alreadyInTeam: boolean
+}
+
+export interface SendCourseTeamInvitesBody {
+  receiverIds: number[]
+}
+
+export interface TeamInvitationItem {
+  id: number
+  projectId: number
+  projectTitle: string
+  senderId: number
+  senderName: string
+  receiverId: number
+  status: 'pending' | 'accepted' | 'rejected'
+  createdAt: string
+  respondedAt?: string | null
+}
+
+export interface CourseProjectMyTeamMember {
+  studentId: number
+  userId: number
+  name: string
+  status: 'accepted' | 'pending' | 'rejected'
+}
+
+export interface CourseProjectMyTeamInvitation {
+  id: number
+  receiverId: number
+  receiverUserId: number
+  receiverName: string
+  status: 'pending' | 'accepted' | 'rejected'
+  createdAt: string
+  respondedAt?: string | null
+}
+
+export interface CourseProjectMyTeamStatus {
+  projectId: number
+  teamSize: number
+  selectedCount: number
+  seatsLeft: number
+  status: 'forming' | 'complete'
+  members: CourseProjectMyTeamMember[]
+  invitations: CourseProjectMyTeamInvitation[]
+}
+
 export const getEnrolledCourses = async (): Promise<EnrolledCourse[]> => {
   const response = await api.get('/courses/enrolled')
   return response.data
@@ -303,4 +358,38 @@ export const removeTeamMember = async (
 /** Student leaves the course (removes enrollment and team membership per backend). */
 export const leaveCourse = async (courseId: number): Promise<void> => {
   await api.post(`/courses/${courseId}/leave`)
+}
+
+export const getCourseProjectEligibleStudents = async (
+  projectId: number,
+): Promise<CourseTeamEligibleStudent[]> => {
+  const response = await api.get(`/course-projects/${projectId}/eligible-students`)
+  return response.data
+}
+
+export const sendCourseProjectInvitations = async (
+  projectId: number,
+  body: SendCourseTeamInvitesBody,
+): Promise<void> => {
+  await api.post(`/course-projects/${projectId}/invite`, body)
+}
+
+export const getMyTeamInvitations = async (): Promise<TeamInvitationItem[]> => {
+  const response = await api.get('/team-invitations/my')
+  return response.data
+}
+
+export const acceptTeamInvitation = async (invitationId: number): Promise<void> => {
+  await api.post(`/team-invitations/${invitationId}/accept`)
+}
+
+export const rejectTeamInvitation = async (invitationId: number): Promise<void> => {
+  await api.post(`/team-invitations/${invitationId}/reject`)
+}
+
+export const getCourseProjectMyTeam = async (
+  projectId: number,
+): Promise<CourseProjectMyTeamStatus> => {
+  const response = await api.get(`/course-projects/${projectId}/my-team`)
+  return response.data
 }

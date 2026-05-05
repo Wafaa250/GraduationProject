@@ -56,6 +56,60 @@ const mapApiMessage = (m: ApiMessage): Message => ({
   seen: Boolean(m.seen),
 });
 
+const sortMessagesAsc = (messages: Message[]) =>
+  [...messages].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+const getLastMessageTime = (conversation: Conversation) =>
+  conversation.messages.length > 0
+    ? conversation.messages[conversation.messages.length - 1].createdAt.getTime()
+    : 0;
+
+const getConversationOtherUserId = (conversation: Conversation, currentUserId: number) =>
+  conversation.users.find((u) => u !== currentUserId) ?? 0;
+
+const sortConversationsByLatest = (conversations: Conversation[]) =>
+  [...conversations].sort((a, b) => getLastMessageTime(b) - getLastMessageTime(a));
+
+const mergeConversationByOtherUser = (
+  base: Conversation,
+  incoming: Conversation,
+  currentUserId: number,
+): Conversation => {
+  const byId = new Map<number, Message>();
+  for (const msg of base.messages) byId.set(msg.id, msg);
+  for (const msg of incoming.messages) byId.set(msg.id, msg);
+
+  const mergedMessages = sortMessagesAsc([...byId.values()]);
+  const baseLast = getLastMessageTime(base);
+  const incomingLast = getLastMessageTime(incoming);
+
+  return {
+    id: incomingLast >= baseLast ? incoming.id : base.id,
+    users: Array.from(new Set([...base.users, ...incoming.users])),
+    messages: mergedMessages,
+    otherUserName: incoming.otherUserName?.trim() ? incoming.otherUserName : base.otherUserName,
+  };
+};
+
+const upsertConversationByOtherUser = (
+  prev: Conversation[],
+  incoming: Conversation,
+  currentUserId: number,
+) => {
+  const incomingOtherUserId = getConversationOtherUserId(incoming, currentUserId);
+  const existingIdx = prev.findIndex(
+    (c) => getConversationOtherUserId(c, currentUserId) === incomingOtherUserId,
+  );
+
+  if (existingIdx === -1) {
+    return sortConversationsByLatest([incoming, ...prev]);
+  }
+
+  const next = [...prev];
+  next[existingIdx] = mergeConversationByOtherUser(next[existingIdx], incoming, currentUserId);
+  return sortConversationsByLatest(next);
+};
+
 export default function ChatPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -100,14 +154,14 @@ export default function ChatPage() {
         const msg = mapApiMessage(payload as ApiMessage);
 
         setConversations((prev) =>
-          prev.map((c) => {
+          sortConversationsByLatest(prev.map((c) => {
             if (c.id !== convId) return c;
             if (c.messages.some((m) => m.id === msg.id)) return c;
             return {
               ...c,
-              messages: [...c.messages, msg].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+              messages: sortMessagesAsc([...c.messages, msg]),
             };
-          }),
+          })),
         );
       } catch (err) {
         console.error("SignalR ReceiveMessage", err);
@@ -120,11 +174,11 @@ export default function ChatPage() {
         if (convId == null) return;
         const msg = mapApiMessage(payload as ApiMessage);
         setConversations((prev) =>
-          prev.map((c) => {
+          sortConversationsByLatest(prev.map((c) => {
             if (c.id !== convId) return c;
             const next = c.messages.map((m) => (m.id === msg.id ? msg : m));
-            return { ...c, messages: next.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) };
-          }),
+            return { ...c, messages: sortMessagesAsc(next) };
+          })),
         );
       } catch (err) {
         console.error("SignalR MessageEdited", err);
@@ -143,17 +197,17 @@ export default function ChatPage() {
         if ("createdAt" in (payload as object)) {
           const msg = mapApiMessage(payload as ApiMessage);
           setConversations((prev) =>
-            prev.map((c) => {
+            sortConversationsByLatest(prev.map((c) => {
               if (c.id !== convId) return c;
               const next = c.messages.map((m) => (m.id === msg.id ? msg : m));
-              return { ...c, messages: next.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) };
-            }),
+              return { ...c, messages: sortMessagesAsc(next) };
+            })),
           );
           return;
         }
 
         setConversations((prev) =>
-          prev.map((c) => {
+          sortConversationsByLatest(prev.map((c) => {
             if (c.id !== convId) return c;
             return {
               ...c,
@@ -169,7 +223,7 @@ export default function ChatPage() {
                 };
               }),
             };
-          }),
+          })),
         );
       } catch (err) {
         console.error("SignalR MessageDeleted", err);
@@ -218,17 +272,17 @@ export default function ChatPage() {
     try {
       const { data } = await apiClient.get<ApiConversationListItem[]>("/conversations");
 
-      setConversations(
-        data.map((c) => {
-          const otherUserId = c.otherUser?.id ?? 0;
-          return {
-            id: c.id,
-            users: [currentUserId, otherUserId],
-            messages: c.lastMessage ? [mapApiMessage(c.lastMessage)] : [],
-            otherUserName: c.otherUser?.name,
-          };
-        }),
-      );
+      const deduped = data.reduce<Conversation[]>((acc, c) => {
+        const otherUserId = c.otherUser?.id ?? 0;
+        const mapped: Conversation = {
+          id: c.id,
+          users: [currentUserId, otherUserId],
+          messages: c.lastMessage ? [mapApiMessage(c.lastMessage)] : [],
+          otherUserName: c.otherUser?.name,
+        };
+        return upsertConversationByOtherUser(acc, mapped, currentUserId);
+      }, []);
+      setConversations(deduped);
     } catch (err) {
       console.error("Failed to load conversations", err);
     }
@@ -243,20 +297,12 @@ export default function ChatPage() {
         const mapped: Conversation = {
           id: data.id,
           users: data.users.map((u) => u.id),
-          messages: [...data.messages].map(mapApiMessage).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+          messages: sortMessagesAsc([...data.messages].map(mapApiMessage)),
           otherUserName: nameFromDetail,
         };
 
         setConversations((prev) => {
-          const idx = prev.findIndex((c) => c.id === mapped.id);
-          if (idx === -1) return [mapped, ...prev];
-          const next = [...prev];
-          const prevName = next[idx].otherUserName;
-          next[idx] = {
-            ...mapped,
-            otherUserName: mapped.otherUserName || prevName,
-          };
-          return next;
+          return upsertConversationByOtherUser(prev, mapped, currentUserId);
         });
 
         setSelectedConversationId(mapped.id);
