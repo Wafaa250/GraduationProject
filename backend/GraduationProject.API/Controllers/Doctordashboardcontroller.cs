@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
 using GraduationProject.API.Helpers;
+using GraduationProject.API.Services;
 
 namespace GraduationProject.API.Controllers
 {
@@ -21,7 +22,15 @@ namespace GraduationProject.API.Controllers
     public class DoctorDashboardController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
-        public DoctorDashboardController(ApplicationDbContext db) => _db = db;
+        private readonly IGraduationProjectNotificationService _gpNotifications;
+
+        public DoctorDashboardController(
+            ApplicationDbContext db,
+            IGraduationProjectNotificationService gpNotifications)
+        {
+            _db = db;
+            _gpNotifications = gpNotifications;
+        }
 
         // =====================================================================
         // GET /api/doctors/me/requests
@@ -277,6 +286,11 @@ namespace GraduationProject.API.Controllers
 
             await _db.SaveChangesAsync();
 
+            await _gpNotifications.NotifySupervisionCancelledByDoctorAsync(
+                project.Id,
+                project.Name,
+                doctor.Id);
+
             return Ok(new { message = "You have successfully resigned from supervising this project." });
         }
 
@@ -289,3 +303,4 @@ namespace GraduationProject.API.Controllers
         }
     }
 }
+

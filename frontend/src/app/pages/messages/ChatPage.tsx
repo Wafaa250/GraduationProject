@@ -4,7 +4,8 @@ import { ArrowLeft, Pencil, Send, Trash2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { navigateHome } from "../../../utils/homeNavigation";
 import { apiClient } from "../../../api/client";
-import { getChatHubUrl } from "../../../utils/chatHubUrl";
+import { getNotificationsHubUrl } from "../../../utils/notificationsHubUrl";
+import { markChatScopeRead } from "../../../api/notificationsApi";
 
 type Message = {
   id: number;
@@ -79,7 +80,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(getChatHubUrl(), {
+      .withUrl(getNotificationsHubUrl(), {
         accessTokenFactory: () => localStorage.getItem("token") || "",
       })
       .withAutomaticReconnect()
@@ -118,7 +119,8 @@ export default function ChatPage() {
       try {
         const convId = getConversationIdFromHubPayload(payload) ?? selectedConversationIdRef.current;
         if (convId == null) return;
-        const msg = mapApiMessage(payload as ApiMessage);
+        const raw = payload && typeof payload === "object" && "payload" in payload ? (payload as { payload: unknown }).payload : payload;
+        const msg = mapApiMessage(raw as ApiMessage);
         setConversations((prev) =>
           prev.map((c) => {
             if (c.id !== convId) return c;
@@ -135,13 +137,16 @@ export default function ChatPage() {
       try {
         const convId = getConversationIdFromHubPayload(payload) ?? selectedConversationIdRef.current;
         if (convId == null) return;
-        if (!payload || typeof payload !== "object" || !("id" in payload)) return;
-        const rawId = (payload as { id: unknown }).id;
+        const actualPayload = payload && typeof payload === "object" && "payload" in payload
+          ? (payload as { payload: unknown }).payload
+          : payload;
+        if (!actualPayload || typeof actualPayload !== "object" || !("id" in actualPayload)) return;
+        const rawId = (actualPayload as { id: unknown }).id;
         const messageId = typeof rawId === "number" ? rawId : Number(rawId);
         if (!Number.isFinite(messageId)) return;
 
-        if ("createdAt" in (payload as object)) {
-          const msg = mapApiMessage(payload as ApiMessage);
+        if ("createdAt" in (actualPayload as object)) {
+          const msg = mapApiMessage(actualPayload as ApiMessage);
           setConversations((prev) =>
             prev.map((c) => {
               if (c.id !== convId) return c;
@@ -159,7 +164,7 @@ export default function ChatPage() {
               ...c,
               messages: c.messages.map((m) => {
                 if (m.id !== messageId) return m;
-                const p = payload as { text?: unknown; deleted?: unknown; edited?: unknown; seen?: unknown };
+                const p = actualPayload as { text?: unknown; deleted?: unknown; edited?: unknown; seen?: unknown };
                 return {
                   ...m,
                   deleted: typeof p.deleted === "boolean" ? p.deleted : true,
@@ -176,21 +181,9 @@ export default function ChatPage() {
       }
     });
 
-    connection.onreconnected(() => {
-      const id = selectedConversationIdRef.current;
-      if (id == null) return;
-      connection.invoke("JoinConversation", id.toString()).catch((err) => {
-        console.error("SignalR JoinConversation after reconnect", err);
-      });
-    });
-
     connection
       .start()
-      .then(() => {
-        const id = selectedConversationIdRef.current;
-        if (id == null) return;
-        return connection.invoke("JoinConversation", id.toString());
-      })
+      .then(() => undefined)
       .catch((err) => {
         console.error("SignalR connection start", err);
       });
@@ -206,28 +199,42 @@ export default function ChatPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const conn = hubRef.current;
-    if (selectedConversationId == null || !conn || conn.state !== signalR.HubConnectionState.Connected) return;
-    conn.invoke("JoinConversation", selectedConversationId.toString()).catch((err) => {
-      console.error("SignalR JoinConversation", err);
-    });
-  }, [selectedConversationId]);
-
   const loadConversations = useCallback(async () => {
     try {
       const { data } = await apiClient.get<ApiConversationListItem[]>("/conversations");
+      const mapped = data.map((c) => {
+        const otherUserId = c.otherUser?.id ?? 0;
+        return {
+          id: c.id,
+          users: [currentUserId, otherUserId],
+          messages: c.lastMessage ? [mapApiMessage(c.lastMessage)] : [],
+          otherUserName: c.otherUser?.name,
+        } as Conversation;
+      });
+
+      // Defensive dedupe by participant to avoid duplicate rows for the same user.
+      // Keep the conversation with the most recent last message.
+      const dedupedByOtherUser = new Map<number, Conversation>();
+      for (const conv of mapped) {
+        const otherUserId = conv.users.find((u) => u !== currentUserId) ?? 0;
+        const existing = dedupedByOtherUser.get(otherUserId);
+        if (!existing) {
+          dedupedByOtherUser.set(otherUserId, conv);
+          continue;
+        }
+        const existingTime = existing.messages[0]?.createdAt?.getTime() ?? 0;
+        const nextTime = conv.messages[0]?.createdAt?.getTime() ?? 0;
+        if (nextTime >= existingTime) {
+          dedupedByOtherUser.set(otherUserId, conv);
+        }
+      }
 
       setConversations(
-        data.map((c) => {
-          const otherUserId = c.otherUser?.id ?? 0;
-          return {
-            id: c.id,
-            users: [currentUserId, otherUserId],
-            messages: c.lastMessage ? [mapApiMessage(c.lastMessage)] : [],
-            otherUserName: c.otherUser?.name,
-          };
-        }),
+        [...dedupedByOtherUser.values()].sort(
+          (a, b) =>
+            (b.messages[b.messages.length - 1]?.createdAt?.getTime() ?? 0) -
+            (a.messages[a.messages.length - 1]?.createdAt?.getTime() ?? 0),
+        ),
       );
     } catch (err) {
       console.error("Failed to load conversations", err);
@@ -303,6 +310,7 @@ export default function ChatPage() {
     apiClient.post(`/messages/${selectedConversationId}/seen`).catch((err) => {
       console.error("Failed to mark conversation as seen", err);
     });
+    markChatScopeRead(`direct:${selectedConversationId}`).catch(() => undefined);
 
     setConversations((prev) =>
       prev.map((c) =>

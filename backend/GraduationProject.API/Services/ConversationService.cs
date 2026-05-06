@@ -9,10 +9,12 @@ namespace GraduationProject.API.Services
     public class ConversationService : IConversationService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IGraduationProjectNotificationService _notifications;
 
-        public ConversationService(ApplicationDbContext context)
+        public ConversationService(ApplicationDbContext context, IGraduationProjectNotificationService notifications)
         {
             _context = context;
+            _notifications = notifications;
         }
 
         public async Task<List<ConversationListItemDto>> GetConversationsForUserAsync(int userId)
@@ -138,6 +140,17 @@ namespace GraduationProject.API.Services
             _context.Conversations.Add(conversation);
             await _context.SaveChangesAsync();
 
+            var starterName = await _context.Users
+                .Where(u => u.Id == currentUserId)
+                .Select(u => u.Name)
+                .FirstOrDefaultAsync() ?? "Someone";
+
+            await _notifications.NotifyConversationStartedAsync(
+                conversation.Id,
+                currentUserId,
+                starterName,
+                new[] { targetUserId });
+
             return conversation.Id;
         }
 
@@ -188,6 +201,23 @@ namespace GraduationProject.API.Services
             _context.Messages.Add(message);
             await _context.SaveChangesAsync();
 
+            var recipients = await _context.ConversationUsers
+                .Where(cu => cu.ConversationId == dto.ConversationId)
+                .Select(cu => cu.UserId)
+                .ToListAsync();
+            var senderName = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.Name)
+                .FirstOrDefaultAsync() ?? "Someone";
+            await _notifications.NotifyDirectMessageAsync(
+                dto.ConversationId,
+                message.Id,
+                userId,
+                senderName,
+                text,
+                recipients,
+                message.CreatedAt);
+
             return MapMessage(message);
         }
 
@@ -211,6 +241,14 @@ namespace GraduationProject.API.Services
             message.Edited = true;
 
             await _context.SaveChangesAsync();
+            var recipients = await _context.ConversationUsers
+                .Where(cu => cu.ConversationId == message.ConversationId && cu.UserId != userId)
+                .Select(cu => cu.UserId)
+                .ToListAsync();
+            await _notifications.NotifyMessageEditedAsync(
+                message.ConversationId,
+                MapMessage(message),
+                recipients);
             return MapMessage(message);
         }
 
@@ -229,6 +267,14 @@ namespace GraduationProject.API.Services
             message.Text = "Message removed";
 
             await _context.SaveChangesAsync();
+            var recipients = await _context.ConversationUsers
+                .Where(cu => cu.ConversationId == message.ConversationId && cu.UserId != userId)
+                .Select(cu => cu.UserId)
+                .ToListAsync();
+            await _notifications.NotifyMessageDeletedAsync(
+                message.ConversationId,
+                MapMessage(message),
+                recipients);
             return MapMessage(message);
         }
 
@@ -248,6 +294,7 @@ namespace GraduationProject.API.Services
 
             if (unseenMessages.Count == 0)
             {
+                await _notifications.MarkChatScopeReadAsync(userId, $"direct:{conversationId}");
                 return true;
             }
 
@@ -257,6 +304,7 @@ namespace GraduationProject.API.Services
             }
 
             await _context.SaveChangesAsync();
+            await _notifications.MarkChatScopeReadAsync(userId, $"direct:{conversationId}");
             return true;
         }
 

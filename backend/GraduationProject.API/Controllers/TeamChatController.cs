@@ -2,6 +2,9 @@ using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Interfaces;
 using GraduationProject.API.Models;
+using GraduationProject.API.Services;
+using GraduationProject.API.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +15,17 @@ namespace GraduationProject.API.Controllers
     public class TeamChatController : ControllerBase
     {
         private readonly ICourseTeamChatRepository _chatRepo;
+        private readonly IGraduationProjectNotificationService _notifications;
+        private readonly ApplicationDbContext _db;
 
-        public TeamChatController(ICourseTeamChatRepository chatRepo)
+        public TeamChatController(
+            ICourseTeamChatRepository chatRepo,
+            IGraduationProjectNotificationService notifications,
+            ApplicationDbContext db)
         {
             _chatRepo = chatRepo;
+            _notifications = notifications;
+            _db = db;
         }
 
         // ============================================================
@@ -33,6 +43,7 @@ namespace GraduationProject.API.Controllers
                 return Forbid();
 
             var messages = await _chatRepo.GetMessagesAsync(teamId, limit);
+            await _notifications.MarkChatScopeReadAsync(userId, $"team:{teamId}");
             return Ok(messages.Select(MapToDto));
         }
 
@@ -62,6 +73,26 @@ namespace GraduationProject.API.Controllers
             };
 
             var saved = await _chatRepo.SendMessageAsync(message);
+            var recipientIds = await _db.CourseTeamMembers
+                .Where(tm => tm.CourseTeamId == teamId)
+                .Join(_db.StudentProfiles, tm => tm.StudentProfileId, sp => sp.Id, (_, sp) => sp.UserId)
+                .Distinct()
+                .ToListAsync();
+            var senderName = await _db.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.Name)
+                .FirstOrDefaultAsync() ?? "Someone";
+            var projectId = await _db.CourseTeams
+                .Where(t => t.Id == teamId)
+                .Select(t => t.CourseProjectId)
+                .FirstOrDefaultAsync();
+            await _notifications.NotifyTeamChatMessageAsync(
+                teamId,
+                projectId,
+                userId,
+                senderName,
+                dto.Text.Trim(),
+                recipientIds);
             return Ok(MapToDto(saved));
         }
 

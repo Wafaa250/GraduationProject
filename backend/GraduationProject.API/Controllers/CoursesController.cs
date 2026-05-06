@@ -18,19 +18,22 @@ namespace GraduationProject.API.Controllers
         private readonly ICourseProjectRepository _projectRepo;
         private readonly ITeamGenerationService _teamService;
         private readonly ICourseTeamRepository _teamRepo;
+        private readonly IGraduationProjectNotificationService _notifications;
 
         public CoursesController(
             ICourseRepository courseRepo,
             ICourseSectionRepository sectionRepo,
             ICourseProjectRepository projectRepo,
             ITeamGenerationService teamService,
-            ICourseTeamRepository teamRepo)
+            ICourseTeamRepository teamRepo,
+            IGraduationProjectNotificationService notifications)
         {
             _courseRepo = courseRepo;
             _sectionRepo = sectionRepo;
             _projectRepo = projectRepo;
             _teamService = teamService;
             _teamRepo = teamRepo;
+            _notifications = notifications;
         }
 
         [HttpGet("my")]
@@ -268,6 +271,16 @@ namespace GraduationProject.API.Controllers
             var (added, notFound, alreadyEnrolled) =
                 await _sectionRepo.AddStudentsAsync(sectionId, dto.StudentIds);
 
+            if (added.Count > 0)
+            {
+                await _notifications.NotifyStudentsAddedToSectionAsync(
+                    sectionId,
+                    section.Name,
+                    course.Id,
+                    course.Name,
+                    added.Select(e => e.StudentProfileId));
+            }
+
             return Ok(new AddSectionStudentsResultDto
             {
                 Added = added.Count,
@@ -415,6 +428,12 @@ namespace GraduationProject.API.Controllers
             var sectionIds = dto.ApplyToAllSections ? new List<int>() : dto.SectionIds;
 
             var created = await _projectRepo.CreateAsync(project, sectionIds);
+            await _notifications.NotifyCourseProjectCreatedAsync(
+                created.Id,
+                created.CourseId,
+                created.Title,
+                created.ApplyToAllSections,
+                created.Sections.Select(s => s.CourseSectionId));
             return CreatedAtAction(
                 nameof(GetCourseProjects),
                 new { courseId },
@@ -454,6 +473,12 @@ namespace GraduationProject.API.Controllers
             var sectionIds = dto.ApplyToAllSections ? new List<int>() : dto.SectionIds;
 
             var updated = await _projectRepo.UpdateAsync(project, sectionIds);
+            await _notifications.NotifyCourseProjectUpdatedAsync(
+                updated.Id,
+                updated.CourseId,
+                updated.Title,
+                updated.ApplyToAllSections,
+                updated.Sections.Select(s => s.CourseSectionId));
             return Ok(MapProjectToDto(updated));
         }
 
@@ -473,6 +498,12 @@ namespace GraduationProject.API.Controllers
             if (course == null || course.DoctorId != doctorId.Value)
                 return Forbid();
 
+            await _notifications.NotifyCourseProjectDeletedAsync(
+                project.Id,
+                project.CourseId,
+                project.Title,
+                project.ApplyToAllSections,
+                project.Sections.Select(s => s.CourseSectionId));
             await _projectRepo.DeleteAsync(projectId);
             return NoContent();
         }
@@ -554,6 +585,10 @@ namespace GraduationProject.API.Controllers
             }).ToList();
 
             var saved = await _teamRepo.SaveTeamsAsync(projectId, teamsToSave);
+            await _notifications.NotifyCourseTeamsGeneratedAsync(
+                projectId,
+                project.Title,
+                saved.SelectMany(t => t.Members.Select(m => m.UserId)));
             return Ok(MapTeamsResponse(saved, project, students));
         }
 
@@ -614,12 +649,29 @@ namespace GraduationProject.API.Controllers
             if (team == null)
                 return NotFound(new { message = "Team not found." });
 
+            var project = await _projectRepo.GetByIdAsync(projectId);
+            if (project == null || project.CourseId != courseId)
+                return NotFound(new { message = "Project not found." });
+
+            var allTeamsBefore = (await _teamRepo.GetTeamsByProjectAsync(projectId)).ToList();
             var studentProfile = await _courseRepo.GetStudentByUniversityIdAsync(dto.UniversityId);
             if (studentProfile == null)
                 return NotFound(new { message = $"Student '{dto.UniversityId}' not found." });
 
+            var oldTeam = allTeamsBefore.FirstOrDefault(t => t.Members.Any(m => m.StudentProfileId == studentProfile.Id));
             await _teamRepo.AddMemberAsync(team.Id, studentProfile.Id, studentProfile.UserId);
             var updated = await _teamRepo.GetTeamByIndexAsync(projectId, teamIndex);
+            if (updated != null)
+            {
+                await _notifications.NotifyCourseTeamMemberAddedAsync(
+                    projectId,
+                    project.Title,
+                    studentProfile.Id,
+                    teamIndex,
+                    updated.Members.Select(m => m.UserId),
+                    oldTeam?.TeamIndex,
+                    oldTeam?.Members.Select(m => m.UserId));
+            }
             return Ok(MapTeamDto(updated!, null));
         }
 
@@ -640,8 +692,18 @@ namespace GraduationProject.API.Controllers
             if (team == null)
                 return NotFound(new { message = "Team not found." });
 
+            var project = await _projectRepo.GetByIdAsync(projectId);
+            if (project == null || project.CourseId != courseId)
+                return NotFound(new { message = "Project not found." });
+
             await _teamRepo.RemoveMemberAsync(team.Id, studentProfileId);
             var updated = await _teamRepo.GetTeamByIndexAsync(projectId, teamIndex);
+            await _notifications.NotifyCourseTeamMemberRemovedAsync(
+                projectId,
+                project.Title,
+                studentProfileId,
+                teamIndex,
+                updated?.Members.Select(m => m.UserId) ?? Enumerable.Empty<int>());
             return Ok(MapTeamDto(updated!, null));
         }
 

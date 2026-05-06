@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   Circle,
   Briefcase,
-  MessageCircle,
   Activity,
   LogOut,
   UserPlus,
@@ -68,6 +67,7 @@ import {
 import ProfileLink, { getProfileUrl } from "../../components/common/ProfileLink";
 import { useToast } from "../../../context/ToastContext";
 import { GradProjectNotificationBell } from "../../components/notifications/GradProjectNotificationBell";
+import { MessagesNotificationBell } from "../../components/notifications/MessagesNotificationBell";
 import {
   acceptPartnerRequest,
   createPartnerRequest,
@@ -1829,15 +1829,8 @@ export default function DashboardPage() {
             )}
           </div>
           <div style={S.navActions}>
-            <GradProjectNotificationBell bellButtonStyle={S.navBtn} showInvitationsLink theme="student" />
-            <button
-              type="button"
-              style={S.navBtn}
-              onClick={() => navigate("/messages")}
-              aria-label="Messages"
-            >
-              <MessageCircle size={17} />
-            </button>
+            <GradProjectNotificationBell bellButtonStyle={S.navBtn} theme="student" />
+            <MessagesNotificationBell buttonStyle={S.navBtn} />
             <button style={S.navBtn} onClick={openEditInfo}>
               <Settings size={17} />
             </button>

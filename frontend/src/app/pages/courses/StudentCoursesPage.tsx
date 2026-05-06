@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, BookOpen, FolderKanban, Inbox, Layers, Sparkles, Users } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
+import { markChatScopeRead } from "../../../api/notificationsApi";
 import {
     getCourseById,
     getCourseStudents,
@@ -109,6 +110,7 @@ type ChatMessage = {
 
 export default function StudentCoursesPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { courseId } = useParams<{ courseId?: string }>();
     const routeCourseId = courseId && /^\d+$/.test(courseId) ? Number(courseId) : null;
 
@@ -117,7 +119,8 @@ export default function StudentCoursesPage() {
     const [coursesLoading, setCoursesLoading] = useState(true);
     const [coursesError, setCoursesError] = useState<string | null>(null);
     const [selectedCourseId, setSelectedCourseId] = useState<number | null>(routeCourseId);
-    const [activeTab, setActiveTab] = useState<CourseTab>("section");
+    const initialTab = searchParams.get("tab");
+    const [activeTab, setActiveTab] = useState<CourseTab>(initialTab === "chat" || initialTab === "projects" ? initialTab : "section");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [chatLoading, setChatLoading] = useState(false);
     const [chatError, setChatError] = useState<string | null>(null);
@@ -159,6 +162,13 @@ export default function StudentCoursesPage() {
     useEffect(() => {
         setSelectedCourseId(routeCourseId);
     }, [routeCourseId]);
+
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab === "chat" || tab === "projects" || tab === "section") {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (selectedCourseId == null) {
@@ -291,6 +301,7 @@ export default function StudentCoursesPage() {
         try {
             const res = await api.get<ChatMessage[]>(`/sections/${sectionId}/chat?limit=100`);
             setMessages(res.data);
+            await markChatScopeRead(`section:${sectionId}`);
         } catch (err) {
             setChatError(parseApiErrorMessage(err));
         } finally {

@@ -141,6 +141,7 @@ namespace GraduationProject.API.Controllers
                 return BadRequest(new { message = "Already a member." });
 
             // ── 7. Transaction: add member + update invitation + expire others ─
+            List<ProjectInvitation> otherPending = new();
             await using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
@@ -155,12 +156,12 @@ namespace GraduationProject.API.Controllers
                 invitation.Status = "accepted";
                 invitation.RespondedAt = DateTime.UtcNow;
 
-                // Expire all other pending invitations for this project.
-                // Prevents a race condition where multiple students accept
-                // simultaneously and overfill the team.
-                var otherPending = await _db.ProjectInvitations
+                // Expire all other pending invitations sent to this same student.
+                // Once the student accepts one invitation, the rest become invalid.
+                otherPending = await _db.ProjectInvitations
+                    .Include(i => i.Project)
                     .Where(i =>
-                        i.ProjectId == project.Id &&
+                        i.ReceiverId == student.Id &&
                         i.Status == "pending" &&
                         i.Id != invitation.Id)
                     .ToListAsync();
@@ -181,6 +182,17 @@ namespace GraduationProject.API.Controllers
             }
 
             await _gpNotifications.NotifyMemberJoinedAsync(project.Id, project.Name, student.Id);
+
+            foreach (var expired in otherPending)
+            {
+                await _gpNotifications.NotifyInvitationExpiredAfterAcceptanceAsync(
+                    expired.Id,
+                    expired.ProjectId,
+                    expired.Project?.Name ?? "Graduation project",
+                    expired.SenderId,
+                    student.Id,
+                    project.Name);
+            }
 
             return Ok(new { message = "Invitation accepted. You have joined the project." });
         }
@@ -216,6 +228,17 @@ namespace GraduationProject.API.Controllers
 
             await _db.SaveChangesAsync();
 
+            var project = await _db.StudentProjects
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == invitation.ProjectId);
+
+            await _gpNotifications.NotifyInvitationRejectedAsync(
+                invitation.Id,
+                invitation.ProjectId,
+                project?.Name ?? "Graduation project",
+                invitation.SenderId,
+                invitation.ReceiverId);
+
             return Ok(new { message = "Invitation rejected." });
         }
 
@@ -249,6 +272,17 @@ namespace GraduationProject.API.Controllers
             invitation.RespondedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+
+            var project = await _db.StudentProjects
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == invitation.ProjectId);
+
+            await _gpNotifications.NotifyInvitationCancelledBySenderAsync(
+                invitation.Id,
+                invitation.ProjectId,
+                project?.Name ?? "Graduation project",
+                invitation.SenderId,
+                invitation.ReceiverId);
 
             return Ok(new { message = "Invitation cancelled." });
         }

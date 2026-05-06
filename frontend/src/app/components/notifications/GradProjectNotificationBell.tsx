@@ -11,13 +11,17 @@ import {
   Trash2,
   UserMinus,
   UserPlus,
+  Users,
   XCircle,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import {
+  fetchCourseNotifications,
   fetchGraduationNotifications,
+  fetchUnreadCourseNotificationCount,
   fetchUnreadGraduationNotificationCount,
+  markAllCourseNotificationsRead,
   markGraduationNotificationRead,
   markAllGraduationNotificationsRead,
   type GraduationNotificationDto,
@@ -31,8 +35,6 @@ type Props = {
   containerStyle?: React.CSSProperties;
   /** Style for the icon button (matches existing nav icon buttons). */
   bellButtonStyle: React.CSSProperties;
-  /** Student dashboard: show link to team invitations at the bottom of the panel. */
-  showInvitationsLink?: boolean;
   /** Doctor UI uses different surface colors. */
   theme?: "student" | "doctor";
 };
@@ -85,12 +87,45 @@ function getEventAccent(eventType: string): {
       return { icon: Crown, tint: "#a16207", bg: "rgba(234,179,8,0.14)" };
     case "invitation_received":
       return { icon: UserPlus, tint: "#7c3aed", bg: "rgba(139,92,246,0.14)" };
+    case "invitation_rejected":
+      return { icon: XCircle, tint: "#be123c", bg: "rgba(244,63,94,0.14)" };
+    case "invitation_cancelled_by_sender":
+      return { icon: XCircle, tint: "#9f1239", bg: "rgba(244,63,94,0.14)" };
+    case "invitation_expired_after_acceptance":
+      return { icon: BellRing, tint: "#7c2d12", bg: "rgba(251,146,60,0.16)" };
     case "supervision_request_received":
       return { icon: GraduationCap, tint: "#5b21b6", bg: "rgba(109,40,217,0.14)" };
     case "supervision_request_accepted":
       return { icon: CheckCircle2, tint: "#15803d", bg: "rgba(34,197,94,0.14)" };
     case "supervision_request_rejected":
       return { icon: XCircle, tint: "#b91c1c", bg: "rgba(239,68,68,0.12)" };
+    case "supervision_request_auto_rejected":
+      return { icon: BellRing, tint: "#92400e", bg: "rgba(245,158,11,0.14)" };
+    case "supervisor_cancellation_requested":
+      return { icon: BellRing, tint: "#7c3aed", bg: "rgba(139,92,246,0.14)" };
+    case "supervisor_cancellation_accepted":
+      return { icon: CheckCircle2, tint: "#15803d", bg: "rgba(34,197,94,0.14)" };
+    case "supervisor_cancellation_rejected":
+      return { icon: XCircle, tint: "#b91c1c", bg: "rgba(239,68,68,0.12)" };
+    case "supervision_cancelled_by_doctor":
+      return { icon: XCircle, tint: "#9f1239", bg: "rgba(244,63,94,0.14)" };
+    case "course_project_created":
+      return { icon: FolderPlus, tint: "#0f766e", bg: "rgba(20,184,166,0.14)" };
+    case "course_project_updated":
+      return { icon: PencilLine, tint: "#4338ca", bg: "rgba(99,102,241,0.12)" };
+    case "course_project_deleted":
+      return { icon: Trash2, tint: "#b91c1c", bg: "rgba(239,68,68,0.12)" };
+    case "course_teams_generated":
+      return { icon: Users, tint: "#0f766e", bg: "rgba(20,184,166,0.14)" };
+    case "course_team_member_added_self":
+    case "course_team_member_added_team":
+      return { icon: UserPlus, tint: "#0369a1", bg: "rgba(14,165,233,0.12)" };
+    case "course_team_member_removed_self":
+    case "course_team_member_removed_team":
+    case "course_team_member_moved":
+      return { icon: UserMinus, tint: "#c2410c", bg: "rgba(249,115,22,0.12)" };
+    case "course_section_enrollment_added":
+      return { icon: GraduationCap, tint: "#5b21b6", bg: "rgba(109,40,217,0.14)" };
     default:
       return { icon: BellRing, tint: "#475569", bg: "rgba(148,163,184,0.16)" };
   }
@@ -99,7 +134,6 @@ function getEventAccent(eventType: string): {
 export function GradProjectNotificationBell({
   containerStyle,
   bellButtonStyle,
-  showInvitationsLink = false,
   theme = "student",
 }: Props) {
   const navigate = useNavigate();
@@ -136,13 +170,20 @@ export function GradProjectNotificationBell({
 
   const refreshUnread = useCallback(async () => {
     try {
-      const n = await fetchUnreadGraduationNotificationCount();
-      setUnread(n);
+      const [gradUnread, courseUnread] = await Promise.all([
+        fetchUnreadGraduationNotificationCount(),
+        fetchUnreadCourseNotificationCount(),
+      ]);
+      setUnread(gradUnread + courseUnread);
       return;
     } catch {
       // fallback: derive unread from latest list when count endpoint is stale/failing
       try {
-        const list = await fetchGraduationNotifications(40);
+        const [gradList, courseList] = await Promise.all([
+          fetchGraduationNotifications(40),
+          fetchCourseNotifications(40),
+        ]);
+        const list = [...gradList, ...courseList];
         setItems((prev) => mergeNotifications(prev, list));
         setUnread(list.filter((n) => !n.readAt).length);
       } catch {
@@ -155,8 +196,12 @@ export function GradProjectNotificationBell({
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchGraduationNotifications(40);
-      await markAllGraduationNotificationsRead();
+      const [gradList, courseList] = await Promise.all([
+        fetchGraduationNotifications(40),
+        fetchCourseNotifications(40),
+      ]);
+      const list = [...gradList, ...courseList];
+      await Promise.all([markAllGraduationNotificationsRead(), markAllCourseNotificationsRead()]);
       const nowIso = new Date().toISOString();
       setItems((prev) => mergeNotifications(prev, list.map((n) => ({ ...n, readAt: n.readAt ?? nowIso }))));
       setUnread(0);
@@ -187,6 +232,7 @@ export function GradProjectNotificationBell({
 
     connection.on("NotificationCreated", (payload: GraduationNotificationDto) => {
       if (!payload || typeof payload.id !== "number") return;
+      if (payload.category && payload.category !== "graduation_project" && payload.category !== "course") return;
 
       const isOpen = openRef.current;
       const nowIso = new Date().toISOString();
@@ -530,28 +576,6 @@ export function GradProjectNotificationBell({
                 })()
               ))}
           </div>
-          {showInvitationsLink && (
-            <div
-              style={{
-                padding: "10px 14px",
-                borderTop: `1px solid ${palette.panelBorder}`,
-                background: palette.footerBg,
-              }}
-            >
-              <Link
-                to="/invitations"
-                onClick={() => setOpen(false)}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: "#4f46e5",
-                  textDecoration: "none",
-                }}
-              >
-                Team invitations →
-              </Link>
-            </div>
-          )}
         </div>
       )}
       <style>{`
@@ -589,3 +613,4 @@ export function GradProjectNotificationBell({
     </div>
   );
 }
+

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { ArrowLeft, Send, Users } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
+import { markChatScopeRead } from "../../../api/notificationsApi";
 import { useToast } from "../../../context/ToastContext";
 import ProfileLink from "../../components/common/ProfileLink";
 
@@ -86,6 +87,7 @@ export default function StudentTeamPage() {
         try {
             const res = await api.get<ChatMessage[]>(`/teams/${teamId}/chat?limit=100`);
             setMessages(res.data);
+            await markChatScopeRead(`team:${teamId}`);
         } catch {
             // silent
         }

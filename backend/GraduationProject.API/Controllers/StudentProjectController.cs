@@ -854,7 +854,7 @@ namespace GraduationProject.API.Controllers
             if (pendingExists)
                 return BadRequest(new { message = "A pending cancellation request already exists." });
 
-            _db.SupervisorCancellationRequests.Add(new SupervisorCancellationRequest
+            var cancelRequest = new SupervisorCancellationRequest
             {
                 ProjectId = projectId,
                 DoctorId = project.SupervisorId.Value,
@@ -862,9 +862,17 @@ namespace GraduationProject.API.Controllers
                 Status = "pending",
                 CreatedAt = DateTime.UtcNow,
                 RespondedAt = null
-            });
+            };
+            _db.SupervisorCancellationRequests.Add(cancelRequest);
 
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifySupervisorCancellationRequestedAsync(
+                cancelRequest.Id,
+                projectId,
+                project.Name,
+                caller.Id,
+                project.SupervisorId.Value);
 
             return Ok(new { message = "Cancellation request sent" });
         }
@@ -962,6 +970,16 @@ namespace GraduationProject.API.Controllers
                 request.Project?.Name ?? "Your project",
                 request.SenderId,
                 request.DoctorId);
+
+            foreach (var r in otherRequests)
+            {
+                await _gpNotifications.NotifySupervisionRequestAutoRejectedAsync(
+                    r.Id,
+                    r.ProjectId,
+                    request.Project?.Name ?? "Graduation project",
+                    r.DoctorId,
+                    request.DoctorId);
+            }
 
             return Ok(new { message = "Supervisor request accepted successfully" });
         }
@@ -1077,6 +1095,13 @@ namespace GraduationProject.API.Controllers
 
             await _db.SaveChangesAsync();
 
+            await _gpNotifications.NotifySupervisorCancellationAcceptedAsync(
+                request.Id,
+                request.ProjectId,
+                request.Project?.Name ?? "Graduation project",
+                request.SenderId,
+                request.DoctorId);
+
             return Ok(new { message = "Supervisor removed successfully" });
         }
 
@@ -1095,6 +1120,7 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Doctor profile not found." });
 
             var request = await _db.SupervisorCancellationRequests
+                .Include(r => r.Project)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (request == null)
@@ -1110,6 +1136,13 @@ namespace GraduationProject.API.Controllers
             request.RespondedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifySupervisorCancellationRejectedAsync(
+                request.Id,
+                request.ProjectId,
+                request.Project?.Name ?? "Graduation project",
+                request.SenderId,
+                request.DoctorId);
 
             return Ok(new { message = "Cancellation request rejected" });
         }
