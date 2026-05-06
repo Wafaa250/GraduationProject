@@ -26,6 +26,9 @@ import CourseProjectCreatePage from "./pages/courses/CourseProjectCreatePage";
 import ProjectTeamsPage from "./pages/courses/ProjectTeamsPage";
 import TeamManagementPage from "./pages/doctor/TeamManagementPage";
 import StudentCoursesPage from "./pages/courses/StudentCoursesPage";
+import StudentTeamGenerationChoicePage from "./pages/courses/StudentTeamGenerationChoicePage";
+import StudentManualTeamPage from "./pages/courses/StudentManualTeamPage";
+import StudentTeamInvitationsPage from "./pages/courses/StudentTeamInvitationsPage";
 import StudentTeamPage from "./pages/team/StudentTeamPage";
 import StudentAiTeamPage from "./pages/projects/StudentAiTeamPage";
 import DoctorsPage from "./pages/doctors/DoctorsPage";
@@ -160,6 +163,27 @@ function StudentAiTeamRoute() {
     return <Navigate to="/" replace />;
 }
 
+function StudentTeamGenerationChoiceRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentTeamGenerationChoicePage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function StudentManualTeamRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentManualTeamPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function StudentTeamInvitationsRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentTeamInvitationsPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 export default function App() {
     return (
         <ToastProvider>
@@ -180,8 +204,27 @@ export default function App() {
                     <Route path="/edit-profile" element={<ProtectedRoute><EditProfileRoute /></ProtectedRoute>} />
                     <Route path="/student/courses" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
                     <Route path="/student/courses/:courseId" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
+                    <Route
+                        path="/student/courses/:courseId/projects/:projectId/team-choice"
+                        element={<ProtectedRoute><StudentTeamGenerationChoiceRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/student/courses/:courseId/projects/:projectId/manual-team"
+                        element={<ProtectedRoute><StudentManualTeamRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/student/team-invitations"
+                        element={<ProtectedRoute><StudentTeamInvitationsRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/student/courses/:courseId/projects/:projectId/team"
+                        element={<ProtectedRoute><StudentTeamRoute /></ProtectedRoute>}
+                    />
                     <Route path="/student/team/:projectId" element={<ProtectedRoute><StudentTeamRoute /></ProtectedRoute>} />
-                    <Route path="/student/projects/:projectId/ai-team" element={<ProtectedRoute><StudentAiTeamRoute /></ProtectedRoute>} />
+                    <Route
+                        path="/student/courses/:courseId/projects/:projectId/ai-team"
+                        element={<ProtectedRoute><StudentAiTeamRoute /></ProtectedRoute>}
+                    />
                     <Route path="/messages" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
 
                     {/* Protected – Doctor */}

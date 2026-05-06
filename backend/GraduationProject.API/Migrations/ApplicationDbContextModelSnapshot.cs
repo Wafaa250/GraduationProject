@@ -94,10 +94,22 @@ namespace GraduationProject.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CourseTeamId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Title")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CourseTeamId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_conversations_course_team")
+                        .HasFilter("\"CourseTeamId\" IS NOT NULL");
 
                     b.ToTable("conversations", (string)null);
                 });
@@ -324,9 +336,7 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("integer");
 
                     b.Property<double>("MatchScore")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double precision")
-                        .HasDefaultValue(0.0);
+                        .HasColumnType("double precision");
 
                     b.Property<int>("StudentProfileId")
                         .HasColumnType("integer");
@@ -1074,6 +1084,16 @@ namespace GraduationProject.API.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.Conversation", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CourseTeam", "CourseTeam")
+                        .WithMany()
+                        .HasForeignKey("CourseTeamId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CourseTeam");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.ConversationUser", b =>

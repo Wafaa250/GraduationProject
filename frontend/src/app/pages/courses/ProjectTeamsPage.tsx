@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import axios from "axios";
-import { ArrowLeft, RotateCw, Users } from "lucide-react";
+import { ArrowLeft, MessageCircle, RotateCw, Users } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { dash, card } from "../doctor/dashboard/doctorDashTokens";
 import api from "../../../api/axiosInstance";
 import { parseApiErrorMessage } from "../../../api/axiosInstance";
 import {
     getDoctorCourseProjects,
+    openCourseTeamConversation,
     type DoctorCourseProject,
 } from "../../../api/doctorCoursesApi";
 import { useToast } from "../../../context/ToastContext";
@@ -92,7 +93,9 @@ export default function ProjectTeamsPage() {
     const [projectMeta, setProjectMeta] = useState<{
         title: string;
         sectionLabel: string;
+        aiMode: "doctor" | "student";
     } | null>(null);
+    const [openingChatTeamId, setOpeningChatTeamId] = useState<number | null>(null);
 
     // ── Regenerate teams (POST) ────────────────────────────────────────────────
     const fetchTeams = useCallback(async () => {
@@ -147,6 +150,7 @@ export default function ProjectTeamsPage() {
                             setProjectMeta({
                                 title: meta.title.trim() || "Project",
                                 sectionLabel: sectionLabelFromProject(meta),
+                                aiMode: meta.aiMode,
                             });
                         }
                     }
@@ -185,6 +189,19 @@ export default function ProjectTeamsPage() {
         return () => ac.abort();
     }, [backendCourseId, backendProjectId, showToast]);
 
+    const openTeamChat = useCallback(async (teamId: number) => {
+        setOpeningChatTeamId(teamId);
+        try {
+            const { conversationId } = await openCourseTeamConversation(teamId);
+            navigate("/messages", { state: { conversationId } });
+        } catch (err) {
+            const msg = parseApiErrorMessage(err);
+            showToast(msg, "error");
+        } finally {
+            setOpeningChatTeamId(null);
+        }
+    }, [navigate, showToast]);
+
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
         <div style={{ minHeight: "100vh", background: dash.bg, fontFamily: dash.font, color: dash.text, padding: "24px 28px 40px" }}>
@@ -219,28 +236,30 @@ export default function ProjectTeamsPage() {
                 </header>
 
                 {/* Actions */}
-                <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
-                    <button
-                        type="button"
-                        style={{ ...S.secondaryBtn, display: "inline-flex", alignItems: "center", gap: 8 }}
-                        onClick={() => void fetchTeams()}
-                        disabled={loading || backendProjectId == null}
-                    >
-                        <RotateCw size={15} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
-                        Regenerate
-                    </button>
-                    <button
-                        type="button"
-                        style={{ ...S.primaryBtn, opacity: backendProjectId == null ? 0.6 : 1 }}
-                        onClick={() => {
-                            if (courseId == null) return;
-                            navigate(`/courses/${courseId}`);
-                        }}
-                        disabled={backendProjectId == null}
-                    >
-                        Assign Teams
-                    </button>
-                </div>
+                {projectMeta?.aiMode === "doctor" ? (
+                    <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                        <button
+                            type="button"
+                            style={{ ...S.secondaryBtn, display: "inline-flex", alignItems: "center", gap: 8 }}
+                            onClick={() => void fetchTeams()}
+                            disabled={loading || backendProjectId == null}
+                        >
+                            <RotateCw size={15} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+                            Regenerate
+                        </button>
+                        <button
+                            type="button"
+                            style={{ ...S.primaryBtn, opacity: backendProjectId == null ? 0.6 : 1 }}
+                            onClick={() => {
+                                if (courseId == null) return;
+                                navigate(`/courses/${courseId}`);
+                            }}
+                            disabled={backendProjectId == null}
+                        >
+                            Assign Teams
+                        </button>
+                    </div>
+                ) : null}
 
                 {/* Loading */}
                 {loading && (
@@ -275,13 +294,28 @@ export default function ProjectTeamsPage() {
                             >
                                 {/* Team header */}
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: dash.text }}>
-                                        Team {team.teamIndex + 1}
-                                    </h2>
-                                    <span style={S.countChip}>
-                                        <Users size={12} />
-                                        {team.memberCount}
-                                    </span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: dash.text }}>
+                                            Team {team.teamIndex + 1}
+                                        </h2>
+                                        <button
+                                            type="button"
+                                            style={S.openChatBtn}
+                                            disabled={!team.teamId || openingChatTeamId === team.teamId}
+                                            title="Open Team Chat"
+                                            onClick={() => team.teamId && void openTeamChat(team.teamId)}
+                                        >
+                                            <MessageCircle size={13} />
+                                            Open Team Chat
+                                        </button>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        {projectMeta?.aiMode === "student" ? <span style={S.manualBadge}>Manual Team</span> : null}
+                                        <span style={S.countChip}>
+                                            <Users size={12} />
+                                            {team.memberCount}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Members */}
@@ -300,7 +334,9 @@ export default function ProjectTeamsPage() {
                                                     </p>
                                                 )}
                                             </div>
-                                            <span style={S.scoreBadge}>{member.matchScore.toFixed(0)}%</span>
+                                            {projectMeta?.aiMode === "student"
+                                                ? null
+                                                : <span style={S.scoreBadge}>{member.matchScore.toFixed(0)}%</span>}
                                         </div>
                                     ))}
                                 </div>
@@ -313,7 +349,9 @@ export default function ProjectTeamsPage() {
                 {!loading && !error && teams.length === 0 && backendProjectId != null && (
                     <div style={{ ...card, marginTop: 20, padding: "48px 24px", textAlign: "center" }}>
                         <p style={{ margin: 0, fontSize: 14, color: dash.muted }}>
-                            No teams generated yet. Click <strong>Regenerate</strong> to start.
+                            {projectMeta?.aiMode === "student"
+                                ? "No teams created yet. Students can form teams by invitations."
+                                : "No teams generated yet. Click Regenerate to start."}
                         </p>
                     </div>
                 )}
@@ -366,5 +404,16 @@ const S: Record<string, CSSProperties> = {
         fontSize: 11, fontWeight: 800, color: dash.accent,
         background: dash.accentMuted, border: `1px solid #c7d2fe`,
         borderRadius: 999, padding: "3px 8px", flexShrink: 0,
+    },
+    manualBadge: {
+        display: "inline-flex", alignItems: "center", fontSize: 10, fontWeight: 800,
+        color: "#7c2d12", background: "#ffedd5", border: "1px solid #fed7aa",
+        borderRadius: 999, padding: "3px 8px",
+    },
+    openChatBtn: {
+        display: "inline-flex", alignItems: "center", gap: 6,
+        border: "1px solid #c4b5fd", background: "#f5f3ff", color: "#6d28d9",
+        borderRadius: 999, padding: "5px 9px", cursor: "pointer",
+        fontSize: 11, fontWeight: 800, fontFamily: dash.font,
     },
 };

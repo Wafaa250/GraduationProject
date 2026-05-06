@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import * as signalR from "@microsoft/signalr";
-import { ArrowLeft, Pencil, Send, Trash2 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Pencil, Send, Trash2, Users } from "lucide-react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { navigateHome } from "../../../utils/homeNavigation";
 import { apiClient } from "../../../api/client";
 import { getNotificationsHubUrl } from "../../../utils/notificationsHubUrl";
@@ -20,19 +20,29 @@ type Message = {
 type Conversation = {
   id: number;
   users: number[];
+  participantNames: Record<number, string>;
+  title?: string;
+  courseTeamId?: number | null;
   messages: Message[];
   /** Display name from API when available (list/detail). */
   otherUserName?: string;
 };
 
+type ApiConversationUser = { id: number; name?: string; email?: string };
+
 type ApiConversationListItem = {
   id: number;
+  title?: string | null;
+  courseTeamId?: number | null;
+  users?: ApiConversationUser[];
   otherUser?: { id: number; name?: string };
   lastMessage?: ApiMessage | null;
 };
 
 type ApiConversationDetails = {
   id: number;
+  title?: string | null;
+  courseTeamId?: number | null;
   users: { id: number; name?: string }[];
   messages: ApiMessage[];
 };
@@ -59,8 +69,12 @@ const mapApiMessage = (m: ApiMessage): Message => ({
 
 export default function ChatPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const targetUserId = Number(searchParams.get("userId") ?? 0);
+  const requestedConversationId = Number(
+    (location.state as { conversationId?: number } | null)?.conversationId ?? 0,
+  );
   const currentUserId = Number(localStorage.getItem("userId") ?? 1);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -203,19 +217,35 @@ export default function ChatPage() {
     try {
       const { data } = await apiClient.get<ApiConversationListItem[]>("/conversations");
       const mapped = data.map((c) => {
-        const otherUserId = c.otherUser?.id ?? 0;
+        const apiUsers = Array.isArray(c.users) ? c.users : [];
+        const users = apiUsers.length > 0
+          ? apiUsers.map((u) => u.id)
+          : [currentUserId, c.otherUser?.id ?? 0].filter((id) => id > 0);
+        const participantNames = Object.fromEntries(
+          apiUsers
+            .filter((u) => typeof u.id === "number" && Number.isFinite(u.id))
+            .map((u) => [u.id, (u.name ?? "").trim()]),
+        );
         return {
           id: c.id,
-          users: [currentUserId, otherUserId],
+          title: c.title ?? undefined,
+          courseTeamId: c.courseTeamId ?? null,
+          users,
+          participantNames,
           messages: c.lastMessage ? [mapApiMessage(c.lastMessage)] : [],
           otherUserName: c.otherUser?.name,
         } as Conversation;
       });
 
-      // Defensive dedupe by participant to avoid duplicate rows for the same user.
-      // Keep the conversation with the most recent last message.
+      // Defensive dedupe for direct conversations only (2 members).
+      // Group conversations (team chat) must stay distinct by conversation id.
       const dedupedByOtherUser = new Map<number, Conversation>();
+      const groupConversations: Conversation[] = [];
       for (const conv of mapped) {
+        if (conv.users.length != 2) {
+          groupConversations.push(conv);
+          continue;
+        }
         const otherUserId = conv.users.find((u) => u !== currentUserId) ?? 0;
         const existing = dedupedByOtherUser.get(otherUserId);
         if (!existing) {
@@ -230,7 +260,7 @@ export default function ChatPage() {
       }
 
       setConversations(
-        [...dedupedByOtherUser.values()].sort(
+        [...dedupedByOtherUser.values(), ...groupConversations].sort(
           (a, b) =>
             (b.messages[b.messages.length - 1]?.createdAt?.getTime() ?? 0) -
             (a.messages[a.messages.length - 1]?.createdAt?.getTime() ?? 0),
@@ -249,7 +279,12 @@ export default function ChatPage() {
         const nameFromDetail = other?.name?.trim();
         const mapped: Conversation = {
           id: data.id,
+          title: data.title ?? undefined,
+          courseTeamId: data.courseTeamId ?? null,
           users: data.users.map((u) => u.id),
+          participantNames: Object.fromEntries(
+            data.users.map((u) => [u.id, (u.name ?? "").trim()]),
+          ),
           messages: [...data.messages].map(mapApiMessage).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
           otherUserName: nameFromDetail,
         };
@@ -297,6 +332,15 @@ export default function ChatPage() {
       }
     })();
   }, [targetUserId, loadConversationById, loadConversations]);
+
+  useEffect(() => {
+    if (!requestedConversationId || !Number.isFinite(requestedConversationId) || requestedConversationId <= 0) return;
+
+    (async () => {
+      await loadConversationById(requestedConversationId);
+      await loadConversations();
+    })();
+  }, [requestedConversationId, loadConversationById, loadConversations]);
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedConversationId) ?? null,
@@ -404,10 +448,24 @@ export default function ChatPage() {
   const getOtherUserId = (conversation: Conversation) =>
     conversation.users.find((u) => u !== currentUserId) ?? conversation.users[0] ?? 0;
 
+  const isGroupConversation = (conversation: Conversation) => conversation.users.length > 2 || !!conversation.courseTeamId;
+
   const getOtherUserDisplayName = (conversation: Conversation) => {
+    if (isGroupConversation(conversation)) {
+      const t = conversation.title?.trim();
+      if (t) return t;
+      return `Group (${conversation.users.length})`;
+    }
     const n = conversation.otherUserName?.trim();
     if (n) return n;
     return `User ${getOtherUserId(conversation)}`;
+  };
+
+  const getSenderName = (conversation: Conversation, senderId: number) => {
+    const byMap = conversation.participantNames[senderId]?.trim();
+    if (byMap) return byMap;
+    if (senderId === currentUserId) return "You";
+    return `User ${senderId}`;
   };
 
   return (
@@ -445,8 +503,11 @@ export default function ChatPage() {
                 >
                   <div style={S.convTopRow}>
                     <span style={S.convName}>
+                      {isGroupConversation(c) ? <Users size={12} /> : null}
                       {displayName}
-                      <span style={{ ...S.onlineDot, background: onlineUsers.includes(otherId) ? "#22c55e" : "#94a3b8" }} />
+                      {!isGroupConversation(c) ? (
+                        <span style={{ ...S.onlineDot, background: onlineUsers.includes(otherId) ? "#22c55e" : "#94a3b8" }} />
+                      ) : null}
                     </span>
                     <span style={S.convTopRight}>
                       {last ? <span style={S.convTime}>{formatTime(last.createdAt)}</span> : null}
@@ -480,11 +541,29 @@ export default function ChatPage() {
           ) : (
             <>
               <div style={S.chatHeader}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={S.chatHeaderName}>{getOtherUserDisplayName(selectedConversation)}</span>
-                  <span style={S.statusText}>
-                    {onlineUsers.includes(getOtherUserId(selectedConversation)) ? "Online" : "Offline"}
-                  </span>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {isGroupConversation(selectedConversation) ? <Users size={14} color="#4f46e5" /> : null}
+                    <span style={S.chatHeaderName}>{getOtherUserDisplayName(selectedConversation)}</span>
+                    {!isGroupConversation(selectedConversation) ? (
+                      <span style={S.statusText}>
+                        {onlineUsers.includes(getOtherUserId(selectedConversation)) ? "Online" : "Offline"}
+                      </span>
+                    ) : null}
+                  </div>
+                  {isGroupConversation(selectedConversation) ? (
+                    <div style={S.participantsRow}>
+                      {selectedConversation.users.slice(0, 6).map((uid) => {
+                        const n = getSenderName(selectedConversation, uid);
+                        return (
+                          <span key={uid} style={S.participantPill}>{n}</span>
+                        );
+                      })}
+                      {selectedConversation.users.length > 6 ? (
+                        <span style={S.participantPill}>+{selectedConversation.users.length - 6} more</span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div style={S.messagesArea}>
@@ -520,6 +599,9 @@ export default function ChatPage() {
                         </div>
                       ) : (
                         <>
+                          {isGroupConversation(selectedConversation) ? (
+                            <div style={S.senderNameText}>{getSenderName(selectedConversation, m.senderId)}</div>
+                          ) : null}
                           <div>{m.deleted ? "Message removed" : m.text}</div>
                           <div style={S.metaRow}>
                             <span style={S.timeText}>{formatTime(m.createdAt)}</span>
@@ -674,6 +756,12 @@ const S: Record<string, CSSProperties> = {
   },
   chatHeaderName: { fontWeight: 800, color: "#0f172a", fontSize: 15, letterSpacing: "-0.01em" },
   statusText: { fontSize: 11, color: "#64748b", fontWeight: 600 },
+  participantsRow: { display: "flex", flexWrap: "wrap", gap: 6 },
+  participantPill: {
+    fontSize: 10, fontWeight: 700, color: "#4f46e5",
+    border: "1px solid #c7d2fe", background: "#eef2ff",
+    borderRadius: 999, padding: "2px 8px",
+  },
   messagesArea: { flex: 1, padding: 16, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" },
   chatEmpty: { minHeight: 420, display: "grid", placeItems: "center", color: "#64748b", fontSize: 13 },
   emptyText: { margin: 0, fontSize: 12, color: "#94a3b8" },
@@ -689,6 +777,7 @@ const S: Record<string, CSSProperties> = {
   },
   bubbleMe: { alignSelf: "flex-end", background: "#7c3aed", color: "#ffffff", borderRadius: 16 },
   bubbleThem: { alignSelf: "flex-start", background: "#eef2f7", color: "#0f172a", borderRadius: 16 },
+  senderNameText: { fontSize: 10, fontWeight: 800, color: "#4f46e5" },
   metaRow: { display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" },
   timeText: { fontSize: 10, opacity: 0.85 },
   editedText: { fontSize: 10, opacity: 0.85 },

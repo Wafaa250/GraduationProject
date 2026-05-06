@@ -23,6 +23,10 @@ namespace GraduationProject.API.DTOs
     public class ConversationListItemDto
     {
         public int Id { get; set; }
+        public string? Title { get; set; }
+        public int? CourseTeamId { get; set; }
+        public List<ConversationUserDto> Users { get; set; } = new();
+        public int ParticipantCount { get; set; }
         public ConversationUserDto? OtherUser { get; set; }
         public MessageDto? LastMessage { get; set; }
         public int UnseenCount { get; set; }
@@ -31,6 +35,9 @@ namespace GraduationProject.API.DTOs
     public class ConversationDetailsDto
     {
         public int Id { get; set; }
+        public string? Title { get; set; }
+        public int? CourseTeamId { get; set; }
+        public int ParticipantCount { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<ConversationUserDto> Users { get; set; } = new();
         public List<MessageDto> Messages { get; set; } = new();

@@ -42,6 +42,17 @@ namespace GraduationProject.API.Services
                     return new ConversationListItemDto
                     {
                         Id = c.Id,
+                        Title = c.Title,
+                        CourseTeamId = c.CourseTeamId,
+                        Users = c.ConversationUsers
+                            .Select(cu => new ConversationUserDto
+                            {
+                                Id = cu.User.Id,
+                                Name = cu.User.Name,
+                                Email = cu.User.Email,
+                            })
+                            .ToList(),
+                        ParticipantCount = c.ConversationUsers.Count,
                         OtherUser = otherUser == null
                             ? null
                             : new ConversationUserDto
@@ -87,6 +98,9 @@ namespace GraduationProject.API.Services
             return new ConversationDetailsDto
             {
                 Id = conversation.Id,
+                Title = conversation.Title,
+                CourseTeamId = conversation.CourseTeamId,
+                ParticipantCount = conversation.ConversationUsers.Count,
                 CreatedAt = conversation.CreatedAt,
                 Users = conversation.ConversationUsers
                     .Select(cu => new ConversationUserDto

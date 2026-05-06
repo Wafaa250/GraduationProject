@@ -341,7 +341,7 @@ namespace GraduationProject.API.Data
                 e.ToTable("course_team_members");
                 e.HasKey(m => m.Id);
                 e.Property(m => m.UserId).IsRequired();
-                e.Property(m => m.MatchScore).IsRequired().HasDefaultValue(0d);
+                e.Property(m => m.MatchScore).IsRequired();
                 e.HasIndex(m => new { m.CourseTeamId, m.StudentProfileId })
                  .IsUnique()
                  .HasDatabaseName("ix_course_team_members_team_student");
@@ -381,7 +381,16 @@ namespace GraduationProject.API.Data
             {
                 e.ToTable("conversations");
                 e.HasKey(c => c.Id);
+                e.Property(c => c.Title).HasMaxLength(256);
                 e.Property(c => c.CreatedAt).IsRequired();
+                e.HasIndex(c => c.CourseTeamId)
+                 .IsUnique()
+                 .HasDatabaseName("ix_conversations_course_team")
+                 .HasFilter("\"CourseTeamId\" IS NOT NULL");
+                e.HasOne(c => c.CourseTeam)
+                 .WithMany()
+                 .HasForeignKey(c => c.CourseTeamId)
+                 .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<ConversationUser>(e =>

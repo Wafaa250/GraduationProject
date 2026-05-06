@@ -20,10 +20,12 @@ type CourseProjectRaw = {
     id?: number; courseId?: number; title?: string; description?: string | null;
     teamSize?: number; applyToAllSections?: boolean; allowCrossSectionTeams?: boolean;
     aiMode?: string; createdAt?: string; sections?: CourseProjectSection[];
+    hasTeam?: boolean;
     // PascalCase (default ASP.NET without naming policy)
     Id?: number; CourseId?: number; Title?: string; Description?: string | null;
     TeamSize?: number; ApplyToAllSections?: boolean; AllowCrossSectionTeams?: boolean;
     AiMode?: string; CreatedAt?: string; Sections?: CourseProjectSection[];
+    HasTeam?: boolean;
 };
 
 type CourseProject = {
@@ -37,6 +39,8 @@ type CourseProject = {
     aiMode: "doctor" | "student";
     createdAt: string;
     sections: CourseProjectSection[];
+    /** True when the signed-in student is already a member of a team for this project. */
+    hasTeam: boolean;
 };
 
 function normalizeCourseProject(raw: CourseProjectRaw): CourseProject {
@@ -55,6 +59,7 @@ function normalizeCourseProject(raw: CourseProjectRaw): CourseProject {
             sectionId: (s as { sectionId?: number; SectionId?: number }).sectionId ?? (s as { sectionId?: number; SectionId?: number }).SectionId ?? 0,
             sectionName: (s as { sectionName?: string; SectionName?: string }).sectionName ?? (s as { sectionName?: string; SectionName?: string }).SectionName ?? "",
         })),
+        hasTeam: !!(raw.hasTeam ?? raw.HasTeam),
     };
 }
 
@@ -827,8 +832,6 @@ export default function StudentCoursesPage() {
                                                 ) : (
                                                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                                                         {mySectionProjects.map((project) => {
-                                                            console.log("REAL PROJECT", project);
-                                                            console.log("PROJECT MODE DATA", project);
                                                             const sectionName =
                                                                 project.applyToAllSections
                                                                     ? "All sections"
@@ -840,7 +843,6 @@ export default function StudentCoursesPage() {
                                                                 formationMode?: string;
                                                                 isDoctorAssigned?: boolean;
                                                                 allowStudentSelection?: boolean;
-                                                                hasTeam?: boolean;
                                                             };
                                                             const modeText = String(
                                                                 projectRaw.teamFormationMode ??
@@ -867,7 +869,7 @@ export default function StudentCoursesPage() {
                                                                         : (doctorAssignedByMode
                                                                             ? true
                                                                             : (studentAssignedByMode ? false : project.aiMode === "doctor")));
-                                                            const hasTeam = projectRaw.hasTeam === true;
+                                                            const hasTeam = project.hasTeam === true;
                                                             return (
                                                             <div key={project.id} style={S.projectCard}>
                                                                 <div style={S.projectTopRow}>
@@ -893,7 +895,7 @@ export default function StudentCoursesPage() {
                                                                                 <button
                                                                                     type="button"
                                                                                     style={S.teamViewBtn}
-                                                                                    onClick={() => navigate(`/student/team/${project.id}`)}
+                                                                                    onClick={() => navigate(`/student/courses/${selectedCourseId}/projects/${project.id}/team`)}
                                                                                 >
                                                                                     View My Team
                                                                                 </button>
@@ -903,7 +905,10 @@ export default function StudentCoursesPage() {
                                                                                     style={S.generateTeamBtn}
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
-                                                                                        navigate(`/student/projects/${project.id}/ai-team`);
+                                                                                        navigate(
+                                                                                            `/student/courses/${selectedCourseId}/projects/${project.id}/team-choice`,
+                                                                                            { state: { projectTitle: project.title } },
+                                                                                        );
                                                                                     }}
                                                                                 >
                                                                                     ✨ Generate Team

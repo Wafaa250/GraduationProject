@@ -56,6 +56,7 @@ export interface CourseProjectSummary {
   teamSize: number
   applyToAllSections: boolean
   allowCrossSectionTeams: boolean
+  hasTeam?: boolean
   createdAt: string
   sections: { sectionId: number; sectionNumber: number }[]
 }
@@ -88,6 +89,7 @@ function mapCourseProjectSummary(raw: unknown): CourseProjectSummary {
     allowCrossSectionTeams: Boolean(
       r.allowCrossSectionTeams ?? r.AllowCrossSectionTeams ?? false,
     ),
+    hasTeam: Boolean(r.hasTeam ?? r.HasTeam ?? false),
     createdAt: String(r.createdAt ?? r.CreatedAt ?? ''),
     sections: Array.isArray(sectionsRaw)
       ? sectionsRaw.map(mapCourseProjectSection)
@@ -216,6 +218,41 @@ export interface StudentCourseView {
   projects: StudentViewProject[]
 }
 
+export interface ManualTeamStudent {
+  id: number
+  name: string
+  email: string
+  skills: string[]
+  sectionName: string
+  avatar?: string | null
+  bio?: string | null
+  hasPendingRequest: boolean
+  isAlreadyInTeam: boolean
+  availabilityStatus: "available" | "unavailable" | "pending" | "already_teammate"
+  availabilityReason: string
+}
+
+export interface ManualTeamStudentsResponse {
+  projectId: number
+  projectTitle: string
+  teamSize: number
+  students: ManualTeamStudent[]
+}
+
+export interface TeamInvitationItem {
+  invitationId: number
+  projectId: number
+  projectTitle: string
+  courseId: number
+  courseName: string
+  senderId: number
+  senderName: string
+  senderSection: string
+  senderSkills?: string[]
+  message?: string
+  invitedAt: string
+}
+
 export const getEnrolledCourses = async (): Promise<EnrolledCourse[]> => {
   const response = await api.get('/courses/enrolled')
   return response.data
@@ -235,6 +272,73 @@ export const getCourseStudentView = async (
 
 export const getCourseStudents = async (courseId: number): Promise<CourseStudent[]> => {
   const response = await api.get(`/courses/${courseId}/students`)
+  return response.data
+}
+
+export const getManualTeamStudents = async (
+  courseId: number,
+  projectId: number,
+): Promise<ManualTeamStudentsResponse> => {
+  const response = await api.get(`/courses/${courseId}/projects/${projectId}/manual-team/students`)
+  return response.data
+}
+
+export const sendManualTeamRequest = async (
+  courseId: number,
+  projectId: number,
+  receiverId: number,
+): Promise<{ message: string }> => {
+  const response = await api.post(
+    `/courses/${courseId}/projects/${projectId}/manual-team/requests/${receiverId}`,
+  )
+  return response.data
+}
+
+export interface AiTeamRecommendation {
+  studentId: number
+  name: string
+  email: string
+  avatar?: string | null
+  sectionName: string
+  skills: string[]
+  bio?: string | null
+  matchScore: number
+  matchReason: string
+  hasPendingRequest: boolean
+  isAlreadyInTeam: boolean
+  availabilityStatus?: string
+  availabilityReason?: string
+}
+
+export const getAiTeamRecommendations = async (
+  courseId: number,
+  projectId: number,
+): Promise<AiTeamRecommendation[]> => {
+  const response = await api.get<AiTeamRecommendation[]>(
+    `/courses/${courseId}/projects/${projectId}/ai-team-recommendations`,
+  )
+  return response.data ?? []
+}
+
+export const getTeamInvitations = async (): Promise<TeamInvitationItem[]> => {
+  const response = await api.get<TeamInvitationItem[]>("/courses/team-invitations")
+  return response.data ?? []
+}
+
+export type AcceptTeamInvitationResponse = {
+  teamId: number
+  courseId: number
+  projectId: number
+  status: "accepted"
+}
+
+export const acceptTeamInvitation = async (invitationId: number): Promise<AcceptTeamInvitationResponse> => {
+  const response = await api.post<AcceptTeamInvitationResponse>(`/courses/team-invitations/${invitationId}/accept`)
+  return response.data
+}
+
+export const rejectTeamInvitation = async (invitationId: number): Promise<{ message: string }> => {
+  const response = await api.post<{ message: string }>(`/courses/team-invitations/${invitationId}/reject`)
   return response.data
 }
 

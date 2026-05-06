@@ -126,6 +126,12 @@ function getEventAccent(eventType: string): {
       return { icon: UserMinus, tint: "#c2410c", bg: "rgba(249,115,22,0.12)" };
     case "course_section_enrollment_added":
       return { icon: GraduationCap, tint: "#5b21b6", bg: "rgba(109,40,217,0.14)" };
+    case "course_teammate_invitation_pending":
+      return { icon: UserPlus, tint: "#7c3aed", bg: "rgba(139,92,246,0.14)" };
+    case "course_teammate_invitation_accepted":
+      return { icon: CheckCircle2, tint: "#15803d", bg: "rgba(34,197,94,0.14)" };
+    case "course_teammate_invitation_rejected":
+      return { icon: XCircle, tint: "#b91c1c", bg: "rgba(239,68,68,0.12)" };
     default:
       return { icon: BellRing, tint: "#475569", bg: "rgba(148,163,184,0.16)" };
   }
@@ -299,10 +305,14 @@ export function GradProjectNotificationBell({
     });
   };
 
-  const onRowClick = (_n: GraduationNotificationDto) => {
+  const onRowClick = (n: GraduationNotificationDto) => {
     setOpen(false);
     if (theme === "doctor") {
       navigate("/doctor-dashboard");
+      return;
+    }
+    if (n.category === "course" && n.eventType === "course_teammate_invitation_pending") {
+      navigate("/student/team-invitations", { state: { highlightInvitationId: n.id } });
       return;
     }
     navigate("/dashboard");

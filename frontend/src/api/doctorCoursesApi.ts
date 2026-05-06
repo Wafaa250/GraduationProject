@@ -506,6 +506,21 @@ export const getDoctorProjectTeams = async (
     return mapDoctorProjectTeamsResponse(response.data)
 }
 
+export type OpenTeamConversationResponse = {
+    conversationId: number
+    title?: string
+    participantCount?: number
+}
+
+export const openCourseTeamConversation = async (
+    teamId: number,
+): Promise<OpenTeamConversationResponse> => {
+    const response = await api.post<OpenTeamConversationResponse>(
+        `/course-teams/${teamId}/conversation`,
+    )
+    return response.data
+}
+
 // ── Course sections (GET/POST /courses/{courseId}/sections, …/sections/{id}/…) ──
 
 export const getDoctorCourseSections = async (
