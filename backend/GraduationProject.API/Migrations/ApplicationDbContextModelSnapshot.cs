@@ -987,6 +987,73 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.UserNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("body");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DedupKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("dedup_key");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("event_type");
+
+                    b.Property<int?>("ProjectId")
+                        .HasColumnType("integer")
+                        .HasColumnName("project_id");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("title");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_user_notifications_user_created");
+
+                    b.HasIndex("UserId", "DedupKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_notifications_user_dedup")
+                        .HasFilter("dedup_key IS NOT NULL");
+
+                    b.ToTable("user_notifications", (string)null);
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.AssociationProfile", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.User", "User")
@@ -1343,6 +1410,17 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.UserNotification", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.Conversation", b =>

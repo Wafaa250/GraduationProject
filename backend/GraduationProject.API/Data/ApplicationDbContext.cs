@@ -37,6 +37,7 @@ namespace GraduationProject.API.Data
         public DbSet<Conversation> Conversations => Set<Conversation>();
         public DbSet<ConversationUser> ConversationUsers => Set<ConversationUser>();
         public DbSet<Message> Messages => Set<Message>();
+        public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -448,6 +449,36 @@ namespace GraduationProject.API.Data
                 e.HasOne(m => m.Sender)
                  .WithMany()
                  .HasForeignKey(m => m.SenderUserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── USER NOTIFICATIONS (graduation project + future categories) ─────
+            modelBuilder.Entity<UserNotification>(e =>
+            {
+                e.ToTable("user_notifications");
+                e.Property(n => n.Category)
+                 .HasMaxLength(64)
+                 .IsRequired();
+                e.Property(n => n.EventType)
+                 .HasMaxLength(64)
+                 .IsRequired();
+                e.Property(n => n.Title)
+                 .HasMaxLength(256)
+                 .IsRequired();
+                e.Property(n => n.Body)
+                 .HasMaxLength(2000)
+                 .IsRequired();
+                e.Property(n => n.DedupKey)
+                 .HasMaxLength(128);
+                e.HasIndex(n => new { n.UserId, n.DedupKey })
+                 .IsUnique()
+                 .HasDatabaseName("ix_user_notifications_user_dedup")
+                 .HasFilter("dedup_key IS NOT NULL");
+                e.HasIndex(n => new { n.UserId, n.CreatedAt })
+                 .HasDatabaseName("ix_user_notifications_user_created");
+                e.HasOne(n => n.User)
+                 .WithMany()
+                 .HasForeignKey(n => n.UserId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 

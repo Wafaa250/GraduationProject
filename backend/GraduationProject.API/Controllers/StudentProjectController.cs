@@ -11,6 +11,7 @@ using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
+using GraduationProject.API.Services;
 
 namespace GraduationProject.API.Controllers
 {
@@ -35,7 +36,15 @@ namespace GraduationProject.API.Controllers
     public class StudentProjectController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
-        public StudentProjectController(ApplicationDbContext db) => _db = db;
+        private readonly IGraduationProjectNotificationService _gpNotifications;
+
+        public StudentProjectController(
+            ApplicationDbContext db,
+            IGraduationProjectNotificationService gpNotifications)
+        {
+            _db = db;
+            _gpNotifications = gpNotifications;
+        }
 
         // =====================================================================
         // GET /api/graduation-projects
@@ -499,6 +508,8 @@ namespace GraduationProject.API.Controllers
                 .LoadAsync();
             await _db.Entry(project).Reference(p => p.Supervisor).LoadAsync();
 
+            await _gpNotifications.NotifyProjectCreatedAsync(project.Id, project.Name, student.Id);
+
             return StatusCode(201, MapToDto(project, student.Id));
         }
 
@@ -544,6 +555,12 @@ namespace GraduationProject.API.Controllers
             project.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifyProjectUpdatedAsync(
+                project.Id,
+                project.Name,
+                AuthorizationHelper.GetUserId(User));
+
             return Ok(MapToDto(project, student.Id));
         }
 
@@ -564,6 +581,12 @@ namespace GraduationProject.API.Controllers
 
             if (project.OwnerId != student.Id)
                 return Forbid();
+
+            var projectId = project.Id;
+            var projectName = project.Name;
+            var actorUserId = AuthorizationHelper.GetUserId(User);
+
+            await _gpNotifications.NotifyProjectDeletedAsync(projectId, projectName, actorUserId);
 
             _db.StudentProjects.Remove(project);
             await _db.SaveChangesAsync();
@@ -609,6 +632,8 @@ namespace GraduationProject.API.Controllers
 
             await _db.SaveChangesAsync();
 
+            await _gpNotifications.NotifyMemberJoinedAsync(project.Id, project.Name, student.Id);
+
             return Ok(new
             {
                 message = "Successfully joined the project team.",
@@ -626,6 +651,7 @@ namespace GraduationProject.API.Controllers
             if (student == null) return Forbid();
 
             var membership = await _db.StudentProjectMembers
+                .Include(m => m.Project)
                 .FirstOrDefaultAsync(m => m.ProjectId == id && m.StudentId == student.Id);
 
             if (membership == null)
@@ -634,8 +660,13 @@ namespace GraduationProject.API.Controllers
             if (membership.Role == "leader")
                 return BadRequest(new { message = "Project leader cannot leave the project. Delete it instead." });
 
+            var projectId = membership.ProjectId;
+            var projectName = membership.Project.Name;
+
             _db.StudentProjectMembers.Remove(membership);
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifyMemberLeftAsync(projectId, projectName, student.Id);
 
             return Ok(new { message = "You have left the project team." });
         }
@@ -668,8 +699,16 @@ namespace GraduationProject.API.Controllers
             if (target == null)
                 return NotFound(new { message = "Member not found in this project." });
 
+            var projectName = project.Name;
+
             _db.StudentProjectMembers.Remove(target);
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifyMemberRemovedAsync(
+                projectId,
+                projectName,
+                memberId,
+                AuthorizationHelper.GetUserId(User));
 
             var updatedCount = await _db.StudentProjectMembers.CountAsync(m => m.ProjectId == projectId);
 
@@ -712,7 +751,11 @@ namespace GraduationProject.API.Controllers
             callerMembership.Role = "member";
             targetMembership.Role = "leader";
 
+            var projectName = project.Name;
+
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifyLeaderChangedAsync(projectId, projectName, caller.Id, memberId);
 
             return Ok(new
             {
@@ -755,7 +798,7 @@ namespace GraduationProject.API.Controllers
             if (pendingExists)
                 return BadRequest(new { message = "A pending supervision request already exists for this doctor." });
 
-            _db.SupervisorRequests.Add(new SupervisorRequest
+            var request = new SupervisorRequest
             {
                 ProjectId = projectId,
                 DoctorId = doctorId,
@@ -763,9 +806,17 @@ namespace GraduationProject.API.Controllers
                 Status = "pending",
                 CreatedAt = DateTime.UtcNow,
                 RespondedAt = null
-            });
+            };
 
+            _db.SupervisorRequests.Add(request);
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifySupervisionRequestReceivedAsync(
+                request.Id,
+                projectId,
+                project.Name,
+                caller.Id,
+                doctorId);
 
             return Ok(new { message = "Supervisor request sent successfully" });
         }
@@ -905,6 +956,13 @@ namespace GraduationProject.API.Controllers
 
             await _db.SaveChangesAsync();
 
+            await _gpNotifications.NotifySupervisionRequestAcceptedAsync(
+                request.Id,
+                request.ProjectId,
+                request.Project?.Name ?? "Your project",
+                request.SenderId,
+                request.DoctorId);
+
             return Ok(new { message = "Supervisor request accepted successfully" });
         }
 
@@ -925,6 +983,7 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Doctor profile not found." });
 
             var request = await _db.SupervisorRequests
+                .Include(r => r.Project)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (request == null)
@@ -940,6 +999,13 @@ namespace GraduationProject.API.Controllers
             request.RespondedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifySupervisionRequestRejectedAsync(
+                request.Id,
+                request.ProjectId,
+                request.Project?.Name ?? "Your project",
+                request.SenderId,
+                request.DoctorId);
 
             return Ok(new { message = "Supervisor request rejected successfully" });
         }
@@ -1099,6 +1165,13 @@ namespace GraduationProject.API.Controllers
 
             _db.ProjectInvitations.Add(invitation);
             await _db.SaveChangesAsync();
+
+            await _gpNotifications.NotifyInvitationReceivedAsync(
+                invitation.Id,
+                projectId,
+                project.Name,
+                senderProfile.Id,
+                receiverId);
 
             return StatusCode(201, new
             {

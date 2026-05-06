@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using GraduationProject.API.Data;
+using GraduationProject.API.Hubs;
 using GraduationProject.API.Middleware;
 using GraduationProject.API.Services;
 using GraduationProject.API.Interfaces;
@@ -36,9 +37,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments("/hubs"))
+                    context.Token = accessToken;
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSignalR();
 
 // ===========================
 // SERVICES
@@ -57,6 +71,7 @@ builder.Services.AddScoped<ICourseTeamRepository, CourseTeamRepository>();
 builder.Services.AddScoped<ICourseTeamChatRepository, CourseTeamChatRepository>();
 builder.Services.AddHttpClient<ITeamGenerationService, OpenAiTeamGenerationService>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
+builder.Services.AddScoped<IGraduationProjectNotificationService, GraduationProjectNotificationService>();
 
 // ===========================
 // CORS
@@ -132,5 +147,6 @@ app.UseMiddleware<RoleAuthorizationMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.Run();

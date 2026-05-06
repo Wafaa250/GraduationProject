@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
+using GraduationProject.API.Services;
 
 namespace GraduationProject.API.Controllers
 {
@@ -17,7 +18,15 @@ namespace GraduationProject.API.Controllers
     public class InvitationsController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
-        public InvitationsController(ApplicationDbContext db) => _db = db;
+        private readonly IGraduationProjectNotificationService _gpNotifications;
+
+        public InvitationsController(
+            ApplicationDbContext db,
+            IGraduationProjectNotificationService gpNotifications)
+        {
+            _db = db;
+            _gpNotifications = gpNotifications;
+        }
 
         // =====================================================================
         // GET /api/invitations/received
@@ -170,6 +179,8 @@ namespace GraduationProject.API.Controllers
                 await transaction.RollbackAsync();
                 return StatusCode(500, new { message = "Something went wrong. Please try again." });
             }
+
+            await _gpNotifications.NotifyMemberJoinedAsync(project.Id, project.Name, student.Id);
 
             return Ok(new { message = "Invitation accepted. You have joined the project." });
         }

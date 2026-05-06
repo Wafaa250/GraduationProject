@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { LogOut, Menu, Settings } from "lucide-react";
 import { dash } from "./doctorDashTokens";
+import { GradProjectNotificationBell } from "../../../components/notifications/GradProjectNotificationBell";
 
 type Props = {
   doctorName: string;
@@ -75,6 +76,21 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <GradProjectNotificationBell
+          theme="doctor"
+          bellButtonStyle={{
+            width: 40,
+            height: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "none",
+            borderRadius: 10,
+            background: "transparent",
+            color: dash.muted,
+            cursor: "pointer",
+          }}
+        />
         <Link
           to="/settings"
           title="Settings"

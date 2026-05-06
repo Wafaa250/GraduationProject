@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell,
   Search,
   Settings,
   ChevronRight,
@@ -68,6 +67,7 @@ import {
 } from "../../components/project/AiSupervisorRecommendations";
 import ProfileLink, { getProfileUrl } from "../../components/common/ProfileLink";
 import { useToast } from "../../../context/ToastContext";
+import { GradProjectNotificationBell } from "../../components/notifications/GradProjectNotificationBell";
 import {
   acceptPartnerRequest,
   createPartnerRequest,
@@ -1829,14 +1829,7 @@ export default function DashboardPage() {
             )}
           </div>
           <div style={S.navActions}>
-            <button
-              type="button"
-              style={S.navBtn}
-              onClick={() => navigate("/invitations")}
-              aria-label="Invitations"
-            >
-              <Bell size={17} />
-            </button>
+            <GradProjectNotificationBell bellButtonStyle={S.navBtn} showInvitationsLink theme="student" />
             <button
               type="button"
               style={S.navBtn}
