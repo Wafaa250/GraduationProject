@@ -16,7 +16,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
-import { dash } from "../../pages/doctor/dashboard/doctorDashTokens";
+
+/** Mobile-local theme tokens (replaces the web-only `doctorDashTokens` module). */
+const dash = {
+    bg: "#f1f5f9",
+    surface: "#ffffff",
+    border: "#e2e8f0",
+    text: "#0f172a",
+    muted: "#64748b",
+    subtle: "#94a3b8",
+    accent: "#4f46e5",
+    accentMuted: "#eef2ff",
+    danger: "#b91c1c",
+} as const;
 
 /** Local types (mirrors `pages/courses/courseProjectTypes.ts` — keep in sync when wiring API). */
 type CourseWorkspaceSectionOption = {
@@ -101,16 +113,16 @@ function getLayoutTokens(screenWidth: number) {
     const narrow = screenWidth < 360;
     const compact = screenWidth < 400;
     return {
-        gutter: narrow ? 14 : compact ? 16 : 20,
-        fieldGap: compact ? 14 : 16,
-        titleSize: compact ? 26 : 28,
-        titleLine: compact ? 32 : 34,
-        textareaMin: compact ? 96 : 108,
+        gutter: narrow ? 14 : compact ? 15 : 18,
+        fieldGap: compact ? 10 : 12,
+        titleSize: compact ? 20 : 22,
+        titleLine: compact ? 26 : 28,
+        textareaMin: compact ? 76 : 84,
     };
 }
 
 function compactTopPadding(screenWidth: number): number {
-    return screenWidth < 360 ? 2 : 4;
+    return screenWidth < 360 ? 2 : 2;
 }
 
 function createStyles(screenWidth: number) {
@@ -129,42 +141,42 @@ function createStyles(screenWidth: number) {
         scrollContent: {
             paddingHorizontal: t.gutter,
             paddingTop: compactTopPadding(screenWidth),
-            paddingBottom: 40,
+            paddingBottom: 28,
         },
         screenBody: {
             width: "100%",
         },
         pressedOpacity: { opacity: 0.65 },
         headerArea: {
-            paddingBottom: 2,
+            paddingBottom: 0,
         },
         backRow: {
             flexDirection: "row",
             alignItems: "center",
             alignSelf: "flex-start",
             marginLeft: -6,
-            paddingVertical: 4,
+            paddingVertical: 2,
             paddingHorizontal: 6,
             gap: 2,
         },
         backBtnText: {
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: "500",
             color: dash.text,
             letterSpacing: -0.2,
         },
         divider: {
             height: 1,
-            marginVertical: 14,
+            marginVertical: 10,
             backgroundColor: "rgba(15,23,42,0.06)",
         },
         kicker: {
-            marginTop: 6,
-            marginBottom: 4,
-            fontSize: 11,
-            fontWeight: "600",
-            color: dash.subtle,
-            letterSpacing: 0.5,
+            marginTop: 4,
+            marginBottom: 2,
+            fontSize: 10,
+            fontWeight: "700",
+            color: dash.accent,
+            letterSpacing: 0.8,
             textTransform: "uppercase",
         },
         title: {
@@ -172,53 +184,53 @@ function createStyles(screenWidth: number) {
             fontWeight: "700",
             color: dash.text,
             lineHeight: t.titleLine,
-            letterSpacing: -0.45,
+            letterSpacing: -0.4,
         },
         subtitleMuted: {
-            marginTop: 8,
-            fontSize: 14,
+            marginTop: 4,
+            fontSize: 12,
             fontWeight: "400",
             color: dash.muted,
-            lineHeight: 20,
+            lineHeight: 16,
         },
         fieldBlock: {
             marginBottom: t.fieldGap,
         },
         fieldBlockSectionTop: {
-            marginTop: 12,
+            marginTop: 10,
             marginBottom: 0,
         },
         labelBelowTight: {
-            marginBottom: 6,
+            marginBottom: 4,
         },
         labelSubField: {
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: "600",
             color: dash.muted,
             letterSpacing: -0.1,
         },
         label: {
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: "600",
             color: dash.muted,
-            marginBottom: 8,
+            marginBottom: 6,
             letterSpacing: -0.1,
         },
         labelTextStandalone: {
-            marginTop: 22,
-            marginBottom: 8,
-            fontSize: 15,
+            marginTop: 12,
+            marginBottom: 6,
+            fontSize: 14,
             fontWeight: "600",
             color: dash.text,
-            letterSpacing: -0.25,
+            letterSpacing: -0.2,
         },
         input: {
-            minHeight: 48,
-            paddingVertical: 12,
-            paddingHorizontal: 14,
-            borderRadius: 12,
+            minHeight: 42,
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            borderRadius: 11,
             borderWidth: 0,
-            fontSize: 16,
+            fontSize: 14,
             color: dash.text,
             backgroundColor: inputFill,
         },
@@ -227,39 +239,39 @@ function createStyles(screenWidth: number) {
         },
         textarea: {
             minHeight: t.textareaMin,
-            paddingTop: 12,
+            paddingTop: 10,
         },
         fileRow: {
             flexDirection: "row",
             flexWrap: "wrap",
             alignItems: "center",
-            gap: 10,
-            marginTop: 4,
+            gap: 8,
+            marginTop: 2,
         },
         uploadBtn: {
             flexDirection: "row",
             alignItems: "center",
-            gap: 8,
-            paddingVertical: 12,
-            paddingHorizontal: 14,
-            borderRadius: 12,
+            gap: 6,
+            paddingVertical: 9,
+            paddingHorizontal: 12,
+            borderRadius: 11,
             borderWidth: 0,
             backgroundColor: inputFill,
         },
         uploadBtnText: {
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: "600",
             color: dash.text,
         },
         fileHint: {
-            fontSize: 13,
+            fontSize: 12,
             flex: 1,
             minWidth: 96,
         },
         row2: {
             flexDirection: "row",
             flexWrap: "wrap",
-            gap: 12,
+            gap: 10,
         },
         rowItem: {
             flex: 1,
@@ -270,20 +282,20 @@ function createStyles(screenWidth: number) {
             minWidth: 124,
         },
         block: {
-            paddingTop: 2,
+            paddingTop: 0,
         },
         checkRow: {
             flexDirection: "row",
             alignItems: "center",
-            gap: 10,
-            marginTop: 10,
-        },
-        checkRowTight: {
+            gap: 9,
             marginTop: 8,
         },
+        checkRowTight: {
+            marginTop: 6,
+        },
         checkboxOuter: {
-            width: 22,
-            height: 22,
+            width: 20,
+            height: 20,
             borderRadius: 6,
             borderWidth: 0,
             backgroundColor: inputFill,
@@ -294,7 +306,7 @@ function createStyles(screenWidth: number) {
             backgroundColor: dash.accent,
         },
         checkLabel: {
-            fontSize: 15,
+            fontSize: 13,
             fontWeight: "500",
             color: dash.text,
             letterSpacing: -0.1,
@@ -306,20 +318,20 @@ function createStyles(screenWidth: number) {
         },
         selectLikeText: {
             flex: 1,
-            fontSize: 16,
+            fontSize: 14,
             marginRight: 8,
         },
         aiHelp: {
-            marginTop: 6,
-            marginBottom: 10,
-            fontSize: 14,
+            marginTop: 4,
+            marginBottom: 8,
+            fontSize: 12,
             color: dash.muted,
-            lineHeight: 19,
+            lineHeight: 17,
         },
         segmentTrack: {
             flexDirection: "row",
             backgroundColor: segmentTrack,
-            borderRadius: 14,
+            borderRadius: 12,
             padding: 3,
         },
         segmentBtn: {
@@ -328,10 +340,10 @@ function createStyles(screenWidth: number) {
             alignItems: "center",
             justifyContent: "center",
             gap: 6,
-            minHeight: 40,
-            paddingVertical: 9,
+            minHeight: 34,
+            paddingVertical: 7,
             paddingHorizontal: 8,
-            borderRadius: 11,
+            borderRadius: 9,
             borderWidth: 0,
         },
         segmentBtnActive: {
@@ -351,25 +363,25 @@ function createStyles(screenWidth: number) {
             backgroundColor: "transparent",
         },
         segmentBtnTextActive: {
-            fontSize: 13,
-            fontWeight: "600",
+            fontSize: 12,
+            fontWeight: "700",
             color: dash.accent,
         },
         segmentBtnTextIdle: {
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: "500",
             color: dash.muted,
         },
         doctorAiNote: {
             marginTop: 4,
-            fontSize: 14,
+            fontSize: 12,
             color: dash.muted,
-            lineHeight: 20,
+            lineHeight: 17,
         },
         actionsColumn: {
             marginTop: 4,
-            paddingTop: 20,
-            gap: 10,
+            paddingTop: 14,
+            gap: 8,
             borderTopWidth: hair,
             borderTopColor: "rgba(15,23,42,0.08)",
         },
@@ -377,21 +389,21 @@ function createStyles(screenWidth: number) {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            gap: 8,
+            gap: 6,
             width: "100%",
-            minHeight: 50,
-            paddingVertical: 14,
-            paddingHorizontal: 20,
-            borderRadius: 14,
+            minHeight: 44,
+            paddingVertical: 11,
+            paddingHorizontal: 18,
+            borderRadius: 12,
             backgroundColor: dash.accent,
             ...Platform.select({
                 ios: {
                     shadowColor: dash.accent,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.22,
+                    shadowRadius: 7,
                 },
-                android: { elevation: 4 },
+                android: { elevation: 3 },
                 default: {},
             }),
         },
@@ -400,28 +412,28 @@ function createStyles(screenWidth: number) {
         },
         primaryBtnText: {
             color: "#fff",
-            fontSize: 16,
-            fontWeight: "600",
-            letterSpacing: -0.2,
+            fontSize: 14,
+            fontWeight: "700",
+            letterSpacing: -0.15,
         },
         secondaryBtn: {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
             width: "100%",
-            minHeight: 48,
-            paddingVertical: 13,
-            paddingHorizontal: 16,
-            borderRadius: 14,
+            minHeight: 40,
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            borderRadius: 12,
             borderWidth: hair,
             borderColor: "rgba(15,23,42,0.12)",
             backgroundColor: "transparent",
         },
         secondaryBtnText: {
             color: dash.text,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: "600",
-            letterSpacing: -0.15,
+            letterSpacing: -0.1,
         },
         modalRoot: {
             flex: 1,
@@ -452,22 +464,22 @@ function createStyles(screenWidth: number) {
             }),
         },
         modalTitle: {
-            fontSize: 17,
+            fontSize: 15,
             fontWeight: "700",
             color: dash.text,
-            marginBottom: 10,
-            letterSpacing: -0.3,
+            marginBottom: 8,
+            letterSpacing: -0.25,
         },
         modalList: {
             maxHeight: 300,
         },
         modalOption: {
-            paddingVertical: 14,
+            paddingVertical: 11,
             borderBottomWidth: hair,
             borderBottomColor: "rgba(15,23,42,0.06)",
         },
         modalOptionText: {
-            fontSize: 16,
+            fontSize: 14,
             color: dash.text,
             fontWeight: "500",
         },
@@ -658,7 +670,7 @@ export default function CourseProjectCreatePage() {
                                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                                 style={({ pressed }) => [styles.backRow, pressed && styles.pressedOpacity]}
                             >
-                                <Ionicons name="arrow-back" size={22} color={dash.text} />
+                                <Ionicons name="arrow-back" size={20} color={dash.text} />
                                 <Text style={styles.backBtnText}>Back to course</Text>
                             </Pressable>
                             <Text style={styles.kicker}>New project</Text>
@@ -888,7 +900,7 @@ export default function CourseProjectCreatePage() {
                                         pressed && !submitting && styles.pressedOpacity,
                                     ]}
                                 >
-                                    <Ionicons name="people" size={18} color="#fff" />
+                                    <Ionicons name="people" size={16} color="#fff" />
                                     <Text style={styles.primaryBtnText}>
                                         {submitting ? "Creating…" : "Create project"}
                                     </Text>

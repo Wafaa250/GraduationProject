@@ -15,7 +15,19 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { dash } from "../../pages/doctor/dashboard/doctorDashTokens";
+
+/** Mobile-local theme tokens (replaces the web-only `doctorDashTokens` module). */
+const dash = {
+    bg: "#f1f5f9",
+    surface: "#ffffff",
+    border: "#e2e8f0",
+    text: "#0f172a",
+    muted: "#64748b",
+    subtle: "#94a3b8",
+    accent: "#4f46e5",
+    accentMuted: "#eef2ff",
+    danger: "#b91c1c",
+} as const;
 
 // ============================================================================
 // Types — mirror the web source 1:1 so business logic stays portable.
@@ -298,11 +310,11 @@ function getLayoutTokens(width: number) {
     const narrow = width < 360;
     const compact = width < 400;
     return {
-        gutter: narrow ? 14 : compact ? 16 : 18,
-        cardGap: 12,
-        titleSize: compact ? 24 : 28,
-        titleLine: compact ? 30 : 34,
-        sectionGap: 24,
+        gutter: narrow ? 14 : compact ? 15 : 18,
+        cardGap: 10,
+        titleSize: compact ? 20 : 22,
+        titleLine: compact ? 26 : 28,
+        sectionGap: 14,
     };
 }
 
@@ -325,8 +337,8 @@ function createStyles(width: number) {
         scroll: { flex: 1, backgroundColor: bg },
         scrollContent: {
             paddingHorizontal: t.gutter,
-            paddingTop: 4,
-            paddingBottom: 56,
+            paddingTop: 2,
+            paddingBottom: 32,
         },
 
         // ------ Top bar / Hero ------------------------------------------------
@@ -334,8 +346,8 @@ function createStyles(width: number) {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            paddingVertical: 4,
-            marginBottom: 4,
+            paddingVertical: 2,
+            marginBottom: 2,
         },
         topBarBtn: {
             flexDirection: "row",
@@ -346,15 +358,15 @@ function createStyles(width: number) {
             gap: 2,
         },
         topBarBtnText: {
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: "500",
             color: dash.text,
             letterSpacing: -0.2,
         },
-        topBarRight: { flexDirection: "row", gap: 8 },
+        topBarRight: { flexDirection: "row", gap: 6 },
         topBarIconBtn: {
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             borderRadius: 10,
             backgroundColor: surface,
             alignItems: "center",
@@ -364,57 +376,62 @@ function createStyles(width: number) {
         },
 
         hero: {
-            marginTop: 8,
+            marginTop: 6,
             backgroundColor: surface,
-            borderRadius: 20,
-            padding: 18,
+            borderRadius: 18,
+            paddingHorizontal: 14,
+            paddingVertical: 14,
             borderWidth: hair,
             borderColor: hairlineColor,
             ...Platform.select({
                 ios: {
                     shadowColor: "#0f172a",
                     shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.06,
-                    shadowRadius: 14,
+                    shadowOpacity: 0.05,
+                    shadowRadius: 10,
                 },
                 android: { elevation: 2 },
                 default: {},
             }),
         },
         heroKicker: {
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: "700",
             color: dash.accent,
-            letterSpacing: 1.1,
+            letterSpacing: 1,
             textTransform: "uppercase",
-            marginBottom: 8,
+            marginBottom: 2,
         },
         heroTitleRow: {
             flexDirection: "row",
             alignItems: "center",
             gap: 12,
         },
+        heroTitleCol: {
+            flex: 1,
+            minWidth: 0,
+        },
         heroAvatar: {
-            width: 44,
-            height: 44,
-            borderRadius: 14,
+            width: 38,
+            height: 38,
+            borderRadius: 12,
             backgroundColor: dash.accent,
             alignItems: "center",
             justifyContent: "center",
             ...Platform.select({
                 ios: {
                     shadowColor: dash.accent,
-                    shadowOffset: { width: 0, height: 4 },
+                    shadowOffset: { width: 0, height: 3 },
                     shadowOpacity: 0.25,
-                    shadowRadius: 10,
+                    shadowRadius: 8,
                 },
-                android: { elevation: 4 },
+                android: { elevation: 3 },
                 default: {},
             }),
         },
         heroAvatarText: {
             color: "#fff",
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: "700",
         },
         heroTitle: {
@@ -422,21 +439,20 @@ function createStyles(width: number) {
             lineHeight: t.titleLine,
             fontWeight: "700",
             color: dash.text,
-            letterSpacing: -0.6,
-            flex: 1,
+            letterSpacing: -0.5,
         },
 
         codeRow: {
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
-            marginTop: 14,
+            marginTop: 12,
         },
         codeChip: {
             flexDirection: "row",
             alignItems: "center",
             gap: 6,
-            paddingVertical: 6,
+            paddingVertical: 5,
             paddingHorizontal: 10,
             borderRadius: 999,
             backgroundColor: dash.accentMuted,
@@ -456,21 +472,21 @@ function createStyles(width: number) {
             letterSpacing: 0.3,
         },
         codeAction: {
-            width: 34,
-            height: 34,
-            borderRadius: 10,
+            width: 30,
+            height: 30,
+            borderRadius: 9,
             backgroundColor: inputFill,
             alignItems: "center",
             justifyContent: "center",
         },
         copiedBubble: {
-            paddingVertical: 5,
-            paddingHorizontal: 10,
+            paddingVertical: 4,
+            paddingHorizontal: 9,
             borderRadius: 999,
             backgroundColor: "#dcfce7",
         },
         copiedBubbleText: {
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: "700",
             color: "#15803d",
             letterSpacing: 0.4,
@@ -479,14 +495,14 @@ function createStyles(width: number) {
         statsRow: {
             flexDirection: "row",
             gap: 8,
-            marginTop: 16,
+            marginTop: 12,
         },
         statTile: {
             flex: 1,
             backgroundColor: subtleBg,
-            borderRadius: 12,
-            paddingVertical: 12,
-            paddingHorizontal: 12,
+            borderRadius: 11,
+            paddingVertical: 8,
+            paddingHorizontal: 10,
             borderWidth: hair,
             borderColor: hairlineColor,
         },
@@ -496,17 +512,17 @@ function createStyles(width: number) {
             justifyContent: "space-between",
         },
         statTileValue: {
-            fontSize: 20,
+            fontSize: 17,
             fontWeight: "700",
             color: dash.text,
-            letterSpacing: -0.4,
+            letterSpacing: -0.3,
         },
         statTileLabel: {
-            marginTop: 2,
-            fontSize: 11,
+            marginTop: 1,
+            fontSize: 10,
             fontWeight: "600",
             color: dash.muted,
-            letterSpacing: 0.5,
+            letterSpacing: 0.4,
             textTransform: "uppercase",
         },
         statTileBadgeOn: {
@@ -540,10 +556,10 @@ function createStyles(width: number) {
         segmentTrack: {
             flexDirection: "row",
             backgroundColor: segmentTrack,
-            borderRadius: 14,
-            padding: 4,
+            borderRadius: 12,
+            padding: 3,
             marginTop: t.sectionGap,
-            marginBottom: 18,
+            marginBottom: 12,
         },
         segmentBtn: {
             flex: 1,
@@ -551,10 +567,10 @@ function createStyles(width: number) {
             alignItems: "center",
             justifyContent: "center",
             gap: 6,
-            minHeight: 40,
-            paddingVertical: 9,
-            paddingHorizontal: 8,
-            borderRadius: 11,
+            minHeight: 36,
+            paddingVertical: 7,
+            paddingHorizontal: 6,
+            borderRadius: 10,
         },
         segmentBtnActive: {
             backgroundColor: surface,
@@ -598,21 +614,21 @@ function createStyles(width: number) {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 14,
+            marginBottom: 10,
             gap: 10,
         },
         panelTitleCol: { flex: 1, minWidth: 0 },
         panelTitle: {
-            fontSize: 20,
+            fontSize: 17,
             fontWeight: "700",
             color: dash.text,
-            letterSpacing: -0.45,
+            letterSpacing: -0.4,
         },
         panelSubtitle: {
-            marginTop: 2,
-            fontSize: 13,
+            marginTop: 1,
+            fontSize: 12,
             color: dash.muted,
-            lineHeight: 18,
+            lineHeight: 16,
         },
 
         // ------ Buttons -------------------------------------------------------
@@ -644,12 +660,12 @@ function createStyles(width: number) {
             letterSpacing: -0.1,
         },
         primaryBtnBig: {
-            paddingVertical: 14,
-            minHeight: 52,
-            paddingHorizontal: 18,
+            paddingVertical: 12,
+            minHeight: 46,
+            paddingHorizontal: 16,
         },
         primaryBtnBigText: {
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: "700",
             letterSpacing: -0.15,
             color: "#fff",
@@ -695,8 +711,8 @@ function createStyles(width: number) {
         // ------ Generic card --------------------------------------------------
         card: {
             backgroundColor: surface,
-            borderRadius: 16,
-            padding: 16,
+            borderRadius: 14,
+            padding: 14,
             marginBottom: t.cardGap,
             borderWidth: hair,
             borderColor: hairlineColor,
@@ -729,13 +745,13 @@ function createStyles(width: number) {
         sectionDayChipsRow: {
             flexDirection: "row",
             flexWrap: "wrap",
-            gap: 6,
-            marginTop: 12,
+            gap: 5,
+            marginTop: 10,
         },
         sectionDayChip: {
-            paddingVertical: 4,
-            paddingHorizontal: 10,
-            borderRadius: 8,
+            paddingVertical: 3,
+            paddingHorizontal: 9,
+            borderRadius: 7,
             backgroundColor: dash.accentMuted,
         },
         sectionDayChipText: {
@@ -747,16 +763,16 @@ function createStyles(width: number) {
         sectionTimeRow: {
             flexDirection: "row",
             alignItems: "center",
-            gap: 6,
-            marginTop: 10,
+            gap: 5,
+            marginTop: 8,
         },
         sectionTimeText: {
-            fontSize: 13,
+            fontSize: 12,
             color: dash.muted,
             fontWeight: "500",
         },
         capacityWrap: {
-            marginTop: 14,
+            marginTop: 12,
         },
         capacityLabelRow: {
             flexDirection: "row",
@@ -796,7 +812,7 @@ function createStyles(width: number) {
         avatarStackRow: {
             flexDirection: "row",
             alignItems: "center",
-            marginTop: 14,
+            marginTop: 12,
         },
         avatarStack: {
             flexDirection: "row",
@@ -843,7 +859,7 @@ function createStyles(width: number) {
         cardActionsRow: {
             flexDirection: "row",
             gap: 8,
-            marginTop: 14,
+            marginTop: 12,
             flexWrap: "wrap",
         },
         cardActionFlex: { flex: 1, minWidth: 130 },
@@ -1083,10 +1099,10 @@ function createStyles(width: number) {
         // ------ Settings ------------------------------------------------------
         settingsBlock: {
             backgroundColor: surface,
-            borderRadius: 16,
-            paddingHorizontal: 16,
-            paddingTop: 14,
-            paddingBottom: 6,
+            borderRadius: 14,
+            paddingHorizontal: 14,
+            paddingTop: 12,
+            paddingBottom: 4,
             marginBottom: t.cardGap,
             borderWidth: hair,
             borderColor: hairlineColor,
@@ -1095,18 +1111,18 @@ function createStyles(width: number) {
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
-            marginBottom: 6,
+            marginBottom: 4,
         },
         settingsBlockIcon: {
-            width: 28,
-            height: 28,
+            width: 26,
+            height: 26,
             borderRadius: 8,
             backgroundColor: dash.accentMuted,
             alignItems: "center",
             justifyContent: "center",
         },
         settingsBlockTitle: {
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: "700",
             color: dash.text,
             letterSpacing: -0.2,
@@ -1115,7 +1131,7 @@ function createStyles(width: number) {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            paddingVertical: 12,
+            paddingVertical: 10,
             gap: 12,
             borderTopWidth: hair,
             borderTopColor: dividerColor,
@@ -1123,15 +1139,15 @@ function createStyles(width: number) {
         settingsRowFirst: { borderTopWidth: 0 },
         settingsLabelCol: { flex: 1, minWidth: 0 },
         settingsLabel: {
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: "600",
             color: dash.text,
         },
         settingsDesc: {
-            marginTop: 3,
-            fontSize: 12,
+            marginTop: 2,
+            fontSize: 11,
             color: dash.muted,
-            lineHeight: 17,
+            lineHeight: 15,
         },
         switchTrack: {
             width: 48,
@@ -1164,7 +1180,7 @@ function createStyles(width: number) {
         stepperRow: {
             flexDirection: "row",
             alignItems: "center",
-            paddingVertical: 12,
+            paddingVertical: 10,
             borderTopWidth: hair,
             borderTopColor: dividerColor,
         },
@@ -1202,68 +1218,68 @@ function createStyles(width: number) {
         },
 
         dateRow: {
-            paddingVertical: 12,
+            paddingVertical: 10,
             borderTopWidth: hair,
             borderTopColor: dividerColor,
         },
         dateRowFirst: { borderTopWidth: 0 },
         dateRowLabel: {
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: "600",
             color: dash.text,
-            marginBottom: 8,
+            marginBottom: 6,
         },
         dateInputWrap: {
             flexDirection: "row",
             alignItems: "center",
             backgroundColor: inputFill,
-            borderRadius: 12,
+            borderRadius: 11,
             paddingHorizontal: 12,
         },
         dateInputIcon: { marginRight: 8 },
         dateInput: {
             flex: 1,
-            paddingVertical: Platform.OS === "ios" ? 12 : 10,
-            fontSize: 15,
+            paddingVertical: Platform.OS === "ios" ? 10 : 8,
+            fontSize: 14,
             color: dash.text,
         },
 
         // ------ Empty states --------------------------------------------------
         emptyWrap: {
-            paddingVertical: 40,
-            paddingHorizontal: 20,
+            paddingVertical: 28,
+            paddingHorizontal: 18,
             alignItems: "center",
             backgroundColor: surface,
-            borderRadius: 16,
+            borderRadius: 14,
             borderWidth: hair,
             borderColor: hairlineColor,
             borderStyle: "dashed" as const,
         },
         emptyIconWrap: {
-            width: 56,
-            height: 56,
-            borderRadius: 16,
+            width: 48,
+            height: 48,
+            borderRadius: 14,
             backgroundColor: dash.accentMuted,
             alignItems: "center",
             justifyContent: "center",
-            marginBottom: 14,
+            marginBottom: 10,
         },
         emptyTitle: {
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: "700",
             color: dash.text,
             letterSpacing: -0.2,
         },
         emptyBody: {
-            marginTop: 6,
-            fontSize: 13,
+            marginTop: 4,
+            fontSize: 12,
             color: dash.muted,
             textAlign: "center",
-            lineHeight: 19,
+            lineHeight: 17,
             maxWidth: 280,
         },
         emptyCta: {
-            marginTop: 16,
+            marginTop: 12,
         },
 
         // ------ Modal (create section) ----------------------------------------
@@ -2015,7 +2031,7 @@ export default function CourseWorkspacePage() {
             JSON.stringify(sections.map((s) => ({ id: s.id, name: s.name })))
         );
         router.push(
-            `/courses/CourseProjectCreatePage?courseId=${encodeURIComponent(
+            `/CourseProjectCreatePage?courseId=${encodeURIComponent(
                 courseId
             )}&sectionsJson=${sectionsJson}` as Href
         );
@@ -2119,16 +2135,18 @@ export default function CourseWorkspacePage() {
 
                     {/* --------- Hero card ----------------------------------- */}
                     <View style={styles.hero}>
-                        <Text style={styles.heroKicker}>Course workspace</Text>
                         <View style={styles.heroTitleRow}>
                             <View style={styles.heroAvatar}>
                                 <Text style={styles.heroAvatarText}>
                                     {initialsOf(courseHeader.name)}
                                 </Text>
                             </View>
-                            <Text style={styles.heroTitle} numberOfLines={2}>
-                                {courseHeader.name}
-                            </Text>
+                            <View style={styles.heroTitleCol}>
+                                <Text style={styles.heroKicker}>Course workspace</Text>
+                                <Text style={styles.heroTitle} numberOfLines={1}>
+                                    {courseHeader.name}
+                                </Text>
+                            </View>
                         </View>
 
                         <View style={styles.codeRow}>
