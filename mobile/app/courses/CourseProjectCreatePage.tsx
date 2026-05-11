@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+    Alert,
     View,
     Text,
     TextInput,
@@ -9,36 +10,502 @@ import {
     Platform,
     Modal,
     KeyboardAvoidingView,
+    useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useToast } from "../../../context/ToastContext";
-import { dash } from "../doctor/dashboard/doctorDashTokens";
-import type {
-    CourseProjectCreateLocationState,
-    CourseWorkspaceSectionOption,
-    NewWorkspaceProjectPayload,
-} from "./courseProjectTypes";
-import {
-    createDoctorCourseProject,
-    getDoctorCourseSections,
-} from "../../../api/doctorCoursesApi";
-import { parseApiErrorMessage } from "../../../api/axiosInstance";
+import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
+import { dash } from "../../pages/doctor/dashboard/doctorDashTokens";
+
+/** Local types (mirrors `pages/courses/courseProjectTypes.ts` — keep in sync when wiring API). */
+type CourseWorkspaceSectionOption = {
+    id: string;
+    name: string;
+};
+
+type NewWorkspaceProjectPayload = {
+    title: string;
+    abstract: string;
+    teamSize: number;
+    duration: string;
+    sectionLabel: string;
+    aiMode: "doctor" | "student";
+};
+
+type CreateDoctorCourseProjectBody = {
+    title: string;
+    description: string;
+    teamSize: number;
+    applyToAllSections: boolean;
+    allowCrossSectionTeams: boolean;
+    aiMode: "doctor" | "student";
+    sectionIds: number[];
+};
+
+/** Temporary: replace with `mobile/api` + axios when backend is wired for this screen. */
+function parseApiErrorMessage(err: unknown): string {
+    if (err instanceof Error) return err.message;
+    return String(err);
+}
+
+async function getDoctorCourseSections(
+    _courseId: number
+): Promise<{ id: number; name: string }[]> {
+    return [];
+}
+
+async function createDoctorCourseProject(
+    _courseId: number,
+    _body: CreateDoctorCourseProjectBody
+): Promise<{ id: string; aiMode: "doctor" | "student" }> {
+    throw new Error("createDoctorCourseProject is not wired in the Expo app yet.");
+}
+
+function showToast(message: string, variant: "error" | "success" | "default" = "default") {
+    if (__DEV__) {
+        console.log(`[toast:${variant}]`, message);
+    }
+    const title =
+        variant === "error" ? "Error" : variant === "success" ? "Success" : "Notice";
+    Alert.alert(title, message);
+}
 
 /** Mobile: set `true` when wiring doctor courses API over the network. */
 const ENABLE_COURSE_PROJECT_BACKEND_API = false;
 
-export default function CourseProjectCreatePage() {
-    const navigate = useNavigate();
-    const { courseId } = useParams<{ courseId: string }>();
-    const location = useLocation();
-    const { showToast } = useToast();
+function pickParam(v: string | string[] | undefined): string | undefined {
+    if (v == null) return undefined;
+    const s = Array.isArray(v) ? v[0] : v;
+    const t = s?.trim();
+    return t && t.length > 0 ? t : undefined;
+}
 
-    const [sectionOptions, setSectionOptions] = useState<CourseWorkspaceSectionOption[]>(
-        (location.state as CourseProjectCreateLocationState | null)?.sections ?? []
+function parseSectionsFromSearchParam(json: string | undefined): CourseWorkspaceSectionOption[] {
+    if (!json) return [];
+    try {
+        const parsed = JSON.parse(json) as unknown;
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .filter(
+                (item): item is { id: unknown; name: unknown } =>
+                    Boolean(item) && typeof item === "object" && item !== null && "id" in item && "name" in item
+            )
+            .map((item) => ({ id: String(item.id), name: String(item.name) }));
+    } catch {
+        return [];
+    }
+}
+
+function getLayoutTokens(screenWidth: number) {
+    const narrow = screenWidth < 360;
+    const compact = screenWidth < 400;
+    return {
+        gutter: narrow ? 14 : compact ? 16 : 20,
+        fieldGap: compact ? 14 : 16,
+        titleSize: compact ? 26 : 28,
+        titleLine: compact ? 32 : 34,
+        textareaMin: compact ? 96 : 108,
+    };
+}
+
+function compactTopPadding(screenWidth: number): number {
+    return screenWidth < 360 ? 2 : 4;
+}
+
+function createStyles(screenWidth: number) {
+    const t = getLayoutTokens(screenWidth);
+    const hair = StyleSheet.hairlineWidth;
+    const inputFill = "#f3f4f6";
+    const segmentTrack = "#e4e4e7";
+
+    return StyleSheet.create({
+        safe: {
+            flex: 1,
+            backgroundColor: dash.surface,
+        },
+        flex: { flex: 1 },
+        scroll: { flex: 1, backgroundColor: dash.surface },
+        scrollContent: {
+            paddingHorizontal: t.gutter,
+            paddingTop: compactTopPadding(screenWidth),
+            paddingBottom: 40,
+        },
+        screenBody: {
+            width: "100%",
+        },
+        pressedOpacity: { opacity: 0.65 },
+        headerArea: {
+            paddingBottom: 2,
+        },
+        backRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            alignSelf: "flex-start",
+            marginLeft: -6,
+            paddingVertical: 4,
+            paddingHorizontal: 6,
+            gap: 2,
+        },
+        backBtnText: {
+            fontSize: 16,
+            fontWeight: "500",
+            color: dash.text,
+            letterSpacing: -0.2,
+        },
+        divider: {
+            height: 1,
+            marginVertical: 14,
+            backgroundColor: "rgba(15,23,42,0.06)",
+        },
+        kicker: {
+            marginTop: 6,
+            marginBottom: 4,
+            fontSize: 11,
+            fontWeight: "600",
+            color: dash.subtle,
+            letterSpacing: 0.5,
+            textTransform: "uppercase",
+        },
+        title: {
+            fontSize: t.titleSize,
+            fontWeight: "700",
+            color: dash.text,
+            lineHeight: t.titleLine,
+            letterSpacing: -0.45,
+        },
+        subtitleMuted: {
+            marginTop: 8,
+            fontSize: 14,
+            fontWeight: "400",
+            color: dash.muted,
+            lineHeight: 20,
+        },
+        fieldBlock: {
+            marginBottom: t.fieldGap,
+        },
+        fieldBlockSectionTop: {
+            marginTop: 12,
+            marginBottom: 0,
+        },
+        labelBelowTight: {
+            marginBottom: 6,
+        },
+        labelSubField: {
+            fontSize: 13,
+            fontWeight: "600",
+            color: dash.muted,
+            letterSpacing: -0.1,
+        },
+        label: {
+            fontSize: 13,
+            fontWeight: "600",
+            color: dash.muted,
+            marginBottom: 8,
+            letterSpacing: -0.1,
+        },
+        labelTextStandalone: {
+            marginTop: 22,
+            marginBottom: 8,
+            fontSize: 15,
+            fontWeight: "600",
+            color: dash.text,
+            letterSpacing: -0.25,
+        },
+        input: {
+            minHeight: 48,
+            paddingVertical: 12,
+            paddingHorizontal: 14,
+            borderRadius: 12,
+            borderWidth: 0,
+            fontSize: 16,
+            color: dash.text,
+            backgroundColor: inputFill,
+        },
+        inputDisabled: {
+            opacity: 0.55,
+        },
+        textarea: {
+            minHeight: t.textareaMin,
+            paddingTop: 12,
+        },
+        fileRow: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 10,
+            marginTop: 4,
+        },
+        uploadBtn: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            paddingVertical: 12,
+            paddingHorizontal: 14,
+            borderRadius: 12,
+            borderWidth: 0,
+            backgroundColor: inputFill,
+        },
+        uploadBtnText: {
+            fontSize: 14,
+            fontWeight: "600",
+            color: dash.text,
+        },
+        fileHint: {
+            fontSize: 13,
+            flex: 1,
+            minWidth: 96,
+        },
+        row2: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 12,
+        },
+        rowItem: {
+            flex: 1,
+            minWidth: 108,
+        },
+        rowItemWide: {
+            flex: 1,
+            minWidth: 124,
+        },
+        block: {
+            paddingTop: 2,
+        },
+        checkRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            marginTop: 10,
+        },
+        checkRowTight: {
+            marginTop: 8,
+        },
+        checkboxOuter: {
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            borderWidth: 0,
+            backgroundColor: inputFill,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        checkboxOuterOn: {
+            backgroundColor: dash.accent,
+        },
+        checkLabel: {
+            fontSize: 15,
+            fontWeight: "500",
+            color: dash.text,
+            letterSpacing: -0.1,
+        },
+        selectLike: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+        },
+        selectLikeText: {
+            flex: 1,
+            fontSize: 16,
+            marginRight: 8,
+        },
+        aiHelp: {
+            marginTop: 6,
+            marginBottom: 10,
+            fontSize: 14,
+            color: dash.muted,
+            lineHeight: 19,
+        },
+        segmentTrack: {
+            flexDirection: "row",
+            backgroundColor: segmentTrack,
+            borderRadius: 14,
+            padding: 3,
+        },
+        segmentBtn: {
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            minHeight: 40,
+            paddingVertical: 9,
+            paddingHorizontal: 8,
+            borderRadius: 11,
+            borderWidth: 0,
+        },
+        segmentBtnActive: {
+            backgroundColor: dash.surface,
+            ...Platform.select({
+                ios: {
+                    shadowColor: "#0f172a",
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 3,
+                },
+                android: { elevation: 2 },
+                default: {},
+            }),
+        },
+        segmentBtnIdle: {
+            backgroundColor: "transparent",
+        },
+        segmentBtnTextActive: {
+            fontSize: 13,
+            fontWeight: "600",
+            color: dash.accent,
+        },
+        segmentBtnTextIdle: {
+            fontSize: 13,
+            fontWeight: "500",
+            color: dash.muted,
+        },
+        doctorAiNote: {
+            marginTop: 4,
+            fontSize: 14,
+            color: dash.muted,
+            lineHeight: 20,
+        },
+        actionsColumn: {
+            marginTop: 4,
+            paddingTop: 20,
+            gap: 10,
+            borderTopWidth: hair,
+            borderTopColor: "rgba(15,23,42,0.08)",
+        },
+        primaryBtn: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            width: "100%",
+            minHeight: 50,
+            paddingVertical: 14,
+            paddingHorizontal: 20,
+            borderRadius: 14,
+            backgroundColor: dash.accent,
+            ...Platform.select({
+                ios: {
+                    shadowColor: dash.accent,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 8,
+                },
+                android: { elevation: 4 },
+                default: {},
+            }),
+        },
+        primaryBtnDisabled: {
+            opacity: 0.55,
+        },
+        primaryBtnText: {
+            color: "#fff",
+            fontSize: 16,
+            fontWeight: "600",
+            letterSpacing: -0.2,
+        },
+        secondaryBtn: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+            minHeight: 48,
+            paddingVertical: 13,
+            paddingHorizontal: 16,
+            borderRadius: 14,
+            borderWidth: hair,
+            borderColor: "rgba(15,23,42,0.12)",
+            backgroundColor: "transparent",
+        },
+        secondaryBtnText: {
+            color: dash.text,
+            fontSize: 16,
+            fontWeight: "600",
+            letterSpacing: -0.15,
+        },
+        modalRoot: {
+            flex: 1,
+            justifyContent: "center",
+        },
+        modalBackdrop: {
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: "rgba(15,23,42,0.4)",
+        },
+        modalSheet: {
+            marginHorizontal: t.gutter,
+            maxHeight: "56%",
+            alignSelf: "stretch",
+            backgroundColor: dash.surface,
+            borderRadius: 20,
+            borderWidth: 0,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            ...Platform.select({
+                ios: {
+                    shadowColor: "#0f172a",
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.18,
+                    shadowRadius: 24,
+                },
+                android: { elevation: 12 },
+                default: {},
+            }),
+        },
+        modalTitle: {
+            fontSize: 17,
+            fontWeight: "700",
+            color: dash.text,
+            marginBottom: 10,
+            letterSpacing: -0.3,
+        },
+        modalList: {
+            maxHeight: 300,
+        },
+        modalOption: {
+            paddingVertical: 14,
+            borderBottomWidth: hair,
+            borderBottomColor: "rgba(15,23,42,0.06)",
+        },
+        modalOptionText: {
+            fontSize: 16,
+            color: dash.text,
+            fontWeight: "500",
+        },
+    });
+}
+
+export default function CourseProjectCreatePage() {
+    const { width: windowWidth } = useWindowDimensions();
+    const styles = useMemo(() => createStyles(windowWidth), [windowWidth]);
+
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useLocalSearchParams<{
+        courseId?: string | string[];
+        /** Optional JSON array of `{ id, name }` sections (URL-encoded when linking). */
+        sectionsJson?: string | string[];
+    }>();
+
+    const courseId =
+        pickParam(searchParams.courseId) ??
+        /** Expo Router: no route segment yet — safe default so the form can submit. */
+        "mock-course";
+
+    const [sectionOptions, setSectionOptions] = useState<CourseWorkspaceSectionOption[]>(() =>
+        parseSectionsFromSearchParam(pickParam(searchParams.sectionsJson))
     );
+
+    /** Stub until course / teams routes exist in Expo Router. */
+    const leaveScreen = () => {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+        const q = new URLSearchParams();
+        q.set("courseId", courseId);
+        q.set("_navNonce", String(Date.now()));
+        router.replace(`${pathname}?${q.toString()}` as Href);
+    };
 
     const [title, setTitle] = useState("");
     const [abstract, setAbstract] = useState("");
@@ -76,11 +543,7 @@ export default function CourseProjectCreatePage() {
     }, [allSections]);
 
     const backToWorkspace = () => {
-        if (!courseId) {
-            navigate("/doctor-dashboard");
-            return;
-        }
-        navigate(`/courses/${courseId}`);
+        leaveScreen();
     };
 
     const handleSubmit = async () => {
@@ -102,15 +565,13 @@ export default function CourseProjectCreatePage() {
             showToast("Team size must be between 2 and 50.", "error");
             return;
         }
-        if (!courseId) { showToast("Missing course in route.", "error"); return; }
-
         let sectionLabel = "All sections";
         if (!allSections) {
             const pick = sectionOptions.find((s) => s.id === sectionId);
             sectionLabel = pick?.name?.trim() || "Section";
         }
 
-        const payload: NewWorkspaceProjectPayload = {
+        const _payload: NewWorkspaceProjectPayload = {
             title: t,
             abstract: abstract.trim(),
             teamSize: ts,
@@ -135,13 +596,7 @@ export default function CourseProjectCreatePage() {
                     aiMode: aiMode,
                     sectionIds: selectedSectionIds,
                 });
-                if (newProject.aiMode === "doctor") {
-                    navigate(`/courses/${courseId}/projects/${newProject.id}/teams`, {
-                        state: { projectName: t, sectionName: sectionLabel },
-                    });
-                } else {
-                    navigate(`/courses/${courseId}`);
-                }
+                leaveScreen();
                 return;
             } catch (err) {
                 showToast(parseApiErrorMessage(err), "error");
@@ -153,15 +608,10 @@ export default function CourseProjectCreatePage() {
         }
 
         if (aiMode === "doctor") {
-            const tempProjectId = `temp-${Date.now()}`;
-            navigate(`/courses/${courseId}/projects/${tempProjectId}/teams`, {
-                state: { projectName: t },
-            });
+            leaveScreen();
             return;
         }
-        navigate(`/courses/${courseId}`, {
-            state: { newProject: payload, importNonce: Date.now() },
-        });
+        leaveScreen();
     };
 
     const chooseFile = async () => {
@@ -189,7 +639,7 @@ export default function CourseProjectCreatePage() {
             : sectionOptions.find((s) => s.id === sectionId)?.name ?? sectionPlaceholder;
 
     return (
-        <SafeAreaView style={styles.safe} edges={["left", "right", "bottom"]}>
+        <SafeAreaView style={styles.safe} edges={["top", "left", "right", "bottom"]}>
             <KeyboardAvoidingView
                 style={styles.flex}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -201,16 +651,16 @@ export default function CourseProjectCreatePage() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    <View style={styles.inner}>
-                        <Pressable
-                            onPress={backToWorkspace}
-                            style={({ pressed }) => [styles.backBtn, pressed && styles.pressedOpacity]}
-                        >
-                            <Ionicons name="arrow-back" size={18} color={dash.muted} />
-                            <Text style={styles.backBtnText}>Back to course</Text>
-                        </Pressable>
-
-                        <View style={styles.cardHeader}>
+                    <View style={styles.screenBody}>
+                        <View style={styles.headerArea}>
+                            <Pressable
+                                onPress={backToWorkspace}
+                                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                                style={({ pressed }) => [styles.backRow, pressed && styles.pressedOpacity]}
+                            >
+                                <Ionicons name="arrow-back" size={22} color={dash.text} />
+                                <Text style={styles.backBtnText}>Back to course</Text>
+                            </Pressable>
                             <Text style={styles.kicker}>New project</Text>
                             <Text style={styles.title}>Create project</Text>
                             <Text style={styles.subtitleMuted}>
@@ -218,7 +668,7 @@ export default function CourseProjectCreatePage() {
                             </Text>
                         </View>
 
-                        <View style={styles.formCard}>
+                        <View style={styles.divider} />
                             <View style={styles.fieldBlock}>
                                 <Text style={styles.label}>Title</Text>
                                 <TextInput
@@ -296,7 +746,7 @@ export default function CourseProjectCreatePage() {
                             <View style={styles.block}>
                                 <Text style={styles.labelTextStandalone}>Sections</Text>
                                 <Pressable
-                                    style={styles.checkRow}
+                                    style={[styles.checkRow, styles.checkRowTight]}
                                     onPress={() => {
                                         const on = !allSections;
                                         setAllSections(on);
@@ -328,8 +778,8 @@ export default function CourseProjectCreatePage() {
                                         <Text style={styles.checkLabel}>Allow cross-section teams</Text>
                                     </Pressable>
                                 ) : null}
-                                <View style={[styles.fieldBlock, { marginTop: 12, marginBottom: 0 }]}>
-                                    <Text style={[styles.labelTextStandalone, { marginBottom: 6 }]}>
+                                <View style={[styles.fieldBlock, styles.fieldBlockSectionTop]}>
+                                    <Text style={[styles.labelSubField, styles.labelBelowTight]}>
                                         Specific section
                                     </Text>
                                     <Pressable
@@ -366,7 +816,7 @@ export default function CourseProjectCreatePage() {
                                 <Text style={styles.aiHelp}>
                                     How teams are formed for this project.
                                 </Text>
-                                <View style={styles.segment}>
+                                <View style={styles.segmentTrack}>
                                     <Pressable
                                         onPress={() => setAiMode("doctor")}
                                         style={({ pressed }) => [
@@ -422,7 +872,7 @@ export default function CourseProjectCreatePage() {
                                 </Text>
                             ) : null}
 
-                            <View style={styles.actions}>
+                            <View style={styles.actionsColumn}>
                                 <Pressable
                                     onPress={backToWorkspace}
                                     style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressedOpacity]}
@@ -438,13 +888,12 @@ export default function CourseProjectCreatePage() {
                                         pressed && !submitting && styles.pressedOpacity,
                                     ]}
                                 >
-                                    <Ionicons name="people" size={17} color="#fff" />
+                                    <Ionicons name="people" size={18} color="#fff" />
                                     <Text style={styles.primaryBtnText}>
                                         {submitting ? "Creating…" : "Create project"}
                                     </Text>
                                 </Pressable>
                             </View>
-                        </View>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -491,360 +940,3 @@ export default function CourseProjectCreatePage() {
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    safe: {
-        flex: 1,
-        backgroundColor: dash.bg,
-    },
-    flex: { flex: 1 },
-    scroll: { flex: 1 },
-    scrollContent: {
-        flexGrow: 1,
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 40,
-    },
-    inner: {
-        width: "100%",
-        maxWidth: 640,
-        alignSelf: "center",
-    },
-    pressedOpacity: { opacity: 0.85 },
-    backBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        alignSelf: "flex-start",
-        gap: 8,
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: dash.border,
-        backgroundColor: dash.surface,
-    },
-    backBtnText: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: dash.muted,
-    },
-    cardHeader: {
-        backgroundColor: dash.surface,
-        borderRadius: dash.radiusLg,
-        borderWidth: 1,
-        borderColor: dash.border,
-        paddingHorizontal: 22,
-        paddingVertical: 22,
-        marginTop: 20,
-        ...Platform.select({
-            ios: {
-                shadowColor: "#0f172a",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.06,
-                shadowRadius: 16,
-            },
-            android: { elevation: 3 },
-            default: {},
-        }),
-    },
-    kicker: {
-        marginBottom: 6,
-        fontSize: 11,
-        fontWeight: "700",
-        color: dash.subtle,
-        letterSpacing: 1.2,
-        textTransform: "uppercase",
-    },
-    title: {
-        fontSize: 22,
-        fontWeight: "800",
-        color: dash.text,
-        lineHeight: 28,
-    },
-    subtitleMuted: {
-        marginTop: 10,
-        fontSize: 12,
-        color: dash.muted,
-        lineHeight: 18,
-    },
-    formCard: {
-        backgroundColor: dash.surface,
-        borderRadius: dash.radiusLg,
-        borderWidth: 1,
-        borderColor: dash.border,
-        padding: 24,
-        marginTop: 20,
-        gap: 18,
-        ...Platform.select({
-            ios: {
-                shadowColor: "#0f172a",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.06,
-                shadowRadius: 16,
-            },
-            android: { elevation: 3 },
-            default: {},
-        }),
-    },
-    fieldBlock: {
-        marginBottom: 0,
-    },
-    label: {
-        fontSize: 11,
-        fontWeight: "700",
-        color: dash.muted,
-        textTransform: "uppercase",
-        letterSpacing: 1,
-        marginBottom: 0,
-    },
-    labelTextStandalone: {
-        fontSize: 11,
-        fontWeight: "700",
-        color: dash.muted,
-        textTransform: "uppercase",
-        letterSpacing: 1,
-    },
-    input: {
-        marginTop: 6,
-        paddingVertical: 11,
-        paddingHorizontal: 12,
-        borderRadius: 10,
-        borderWidth: 1.5,
-        borderColor: dash.border,
-        fontSize: 14,
-        color: dash.text,
-        backgroundColor: "#f8fafc",
-    },
-    inputDisabled: {
-        opacity: 0.55,
-    },
-    textarea: {
-        minHeight: 100,
-        paddingTop: 11,
-    },
-    fileRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 10,
-        marginTop: 8,
-    },
-    uploadBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: dash.border,
-        backgroundColor: dash.surface,
-    },
-    uploadBtnText: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: dash.muted,
-    },
-    fileHint: {
-        fontSize: 13,
-        flex: 1,
-        minWidth: 120,
-    },
-    row2: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 16,
-    },
-    rowItem: {
-        flex: 1,
-        minWidth: 120,
-    },
-    rowItemWide: {
-        flex: 1,
-        minWidth: 140,
-    },
-    block: {
-        paddingTop: 4,
-    },
-    checkRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        marginTop: 10,
-    },
-    checkboxOuter: {
-        width: 18,
-        height: 18,
-        borderRadius: 4,
-        borderWidth: 2,
-        borderColor: dash.border,
-        backgroundColor: dash.surface,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    checkboxOuterOn: {
-        backgroundColor: dash.accent,
-        borderColor: dash.accent,
-    },
-    checkLabel: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: dash.text,
-    },
-    selectLike: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-    },
-    selectLikeText: {
-        flex: 1,
-        fontSize: 14,
-        marginRight: 8,
-    },
-    aiHelp: {
-        marginTop: 6,
-        marginBottom: 10,
-        fontSize: 12,
-        color: dash.muted,
-        lineHeight: 18,
-    },
-    segment: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 10,
-    },
-    segmentBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        flex: 1,
-        minWidth: 140,
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        borderRadius: 12,
-        borderWidth: 1.5,
-    },
-    segmentBtnActive: {
-        borderColor: dash.accent,
-        backgroundColor: dash.accentMuted,
-    },
-    segmentBtnIdle: {
-        borderColor: dash.border,
-        backgroundColor: dash.surface,
-    },
-    segmentBtnTextActive: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: dash.accent,
-    },
-    segmentBtnTextIdle: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: dash.muted,
-    },
-    doctorAiNote: {
-        fontSize: 12,
-        color: dash.muted,
-        lineHeight: 18,
-    },
-    actions: {
-        flexDirection: "row",
-        justifyContent: "flex-end",
-        flexWrap: "wrap",
-        gap: 10,
-        marginTop: 8,
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: dash.border,
-    },
-    primaryBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        paddingVertical: 11,
-        paddingHorizontal: 18,
-        borderRadius: 10,
-        backgroundColor: dash.accent,
-        ...Platform.select({
-            ios: {
-                shadowColor: "#4f46e5",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.35,
-                shadowRadius: 12,
-            },
-            android: { elevation: 4 },
-            default: {},
-        }),
-    },
-    primaryBtnDisabled: {
-        opacity: 0.55,
-    },
-    primaryBtnText: {
-        color: "#fff",
-        fontSize: 13,
-        fontWeight: "700",
-    },
-    secondaryBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 9,
-        borderWidth: 1,
-        borderColor: dash.border,
-        backgroundColor: dash.surface,
-    },
-    secondaryBtnText: {
-        color: dash.muted,
-        fontSize: 12,
-        fontWeight: "700",
-    },
-    modalRoot: {
-        flex: 1,
-        justifyContent: "center",
-    },
-    modalBackdrop: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: "rgba(15,23,42,0.45)",
-    },
-    modalSheet: {
-        marginHorizontal: 20,
-        maxHeight: "55%",
-        alignSelf: "stretch",
-        backgroundColor: dash.surface,
-        borderRadius: dash.radiusLg,
-        borderWidth: 1,
-        borderColor: dash.border,
-        padding: 16,
-        ...Platform.select({
-            ios: {
-                shadowColor: "#0f172a",
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.15,
-                shadowRadius: 24,
-            },
-            android: { elevation: 8 },
-            default: {},
-        }),
-    },
-    modalTitle: {
-        fontSize: 15,
-        fontWeight: "800",
-        color: dash.text,
-        marginBottom: 12,
-    },
-    modalList: {
-        maxHeight: 320,
-    },
-    modalOption: {
-        paddingVertical: 14,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: dash.border,
-    },
-    modalOptionText: {
-        fontSize: 15,
-        color: dash.text,
-    },
-});
