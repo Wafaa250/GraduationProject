@@ -26,7 +26,7 @@ export default function CourseProjectCreatePage() {
 
     const [title, setTitle] = useState("");
     const [abstract, setAbstract] = useState("");
-    const [teamSize, setTeamSize] = useState(2);
+    const [teamSize, setTeamSize] = useState(1);
     const [duration, setDuration] = useState("");
     const [allSections, setAllSections] = useState(true);
     const [allowCrossSectionTeams, setAllowCrossSectionTeams] = useState(false);
@@ -85,8 +85,8 @@ export default function CourseProjectCreatePage() {
             }
         }
         const ts = Number(teamSize);
-        if (!Number.isFinite(ts) || ts < 2 || ts > 50) {
-            showToast("Team size must be between 2 and 50.", "error");
+        if (!Number.isFinite(ts) || ts < 1 || ts > 50) {
+            showToast("Team size must be between 1 and 50.", "error");
             return;
         }
         if (!courseId) { showToast("Missing course in route.", "error"); return; }
@@ -255,14 +255,14 @@ export default function CourseProjectCreatePage() {
                             Team size
                             <input
                                 type="number"
-                                min={2}
+                                min={1}
                                 max={50}
                                 step={1}
                                 style={F.input}
                                 value={teamSize}
                                 onChange={(e) => {
                                     const n = Number.parseInt(e.target.value, 10);
-                                    setTeamSize(Number.isFinite(n) ? n : 2);
+                                    setTeamSize(Number.isFinite(n) ? n : 1);
                                 }}
                             />
                         </label>

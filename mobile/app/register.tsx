@@ -6,16 +6,19 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
+
+import { spacing } from "@/constants/responsiveLayout";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const API_HOST = "http://192.168.1.107:5262";
 
@@ -343,6 +346,9 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
   const [apiError, setApiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const layout = useResponsiveLayout();
+  const insets = useSafeAreaInsets();
+
   const [selectModal, setSelectModal] = useState<{
     kind: "university" | "faculty" | "major";
     options: string[];
@@ -510,21 +516,57 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
   const gpaColor = gpaVal >= 3.5 ? "#10b981" : gpaVal >= 2.5 ? "#f59e0b" : "#ef4444";
   const gpaLabel = gpaVal >= 3.5 ? "Excellent" : gpaVal >= 2.5 ? "Good" : "Needs Improvement";
 
+  const topBlob = layout.blobDiameter(1);
+  const bottomBlob = layout.blobDiameter(0.82);
+  const kavBehavior = Platform.OS === "ios" ? "padding" : undefined;
+  const modalListMax = Math.min(layout.height * 0.55, 420);
+
   return (
-    <SafeAreaView style={st.page}>
+    <SafeAreaView style={st.page} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         style={st.keyboardFlex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={kavBehavior}
+        keyboardVerticalOffset={insets.top + spacing.sm}
       >
-        <View style={st.blobTop} pointerEvents="none" />
-        <View style={st.blobBottom} pointerEvents="none" />
+        <View
+          style={[
+            st.blobTop,
+            {
+              width: topBlob,
+              height: topBlob,
+              borderRadius: topBlob / 2,
+              top: -topBlob * 0.32,
+              right: -topBlob * 0.32,
+            },
+          ]}
+          pointerEvents="none"
+        />
+        <View
+          style={[
+            st.blobBottom,
+            {
+              width: bottomBlob,
+              height: bottomBlob,
+              borderRadius: bottomBlob / 2,
+              bottom: -bottomBlob * 0.32,
+              left: -bottomBlob * 0.32,
+            },
+          ]}
+          pointerEvents="none"
+        />
 
         <ScrollView
-          contentContainerStyle={st.pageScroll}
+          contentContainerStyle={[
+            st.pageScroll,
+            {
+              paddingHorizontal: layout.horizontalPadding,
+              paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.lg),
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={st.wrap}>
+          <View style={[st.wrap, { maxWidth: layout.maxFormWidth }]}>
             <View style={st.logoRow}>
               <View style={st.logoIconBox}>
                 <Text style={st.logoGlyph}>▲</Text>
@@ -543,44 +585,52 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
               </View>
             </View>
 
-            <View style={st.stepper}>
-              {STEPS.map((s, i) => (
-                <View key={s.id} style={st.stepperSegment}>
-                  <View style={st.stepperInner}>
-                    <View
-                      style={[
-                        st.stepDot,
-                        i === step ? st.stepDotActive : i < step ? st.stepDotDone : st.stepDotIdle,
-                      ]}
-                    >
-                      {i < step ? (
-                        <Text style={st.stepCheck}>✓</Text>
-                      ) : (
-                        <Text
-                          style={[
-                            st.stepNum,
-                            i === step ? st.stepNumOnActive : st.stepNumIdle,
-                          ]}
-                        >
-                          {i + 1}
-                        </Text>
-                      )}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={st.stepperScroll}
+              style={st.stepperScrollView}
+            >
+              <View style={st.stepper}>
+                {STEPS.map((s, i) => (
+                  <View key={s.id} style={st.stepperSegment}>
+                    <View style={st.stepperInner}>
+                      <View
+                        style={[
+                          st.stepDot,
+                          i === step ? st.stepDotActive : i < step ? st.stepDotDone : st.stepDotIdle,
+                        ]}
+                      >
+                        {i < step ? (
+                          <Text style={st.stepCheck}>✓</Text>
+                        ) : (
+                          <Text
+                            style={[
+                              st.stepNum,
+                              i === step ? st.stepNumOnActive : st.stepNumIdle,
+                            ]}
+                          >
+                            {i + 1}
+                          </Text>
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          st.stepLabel,
+                          i === step ? st.stepLabelActive : i < step ? st.stepLabelDone : st.stepLabelMuted,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {s.icon} {s.label}
+                      </Text>
                     </View>
-                    <Text
-                      style={[
-                        st.stepLabel,
-                        i === step ? st.stepLabelActive : i < step ? st.stepLabelDone : st.stepLabelMuted,
-                      ]}
-                    >
-                      {s.icon} {s.label}
-                    </Text>
+                    {i < STEPS.length - 1 ? (
+                      <View style={[st.stepConnector, i < step ? st.stepConnectorDone : st.stepConnectorIdle]} />
+                    ) : null}
                   </View>
-                  {i < STEPS.length - 1 ? (
-                    <View style={[st.stepConnector, i < step ? st.stepConnectorDone : st.stepConnectorIdle]} />
-                  ) : null}
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            </ScrollView>
 
             <View style={st.card}>
               {step === 0 ? (
@@ -628,8 +678,8 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                     autoCapitalize="none"
                     error={errors.email}
                   />
-                  <View style={st.row2}>
-                    <View style={st.row2Col}>
+                  <View style={[st.row2, layout.isCompact ? st.row2Stack : st.row2Row]}>
+                    <View style={[st.row2Col, layout.isCompact && st.row2ColFull]}>
                       <FormField
                         label="Password"
                         required
@@ -645,7 +695,7 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                         }
                       />
                     </View>
-                    <View style={st.row2Col}>
+                    <View style={[st.row2Col, layout.isCompact && st.row2ColFull]}>
                       <FormField
                         label="Confirm Password"
                         required
@@ -687,8 +737,8 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                     <Text style={st.sectionTitle}>Student Information</Text>
                     <Text style={st.sectionSub}>Tell us about your university</Text>
                   </View>
-                  <View style={st.row2}>
-                    <View style={st.row2Col}>
+                  <View style={[st.row2, layout.isCompact ? st.row2Stack : st.row2Row]}>
+                    <View style={[st.row2Col, layout.isCompact && st.row2ColFull]}>
                       <FormField
                         label="Student ID"
                         required
@@ -698,7 +748,7 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                         error={errors.studentId}
                       />
                     </View>
-                    <View style={st.row2Col}>
+                    <View style={[st.row2Col, layout.isCompact && st.row2ColFull]}>
                       <SelectTrigger
                         label="University"
                         required
@@ -886,17 +936,24 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                 ) : (
                   <View style={st.navSpacer} />
                 )}
-                <View style={st.navRight}>
+                <View style={[st.navRight, layout.isCompact && st.navRightStack]}>
                   <Text style={st.stepFraction}>
                     {step + 1} / {STEPS.length}
                   </Text>
                   {step < STEPS.length - 1 ? (
-                    <Pressable style={st.btnPrimary} onPress={next}>
+                    <Pressable
+                      style={[st.btnPrimary, layout.isCompact && st.btnPrimaryWide]}
+                      onPress={next}
+                    >
                       <Text style={st.btnPrimaryText}>Continue →</Text>
                     </Pressable>
                   ) : (
                     <Pressable
-                      style={[st.btnPrimary, isLoading && st.btnPrimaryDisabled]}
+                      style={[
+                        st.btnPrimary,
+                        layout.isCompact && st.btnPrimaryWide,
+                        isLoading && st.btnPrimaryDisabled,
+                      ]}
                       onPress={submit}
                       disabled={isLoading}
                     >
@@ -920,12 +977,12 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
 
         <Modal visible={selectModal != null} transparent animationType="fade">
           <Pressable style={st.modalOverlay} onPress={() => setSelectModal(null)}>
-            <Pressable style={st.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Pressable style={[st.modalCard, { maxHeight: layout.height * 0.78 }]} onPress={(e) => e.stopPropagation()}>
               <Text style={st.modalTitle}>{selectModal?.placeholder}</Text>
               <FlatList
                 data={selectModal?.options ?? []}
                 keyExtractor={(item) => item}
-                style={st.modalList}
+                style={[st.modalList, { maxHeight: modalListMax }]}
                 renderItem={({ item }) => (
                   <Pressable
                     style={st.modalRow}
@@ -981,9 +1038,23 @@ function FormField({
         {label}
         {required ? <Text style={st.req}> *</Text> : null}
       </Text>
-      <View style={st.inputWrap}>
+      {suffix ? (
+        <View style={[st.inputShell, error ? st.inputShellErr : null]}>
+          <TextInput
+            style={st.inputInner}
+            placeholder={placeholder}
+            placeholderTextColor="#94a3b8"
+            value={value}
+            onChangeText={onChangeText}
+            secureTextEntry={secureTextEntry}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+          />
+          <View style={st.suffixInline}>{suffix}</View>
+        </View>
+      ) : (
         <TextInput
-          style={[st.input, error ? st.inputErr : null, suffix ? st.inputSuffixPad : null]}
+          style={[st.input, error ? st.inputErr : null]}
           placeholder={placeholder}
           placeholderTextColor="#94a3b8"
           value={value}
@@ -992,8 +1063,7 @@ function FormField({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
         />
-        {suffix ? <View style={st.suffixAbs}>{suffix}</View> : null}
-      </View>
+      )}
       {error ? <Text style={st.errorText}>{error}</Text> : null}
     </View>
   );
@@ -1094,6 +1164,7 @@ function Chip({
         {
           borderColor: active ? c.border : "#e2e8f0",
           backgroundColor: active ? c.bg : "#f8fafc",
+          maxWidth: "100%",
         },
       ]}
     >
@@ -1246,6 +1317,8 @@ function DoctorField({
 export default function RegisterScreen() {
   const [flowStep, setFlowStep] = useState<FlowStep>(1);
   const [selectedRole, setSelectedRole] = useState<UserRole>(null);
+  const layout = useResponsiveLayout();
+  const insets = useSafeAreaInsets();
 
   const selectedRoleData = useMemo(
     () => ROLES.find((role) => role.id === selectedRole),
@@ -1265,17 +1338,53 @@ export default function RegisterScreen() {
     setFlowStep(1);
   };
 
+  const topBlob = layout.blobDiameter(0.95);
+  const bottomBlob = layout.blobDiameter(0.78);
+  const kavBehavior = Platform.OS === "ios" ? "padding" : undefined;
+
   return (
-    <SafeAreaView style={roleStyles.safeArea}>
-      <KeyboardAvoidingView style={roleStyles.keyboardView} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <View style={roleStyles.bgBlobTop} />
-        <View style={roleStyles.bgBlobBottom} />
+    <SafeAreaView style={roleStyles.safeArea} edges={["top", "left", "right"]}>
+      <KeyboardAvoidingView
+        style={roleStyles.keyboardView}
+        behavior={kavBehavior}
+        keyboardVerticalOffset={insets.top + spacing.sm}
+      >
+        <View
+          style={[
+            roleStyles.bgBlobTop,
+            {
+              width: topBlob,
+              height: topBlob,
+              borderRadius: topBlob / 2,
+              top: -topBlob * 0.22,
+              right: -topBlob * 0.22,
+            },
+          ]}
+        />
+        <View
+          style={[
+            roleStyles.bgBlobBottom,
+            {
+              width: bottomBlob,
+              height: bottomBlob,
+              borderRadius: bottomBlob / 2,
+              bottom: -bottomBlob * 0.22,
+              left: -bottomBlob * 0.22,
+            },
+          ]}
+        />
         <ScrollView
-          contentContainerStyle={roleStyles.scrollContent}
+          contentContainerStyle={[
+            roleStyles.scrollContent,
+            {
+              paddingHorizontal: layout.horizontalPadding,
+              paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.lg),
+            },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={roleStyles.cardWrap}>
+          <View style={[roleStyles.cardWrap, { maxWidth: layout.maxFormWidth }]}>
             <View style={roleStyles.card}>
               <View style={roleStyles.topGradientBar} />
               <View style={roleStyles.cardContent}>
@@ -1310,7 +1419,7 @@ export default function RegisterScreen() {
                   <>
                     <Text style={roleStyles.title}>How will you use SkillSwap?</Text>
                     <Text style={roleStyles.subtitle}>Choose your role to get started</Text>
-                    <View style={roleStyles.rolesGrid}>
+                    <View style={[roleStyles.rolesGrid, layout.isCompact && roleStyles.rolesGridStack]}>
                       {ROLES.map((role) => {
                         const isSelected = selectedRole === role.id;
                         return (
@@ -1318,6 +1427,7 @@ export default function RegisterScreen() {
                             key={role.id}
                             style={[
                               roleStyles.roleCard,
+                              layout.isCompact && roleStyles.roleCardFull,
                               isSelected
                                 ? { backgroundColor: role.selectedBg, borderColor: role.selectedBorder }
                                 : roleStyles.roleCardIdle,
@@ -1381,29 +1491,17 @@ const st = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 28,
   },
   blobTop: {
     position: "absolute",
-    top: -150,
-    right: -150,
-    width: 500,
-    height: 500,
-    borderRadius: 500,
     backgroundColor: "rgba(99,102,241,0.08)",
   },
   blobBottom: {
     position: "absolute",
-    bottom: -150,
-    left: -150,
-    width: 400,
-    height: 400,
-    borderRadius: 400,
     backgroundColor: "rgba(168,85,247,0.06)",
   },
-  wrap: { width: "100%", maxWidth: 420, zIndex: 1, alignSelf: "stretch" },
+  wrap: { width: "100%", zIndex: 1, alignSelf: "stretch" },
   logoRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 18 },
   logoIconBox: {
     width: 32,
@@ -1432,11 +1530,19 @@ const st = StyleSheet.create({
     borderRadius: 20,
   },
   roleBadgeText: { color: "#6366f1", fontSize: 12, fontWeight: "700" },
+  stepperScrollView: { marginBottom: 18, maxWidth: "100%", flexGrow: 0 },
+  stepperScroll: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    flexGrow: 1,
+    justifyContent: "center",
+  },
   stepper: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
     flexWrap: "nowrap",
     gap: 2,
   },
@@ -1465,7 +1571,6 @@ const st = StyleSheet.create({
   stepConnectorIdle: { backgroundColor: "#e2e8f0" },
   card: {
     width: "100%",
-    maxWidth: 420,
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#e2e8f0",
@@ -1479,7 +1584,13 @@ const st = StyleSheet.create({
     elevation: 6,
   },
   sectionHeader: { marginBottom: 18 },
-  sectionTitle: { fontSize: 23, fontWeight: "800", color: "#0f172a", marginBottom: 4 },
+  sectionTitle: {
+    fontSize: 23,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginBottom: 4,
+    flexShrink: 1,
+  },
   sectionSub: { fontSize: 14, color: "#64748b" },
   picRow: {
     flexDirection: "row",
@@ -1523,7 +1634,6 @@ const st = StyleSheet.create({
   label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 5 },
   req: { color: "#ef4444" },
   gpaOpt: { color: "#94a3b8", fontWeight: "400", fontSize: 12 },
-  inputWrap: { position: "relative" },
   input: {
     width: "100%",
     paddingVertical: 10,
@@ -1534,14 +1644,37 @@ const st = StyleSheet.create({
     borderRadius: 10,
     fontSize: 14,
     color: "#1e293b",
+    minHeight: 44,
   },
-  inputSuffixPad: { paddingRight: 40 },
+  inputShell: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    minHeight: 44,
+    overflow: "hidden",
+  },
+  inputShellErr: { borderColor: "#fca5a5" },
+  inputInner: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: "#1e293b",
+  },
   inputErr: { borderColor: "#fca5a5" },
-  suffixAbs: { position: "absolute", right: 12, top: 12 },
+  suffixInline: { justifyContent: "center", alignItems: "center", paddingRight: 10 },
   eye: { fontSize: 15, color: "#94a3b8" },
   errorText: { fontSize: 12, color: "#ef4444", marginTop: 4, fontWeight: "500" },
-  row2: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
-  row2Col: { flex: 1, minWidth: 140 },
+  row2: { gap: 12, width: "100%" },
+  row2Row: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" },
+  row2Stack: { flexDirection: "column" },
+  row2Col: { flex: 1, minWidth: 0, flexGrow: 1 },
+  row2ColFull: { width: "100%", flexBasis: "100%" },
   passStrengthRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
   passBarSeg: { flex: 1, height: 4, borderRadius: 2 },
   passLabel: { fontSize: 12, fontWeight: "700", minWidth: 44 },
@@ -1557,12 +1690,21 @@ const st = StyleSheet.create({
     borderRadius: 10,
   },
   selectDisabled: { opacity: 0.5 },
-  selectText: { fontSize: 14, color: "#1e293b", flex: 1 },
+  selectText: { fontSize: 14, color: "#1e293b", flex: 1, flexShrink: 1, minWidth: 0 },
   selectPlaceholder: { color: "#94a3b8" },
   selectChevron: { fontSize: 10, color: "#64748b", marginLeft: 8 },
   academicBlock: { marginBottom: 16 },
   yearGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  yearBtn: { paddingVertical: 10, paddingHorizontal: 4, borderRadius: 10, minWidth: "18%", flexGrow: 1, maxWidth: "32%", alignItems: "center" },
+  yearBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    flexGrow: 1,
+    flexBasis: "30%",
+    minWidth: 0,
+    maxWidth: "100%",
+    alignItems: "center",
+  },
   yearBtnOn: { borderWidth: 2, borderColor: "#6366f1", backgroundColor: "#eef2ff" },
   yearBtnOff: { borderWidth: 2, borderColor: "#e2e8f0", backgroundColor: "#fff" },
   yearBtnText: { fontSize: 11, fontWeight: "700", color: "#64748b" },
@@ -1602,9 +1744,11 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1.5,
+    flexShrink: 1,
+    maxWidth: "100%",
   },
   chipCheck: { fontSize: 10, fontWeight: "900" },
-  chipLabel: { fontSize: 11 },
+  chipLabel: { fontSize: 11, flexShrink: 1 },
   apiErrBox: {
     marginTop: 16,
     paddingVertical: 12,
@@ -1619,6 +1763,8 @@ const st = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
     marginTop: 20,
     paddingTop: 16,
     borderTopWidth: 1,
@@ -1632,6 +1778,12 @@ const st = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 10,
     minWidth: 0,
+  },
+  navRightStack: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    flexBasis: "100%",
+    marginTop: 4,
   },
   stepFraction: { fontSize: 11, color: "#94a3b8", fontWeight: "600", flexShrink: 0 },
   btnBack: {
@@ -1659,6 +1811,7 @@ const st = StyleSheet.create({
     elevation: 4,
   },
   btnPrimaryDisabled: { opacity: 0.7 },
+  btnPrimaryWide: { width: "100%", flexGrow: 0, flex: 0 },
   btnPrimaryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   footerTag: { textAlign: "center", color: "#cbd5e1", fontSize: 11, marginTop: 18 },
@@ -1671,14 +1824,17 @@ const st = StyleSheet.create({
   modalCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
-    maxHeight: "70%",
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
     paddingVertical: 16,
     paddingHorizontal: 12,
+    flexShrink: 1,
   },
   modalTitle: { fontSize: 16, fontWeight: "700", color: "#0f172a", marginBottom: 12, paddingHorizontal: 8 },
-  modalList: { maxHeight: 320 },
+  modalList: { flexGrow: 0, flexShrink: 1 },
   modalRow: { paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" },
-  modalRowText: { fontSize: 14, color: "#334155" },
+  modalRowText: { fontSize: 14, color: "#334155", flexShrink: 1 },
   modalCancel: { marginTop: 12, alignItems: "center", padding: 12 },
   modalCancelText: { color: "#6366f1", fontWeight: "600", fontSize: 14 },
 });
@@ -1688,20 +1844,10 @@ const roleStyles = StyleSheet.create({
   keyboardView: { flex: 1 },
   bgBlobTop: {
     position: "absolute",
-    top: -100,
-    right: -100,
-    width: 500,
-    height: 500,
-    borderRadius: 500,
     backgroundColor: "rgba(99,102,241,0.10)",
   },
   bgBlobBottom: {
     position: "absolute",
-    bottom: -80,
-    left: -80,
-    width: 400,
-    height: 400,
-    borderRadius: 400,
     backgroundColor: "rgba(168,85,247,0.08)",
   },
   scrollContent: {
@@ -1709,12 +1855,10 @@ const roleStyles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 20,
-    paddingHorizontal: 16,
   },
-  cardWrap: { width: "100%", maxWidth: 420, alignItems: "center", alignSelf: "stretch" },
+  cardWrap: { width: "100%", alignItems: "center", alignSelf: "stretch" },
   card: {
     width: "100%",
-    maxWidth: 420,
     borderRadius: 24,
     backgroundColor: "#ffffff",
     borderWidth: 1,
@@ -1767,7 +1911,16 @@ const roleStyles = StyleSheet.create({
   stepLineIdle: { backgroundColor: "#e2e8f0" },
   title: { fontSize: 24, fontWeight: "800", color: "#0f172a", marginBottom: 4 },
   subtitle: { fontSize: 14, color: "#64748b", marginBottom: 18 },
-  rolesGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 10, marginBottom: 18 },
+  rolesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 10,
+    columnGap: 8,
+    marginBottom: 18,
+    width: "100%",
+  },
+  rolesGridStack: { flexDirection: "column" },
   roleCard: {
     width: "48.5%",
     minHeight: 132,
@@ -1777,16 +1930,18 @@ const roleStyles = StyleSheet.create({
     paddingVertical: 14,
     position: "relative",
   },
+  roleCardFull: { width: "100%" },
   roleCardIdle: { borderColor: "#e2e8f0", backgroundColor: "#ffffff" },
   roleSelectedMark: { position: "absolute", right: 10, top: 8, fontSize: 12, color: "#6366f1", fontWeight: "900" },
   roleIconCircle: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 10 },
   roleIcon: { fontSize: 18 },
-  roleTitle: { fontSize: 14, fontWeight: "700", color: "#1f2937", marginBottom: 4 },
-  roleDesc: { fontSize: 11, color: "#64748b", lineHeight: 16 },
+  roleTitle: { fontSize: 14, fontWeight: "700", color: "#1f2937", marginBottom: 4, flexShrink: 1 },
+  roleDesc: { fontSize: 11, color: "#64748b", lineHeight: 16, flexShrink: 1 },
   primaryButton: {
     width: "100%",
     borderRadius: 12,
     paddingVertical: 12,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#6d28d9",

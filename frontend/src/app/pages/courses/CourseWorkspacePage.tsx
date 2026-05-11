@@ -45,24 +45,18 @@ type WorkspaceProject = NewWorkspaceProjectPayload & { id: string };
 /** Local-only course settings (Settings tab); not persisted, no API. */
 type CourseWorkspaceSettingsForm = {
     allowCrossSectionTeams: boolean;
-    maxTeamSize: string;
-    minTeamSize: string;
     enableAiTeamAssignment: boolean;
     allowStudentsChooseTeammates: boolean;
     allowMultipleProjectsPerSection: boolean;
-    maxProjectsPerCourse: string;
     teamFormationDeadline: string;
     projectSubmissionDeadline: string;
 };
 
 const defaultCourseWorkspaceSettings: CourseWorkspaceSettingsForm = {
     allowCrossSectionTeams: false,
-    maxTeamSize: "6",
-    minTeamSize: "2",
     enableAiTeamAssignment: true,
     allowStudentsChooseTeammates: false,
     allowMultipleProjectsPerSection: false,
-    maxProjectsPerCourse: "5",
     teamFormationDeadline: "",
     projectSubmissionDeadline: "",
 };
@@ -1149,30 +1143,6 @@ export default function CourseWorkspacePage() {
                                         checked={courseSettings.allowCrossSectionTeams}
                                         onChange={(v) => setCourseSettings((s) => ({ ...s, allowCrossSectionTeams: v }))}
                                     />
-                                    <div style={SET.row}>
-                                        <label style={{ ...SET.label, flex: "1 1 140px", minWidth: 0 }}>
-                                            Min team size
-                                            <input
-                                                style={SET.input}
-                                                type="number"
-                                                min={1}
-                                                max={50}
-                                                value={courseSettings.minTeamSize}
-                                                onChange={(e) => setCourseSettings((s) => ({ ...s, minTeamSize: e.target.value }))}
-                                            />
-                                        </label>
-                                        <label style={{ ...SET.label, flex: "1 1 140px", minWidth: 0 }}>
-                                            Max team size
-                                            <input
-                                                style={SET.input}
-                                                type="number"
-                                                min={1}
-                                                max={50}
-                                                value={courseSettings.maxTeamSize}
-                                                onChange={(e) => setCourseSettings((s) => ({ ...s, maxTeamSize: e.target.value }))}
-                                            />
-                                        </label>
-                                    </div>
                                 </article>
 
                                 <article
@@ -1217,17 +1187,6 @@ export default function CourseWorkspacePage() {
                                         checked={courseSettings.allowMultipleProjectsPerSection}
                                         onChange={(v) => setCourseSettings((s) => ({ ...s, allowMultipleProjectsPerSection: v }))}
                                     />
-                                    <label style={SET.label}>
-                                        Max projects per course
-                                        <input
-                                            style={{ ...SET.input, maxWidth: 200 }}
-                                            type="number"
-                                            min={1}
-                                            max={99}
-                                            value={courseSettings.maxProjectsPerCourse}
-                                            onChange={(e) => setCourseSettings((s) => ({ ...s, maxProjectsPerCourse: e.target.value }))}
-                                        />
-                                    </label>
                                 </article>
 
                                 <article

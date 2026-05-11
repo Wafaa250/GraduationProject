@@ -4,22 +4,30 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 
+import { radius, spacing } from "@/constants/responsiveLayout";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
+  const { horizontalPadding, maxFormWidth, blobDiameter } = useResponsiveLayout();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const topBlob = blobDiameter(0.95);
+  const bottomBlob = blobDiameter(0.78);
 
   const handleSubmit = async () => {
     if (!email.trim() || !password) {
@@ -55,48 +63,83 @@ export default function LoginScreen() {
         router.replace("/doctor-dashboard");
       } else if (role === "student") {
         router.replace("/dashboard");
-      } else if (role === "company") {
-        router.replace("/company-dashboard");
+   
       } else {
         router.replace("/dashboard");
       }
-    } catch (error: any) {
-      const msg = error?.message || "Invalid email or password. Please try again.";
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "Invalid email or password. Please try again.";
       setApiError(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const kavBehavior = Platform.OS === "ios" ? "padding" : undefined;
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        behavior={kavBehavior}
+        keyboardVerticalOffset={insets.top + spacing.sm}
       >
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingHorizontal: horizontalPadding,
+              paddingTop: spacing.lg,
+              paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.lg),
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.cardOuter}>
+          <View style={[styles.cardOuter, { maxWidth: maxFormWidth }]}>
             <View style={styles.card}>
-              <View style={styles.blobTop} />
-              <View style={styles.blobBottom} />
+              <View
+                style={[
+                  styles.blobTop,
+                  {
+                    width: topBlob,
+                    height: topBlob,
+                    borderRadius: topBlob / 2,
+                    top: -topBlob * 0.28,
+                    left: -topBlob * 0.28,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.blobBottom,
+                  {
+                    width: bottomBlob,
+                    height: bottomBlob,
+                    borderRadius: bottomBlob / 2,
+                    bottom: -bottomBlob * 0.22,
+                    right: -bottomBlob * 0.22,
+                  },
+                ]}
+              />
 
               <View style={styles.content}>
                 <View style={styles.logoRow}>
                   <View style={styles.logoBox}>
                     <Text style={styles.logoIcon}>▲</Text>
                   </View>
-                  <Text style={styles.logoText}>
+                  <Text style={styles.logoText} numberOfLines={1}>
                     Skill<Text style={styles.logoTextGradient}>Swap</Text>
                   </Text>
                 </View>
 
-                <Text style={styles.title}>Welcome back 👋</Text>
+                <Text style={styles.title} numberOfLines={2}>
+                  Welcome back 👋
+                </Text>
                 <Text style={styles.subtitle}>
                   Sign in to continue building your dream team
                 </Text>
@@ -111,6 +154,7 @@ export default function LoginScreen() {
                     keyboardType="email-address"
                     style={styles.input}
                     editable={!isLoading}
+                    placeholderTextColor="#94a3b8"
                   />
                 </View>
 
@@ -122,22 +166,26 @@ export default function LoginScreen() {
                       onChangeText={setPassword}
                       placeholder="Enter your password"
                       secureTextEntry={!showPassword}
-                      style={[styles.input, styles.passwordInput]}
+                      style={styles.passwordField}
                       editable={!isLoading}
+                      placeholderTextColor="#94a3b8"
                     />
                     <Pressable
                       style={styles.toggleButton}
                       onPress={() => setShowPassword((prev) => !prev)}
                       disabled={isLoading}
+                      hitSlop={8}
                     >
-                      <Text style={styles.toggleText}>
-                        {showPassword ? "Hide" : "Show"}
-                      </Text>
+                      <Text style={styles.toggleText}>{showPassword ? "Hide" : "Show"}</Text>
                     </Pressable>
                   </View>
                 </View>
 
-                {apiError ? <Text style={styles.errorText}>❌ {apiError}</Text> : null}
+                {apiError ? (
+                  <Text style={styles.errorText} accessibilityRole="alert">
+                    ❌ {apiError}
+                  </Text>
+                ) : null}
 
                 <Pressable
                   style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
@@ -156,7 +204,9 @@ export default function LoginScreen() {
 
                 <View style={styles.dividerRow}>
                   <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>or continue with</Text>
+                  <Text style={styles.dividerText} numberOfLines={1}>
+                    or continue with
+                  </Text>
                   <View style={styles.dividerLine} />
                 </View>
 
@@ -165,7 +215,7 @@ export default function LoginScreen() {
                 </Pressable>
 
                 <Text style={styles.registerText}>
-                  Don't have an account?{" "}
+                  {"Don't have an account? "}
                   <Text style={styles.registerLink} onPress={() => router.push("/register")}>
                     Sign up for free
                   </Text>
@@ -194,21 +244,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 24,
   },
   cardOuter: {
     width: "100%",
-    maxWidth: 448,
-    alignItems: "stretch",
+    alignSelf: "center",
   },
   card: {
     width: "100%",
-    maxWidth: 448,
     backgroundColor: "#ffffff",
-    borderRadius: 24,
-    paddingHorizontal: 32,
-    paddingVertical: 48,
+    borderRadius: radius.card,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxxl,
     borderWidth: 1,
     borderColor: "#f1f5f9",
     overflow: "hidden",
@@ -220,35 +266,27 @@ const styles = StyleSheet.create({
   },
   blobTop: {
     position: "absolute",
-    top: -80,
-    left: -80,
-    width: 300,
-    height: 300,
-    borderRadius: 999,
     backgroundColor: "rgba(99, 102, 241, 0.08)",
   },
   blobBottom: {
     position: "absolute",
-    bottom: -60,
-    right: -60,
-    width: 250,
-    height: 250,
-    borderRadius: 999,
     backgroundColor: "rgba(168, 85, 247, 0.07)",
   },
   content: {
     position: "relative",
+    width: "100%",
   },
   logoRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: spacing.xxxl,
+    flexWrap: "wrap",
+    gap: spacing.sm,
   },
   logoBox: {
     width: 36,
     height: 36,
-    borderRadius: 12,
-    marginRight: 10,
+    borderRadius: radius.lg,
     backgroundColor: "#6366f1",
     alignItems: "center",
     justifyContent: "center",
@@ -265,53 +303,73 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "90deg" }],
   },
   logoText: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "800",
     color: "#0f172a",
+    flexShrink: 1,
   },
   logoTextGradient: {
     color: "#7c3aed",
   },
   title: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: "800",
     color: "#0f172a",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
+    flexShrink: 1,
   },
   subtitle: {
-    marginBottom: 32,
+    marginBottom: spacing.xl,
     fontSize: 14,
+    lineHeight: 20,
     color: "#64748b",
+    flexShrink: 1,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
+    width: "100%",
   },
   label: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     fontSize: 14,
     fontWeight: "500",
     color: "#334155",
   },
   input: {
+    width: "100%",
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
-    fontSize: 14,
+    fontSize: 16,
     color: "#0f172a",
     backgroundColor: "#f8fafc",
+    minHeight: 48,
   },
   passwordRow: {
-    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: radius.lg,
+    backgroundColor: "#f8fafc",
+    minHeight: 48,
+    paddingLeft: spacing.lg,
+    overflow: "hidden",
   },
-  passwordInput: {
-    paddingRight: 70,
+  passwordField: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 12,
+    paddingRight: spacing.sm,
+    fontSize: 16,
+    color: "#0f172a",
   },
   toggleButton: {
-    position: "absolute",
-    right: 12,
-    top: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    justifyContent: "center",
   },
   toggleText: {
     fontSize: 13,
@@ -321,20 +379,24 @@ const styles = StyleSheet.create({
   errorText: {
     marginBottom: 14,
     fontSize: 14,
+    lineHeight: 20,
     color: "#dc2626",
     backgroundColor: "#fef2f2",
     borderWidth: 1,
     borderColor: "#fecaca",
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
+    flexShrink: 1,
   },
   submitButton: {
-    marginTop: 8,
-    borderRadius: 12,
+    marginTop: spacing.sm,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 48,
+    width: "100%",
     backgroundColor: "#6d28d9",
     shadowColor: "#6366f1",
     shadowOpacity: 0.35,
@@ -348,7 +410,7 @@ const styles = StyleSheet.create({
   loadingRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
   },
   submitText: {
     color: "#ffffff",
@@ -358,12 +420,15 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 24,
-    marginBottom: 24,
-    columnGap: 16,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+    gap: spacing.lg,
+    flexWrap: "nowrap",
+    width: "100%",
   },
   dividerLine: {
     flex: 1,
+    minWidth: 0,
     height: 1,
     backgroundColor: "#e2e8f0",
   },
@@ -371,17 +436,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#94a3b8",
     fontWeight: "500",
+    flexShrink: 0,
   },
   googleButton: {
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: "#e2e8f0",
     backgroundColor: "#ffffff",
     paddingVertical: 14,
+    minHeight: 48,
     shadowColor: "#000000",
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -396,8 +463,10 @@ const styles = StyleSheet.create({
   registerText: {
     textAlign: "center",
     fontSize: 14,
+    lineHeight: 20,
     color: "#64748b",
-    marginTop: 28,
+    marginTop: spacing.xl + 4,
+    flexShrink: 1,
   },
   registerLink: {
     color: "#4f46e5",

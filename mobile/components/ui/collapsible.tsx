@@ -25,7 +25,9 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
           style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
         />
 
-        <ThemedText type="defaultSemiBold">{title}</ThemedText>
+        <ThemedText type="defaultSemiBold" style={styles.headingText}>
+          {title}
+        </ThemedText>
       </TouchableOpacity>
       {isOpen && <ThemedView style={styles.content}>{children}</ThemedView>}
     </ThemedView>
@@ -37,9 +39,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexWrap: 'nowrap',
+    minWidth: 0,
+  },
+  headingText: {
+    flex: 1,
+    flexShrink: 1,
   },
   content: {
     marginTop: 6,
     marginLeft: 24,
+    marginRight: 8,
+    flexShrink: 1,
   },
 });
