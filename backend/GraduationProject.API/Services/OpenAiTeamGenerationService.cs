@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
@@ -10,6 +12,18 @@ namespace GraduationProject.API.Services
 {
     public class OpenAiTeamGenerationService : ITeamGenerationService
     {
+        /// <summary>Bound long project titles for the scoring prompt only (full title still returned from <see cref="GenerateTeamsAsync"/>).</summary>
+        private const int MaxProjectTitleChars = 220;
+
+        /// <summary>Enough context for relevance without multi-page prompts.</summary>
+        private const int MaxProjectDescriptionChars = 900;
+
+        private const int MaxBioChars = 320;
+        private const int MaxMajorChars = 100;
+
+        /// <summary>Aligns with other AI prompts in the codebase; duplicates removed case-insensitively.</summary>
+        private const int MaxSkillsPerStudentForAi = 12;
+
         private readonly HttpClient _http;
         private readonly IConfiguration _config;
         private readonly ILogger<OpenAiTeamGenerationService> _logger;
@@ -83,36 +97,34 @@ namespace GraduationProject.API.Services
 
             try
             {
-                var payload = new
-                {
+                _logger.LogDebug(
+                    "OpenAI team scoring payload build: courseId={CourseId}, projectId={ProjectId}, studentCount={Count}",
                     courseId,
                     projectId,
+                    students.Count);
+
+                var payload = new
+                {
                     project = new
                     {
-                        title       = projectTitle,
-                        description = projectDescription ?? "",
+                        title = TruncateForPrompt(projectTitle, MaxProjectTitleChars),
+                        description = TruncateForPrompt(projectDescription ?? string.Empty, MaxProjectDescriptionChars),
                     },
                     students = students.Select(s => new
                     {
                         studentId = s.StudentProfileId,
-                        name      = s.Name,
-                        skills    = s.Skills,
-                        major     = s.Major ?? "",
-                        bio       = s.Bio   ?? "",
+                        skills = CapSkillsForAi(s.Skills, MaxSkillsPerStudentForAi),
+                        major = TruncateForPrompt(s.Major, MaxMajorChars),
+                        bio = TruncateForPrompt(s.Bio, MaxBioChars),
                     }).ToList(),
                 };
 
+                // Single instruction block + raw JSON body avoids repeating the schema in user text.
                 var systemMsg =
-                    "You are an AI that scores students for team formation on a course project. " +
-                    "Score each student 0-100 based on how well their skills, major, and bio " +
-                    "complement the project needs. Diverse skill sets within a team are preferred. " +
-                    "Return ONLY valid JSON: {\"scores\":[{\"studentId\":number,\"score\":number}]}. " +
-                    "No markdown, no extra text.";
+                    "Score EVERY student below 0-100 for fit with the course project (skills + major + bio vs project goals; complementary teams). " +
+                    "Reply ONLY compact JSON {\"scores\":[{\"studentId\":NUMBER,\"score\":NUMBER},...]} with one entry per studentId. No markdown.";
 
-                var userMsg =
-                    "Score each student for the following project. " +
-                    "Return ONLY: {\"scores\":[{\"studentId\":number,\"score\":number}]}.\n\n" +
-                    JsonSerializer.Serialize(payload);
+                var userMsg = JsonSerializer.Serialize(payload);
 
                 var body = new
                 {
@@ -154,6 +166,45 @@ namespace GraduationProject.API.Services
                 _logger.LogError(ex, "OpenAI team scoring threw an exception");
                 return FallbackScores(students);
             }
+        }
+
+        // ── Prompt compaction helpers (only the HTTP payload changes; StudentForTeam records unchanged)
+
+        private static string TruncateForPrompt(string? value, int maxChars)
+        {
+            if (string.IsNullOrWhiteSpace(value) || maxChars <= 0)
+                return string.Empty;
+
+            var t = value.Trim().Replace('\r', ' ').Replace('\n', ' ');
+            while (t.Contains("  ", StringComparison.Ordinal))
+                t = t.Replace("  ", " ", StringComparison.Ordinal);
+
+            if (t.Length <= maxChars)
+                return t;
+
+            return t.Substring(0, maxChars).TrimEnd();
+        }
+
+        private static List<string> CapSkillsForAi(IReadOnlyList<string>? skills, int max)
+        {
+            if (skills == null || skills.Count == 0 || max <= 0)
+                return new List<string>();
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var list = new List<string>(Math.Min(max, skills.Count));
+            foreach (var raw in skills)
+            {
+                if (string.IsNullOrWhiteSpace(raw))
+                    continue;
+                var t = raw.Trim();
+                if (t.Length == 0 || !seen.Add(t))
+                    continue;
+                list.Add(t);
+                if (list.Count >= max)
+                    break;
+            }
+
+            return list;
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────────────
