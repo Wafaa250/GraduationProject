@@ -7,7 +7,7 @@ import { getItem } from '@/utils/authStorage'
  * so every request gets the Bearer token from secure storage (native) or localStorage (web).
  */
 const api = axios.create({
-baseURL: 'http://192.168.1.107:5262/api',
+  baseURL: 'http://192.168.1.107:5262/api',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -25,7 +25,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 })
 
 /** Human-readable message from failed API calls (for UI + console) */
-export function parseApiErrorMessage(err: any): string {
+export function parseApiErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as { message?: string } | undefined
 
@@ -50,24 +50,40 @@ export function parseApiErrorMessage(err: any): string {
 
   return 'An unexpected error occurred.'
 }
+
 /** Origin hosting the API (e.g. static files under /project-files). */
 export function getApiPublicOrigin(): string {
   const base = api.defaults.baseURL
-  if (!base) return typeof window !== "undefined" ? window.location.origin : ""
+
+  if (!base) {
+    return typeof window !== 'undefined' ? window.location.origin : ''
+  }
+
   try {
-    const u = new URL(base, typeof window !== "undefined" ? window.location.href : "http://localhost")
+    const u = new URL(
+      base,
+      typeof window !== 'undefined'
+        ? window.location.href
+        : 'http://localhost'
+    )
+
     return u.origin
   } catch {
-    return base.replace(/\/api\/?$/i, "")
+    return base.replace(/\/api\/?$/i, '')
   }
 }
 
 /** Absolute URL for a path returned by the API (e.g. `/project-files/...`). */
-export function resolveApiFileUrl(fileUrl: string | null | undefined): string | null {
+export function resolveApiFileUrl(
+  fileUrl: string | null | undefined
+): string | null {
   if (!fileUrl) return null
+
   if (/^https?:\/\//i.test(fileUrl)) return fileUrl
+
   const origin = getApiPublicOrigin()
-  const path = fileUrl.startsWith("/") ? fileUrl : `/${fileUrl}`
+  const path = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`
+
   return `${origin}${path}`
 }
 
