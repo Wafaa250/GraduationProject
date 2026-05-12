@@ -488,7 +488,8 @@ export default function CourseProjectCreatePage() {
 
     const [title, setTitle] = useState("");
     const [abstract, setAbstract] = useState("");
-    const [teamSize, setTeamSize] = useState(2);
+    /** Raw digits while editing; validated on submit (avoids forcing a value on every keystroke). */
+    const [teamSizeInput, setTeamSizeInput] = useState("1");
     const [duration, setDuration] = useState("");
     const [allSections, setAllSections] = useState(true);
     const [allowCrossSectionTeams, setAllowCrossSectionTeams] = useState(false);
@@ -543,9 +544,9 @@ export default function CourseProjectCreatePage() {
                 return;
             }
         }
-        const ts = Number(teamSize);
-        if (!Number.isFinite(ts) || ts < 2 || ts > 50) {
-            showToast("Team size must be between 2 and 50.", "error");
+        const ts = Number.parseInt(teamSizeInput.trim(), 10);
+        if (!teamSizeInput.trim() || !Number.isFinite(ts) || ts < 1 || ts > 50) {
+            showToast("Team size must be between 1 and 50.", "error");
             return;
         }
 
@@ -686,10 +687,9 @@ export default function CourseProjectCreatePage() {
                                     <TextInput
                                         style={styles.input}
                                         keyboardType="number-pad"
-                                        value={String(teamSize)}
+                                        value={teamSizeInput}
                                         onChangeText={(v) => {
-                                            const n = Number.parseInt(v.replace(/[^\d]/g, ""), 10);
-                                            setTeamSize(Number.isFinite(n) ? n : 2);
+                                            setTeamSizeInput(v.replace(/[^\d]/g, ""));
                                         }}
                                     />
                                 </View>

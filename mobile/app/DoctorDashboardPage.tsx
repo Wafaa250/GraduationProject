@@ -430,6 +430,93 @@ function createStyles(width: number) {
         menuItemActive: { backgroundColor: dash.accentMuted },
         menuItemText: { fontSize: 14, fontWeight: "600", color: dash.muted },
         menuItemTextActive: { color: dash.accent, fontWeight: "700" },
+        menuDivider: {
+            height: hair,
+            backgroundColor: "rgba(15,23,42,0.10)",
+            marginVertical: 6,
+            marginHorizontal: 4,
+        },
+        menuSignOutText: { color: dash.danger, fontWeight: "700" },
+
+        confirmRoot: {
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 24,
+        },
+        confirmBackdrop: {
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: "rgba(15,23,42,0.45)",
+        },
+        confirmCard: {
+            width: "100%",
+            maxWidth: 360,
+            backgroundColor: dash.surface,
+            borderRadius: 18,
+            paddingHorizontal: 20,
+            paddingTop: 18,
+            paddingBottom: 16,
+            borderWidth: hair,
+            borderColor: "rgba(15,23,42,0.10)",
+            ...Platform.select({
+                ios: {
+                    shadowColor: "#0f172a",
+                    shadowOpacity: 0.18,
+                    shadowRadius: 24,
+                    shadowOffset: { width: 0, height: 12 },
+                },
+                android: { elevation: 6 },
+                default: {},
+            }),
+        },
+        confirmIconWrap: {
+            alignSelf: "flex-start",
+            width: 38,
+            height: 38,
+            borderRadius: 11,
+            backgroundColor: "#fef2f2",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 10,
+        },
+        confirmTitle: {
+            fontSize: 17,
+            fontWeight: "800",
+            color: dash.text,
+            marginBottom: 4,
+        },
+        confirmBody: {
+            fontSize: 13,
+            lineHeight: 19,
+            color: dash.muted,
+            marginBottom: 14,
+        },
+        confirmActions: {
+            flexDirection: "row",
+            gap: 8,
+            justifyContent: "flex-end",
+        },
+        confirmCancel: {
+            minHeight: 40,
+            paddingHorizontal: 14,
+            borderRadius: 11,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#f1f5f9",
+        },
+        confirmCancelText: { color: dash.text, fontSize: 13, fontWeight: "700" },
+        confirmDanger: {
+            minHeight: 40,
+            paddingHorizontal: 14,
+            borderRadius: 11,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            backgroundColor: dash.danger,
+        },
+        confirmDangerText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+        confirmDangerDisabled: { opacity: 0.75 },
     });
 }
 
@@ -477,6 +564,9 @@ export default function DoctorDashboardPage() {
     const [coursesError, setCoursesError] = useState<string | null>(null);
 
     const [notificationsCount, setNotificationsCount] = useState(0);
+
+    const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
+    const [signingOut, setSigningOut] = useState(false);
 
     const loadOverview = async () => {
         setOverviewLoading(true);
@@ -714,24 +804,27 @@ export default function DoctorDashboardPage() {
         );
     };
 
-    const onLogout = () => {
-        Alert.alert("Sign out", "You will need to sign in again to access your workspace.", [
-            { text: "Cancel", style: "cancel" },
-            {
-                text: "Sign out",
-                style: "destructive",
-                onPress: () => {
-                    void (async () => {
-                        try {
-                            await clearSession();
-                        } catch {
-                            /* ignore */
-                        }
-                        router.replace("/login" as Href);
-                    })();
-                },
-            },
-        ]);
+    const requestLogout = () => {
+        if (signingOut) return;
+        setMenuOpen(false);
+        setConfirmLogoutOpen(true);
+    };
+
+    const cancelLogout = () => {
+        if (signingOut) return;
+        setConfirmLogoutOpen(false);
+    };
+
+    const performLogout = async () => {
+        if (signingOut) return;
+        setSigningOut(true);
+        try {
+            await clearSession();
+        } catch {
+            // We still want to send the user to /login even if SecureStore
+            // failed to delete a key ù the next API call will 401 anyway.
+        }
+        router.replace("/login" as Href);
     };
 
     if (pageLoading) {
@@ -807,15 +900,28 @@ export default function DoctorDashboardPage() {
                             ) : null}
                         </Pressable>
                         <Pressable
-                            onPress={() => setMenuOpen(true)}
-                            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressedOpacity]}
-                            accessibilityLabel="Menu and settings"
+                            onPress={requestLogout}
+                            disabled={signingOut}
+                            style={({ pressed }) => [
+                                styles.iconBtn,
+                                pressed && styles.pressedOpacity,
+                                signingOut && styles.pressedOpacity,
+                            ]}
+                            accessibilityLabel="Sign out"
+                            accessibilityRole="button"
                         >
-                            <Ionicons name="settings-outline" size={18} color={dash.text} />
+                            <Ionicons name="log-out-outline" size={18} color={dash.danger} />
                         </Pressable>
                         <Pressable
-                            onPress={onLogout}
-                            style={({ pressed }) => [styles.avatarPill, pressed && styles.pressedOpacity]}
+                            onPress={requestLogout}
+                            disabled={signingOut}
+                            style={({ pressed }) => [
+                                styles.avatarPill,
+                                pressed && styles.pressedOpacity,
+                                signingOut && styles.pressedOpacity,
+                            ]}
+                            accessibilityLabel="Sign out"
+                            accessibilityRole="button"
                         >
                             <Text style={styles.avatarPillText}>{initials}</Text>
                         </Pressable>
@@ -826,9 +932,9 @@ export default function DoctorDashboardPage() {
                     <Text style={styles.heroKicker}>Doctor Workspace</Text>
                     <Text style={styles.heroTitle}>{me.name}</Text>
                     <Text style={styles.heroSubtitle}>
-                        {me.specialization ? `${me.specialization} ÔøΩ ` : ""}
+                        {me.specialization ? `${me.specialization} ù ` : ""}
                         {summary?.university ?? me.email}
-                        {me.specialization ? `${me.specialization} ¬∑ ` : ""}
+                        {me.specialization ? `${me.specialization} ù ` : ""}
                         {me.university ?? summary?.university ?? me.email}
                     </Text>
                 </View>
@@ -921,7 +1027,7 @@ export default function DoctorDashboardPage() {
                                                 </View>
                                                 <Text style={styles.rowMeta}>
                                                     {s.major}
-                                                    {s.university ? ` ÔøΩ ${s.university}` : ""}
+                                                    {s.university ? ` ù ${s.university}` : ""}
                                                 </Text>
                                                 <Text style={styles.rowMeta} numberOfLines={2}>
                                                     Skills: {s.skills.join(", ") || "-"}
@@ -1040,7 +1146,7 @@ export default function DoctorDashboardPage() {
                                                     Description: {desc || "-"}
                                                 </Text>
                                                 <Text style={styles.rowMeta}>
-                                                    Members: {p.memberCount} ÔøΩ Capacity: {p.partnersCount}
+                                                    Members: {p.memberCount} ù Capacity: {p.partnersCount}
                                                 </Text>
                                                 <Text style={styles.rowMeta}>
                                                     Owner: {p.owner?.name ?? "-"}
@@ -1219,6 +1325,80 @@ export default function DoctorDashboardPage() {
                                     </Pressable>
                                 );
                             })}
+
+                            <View style={styles.menuDivider} />
+
+                            <Pressable
+                                onPress={requestLogout}
+                                disabled={signingOut}
+                                style={({ pressed }) => [
+                                    styles.menuItem,
+                                    pressed && styles.pressedOpacity,
+                                    signingOut && styles.pressedOpacity,
+                                ]}
+                                accessibilityRole="button"
+                            >
+                                <Ionicons name="log-out-outline" size={18} color={dash.danger} />
+                                <Text style={[styles.menuItemText, styles.menuSignOutText]}>
+                                    Sign out
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={confirmLogoutOpen}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                onRequestClose={cancelLogout}
+            >
+                <View style={styles.confirmRoot}>
+                    <Pressable
+                        style={styles.confirmBackdrop}
+                        onPress={cancelLogout}
+                        disabled={signingOut}
+                    />
+                    <View style={styles.confirmCard}>
+                        <View style={styles.confirmIconWrap}>
+                            <Ionicons name="log-out-outline" size={22} color={dash.danger} />
+                        </View>
+                        <Text style={styles.confirmTitle}>Sign out</Text>
+                        <Text style={styles.confirmBody}>
+                            You will need to sign in again to access your workspace.
+                        </Text>
+                        <View style={styles.confirmActions}>
+                            <Pressable
+                                onPress={cancelLogout}
+                                disabled={signingOut}
+                                style={({ pressed }) => [
+                                    styles.confirmCancel,
+                                    pressed && styles.pressedOpacity,
+                                    signingOut && styles.pressedOpacity,
+                                ]}
+                            >
+                                <Text style={styles.confirmCancelText}>Cancel</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => void performLogout()}
+                                disabled={signingOut}
+                                style={({ pressed }) => [
+                                    styles.confirmDanger,
+                                    pressed && styles.pressedOpacity,
+                                    signingOut && styles.confirmDangerDisabled,
+                                ]}
+                            >
+                                {signingOut ? (
+                                    <ActivityIndicator color="#fff" size="small" />
+                                ) : (
+                                    <Ionicons name="log-out-outline" size={15} color="#fff" />
+                                )}
+                                <Text style={styles.confirmDangerText}>
+                                    {signingOut ? "Signing out..." : "Sign out"}
+                                </Text>
+                            </Pressable>
                         </View>
                     </View>
                 </View>
