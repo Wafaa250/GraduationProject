@@ -1180,25 +1180,6 @@ export default function CourseWorkspacePage() {
                                         gap: 18,
                                     }}
                                 >
-                                    <h3 style={SET.sectionTitle}>Project rules</h3>
-                                    <SettingsToggleRow
-                                        label="Allow multiple projects per section"
-                                        description="Sections can run more than one active project at a time."
-                                        checked={courseSettings.allowMultipleProjectsPerSection}
-                                        onChange={(v) => setCourseSettings((s) => ({ ...s, allowMultipleProjectsPerSection: v }))}
-                                    />
-                                </article>
-
-                                <article
-                                    style={{
-                                        ...card,
-                                        padding: 20,
-                                        boxShadow: dash.shadow,
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 18,
-                                    }}
-                                >
                                     <h3 style={SET.sectionTitle}>Timeline</h3>
                                     <div style={SET.row}>
                                         <label style={{ ...SET.label, flex: "1 1 200px", minWidth: 0 }}>

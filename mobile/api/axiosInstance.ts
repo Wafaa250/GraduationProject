@@ -1,13 +1,14 @@
 import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 
 import { getItem } from '@/utils/authStorage'
+import { getApiBaseUrl } from '@/utils/apiBaseUrl'
 
 /**
  * Single axios client for the app. All API modules should import `api` from here
- * so every request gets the Bearer token from secure storage (native) or localStorage (web).
+ * so every request gets the Bearer token from SecureStore (native) or sessionStorage (web).
  */
 const api = axios.create({
-  baseURL: 'http://192.168.1.107:5262/api',
+  baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -46,7 +47,12 @@ export function parseApiErrorMessage(err: unknown): string {
     return err.message || 'Request failed.'
   }
 
-  if (err instanceof Error) return err.message
+  if (err instanceof Error) {
+    if (/failed to fetch|network error|load failed/i.test(err.message)) {
+      return 'Cannot reach the server. Check that the API is running and the URL is correct.'
+    }
+    return err.message
+  }
 
   return 'An unexpected error occurred.'
 }

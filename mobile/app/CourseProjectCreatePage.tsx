@@ -15,7 +15,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams, usePathname, useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
+
+import { parseApiErrorMessage } from "@/api/axiosInstance";
+import {
+    createDoctorCourseProject,
+    getDoctorCourseSections,
+} from "@/api/doctorCoursesApi";
 
 /** Mobile-local theme tokens (replaces the web-only `doctorDashTokens` module). */
 const dash = {
@@ -36,44 +42,6 @@ type CourseWorkspaceSectionOption = {
     name: string;
 };
 
-type NewWorkspaceProjectPayload = {
-    title: string;
-    abstract: string;
-    teamSize: number;
-    duration: string;
-    sectionLabel: string;
-    aiMode: "doctor" | "student";
-};
-
-type CreateDoctorCourseProjectBody = {
-    title: string;
-    description: string;
-    teamSize: number;
-    applyToAllSections: boolean;
-    allowCrossSectionTeams: boolean;
-    aiMode: "doctor" | "student";
-    sectionIds: number[];
-};
-
-/** Temporary: replace with `mobile/api` + axios when backend is wired for this screen. */
-function parseApiErrorMessage(err: unknown): string {
-    if (err instanceof Error) return err.message;
-    return String(err);
-}
-
-async function getDoctorCourseSections(
-    _courseId: number
-): Promise<{ id: number; name: string }[]> {
-    return [];
-}
-
-async function createDoctorCourseProject(
-    _courseId: number,
-    _body: CreateDoctorCourseProjectBody
-): Promise<{ id: string; aiMode: "doctor" | "student" }> {
-    throw new Error("createDoctorCourseProject is not wired in the Expo app yet.");
-}
-
 function showToast(message: string, variant: "error" | "success" | "default" = "default") {
     if (__DEV__) {
         console.log(`[toast:${variant}]`, message);
@@ -82,9 +50,6 @@ function showToast(message: string, variant: "error" | "success" | "default" = "
         variant === "error" ? "Error" : variant === "success" ? "Success" : "Notice";
     Alert.alert(title, message);
 }
-
-/** Mobile: set `true` when wiring doctor courses API over the network. */
-const ENABLE_COURSE_PROJECT_BACKEND_API = false;
 
 function pickParam(v: string | string[] | undefined): string | undefined {
     if (v == null) return undefined;
@@ -491,32 +456,34 @@ export default function CourseProjectCreatePage() {
     const styles = useMemo(() => createStyles(windowWidth), [windowWidth]);
 
     const router = useRouter();
-    const pathname = usePathname();
     const searchParams = useLocalSearchParams<{
         courseId?: string | string[];
         /** Optional JSON array of `{ id, name }` sections (URL-encoded when linking). */
         sectionsJson?: string | string[];
     }>();
 
-    const courseId =
-        pickParam(searchParams.courseId) ??
-        /** Expo Router: no route segment yet — safe default so the form can submit. */
-        "mock-course";
+    const courseId = pickParam(searchParams.courseId) ?? "";
 
     const [sectionOptions, setSectionOptions] = useState<CourseWorkspaceSectionOption[]>(() =>
         parseSectionsFromSearchParam(pickParam(searchParams.sectionsJson))
     );
 
-    /** Stub until course / teams routes exist in Expo Router. */
+    /** Returns to the previous screen (typically CourseWorkspacePage). The workspace
+     *  re-runs `loadWorkspace` via `useFocusEffect`, so the new project is fetched. */
     const leaveScreen = () => {
         if (router.canGoBack()) {
             router.back();
             return;
         }
-        const q = new URLSearchParams();
-        q.set("courseId", courseId);
-        q.set("_navNonce", String(Date.now()));
-        router.replace(`${pathname}?${q.toString()}` as Href);
+        if (backendCourseId != null) {
+            router.replace(
+                `/CourseWorkspacePage?courseId=${encodeURIComponent(
+                    String(backendCourseId),
+                )}` as Href,
+            );
+            return;
+        }
+        router.replace("/" as Href);
     };
 
     const [title, setTitle] = useState("");
@@ -534,18 +501,22 @@ export default function CourseProjectCreatePage() {
     const backendCourseId = courseId && /^\d+$/.test(courseId) ? Number(courseId) : null;
     useEffect(() => {
         if (backendCourseId == null) return;
-        if (!ENABLE_COURSE_PROJECT_BACKEND_API) return;
         let cancelled = false;
-        getDoctorCourseSections(backendCourseId).then((secs) => {
-            if (cancelled) return;
-            const apiOpts: CourseWorkspaceSectionOption[] = secs.map((s) => ({
-                id: String(s.id),
-                name: s.name,
-            }));
-            if (apiOpts.length > 0) setSectionOptions(apiOpts);
-        }).catch(() => {/* ignore */ });
-        return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        getDoctorCourseSections(backendCourseId)
+            .then((secs) => {
+                if (cancelled) return;
+                const apiOpts: CourseWorkspaceSectionOption[] = secs.map((s) => ({
+                    id: String(s.id),
+                    name: s.name,
+                }));
+                if (apiOpts.length > 0) setSectionOptions(apiOpts);
+            })
+            .catch(() => {
+                /* non-fatal: keep sectionsJson from navigation */
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [backendCourseId]);
 
     useEffect(() => {
@@ -577,53 +548,33 @@ export default function CourseProjectCreatePage() {
             showToast("Team size must be between 2 and 50.", "error");
             return;
         }
-        let sectionLabel = "All sections";
-        if (!allSections) {
-            const pick = sectionOptions.find((s) => s.id === sectionId);
-            sectionLabel = pick?.name?.trim() || "Section";
-        }
 
-        const _payload: NewWorkspaceProjectPayload = {
-            title: t,
-            abstract: abstract.trim(),
-            teamSize: ts,
-            duration: duration.trim(),
-            sectionLabel,
-            aiMode,
-        };
-
-        if (backendCourseId != null && ENABLE_COURSE_PROJECT_BACKEND_API) {
-            setSubmitting(true);
-            try {
-                const selectedSectionIds = allSections
-                    ? []
-                    : [Number(sectionId)].filter((n) => Number.isFinite(n) && n > 0);
-
-                const newProject = await createDoctorCourseProject(backendCourseId, {
-                    title: t,
-                    description: abstract.trim(),
-                    teamSize: ts,
-                    applyToAllSections: allSections,
-                    allowCrossSectionTeams: allSections ? allowCrossSectionTeams : false,
-                    aiMode: aiMode,
-                    sectionIds: selectedSectionIds,
-                });
-                leaveScreen();
-                return;
-            } catch (err) {
-                showToast(parseApiErrorMessage(err), "error");
-                setSubmitting(false);
-                return;
-            } finally {
-                setSubmitting(false);
-            }
-        }
-
-        if (aiMode === "doctor") {
-            leaveScreen();
+        if (backendCourseId == null) {
+            showToast("Missing or invalid course id. Open this screen from a course workspace.", "error");
             return;
         }
-        leaveScreen();
+
+        setSubmitting(true);
+        try {
+            const selectedSectionIds = allSections
+                ? []
+                : [Number(sectionId)].filter((n) => Number.isFinite(n) && n > 0);
+
+            await createDoctorCourseProject(backendCourseId, {
+                title: t,
+                description: abstract.trim(),
+                teamSize: ts,
+                applyToAllSections: allSections,
+                allowCrossSectionTeams: allSections ? allowCrossSectionTeams : false,
+                aiMode: aiMode,
+                sectionIds: selectedSectionIds,
+            });
+            leaveScreen();
+        } catch (err) {
+            showToast(parseApiErrorMessage(err), "error");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const chooseFile = async () => {
@@ -676,7 +627,7 @@ export default function CourseProjectCreatePage() {
                             <Text style={styles.kicker}>New project</Text>
                             <Text style={styles.title}>Create project</Text>
                             <Text style={styles.subtitleMuted}>
-                                Local draft only — nothing is sent to the server yet.
+                                Creates a real course project on the server for this course.
                             </Text>
                         </View>
 

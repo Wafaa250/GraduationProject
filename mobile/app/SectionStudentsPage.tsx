@@ -17,6 +17,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
+import { parseApiErrorMessage } from "@/api/axiosInstance";
+import {
+    addStudentsToDoctorSection,
+    getDoctorSectionStudents,
+    type DoctorCourseStudent,
+} from "@/api/doctorCoursesApi";
+
 /** Mobile-local theme tokens (aligned with CourseWorkspacePage / CourseProjectCreatePage). */
 const dash = {
     bg: "#f1f5f9",
@@ -30,21 +37,7 @@ const dash = {
     danger: "#b91c1c",
 } as const;
 
-/** Set `true` when the mobile axios client is configured for your API (see `mobile/api/axiosInstance.ts`). */
-const ENABLE_SECTION_STUDENTS_BACKEND_API = false;
-
 type AddStudentsTab = "manual" | "upload";
-
-type DoctorCourseStudent = {
-    studentId: number;
-    userId: number;
-    name: string;
-    university: string;
-    major: string;
-    universityId: string;
-    sectionId: number | null;
-    sectionNumber: number | null;
-};
 
 function pickParam(v: string | string[] | undefined): string | undefined {
     if (v == null) return undefined;
@@ -60,22 +53,6 @@ function showToast(message: string, variant: "error" | "success" | "default" = "
     Alert.alert(title, message);
 }
 
-function parseApiErrorMessage(err: unknown): string {
-    if (err instanceof Error) return err.message;
-    return "An unexpected error occurred.";
-}
-
-async function fetchDoctorSectionStudents(_sectionId: number): Promise<DoctorCourseStudent[]> {
-    throw new Error("Doctor courses API is not wired in the Expo app yet.");
-}
-
-async function addStudentsToDoctorSectionApi(
-    _sectionId: number,
-    _studentIds: string[],
-): Promise<void> {
-    throw new Error("Doctor courses API is not wired in the Expo app yet.");
-}
-
 function parseIds(raw: string): string[] {
     return raw
         .split(/[\n,]+/)
@@ -88,26 +65,6 @@ function initialsOf(name: string): string {
     if (p.length === 0) return "?";
     if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
     return `${p[0][0] ?? ""}${p[p.length - 1][0] ?? ""}`.toUpperCase();
-}
-
-/** Local-only merge when API flag is off (same UX as web for demos). */
-function mockAppendStudents(
-    prev: DoctorCourseStudent[],
-    ids: string[],
-    sectionId: number,
-): DoctorCourseStudent[] {
-    const base = Date.now();
-    const next = ids.map((universityId, i) => ({
-        studentId: base + i,
-        userId: 0,
-        name: `Student (${universityId})`,
-        university: "",
-        major: "",
-        universityId,
-        sectionId,
-        sectionNumber: null as number | null,
-    }));
-    return [...prev, ...next];
 }
 
 function getLayoutTokens(screenWidth: number) {
@@ -361,9 +318,9 @@ function createStyles(screenWidth: number) {
         },
         loadingText: { fontSize: 13, color: dash.muted, fontWeight: "600" },
 
-        modalBackdrop: {
+        /** Bottom-sheet scrim: invisible — only a tap target to dismiss. */
+        modalBackdropWrap: {
             ...StyleSheet.absoluteFillObject,
-            backgroundColor: "rgba(15,23,42,0.45)",
         },
         modalRoot: {
             flex: 1,
@@ -374,7 +331,8 @@ function createStyles(screenWidth: number) {
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             paddingBottom: Platform.OS === "ios" ? 28 : 20,
-            maxHeight: "92%",
+            minHeight: "78%",
+            maxHeight: "96%",
             borderTopWidth: hair,
             borderColor: hairlineColor,
         },
@@ -525,9 +483,8 @@ export default function SectionStudentsPage() {
             setStudents([]);
             return;
         }
-        if (!ENABLE_SECTION_STUDENTS_BACKEND_API) return;
         try {
-            const data = await fetchDoctorSectionStudents(backendSectionId);
+            const data = await getDoctorSectionStudents(backendSectionId);
             setStudents(data);
         } catch (err) {
             showToast(parseApiErrorMessage(err), "error");
@@ -544,9 +501,7 @@ export default function SectionStudentsPage() {
         setLoadingStudents(true);
         void (async () => {
             try {
-                const data = ENABLE_SECTION_STUDENTS_BACKEND_API
-                    ? await fetchDoctorSectionStudents(backendSectionId)
-                    : [];
+                const data = await getDoctorSectionStudents(backendSectionId);
                 if (!cancelled) setStudents(data);
             } catch (err) {
                 if (!cancelled) showToast(parseApiErrorMessage(err), "error");
@@ -590,13 +545,7 @@ export default function SectionStudentsPage() {
         }
         setSubmitting(true);
         try {
-            if (!ENABLE_SECTION_STUDENTS_BACKEND_API) {
-                setStudents((prev) => mockAppendStudents(prev, ids, backendSectionId));
-                closeModal();
-                showToast(`${ids.length} student(s) added locally (demo mode).`, "success");
-                return;
-            }
-            await addStudentsToDoctorSectionApi(backendSectionId, ids);
+            await addStudentsToDoctorSection(backendSectionId, ids);
             await reloadStudents();
             closeModal();
             showToast(`${ids.length} student(s) added successfully.`, "success");
@@ -620,13 +569,7 @@ export default function SectionStudentsPage() {
         }
         setUploading(true);
         try {
-            if (!ENABLE_SECTION_STUDENTS_BACKEND_API) {
-                setStudents((prev) => mockAppendStudents(prev, ids, backendSectionId));
-                closeModal();
-                showToast(`${ids.length} student(s) added locally (demo mode).`, "success");
-                return;
-            }
-            await addStudentsToDoctorSectionApi(backendSectionId, ids);
+            await addStudentsToDoctorSection(backendSectionId, ids);
             await reloadStudents();
             closeModal();
             showToast(`${ids.length} student(s) added successfully.`, "success");
@@ -760,7 +703,12 @@ export default function SectionStudentsPage() {
                 onRequestClose={closeModal}
             >
                 <View style={styles.modalRoot}>
-                    <Pressable style={styles.modalBackdrop} onPress={closeModal} accessibilityRole="button" />
+                    <Pressable
+                        style={styles.modalBackdropWrap}
+                        onPress={closeModal}
+                        accessibilityRole="button"
+                        accessibilityLabel="Dismiss"
+                    />
                     <KeyboardAvoidingView
                         behavior={Platform.OS === "ios" ? "padding" : undefined}
                         style={{ width: "100%" }}

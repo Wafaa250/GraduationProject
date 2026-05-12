@@ -171,6 +171,7 @@ export interface DoctorCourseStudent {
     name: string
     university: string
     major: string
+    email?: string
     /** University student ID string — required for POST .../sections/{id}/students. */
     universityId: string
     sectionId: number | null
@@ -182,8 +183,9 @@ function mapDoctorCourseDetail(raw: unknown): DoctorCourseDetail {
     const semRaw = r.semester ?? r.Semester
     const sectionsRaw = r.sections ?? r.Sections
     const psRaw = r.projectSetting ?? r.ProjectSetting
+    const idRaw = r.id ?? r.Id ?? r.courseId ?? r.CourseId
     return {
-        id: Number(r.id ?? r.Id ?? 0),
+        id: Number(idRaw ?? 0),
         name: String(r.name ?? r.Name ?? ''),
         code: String(r.code ?? r.Code ?? ''),
         doctorId: Number(r.doctorId ?? r.DoctorId ?? 0),
@@ -213,12 +215,16 @@ function mapDoctorCourseStudent(raw: unknown): DoctorCourseStudent {
     const r = raw as Record<string, unknown>
     const secIdRaw = r.sectionId ?? r.SectionId
     const secNumRaw = r.sectionNumber ?? r.SectionNumber
+    const emailRaw = r.email ?? r.Email
+    const email =
+        typeof emailRaw === 'string' && emailRaw.trim() ? emailRaw.trim() : undefined
     return {
         studentId: Number(r.studentId ?? r.StudentId ?? 0),
         userId: Number(r.userId ?? r.UserId ?? 0),
         name: String(r.name ?? r.Name ?? ''),
         university: String(r.university ?? r.University ?? ''),
         major: String(r.major ?? r.Major ?? ''),
+        email,
         universityId: String(r.universityId ?? r.UniversityId ?? '').trim(),
         sectionId:
             secIdRaw === undefined || secIdRaw === null ? null : Number(secIdRaw),
@@ -265,10 +271,12 @@ export const getDoctorMyCourses = async (): Promise<DoctorCourse[]> => {
     return data.map(mapDoctorCourse)
 }
 
+/** POST /api/courses → 201 with the created course (same shape as GET /courses/my items). */
 export const createDoctorCourse = async (
     body: CreateCourseBody,
-): Promise<void> => {
-    await api.post('/courses', body)
+): Promise<DoctorCourse> => {
+    const response = await api.post('/courses', body)
+    return mapDoctorCourse(response.data)
 }
 
 export interface DoctorCourseProjectSetting {
@@ -503,6 +511,23 @@ export const getDoctorProjectTeams = async (
     projectId: number,
 ): Promise<DoctorProjectTeamsResponse> => {
     const response = await api.get(`/courses/${courseId}/projects/${projectId}/teams`)
+    return mapDoctorProjectTeamsResponse(response.data)
+}
+
+/**
+ * POST /courses/{courseId}/projects/{projectId}/generate-teams
+ *
+ * Runs the AI team-formation pipeline for a *doctor-assigned* course project
+ * and returns the freshly persisted teams. Safe to call even when teams already
+ * exist (the backend replaces them).
+ */
+export const generateDoctorProjectTeams = async (
+    courseId: number,
+    projectId: number,
+): Promise<DoctorProjectTeamsResponse> => {
+    const response = await api.post(
+        `/courses/${courseId}/projects/${projectId}/generate-teams`,
+    )
     return mapDoctorProjectTeamsResponse(response.data)
 }
 

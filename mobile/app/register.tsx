@@ -19,8 +19,7 @@ import { router } from "expo-router";
 
 import { spacing } from "@/constants/responsiveLayout";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-
-const API_HOST = "http://192.168.1.107:5262";
+import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 
 type UserRole = "student" | "doctor" | "company" | "association" | null;
 type FlowStep = 1 | 2;
@@ -481,7 +480,7 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
       majorSkills: form.technicalSkills,
     };
     try {
-      const response = await fetch(`${API_HOST}/api/auth/register/student`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/register/student`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1221,7 +1220,7 @@ function DoctorRegisterStep({ onBack }: { onBack: () => void }) {
     setSubmitting(true);
     setApiError(null);
     try {
-      const response = await fetch(`${API_HOST}/api/auth/register/doctor`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/register/doctor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
