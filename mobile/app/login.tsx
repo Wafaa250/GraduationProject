@@ -11,10 +11,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 
 import { radius, spacing } from "@/constants/responsiveLayout";
+import { setItem as storageSetItem } from "@/utils/authStorage";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 export default function LoginScreen() {
@@ -52,15 +52,15 @@ export default function LoginScreen() {
         throw new Error(result?.message || "Invalid email or password. Please try again.");
       }
 
-      await SecureStore.setItemAsync("token", String(result.token ?? ""));
-      await SecureStore.setItemAsync("userId", String(result.userId ?? ""));
-      await SecureStore.setItemAsync("role", String(result.role ?? ""));
-      await SecureStore.setItemAsync("name", String(result.name ?? ""));
-      await SecureStore.setItemAsync("email", String(result.email ?? ""));
+      await storageSetItem("token", String(result.token ?? ""));
+      await storageSetItem("userId", String(result.userId ?? ""));
+      await storageSetItem("role", String(result.role ?? ""));
+      await storageSetItem("name", String(result.name ?? ""));
+      await storageSetItem("email", String(result.email ?? ""));
 
       const role = (result.role ?? "").toString().toLowerCase();
       if (role === "doctor") {
-        router.replace("/doctor-dashboard");
+        router.replace("/doctor-dashboard" as Href);
       } else if (role === "student") {
         router.replace("/dashboard");
    

@@ -1,18 +1,18 @@
-import axios, { AxiosHeaders } from 'axios'
+import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
+
+import { getItem } from '@/utils/authStorage'
 
 /**
  * Single axios client for the app. All API modules should import `api` from here
- * so every request gets the Bearer token from localStorage.
+ * so every request gets the Bearer token from secure storage (native) or localStorage (web).
  */
 const api = axios.create({
 baseURL: 'http://192.168.1.107:5262/api',
   headers: { 'Content-Type': 'application/json' },
 })
 
-api.interceptors.request.use((config: any) => {
-    const token = localStorage.getItem('token')
-  // Temporary debug — remove in production (avoid logging full JWT in shared builds)
-  console.log('Token:', localStorage.getItem('token'))
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  const token = await getItem('token')
 
   if (token) {
     // Axios v1 uses AxiosHeaders; merging ensures Authorization is actually sent

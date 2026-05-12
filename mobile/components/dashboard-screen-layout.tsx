@@ -1,10 +1,10 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 
 import { spacing, radius } from "@/constants/responsiveLayout";
+import { clearSession } from "@/utils/authStorage";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type DashboardScreenLayoutProps = PropsWithChildren<{
@@ -28,11 +28,7 @@ export function DashboardScreenLayout({
 
   const signOut = async () => {
     try {
-      await SecureStore.deleteItemAsync("token");
-      await SecureStore.deleteItemAsync("userId");
-      await SecureStore.deleteItemAsync("role");
-      await SecureStore.deleteItemAsync("name");
-      await SecureStore.deleteItemAsync("email");
+      await clearSession();
     } catch {
       /* ignore */
     }
