@@ -81,7 +81,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins(
                 "http://localhost:3000",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                // Expo (web) default dev server — mobile app in browser calls API from this origin
+                "http://localhost:8081",
+                "http://127.0.0.1:8081"
               )
               .AllowAnyHeader()
               .AllowAnyMethod());

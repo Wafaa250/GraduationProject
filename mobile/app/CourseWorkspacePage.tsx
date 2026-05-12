@@ -2428,9 +2428,14 @@ export default function CourseWorkspacePage() {
                                             <View style={styles.cardActionsRow}>
                                                 <Pressable
                                                     onPress={() =>
-                                                        showToast(
-                                                            "Manage students is not wired in mobile yet.",
-                                                            "default"
+                                                        router.push(
+                                                            `/SectionStudentsPage?courseId=${encodeURIComponent(
+                                                                courseId
+                                                            )}&sectionId=${encodeURIComponent(
+                                                                String(s.id)
+                                                            )}&sectionName=${encodeURIComponent(
+                                                                s.name
+                                                            )}` as Href
                                                         )
                                                     }
                                                     style={({ pressed }) => [
