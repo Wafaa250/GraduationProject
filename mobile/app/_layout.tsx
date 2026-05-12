@@ -18,6 +18,16 @@ export default function RootLayout() {
           <Stack.Screen name="register" />
           <Stack.Screen name="dashboard" />
           <Stack.Screen name="doctor-dashboard" />
+          <Stack.Screen name="StudentsPage" />
+          <Stack.Screen name="ProfilePage" />
+          <Stack.Screen name="StudentProfilePage" />
+          <Stack.Screen name="StudentPublicProfilePage" />
+          <Stack.Screen name="DoctorPublicProfilePage" />
+          <Stack.Screen name="ChatPage" />
+          <Stack.Screen name="NotificationsPage" />
+          <Stack.Screen name="StudentTeamPage" />
+          <Stack.Screen name="StudentAiTeamPage" />
+          <Stack.Screen name="EditProfilePage" />
           <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal", headerShown: true }} />
         </Stack>
         <StatusBar style="auto" />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -40,6 +40,7 @@ import {
     fetchUnreadGraduationNotificationCount,
 } from "@/api/notificationsApi";
 import { apiClient } from "@/api/client";
+import { subscribeInboxNotificationCreated } from "@/lib/notificationsHubInbox";
 
 type DoctorDashboardSection =
     | "overview"
@@ -183,14 +184,15 @@ function createStyles(width: number) {
             gap: 10,
         },
         iconBtn: {
-            width: 36,
-            height: 36,
-            borderRadius: 11,
+            width: 44,
+            height: 44,
+            borderRadius: 12,
             backgroundColor: dash.surface,
             alignItems: "center",
             justifyContent: "center",
             borderWidth: hair,
             borderColor: "rgba(15,23,42,0.08)",
+            position: "relative",
         },
         topLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
         topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -585,6 +587,15 @@ export default function DoctorDashboardPage() {
         }
     };
 
+    const loadNotificationsCountRef = useRef(loadNotificationsCount);
+    loadNotificationsCountRef.current = loadNotificationsCount;
+
+    useEffect(() => {
+        return subscribeInboxNotificationCreated(() => {
+            void loadNotificationsCountRef.current();
+        });
+    }, []);
+
     useEffect(() => {
         let cancelled = false;
 
@@ -761,8 +772,16 @@ export default function DoctorDashboardPage() {
                     </View>
                     <View style={styles.topRight}>
                         <Pressable
-                            onPress={() => setActiveSection("requests")}
+                            onPress={() => router.push("/ChatPage" as Href)}
                             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressedOpacity]}
+                            accessibilityLabel="Messages"
+                        >
+                            <Ionicons name="chatbubbles-outline" size={18} color={dash.text} />
+                        </Pressable>
+                        <Pressable
+                            onPress={() => router.push("/NotificationsPage" as Href)}
+                            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressedOpacity]}
+                            accessibilityLabel="Notifications"
                         >
                             <Ionicons name="notifications-outline" size={18} color={dash.text} />
                             {notificationsCount > 0 ? (
@@ -772,6 +791,13 @@ export default function DoctorDashboardPage() {
                                     </Text>
                                 </View>
                             ) : null}
+                        </Pressable>
+                        <Pressable
+                            onPress={() => setMenuOpen(true)}
+                            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressedOpacity]}
+                            accessibilityLabel="Menu and settings"
+                        >
+                            <Ionicons name="settings-outline" size={18} color={dash.text} />
                         </Pressable>
                         <Pressable
                             onPress={onLogout}
@@ -786,7 +812,7 @@ export default function DoctorDashboardPage() {
                     <Text style={styles.heroKicker}>Doctor Workspace</Text>
                     <Text style={styles.heroTitle}>{me.name}</Text>
                     <Text style={styles.heroSubtitle}>
-                        {me.specialization ? `${me.specialization} ∑ ` : ""}
+                        {me.specialization ? `${me.specialization} ù ` : ""}
                         {summary?.university ?? me.email}
                     </Text>
                 </View>
@@ -879,7 +905,7 @@ export default function DoctorDashboardPage() {
                                                 </View>
                                                 <Text style={styles.rowMeta}>
                                                     {s.major}
-                                                    {s.university ? ` ∑ ${s.university}` : ""}
+                                                    {s.university ? ` ù ${s.university}` : ""}
                                                 </Text>
                                                 <Text style={styles.rowMeta} numberOfLines={2}>
                                                     Skills: {s.skills.join(", ") || "-"}
@@ -998,7 +1024,7 @@ export default function DoctorDashboardPage() {
                                                     Description: {desc || "-"}
                                                 </Text>
                                                 <Text style={styles.rowMeta}>
-                                                    Members: {p.memberCount} ∑ Capacity: {p.partnersCount}
+                                                    Members: {p.memberCount} ù Capacity: {p.partnersCount}
                                                 </Text>
                                                 <Text style={styles.rowMeta}>
                                                     Owner: {p.owner?.name ?? "-"}

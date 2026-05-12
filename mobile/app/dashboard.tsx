@@ -6,6 +6,10 @@ import { StudentDashboardScreen } from "@/components/student-dashboard/StudentDa
 import { spacing } from "@/constants/responsiveLayout";
 import { getItem } from "@/utils/authStorage";
 
+/**
+ * Student dashboard shell. The primary header (notifications, messages, settings, profile)
+ * is implemented in `StudentDashboardScreen`.
+ */
 export default function DashboardScreen() {
   const [gate, setGate] = useState<"loading" | "student" | "redirect">("loading");
 

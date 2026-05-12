@@ -14,6 +14,21 @@ export type GraduationNotificationDto = {
 const GRAD_CATEGORY = "graduation_project";
 const COURSE_CATEGORY = "course";
 
+export function mergeNotificationRows(
+  current: GraduationNotificationDto[],
+  incoming: GraduationNotificationDto[],
+): GraduationNotificationDto[] {
+  const map = new Map<number, GraduationNotificationDto>();
+  for (const item of current) map.set(item.id, item);
+  for (const item of incoming) {
+    const prev = map.get(item.id);
+    map.set(item.id, prev ? { ...prev, ...item } : item);
+  }
+  return [...map.values()].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
 export async function fetchGraduationNotifications(take = 50): Promise<GraduationNotificationDto[]> {
   const { data } = await api.get<GraduationNotificationDto[]>("/notifications", {
     params: { take, category: GRAD_CATEGORY },
@@ -94,4 +109,57 @@ export async function markChatScopeRead(scope: string): Promise<void> {
   await api.post("/notifications/read-scope", null, {
     params: { category: "chat", scope },
   });
+}
+
+const OPTIONAL_INBOX_CATEGORIES = ["invitations", "invitation", "system", "announcement"] as const;
+
+/** Merged inbox: graduation, course, chat, plus any optional categories the backend may use. */
+export async function fetchMergedNotificationsForInbox(takePerCategory = 40): Promise<GraduationNotificationDto[]> {
+  const [grad, course, chat] = await Promise.all([
+    fetchGraduationNotifications(takePerCategory),
+    fetchCourseNotifications(takePerCategory),
+    fetchChatNotifications(takePerCategory),
+  ]);
+  let merged = [...grad, ...course, ...chat];
+  const settled = await Promise.allSettled(
+    OPTIONAL_INBOX_CATEGORIES.map((c) => fetchNotificationsByCategory(c, takePerCategory)),
+  );
+  for (const s of settled) {
+    if (s.status === "fulfilled" && Array.isArray(s.value)) {
+      merged = mergeNotificationRows(merged, s.value);
+    }
+  }
+  return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+/** Sum of unread counts across graduation, course, and chat categories. */
+export async function fetchTotalUnreadNotificationCount(): Promise<number> {
+  const [g, c, ch] = await Promise.all([
+    fetchUnreadGraduationNotificationCount(),
+    fetchUnreadCourseNotificationCount(),
+    fetchUnreadChatNotificationCount(),
+  ]);
+  return g + c + ch;
+}
+
+/** Generic fetch for any notification category string supported by the API. */
+export async function fetchNotificationsByCategory(
+  category: string,
+  take = 50,
+): Promise<GraduationNotificationDto[]> {
+  const c = category.trim();
+  if (!c) return [];
+  const { data } = await api.get<GraduationNotificationDto[]>("/notifications", {
+    params: { take, category: c },
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+/** Mark every notification read in graduation, course, and chat (parallel). */
+export async function markAllNotificationsReadAllCategories(): Promise<void> {
+  await Promise.all([
+    markAllGraduationNotificationsRead(),
+    markAllCourseNotificationsRead(),
+    markAllChatNotificationsRead(),
+  ]);
 }

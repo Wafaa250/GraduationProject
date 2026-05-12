@@ -15,7 +15,8 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { router, type Href } from "expo-router";
 
 import api, { parseApiErrorMessage } from "@/api/axiosInstance";
 import { aiApi } from "@/api/ai";
@@ -39,7 +40,7 @@ import {
 } from "@/api/gradProjectApi";
 import { acceptInvitation, getReceivedInvitations, rejectInvitation, sendInvitation } from "@/api/invitationsApi";
 import {
-  fetchUnreadGraduationNotificationCount,
+  fetchTotalUnreadNotificationCount,
   fetchUnreadChatNotificationCount,
 } from "@/api/notificationsApi";
 import { getRecommendedSupervisors, requestSupervisor } from "@/api/supervisorApi";
@@ -47,6 +48,7 @@ import type { Supervisor } from "@/api/supervisorApi";
 import { getEnrolledCourses, getCoursePartnerRequests } from "@/api/studentCoursesApi";
 import { radius, spacing } from "@/constants/responsiveLayout";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { subscribeInboxNotificationCreated } from "@/lib/notificationsHubInbox";
 import { clearSession, getItem } from "@/utils/authStorage";
 import { getCourseId } from "@/utils/getCourseId";
 
@@ -201,7 +203,7 @@ export function StudentDashboardScreen() {
   const [aiCardInviteLoadingId, setAiCardInviteLoadingId] = useState<number | null>(null);
   const [aiCardSupervisorLoadingId, setAiCardSupervisorLoadingId] = useState<number | null>(null);
 
-  const [gradNotifCount, setGradNotifCount] = useState(0);
+  const [totalNotifUnread, setTotalNotifUnread] = useState(0);
   const [chatNotifCount, setChatNotifCount] = useState(0);
 
   const [projectPreview, setProjectPreview] = useState<RecommendedProject | null>(null);
@@ -454,22 +456,30 @@ export function StudentDashboardScreen() {
     return () => clearInterval(interval);
   }, [fetchInvitations]);
 
+  const notifTickRef = useRef<() => Promise<void>>(async () => undefined);
   useEffect(() => {
     const tick = async () => {
       try {
-        const [g, c] = await Promise.all([
-          fetchUnreadGraduationNotificationCount(),
+        const [total, c] = await Promise.all([
+          fetchTotalUnreadNotificationCount(),
           fetchUnreadChatNotificationCount(),
         ]);
-        setGradNotifCount(g);
+        setTotalNotifUnread(total);
         setChatNotifCount(c);
       } catch {
         /* ignore */
       }
     };
+    notifTickRef.current = tick;
     void tick();
     const id = setInterval(tick, 15_000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    return subscribeInboxNotificationCreated(() => {
+      void notifTickRef.current();
+    });
   }, []);
 
   const handleLogout = async () => {
@@ -854,19 +864,60 @@ export function StudentDashboardScreen() {
               </Text>
             </View>
             <View style={styles.navActions}>
-              <View style={styles.notifPill}>
-                <Text style={styles.notifPillText}>🎓 {gradNotifCount}</Text>
-              </View>
-              <View style={styles.notifPill}>
-                <Text style={styles.notifPillText}>💬 {chatNotifCount}</Text>
-              </View>
-              <Pressable onPress={() => setEditInfoOpen(true)} style={styles.iconBtn} hitSlop={8}>
-                <Text style={styles.iconBtnText}>⚙️</Text>
+              <Pressable
+                onPress={() => router.push("/NotificationsPage" as Href)}
+                style={styles.navIconBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Notifications"
+              >
+                <Ionicons name="notifications-outline" size={22} color="#475569" />
+                {totalNotifUnread > 0 ? (
+                  <View style={styles.navBadge}>
+                    <Text style={styles.navBadgeText}>
+                      {totalNotifUnread > 99 ? "99+" : String(totalNotifUnread)}
+                    </Text>
+                  </View>
+                ) : null}
               </Pressable>
-              <Pressable onPress={() => void handleLogout()} style={styles.iconBtn} hitSlop={8}>
-                <Text style={styles.iconBtnText}>⎋</Text>
+              <Pressable
+                onPress={() => router.push("/ChatPage" as Href)}
+                style={styles.navIconBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Open messages"
+              >
+                <Ionicons name="chatbubbles-outline" size={22} color="#475569" />
+                {chatNotifCount > 0 ? (
+                  <View style={styles.navBadge}>
+                    <Text style={styles.navBadgeText}>
+                      {chatNotifCount > 99 ? "99+" : String(chatNotifCount)}
+                    </Text>
+                  </View>
+                ) : null}
               </Pressable>
-              <Pressable style={styles.avatarWrap}>
+              <Pressable
+                onPress={() => setEditInfoOpen(true)}
+                style={styles.navIconBtn}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Settings"
+              >
+                <Ionicons name="settings-outline" size={22} color="#475569" />
+              </Pressable>
+              <Pressable
+                onPress={() => void handleLogout()}
+                style={styles.navIconBtn}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Sign out"
+              >
+                <Ionicons name="log-out-outline" size={22} color="#64748b" />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/ProfilePage" as Href)}
+                style={styles.avatarWrap}
+                accessibilityRole="button"
+                accessibilityLabel="My profile"
+              >
                 {user?.profilePic ? (
                   <Image source={{ uri: user.profilePic }} style={styles.avatarImg} />
                 ) : (
@@ -910,7 +961,7 @@ export function StudentDashboardScreen() {
                         onPress={() => {
                           setSearchQuery("");
                           setGlobalSearchResults(null);
-                          Alert.alert("Open profile", `Student #${s.id} — ${s.name}\n\nUse the web app for full profile pages.`);
+                          router.push(`/StudentPublicProfilePage?userId=${s.id}` as Href);
                         }}
                       >
                         <Text style={styles.searchHitName}>{s.name}</Text>
@@ -929,7 +980,7 @@ export function StudentDashboardScreen() {
                         onPress={() => {
                           setSearchQuery("");
                           setGlobalSearchResults(null);
-                          Alert.alert("Open profile", `Doctor #${d.id} — ${d.name}\n\nUse the web app for full profile pages.`);
+                          router.push(`/DoctorPublicProfilePage?doctorId=${d.id}` as Href);
                         }}
                       >
                         <Text style={styles.searchHitName}>{d.name}</Text>
@@ -1143,6 +1194,14 @@ export function StudentDashboardScreen() {
                         </Text>
                       </Pressable>
                     ) : null}
+                    <Pressable
+                      style={[styles.outlineBtn, { marginTop: spacing.sm }]}
+                      onPress={() =>
+                        router.push(`/StudentPublicProfilePage?profileId=${s.studentId}` as Href)
+                      }
+                    >
+                      <Text style={styles.outlineBtnText}>View profile</Text>
+                    </Pressable>
                   </View>
                 ))}
 
@@ -1163,6 +1222,14 @@ export function StudentDashboardScreen() {
                       <Text style={styles.aiScore}>{sup.matchScore}%</Text>
                     </View>
                     <Text style={styles.muted}>{sup.specialization}</Text>
+                    <Pressable
+                      style={[styles.outlineBtn, { marginTop: spacing.sm }]}
+                      onPress={() =>
+                        router.push(`/DoctorPublicProfilePage?profileId=${sup.doctorId}` as Href)
+                      }
+                    >
+                      <Text style={styles.outlineBtnText}>View profile</Text>
+                    </Pressable>
                     {myRole === "owner" || myRole === "leader" ? (
                       <View style={{ marginTop: spacing.sm }}>
                         {gradProject.supervisor ? null : normApiStatus(gradProject.supervisorRequestStatus) === "pending" &&
@@ -1217,6 +1284,14 @@ export function StudentDashboardScreen() {
                         <Text style={styles.aiName}>{displayName}</Text>
                         <Text style={styles.muted}>{row.specialization ?? row.reason}</Text>
                         <Text style={styles.mutedSmall}>{row.matchScore}% match</Text>
+                        <Pressable
+                          style={[styles.outlineBtn, { marginTop: spacing.sm }]}
+                          onPress={() =>
+                            router.push(`/DoctorPublicProfilePage?profileId=${row.doctorId}` as Href)
+                          }
+                        >
+                          <Text style={styles.outlineBtnText}>View profile</Text>
+                        </Pressable>
                         {canManageGradTeam && merged.phase === "idle" ? (
                           <Pressable
                             style={styles.outlineBtn}
@@ -1278,7 +1353,16 @@ export function StudentDashboardScreen() {
                     })
                   )}
                   {gradProject.isOwner && !isFull ? (
-                    <Pressable style={styles.outlineBtn} onPress={() => setAddTeammatesOpen(true)}>
+                    <Pressable
+                      style={styles.outlineBtn}
+                      onPress={() => {
+                        setAddTeammatesOpen(false);
+                        const href = (gradProject.id
+                          ? `/StudentsPage?projectId=${gradProject.id}`
+                          : "/StudentsPage") as Href;
+                        router.push(href);
+                      }}
+                    >
                       <Text style={styles.outlineBtnText}>👤 Find teammates</Text>
                     </Pressable>
                   ) : null}
@@ -1567,6 +1651,18 @@ export function StudentDashboardScreen() {
             ) : (
               <Text style={styles.muted}>No suggestions yet — complete your profile for better matches.</Text>
             )}
+            <Pressable
+              style={styles.outlineBtn}
+              onPress={() => {
+                setAddTeammatesOpen(false);
+                const href = (gradProject?.id
+                  ? `/StudentsPage?projectId=${gradProject.id}`
+                  : "/StudentsPage") as Href;
+                router.push(href);
+              }}
+            >
+              <Text style={styles.outlineBtnText}>Browse all students</Text>
+            </Pressable>
             <Pressable style={styles.modalCloseBtn} onPress={() => setAddTeammatesOpen(false)}>
               <Text style={styles.modalCloseBtnText}>Close</Text>
             </Pressable>
@@ -1643,6 +1739,32 @@ const styles = StyleSheet.create({
   logoText: { fontSize: 18, fontWeight: "800", color: "#0f172a" },
   logoAccent: { color: "#7c3aed" },
   navActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexWrap: "wrap" },
+  navIconBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  navBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: "#6366f1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800" },
   notifPill: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,

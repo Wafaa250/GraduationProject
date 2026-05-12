@@ -23,7 +23,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // JWT AUTHENTICATION
 // ===========================
 var jwtKey = builder.Configuration["Jwt:Key"]!;
-
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -83,7 +82,7 @@ builder.Services.AddCors(options =>
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "http://localhost:8081",
-                "http://192.168.1.107:8081"
+                "http://192.168.1.107:8081",
                 // Expo (web) default dev server — mobile app in browser calls API from this origin
                 "http://localhost:8081",
                 "http://127.0.0.1:8081"

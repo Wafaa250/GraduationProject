@@ -177,26 +177,30 @@ async function createDoctorCourseSection(
 
 function normalizeSectionStudents(raw: unknown): SectionStudent[] {
     if (!Array.isArray(raw)) return [];
-    return raw
-        .map((item, index) => {
-            const student = item as Record<string, unknown>;
-            const nameRaw =
-                student.name ??
-                student.Name ??
-                student.fullName ??
-                student.FullName ??
-                student.studentName ??
-                student.StudentName;
-            const emailRaw = student.email ?? student.Email;
-            const idRaw =
-                student.id ?? student.Id ?? student.studentId ?? student.StudentId ?? index;
-            const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
-            if (!name) return null;
-            const email =
-                typeof emailRaw === "string" && emailRaw.trim() ? emailRaw.trim() : undefined;
-            return { id: String(idRaw), name, email };
-        })
-        .filter((s): s is SectionStudent => s !== null);
+    const out: SectionStudent[] = [];
+    for (let index = 0; index < raw.length; index += 1) {
+        const item = raw[index];
+        const student = item as Record<string, unknown>;
+        const nameRaw =
+            student.name ??
+            student.Name ??
+            student.fullName ??
+            student.FullName ??
+            student.studentName ??
+            student.StudentName;
+        const emailRaw = student.email ?? student.Email;
+        const idRaw =
+            student.id ?? student.Id ?? student.studentId ?? student.StudentId ?? index;
+        const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+        if (!name) continue;
+        const id = String(idRaw);
+        if (typeof emailRaw === "string" && emailRaw.trim()) {
+            out.push({ id, name, email: emailRaw.trim() });
+        } else {
+            out.push({ id, name });
+        }
+    }
+    return out;
 }
 
 function doctorProjectSectionDisplayLabel(p: DoctorCourseProject): string {
@@ -235,13 +239,24 @@ const WEEKDAY_OPTIONS = [
     { id: "sun", label: "Sun" },
 ] as const;
 
+type WeekdayId = (typeof WEEKDAY_OPTIONS)[number]["id"];
+
+const WEEKDAY_ID_ORDER = WEEKDAY_OPTIONS.map((d) => d.id);
+
+const WEEKDAY_ID_SET = new Set<string>(WEEKDAY_ID_ORDER);
+
+function isWeekdayId(value: string): value is WeekdayId {
+    return WEEKDAY_ID_SET.has(value);
+}
+
 const DAY_LOOKUP: Record<string, string> = Object.fromEntries(
     WEEKDAY_OPTIONS.map((d) => [d.id, d.label])
 );
 
 function byWeekdayOrder(a: string, b: string): number {
-    const order = WEEKDAY_OPTIONS.map((d) => d.id);
-    return order.indexOf(a) - order.indexOf(b);
+    const ia = isWeekdayId(a) ? WEEKDAY_ID_ORDER.indexOf(a) : WEEKDAY_ID_ORDER.length;
+    const ib = isWeekdayId(b) ? WEEKDAY_ID_ORDER.indexOf(b) : WEEKDAY_ID_ORDER.length;
+    return ia - ib;
 }
 
 function formatTimeLabel(hhmm: string): string {
@@ -1651,7 +1666,7 @@ function CreateSectionSheet({
     styles: ReturnType<typeof createStyles>;
 }) {
     const [name, setName] = useState("");
-    const [days, setDays] = useState<string[]>([]);
+    const [days, setDays] = useState<WeekdayId[]>([]);
     const [timeFrom, setTimeFrom] = useState("");
     const [timeTo, setTimeTo] = useState("");
     const [capacityInput, setCapacityInput] = useState("");
@@ -1668,7 +1683,7 @@ function CreateSectionSheet({
         }
     }, [visible]);
 
-    const toggleDay = (id: string) => {
+    const toggleDay = (id: WeekdayId) => {
         setDays((prev) =>
             prev.includes(id)
                 ? prev.filter((d) => d !== id)
