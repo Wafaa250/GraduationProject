@@ -27,6 +27,9 @@ export default function RootLayout() {
           <Stack.Screen name="NotificationsPage" />
           <Stack.Screen name="StudentTeamPage" />
           <Stack.Screen name="StudentAiTeamPage" />
+          <Stack.Screen name="StudentTeamChoicePage" />
+          <Stack.Screen name="CourseManualTeamPage" />
+          <Stack.Screen name="courses" />
           <Stack.Screen name="EditProfilePage" />
           <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal", headerShown: true }} />
         </Stack>

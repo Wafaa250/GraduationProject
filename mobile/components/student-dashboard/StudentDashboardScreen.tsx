@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   AppState,
   type AppStateStatus,
@@ -7,6 +8,7 @@ import {
   Image,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,6 +28,7 @@ import {
   abstractForApi,
   changeProjectLeader,
   createGraduationProject,
+  getGraduationProjectById,
   getRecommendedStudents,
   getRecommendedSupervisors as fetchGraduationRecommendedSupervisors,
   isEngineeringOrITFaculty,
@@ -115,16 +118,43 @@ interface RecommendedProject {
   formationMode: "students" | "doctor";
 }
 
-interface Invitation {
-  id: number;
-  project: string;
-  invitedBy: string;
-}
-
 interface Application {
   id: number;
   project: string;
   status: string;
+}
+
+/** Pending graduation-project invitation row for the student dashboard (enriched for UI). */
+interface DashboardPendingTeamInvitation {
+  id: number;
+  projectId: number;
+  project: string;
+  invitedBy: string;
+  status: string;
+  createdAt: string | null;
+  requiredSkills: string[];
+  teammateSummary: string | null;
+  inviterProfileId: number | null;
+  inviterUserId: number | null;
+}
+
+function invitationHubShouldRefreshTeamInvites(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const cat = String((payload as { category?: string }).category ?? "")
+    .trim()
+    .toLowerCase();
+  return cat.startsWith("invitation");
+}
+
+function formatInvitationTimestamp(iso: string | null | undefined): string | null {
+  if (iso == null || typeof iso !== "string" || iso.trim() === "") return null;
+  const d = new Date(iso.trim());
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return iso.trim();
+  }
 }
 
 export function StudentDashboardScreen() {
@@ -145,7 +175,11 @@ export function StudentDashboardScreen() {
   const [user, setUser] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [teammates, setTeammates] = useState<SuggestedTeammate[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [invitations, setInvitations] = useState<DashboardPendingTeamInvitation[]>([]);
+  const [invitationsError, setInvitationsError] = useState<string | null>(null);
+  const [invitationsRefreshing, setInvitationsRefreshing] = useState(false);
+  const [invitationsHasFetched, setInvitationsHasFetched] = useState(false);
+  const [dashboardPullRefreshing, setDashboardPullRefreshing] = useState(false);
   const [recommendedProjects, setRecommendedProjects] = useState<RecommendedProject[]>([]);
   const [applications] = useState<Application[]>([]);
   const [inviteLoading, setInviteLoading] = useState<number | null>(null);
@@ -188,6 +222,8 @@ export function StudentDashboardScreen() {
 
   const [myRole, setMyRole] = useState<"owner" | "leader" | "member" | null>(null);
   const myUserIdRef = useRef<number | null>(null);
+  const fetchInvitationsRef = useRef<(() => Promise<void>) | null>(null);
+  const invitationsFetchGenRef = useRef(0);
   const [myStudentId, setMyStudentId] = useState<number | null>(null);
   const [teamMembers, setTeamMembers] = useState<GradProjectMember[]>([]);
   const [currentMembers, setCurrentMembers] = useState(0);
@@ -248,20 +284,99 @@ export function StudentDashboardScreen() {
   }, [gradProject]);
 
   const fetchInvitations = useCallback(async () => {
+    const myGen = ++invitationsFetchGenRef.current;
+    setInvitationsRefreshing(true);
+    setInvitationsError(null);
     try {
       const received = await getReceivedInvitations();
-      const pendingOnly = received
-        .filter((i) => i.status?.toLowerCase() === "pending")
-        .map((i) => ({
+      const pendingOnly = received.filter((i) => normApiStatus(i.status) === "pending");
+
+      const projectIds = [...new Set(pendingOnly.map((p) => p.projectId))];
+      const projectEntries = await Promise.all(
+        projectIds.map(async (projectId) => {
+          try {
+            const project = await getGraduationProjectById(projectId);
+            return { projectId, project } as const;
+          } catch {
+            return { projectId, project: null } as const;
+          }
+        }),
+      );
+      const projectById = new Map<number, GradProject | null>();
+      for (const { projectId, project } of projectEntries) {
+        projectById.set(projectId, project);
+      }
+
+      const merged: DashboardPendingTeamInvitation[] = pendingOnly.map((i) => {
+        const p = projectById.get(i.projectId) ?? null;
+        let inviterProfileId: number | null = null;
+        let inviterUserId: number | null = null;
+
+        if (p) {
+          const ownerName = (p.ownerName ?? "").trim();
+          const senderName = (i.senderName ?? "").trim();
+          if (
+            ownerName.length > 0 &&
+            senderName.length > 0 &&
+            ownerName.toLowerCase() === senderName.toLowerCase()
+          ) {
+            inviterProfileId = typeof p.ownerId === "number" && Number.isFinite(p.ownerId) ? p.ownerId : null;
+            const uid = p.ownerUserId;
+            inviterUserId = typeof uid === "number" && Number.isFinite(uid) && uid > 0 ? uid : null;
+          }
+        }
+
+        const requiredSkills =
+          p?.requiredSkills?.filter((s) => typeof s === "string" && s.trim() !== "").map((s) => s.trim()) ?? [];
+
+        let teammateSummary: string | null = null;
+        if (
+          p &&
+          typeof p.currentMembers === "number" &&
+          Number.isFinite(p.currentMembers) &&
+          typeof p.partnersCount === "number" &&
+          Number.isFinite(p.partnersCount)
+        ) {
+          teammateSummary = `${p.currentMembers} / ${p.partnersCount} teammates`;
+        }
+
+        const createdRaw = (i.createdAt ?? "").trim();
+
+        return {
           id: i.invitationId,
+          projectId: i.projectId,
           project: i.projectName,
           invitedBy: i.senderName,
-        }));
-      setInvitations(pendingOnly);
-    } catch {
-      /* non-critical */
+          status: i.status,
+          createdAt: createdRaw.length > 0 ? createdRaw : null,
+          requiredSkills,
+          teammateSummary,
+          inviterProfileId,
+          inviterUserId,
+        };
+      });
+
+      if (myGen !== invitationsFetchGenRef.current) return;
+      setInvitations(merged);
+    } catch (err: unknown) {
+      if (myGen !== invitationsFetchGenRef.current) return;
+      setInvitations([]);
+      setInvitationsError(parseApiErrorMessage(err));
+    } finally {
+      if (myGen === invitationsFetchGenRef.current) {
+        setInvitationsRefreshing(false);
+        setInvitationsHasFetched(true);
+      }
     }
   }, []);
+
+  fetchInvitationsRef.current = fetchInvitations;
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchInvitations();
+    }, [fetchInvitations]),
+  );
 
   const refreshCourseTeamsDashCardCounts = useCallback(async () => {
     try {
@@ -397,7 +512,6 @@ export function StudentDashboardScreen() {
           setTeammates([]);
         }
         await refetchGradProject();
-        await fetchInvitations();
       } catch {
         setUser({
           name: (await getItem("name")) ?? "",
@@ -408,6 +522,7 @@ export function StudentDashboardScreen() {
         });
         setTeammates([]);
       } finally {
+        await fetchInvitations();
         setLoading(false);
       }
     };
@@ -476,9 +591,26 @@ export function StudentDashboardScreen() {
     return () => clearInterval(id);
   }, []);
 
+  const onDashboardScrollRefresh = useCallback(async () => {
+    setDashboardPullRefreshing(true);
+    try {
+      await Promise.all([
+        fetchInvitations(),
+        refreshCourseTeamsDashCardCounts(),
+        refetchGradProject({ silent: true }),
+        notifTickRef.current(),
+      ]);
+    } finally {
+      setDashboardPullRefreshing(false);
+    }
+  }, [fetchInvitations, refreshCourseTeamsDashCardCounts, refetchGradProject]);
+
   useEffect(() => {
-    return subscribeInboxNotificationCreated(() => {
+    return subscribeInboxNotificationCreated((payload: unknown) => {
       void notifTickRef.current();
+      if (invitationHubShouldRefreshTeamInvites(payload)) {
+        void fetchInvitationsRef.current?.();
+      }
     });
   }, []);
 
@@ -848,6 +980,14 @@ export function StudentDashboardScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={dashboardPullRefreshing}
+            onRefresh={() => void onDashboardScrollRefresh()}
+            tintColor="#6366f1"
+            colors={["#6366f1"]}
+          />
+        }
       >
         <View style={[styles.bgBlobTop, { right: -width * 0.22, top: -width * 0.28 }]} pointerEvents="none" />
         <View style={[styles.bgBlobBottom, { left: -width * 0.2, bottom: -width * 0.25 }]} pointerEvents="none" />
@@ -1053,43 +1193,128 @@ export function StudentDashboardScreen() {
             ) : null}
           </View>
 
-          {/* Invitations */}
+          {/* Invitations — graduation project invites (GET /invitations/received) */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>👥 Team Invitations</Text>
+              {invitationsRefreshing ? <ActivityIndicator size="small" color="#6366f1" /> : null}
             </View>
-            {invitations.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>No pending invitations</Text>
+            {invitationsError ? (
+              <View style={styles.inviteErrorBox}>
+                <Text style={styles.errText}>{invitationsError}</Text>
+                <Pressable style={styles.inviteRetryBtn} onPress={() => void fetchInvitations()}>
+                  <Text style={styles.inviteRetryBtnText}>Try again</Text>
+                </Pressable>
               </View>
+            ) : !invitationsError && invitations.length === 0 ? (
+              invitationsRefreshing ? (
+                <View style={styles.inviteLoadingBox}>
+                  <ActivityIndicator size="small" color="#6366f1" />
+                  <Text style={styles.mutedSmall}>Updating invitations…</Text>
+                </View>
+              ) : invitationsHasFetched ? (
+                <View style={styles.empty}>
+                  <Text style={styles.emptyEmoji}>🎉</Text>
+                  <Text style={styles.emptyTitle}>No pending invitations</Text>
+                  <Text style={styles.emptyDesc}>
+                    When someone invites you to a graduation project team, it will show up here.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.inviteLoadingBox}>
+                  <ActivityIndicator size="small" color="#6366f1" />
+                  <Text style={styles.mutedSmall}>Loading invitations…</Text>
+                </View>
+              )
             ) : (
-              invitations.map((inv) => (
-                <View key={inv.id} style={styles.inviteCard}>
-                  <Text style={styles.inviteHint}>You were invited to join:</Text>
-                  <Text style={styles.inviteProject}>{inv.project}</Text>
-                  <Text style={styles.inviteBy}>by {inv.invitedBy}</Text>
-                  {inviteMsg?.id === inv.id ? (
-                    <Text style={[styles.inviteFeedback, inviteMsg.ok ? styles.okText : styles.muted]}>{inviteMsg.msg}</Text>
-                  ) : (
-                    <View style={styles.inviteActions}>
+              invitations.map((inv) => {
+                const whenLabel = formatInvitationTimestamp(inv.createdAt);
+                const st = inv.status.trim().toLowerCase();
+                const statusLabel =
+                  st.length > 0 ? st.charAt(0).toUpperCase() + st.slice(1) : "Pending";
+                return (
+                  <View key={inv.id} style={styles.inviteCard}>
+                    <Text style={styles.inviteHint}>You were invited to join:</Text>
+                    <Text style={styles.inviteProject}>{inv.project}</Text>
+                    <View style={styles.inviteNameRow}>
+                      <Text style={styles.inviteHint}>Invited by </Text>
                       <Pressable
-                        disabled={inviteLoading === inv.id}
-                        onPress={() => void handleInvite(inv.id, "accept")}
-                        style={[styles.acceptBtn, inviteLoading === inv.id && styles.disabled]}
+                        disabled={inv.inviterProfileId == null}
+                        onPress={() => {
+                          if (inv.inviterProfileId != null) {
+                            router.push(`/StudentPublicProfilePage?profileId=${inv.inviterProfileId}` as Href);
+                          }
+                        }}
+                        hitSlop={6}
+                        style={{ flexShrink: 1, minWidth: 0 }}
                       >
-                        <Text style={styles.acceptBtnText}>{inviteLoading === inv.id ? "…" : "✅ Accept"}</Text>
-                      </Pressable>
-                      <Pressable
-                        disabled={inviteLoading === inv.id}
-                        onPress={() => void handleInvite(inv.id, "reject")}
-                        style={[styles.rejectBtn, inviteLoading === inv.id && styles.disabled]}
-                      >
-                        <Text style={styles.rejectBtnText}>Decline</Text>
+                        <Text
+                          style={[styles.inviteByLink, inv.inviterProfileId == null && styles.inviteByLinkDisabled]}
+                          numberOfLines={2}
+                        >
+                          {inv.invitedBy}
+                        </Text>
                       </Pressable>
                     </View>
-                  )}
-                </View>
-              ))
+                    <View style={styles.inviteMetaRow}>
+                      <View style={styles.inviteStatusPill}>
+                        <Text style={styles.inviteStatusPillText}>{statusLabel}</Text>
+                      </View>
+                      {inv.teammateSummary ? (
+                        <Text style={styles.inviteMetaMuted} numberOfLines={1}>
+                          {inv.teammateSummary}
+                        </Text>
+                      ) : null}
+                      {whenLabel ? <Text style={styles.inviteMetaMuted}>{whenLabel}</Text> : null}
+                    </View>
+                    {inv.requiredSkills.length > 0 ? (
+                      <View style={[styles.skillRow, styles.inviteSkillsWrap]}>
+                        {inv.requiredSkills.slice(0, 8).map((sk) => (
+                          <View key={`${inv.id}-${sk}`} style={styles.skillChipSm}>
+                            <Text style={styles.skillChipSmText}>{sk}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                    {inv.inviterUserId != null && inv.inviterUserId > 0 ? (
+                      <View style={styles.inviteNavRow}>
+                        <Pressable
+                          style={styles.inviteGhostBtn}
+                          onPress={() => router.push(`/ChatPage?userId=${inv.inviterUserId}` as Href)}
+                        >
+                          <Text style={styles.inviteGhostBtnText}>💬 Message</Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                    {inviteMsg?.id === inv.id ? (
+                      <Text style={[styles.inviteFeedback, inviteMsg.ok ? styles.okText : styles.errText]}>
+                        {inviteMsg.msg}
+                      </Text>
+                    ) : (
+                      <View style={styles.inviteActions}>
+                        <Pressable
+                          disabled={inviteLoading === inv.id}
+                          onPress={() => void handleInvite(inv.id, "accept")}
+                          style={[styles.acceptBtn, inviteLoading === inv.id && styles.disabled]}
+                        >
+                          {inviteLoading === inv.id ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                          ) : (
+                            <Text style={styles.acceptBtnText}>✅ Accept</Text>
+                          )}
+                        </Pressable>
+                        <Pressable
+                          disabled={inviteLoading === inv.id}
+                          onPress={() => void handleInvite(inv.id, "reject")}
+                          style={[styles.rejectBtn, inviteLoading === inv.id && styles.disabled]}
+                        >
+                          <Text style={styles.rejectBtnText}>✕ Decline</Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
             )}
           </View>
 
@@ -1390,7 +1615,7 @@ export function StudentDashboardScreen() {
             <Text style={styles.muted}>
               View teams, project settings, classmates, and partner requests for each course — in one place.
             </Text>
-            <Pressable style={styles.ctaBtn} onPress={() => setCourseTeamsModalOpen(true)}>
+            <Pressable style={styles.ctaBtn} onPress={() => router.push("/courses" as Href)}>
               <Text style={styles.ctaBtnText}>👥 Manage My Courses</Text>
             </Pressable>
           </View>
@@ -1892,6 +2117,15 @@ const styles = StyleSheet.create({
   cardAction: { fontSize: 13, fontWeight: "700", color: "#6366f1" },
   empty: { alignItems: "center", paddingVertical: spacing.lg },
   emptyTitle: { fontSize: 15, fontWeight: "700", color: "#64748b" },
+  emptyEmoji: { fontSize: 26, marginBottom: spacing.xs },
+  emptyDesc: {
+    fontSize: 13,
+    color: "#94a3b8",
+    textAlign: "center",
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    lineHeight: 20,
+  },
   muted: { fontSize: 13, color: "#64748b", lineHeight: 20 },
   mutedSmall: { fontSize: 11, color: "#94a3b8", marginTop: 4 },
   inviteCard: {
@@ -1902,9 +2136,49 @@ const styles = StyleSheet.create({
     borderColor: "#e9d5ff",
     marginBottom: spacing.sm,
   },
+  inviteErrorBox: { paddingVertical: spacing.sm, gap: spacing.sm },
+  inviteLoadingBox: { alignItems: "center", paddingVertical: spacing.lg, gap: spacing.sm },
+  inviteRetryBtn: {
+    alignSelf: "center",
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    backgroundColor: "#6366f1",
+  },
+  inviteRetryBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   inviteHint: { fontSize: 13, fontWeight: "600", color: "#334155" },
   inviteProject: { fontSize: 15, fontWeight: "800", color: "#7c3aed", marginTop: 2 },
-  inviteBy: { fontSize: 12, color: "#64748b", marginTop: 2 },
+  inviteNameRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", marginTop: spacing.xs, gap: 2 },
+  inviteByLink: { fontSize: 13, fontWeight: "700", color: "#6366f1", textDecorationLine: "underline" },
+  inviteByLinkDisabled: { color: "#64748b", textDecorationLine: "none" },
+  inviteMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  inviteStatusPill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: 20,
+    backgroundColor: "#ede9fe",
+    borderWidth: 1,
+    borderColor: "#ddd6fe",
+  },
+  inviteStatusPillText: { fontSize: 11, fontWeight: "800", color: "#5b21b6", textTransform: "capitalize" },
+  inviteMetaMuted: { fontSize: 11, color: "#64748b", fontWeight: "600", flexShrink: 1 },
+  inviteSkillsWrap: { marginTop: spacing.sm },
+  inviteNavRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
+  inviteGhostBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: "#c4b5fd",
+    backgroundColor: "#fff",
+  },
+  inviteGhostBtnText: { fontSize: 12, fontWeight: "700", color: "#5b21b6" },
   inviteFeedback: { marginTop: spacing.sm, fontWeight: "700" },
   inviteActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   acceptBtn: { flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: "#6366f1", alignItems: "center" },
