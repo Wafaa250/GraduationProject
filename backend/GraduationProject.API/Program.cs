@@ -90,41 +90,8 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());
-    {
-        policy.AllowAnyHeader().AllowAnyMethod();
-
-        if (builder.Environment.IsDevelopment())
-        {
-            // Expo Web (any port), Expo LAN / device IPs, Vite, CRA — avoid hard-coded LAN IPs.
-            policy.SetIsOriginAllowed(origin =>
-            {
-                if (string.IsNullOrWhiteSpace(origin)) return false;
-                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
-                if (uri.Scheme is not ("http" or "https")) return false;
-
-                var h = uri.Host;
-                if (h is "localhost" or "127.0.0.1") return true;
-                if (h.StartsWith("192.168.", StringComparison.Ordinal)) return true;
-                if (h.StartsWith("10.", StringComparison.Ordinal)) return true;
-                if (h.StartsWith("172.", StringComparison.Ordinal))
-                {
-                    var parts = h.Split('.');
-                    if (parts.Length == 4 && int.TryParse(parts[1], out var second) && second is >= 16 and <= 31)
-                        return true;
-                }
-
-                return false;
-            });
-        }
-        else
-        {
-            var prod = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                       ?? new[] { "http://localhost:3000", "http://localhost:5173", "http://localhost:8081" };
-            policy.WithOrigins(prod);
-        }
-    });
+  
 });
-
 // ===========================
 // CONTROLLERS + SWAGGER
 // ===========================
