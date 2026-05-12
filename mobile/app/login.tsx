@@ -13,9 +13,18 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 
+import api, { parseApiErrorMessage } from "@/api/axiosInstance";
 import { radius, spacing } from "@/constants/responsiveLayout";
 import { setItem as storageSetItem } from "@/utils/authStorage";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+
+type AuthLoginResponse = {
+  token: string;
+  role: string;
+  userId: number;
+  name: string;
+  email: string;
+};
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -39,18 +48,10 @@ export default function LoginScreen() {
     setApiError(null);
 
     try {
-      const response = await fetch("http://192.168.1.107:5262/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const { data: result } = await api.post<AuthLoginResponse>("/auth/login", {
+        email: email.trim(),
+        password,
       });
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result?.message || "Invalid email or password. Please try again.");
-      }
 
       await storageSetItem("token", String(result.token ?? ""));
       await storageSetItem("userId", String(result.userId ?? ""));
@@ -68,11 +69,7 @@ export default function LoginScreen() {
         router.replace("/dashboard");
       }
     } catch (error: unknown) {
-      const msg =
-        error instanceof Error
-          ? error.message
-          : "Invalid email or password. Please try again.";
-      setApiError(msg);
+      setApiError(parseApiErrorMessage(error));
     } finally {
       setIsLoading(false);
     }

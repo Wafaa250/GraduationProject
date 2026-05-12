@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { clearSession } from "@/utils/authStorage";
 import {
     ActivityIndicator,
     Alert,
@@ -13,10 +14,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
 import { getDashboardSummary, type DashboardSummary } from "@/api/dashboardApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
+import { fetchDoctorMeProfile, type DoctorMeProfile } from "@/api/meApi";
 import {
     doctorDashboardApi,
     removeDoctorSupervision,
@@ -48,14 +50,6 @@ type DoctorDashboardSection =
     | "projects"
     | "deleted"
     | "courses";
-
-type DoctorMeResponse = {
-    role: string;
-    profileId: number | null;
-    name: string;
-    email: string;
-    specialization?: string | null;
-};
 
 type RequestRow = {
     kind: "supervision" | "cancellation";
@@ -449,13 +443,14 @@ const SECTION_ITEMS: { id: DoctorDashboardSection; label: string; icon: keyof ty
 
 export default function DoctorDashboardPage() {
     const router = useRouter();
+    const params = useLocalSearchParams<{ courses?: string }>();
     const { width } = useWindowDimensions();
     const styles = useMemo(() => createStyles(width), [width]);
 
     const [activeSection, setActiveSection] = useState<DoctorDashboardSection>("overview");
     const [menuOpen, setMenuOpen] = useState(false);
 
-    const [me, setMe] = useState<DoctorMeResponse | null>(null);
+    const [me, setMe] = useState<DoctorMeProfile | null>(null);
     const [pageLoading, setPageLoading] = useState(true);
     const [pageError, setPageError] = useState<string | null>(null);
 
@@ -603,12 +598,8 @@ export default function DoctorDashboardPage() {
             setPageLoading(true);
             setPageError(null);
             try {
-                const { data } = await apiClient.get<DoctorMeResponse>("/me");
-                if (data.role !== "doctor" || data.profileId == null) {
-                    throw new Error("This account is not a doctor profile.");
-                }
-
-                if (!cancelled) setMe(data);
+                const profile = await fetchDoctorMeProfile();
+                if (!cancelled) setMe(profile);
 
                 await Promise.all([
                     loadOverview(),
@@ -633,6 +624,13 @@ export default function DoctorDashboardPage() {
             cancelled = true;
         };
     }, []);
+
+    useEffect(() => {
+        if (params.courses !== "1") return;
+        setActiveSection("courses");
+        void loadCourses();
+        router.setParams({ courses: undefined });
+    }, [params.courses, router]);
 
     const mergedRequests = useMemo(
         () => mergeDoctorRequestRows(supervisionRequests, cancelRequests),
@@ -717,7 +715,23 @@ export default function DoctorDashboardPage() {
     };
 
     const onLogout = () => {
-        Alert.alert("Logout", "Logout flow should be connected to auth session cleanup.");
+        Alert.alert("Sign out", "You will need to sign in again to access your workspace.", [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Sign out",
+                style: "destructive",
+                onPress: () => {
+                    void (async () => {
+                        try {
+                            await clearSession();
+                        } catch {
+                            /* ignore */
+                        }
+                        router.replace("/login" as Href);
+                    })();
+                },
+            },
+        ]);
     };
 
     if (pageLoading) {
@@ -812,8 +826,10 @@ export default function DoctorDashboardPage() {
                     <Text style={styles.heroKicker}>Doctor Workspace</Text>
                     <Text style={styles.heroTitle}>{me.name}</Text>
                     <Text style={styles.heroSubtitle}>
-                        {me.specialization ? `${me.specialization} ù ` : ""}
+                        {me.specialization ? `${me.specialization} ÔøΩ ` : ""}
                         {summary?.university ?? me.email}
+                        {me.specialization ? `${me.specialization} ¬∑ ` : ""}
+                        {me.university ?? summary?.university ?? me.email}
                     </Text>
                 </View>
 
@@ -905,7 +921,7 @@ export default function DoctorDashboardPage() {
                                                 </View>
                                                 <Text style={styles.rowMeta}>
                                                     {s.major}
-                                                    {s.university ? ` ù ${s.university}` : ""}
+                                                    {s.university ? ` ÔøΩ ${s.university}` : ""}
                                                 </Text>
                                                 <Text style={styles.rowMeta} numberOfLines={2}>
                                                     Skills: {s.skills.join(", ") || "-"}
@@ -1024,7 +1040,7 @@ export default function DoctorDashboardPage() {
                                                     Description: {desc || "-"}
                                                 </Text>
                                                 <Text style={styles.rowMeta}>
-                                                    Members: {p.memberCount} ù Capacity: {p.partnersCount}
+                                                    Members: {p.memberCount} ÔøΩ Capacity: {p.partnersCount}
                                                 </Text>
                                                 <Text style={styles.rowMeta}>
                                                     Owner: {p.owner?.name ?? "-"}
@@ -1102,12 +1118,7 @@ export default function DoctorDashboardPage() {
                             </Text>
                             <View style={[styles.actionRow, { marginBottom: 8 }]}>
                                 <Pressable
-                                    onPress={() =>
-                                        Alert.alert(
-                                            "Create course",
-                                            "Route to CreateCoursePage can be connected when RN screen is migrated.",
-                                        )
-                                    }
+                                    onPress={() => router.push("/create-course" as Href)}
                                     style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressedOpacity]}
                                 >
                                     <Ionicons name="add" size={15} color="#fff" />

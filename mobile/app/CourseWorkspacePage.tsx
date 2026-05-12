@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
+    createElement as createDomElement,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import {
+    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
     Modal,
@@ -12,9 +20,25 @@ import {
     View,
     useWindowDimensions,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
+import DateTimePicker, {
+    DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
+
+import { parseApiErrorMessage } from "@/api/axiosInstance";
+import {
+    createDoctorCourseSection,
+    getDoctorCourseDetail,
+    getDoctorCourseProjects,
+    getDoctorCourseSections,
+    getDoctorProjectTeams,
+    getDoctorSectionStudents,
+    type DoctorCourseProject,
+    type DoctorCourseStudent,
+} from "@/api/doctorCoursesApi";
 
 /** Mobile-local theme tokens (replaces the web-only `doctorDashTokens` module). */
 const dash = {
@@ -54,66 +78,26 @@ type WorkspaceSection = NewSectionPayload & {
     students?: SectionStudent[];
 };
 
-type NewWorkspaceProjectPayload = {
-    title: string;
-    abstract: string;
-    teamSize: number;
-    duration: string;
-    sectionLabel: string;
-    aiMode: "doctor" | "student";
-};
-
-type WorkspaceProject = NewWorkspaceProjectPayload & { id: string };
-
-type DoctorCourseProject = {
-    id: number;
-    title: string;
-    description?: string;
-    teamSize: number;
-    applyToAllSections: boolean;
-    aiMode: "doctor" | "student";
-    sections: { sectionId: number; sectionName: string }[];
-};
-
+/** Mirrors the fields rendered in the web Course → Settings tab. */
 type CourseWorkspaceSettingsForm = {
     allowCrossSectionTeams: boolean;
-    maxTeamSize: string;
-    minTeamSize: string;
     enableAiTeamAssignment: boolean;
     allowStudentsChooseTeammates: boolean;
-    allowMultipleProjectsPerSection: boolean;
-    maxProjectsPerCourse: string;
     teamFormationDeadline: string;
     projectSubmissionDeadline: string;
 };
 
 const defaultCourseWorkspaceSettings: CourseWorkspaceSettingsForm = {
     allowCrossSectionTeams: false,
-    maxTeamSize: "6",
-    minTeamSize: "2",
     enableAiTeamAssignment: true,
     allowStudentsChooseTeammates: false,
-    allowMultipleProjectsPerSection: false,
-    maxProjectsPerCourse: "5",
     teamFormationDeadline: "",
     projectSubmissionDeadline: "",
 };
 
 // ============================================================================
-// Mocks for web-only deps. Wire to mobile/api when ready.
-//   - react-router-dom → expo-router (above)
-//   - sessionStorage / localStorage → in-memory state
-//   - navigator.clipboard → flash-feedback only (no expo-clipboard installed)
-//   - doctorCoursesApi (axios) → no-op stubs gated by the flag below
-//   - ToastContext → Alert.alert wrapper
+// Course workspace uses `mobile/api/doctorCoursesApi` (Bearer token via axios).
 // ============================================================================
-
-const ENABLE_COURSE_WORKSPACE_BACKEND_API = false;
-
-function parseApiErrorMessage(err: unknown): string {
-    if (err instanceof Error) return err.message;
-    return String(err);
-}
 
 function showToast(
     message: string,
@@ -125,53 +109,11 @@ function showToast(
     Alert.alert(title, message);
 }
 
-async function getDoctorCourseSections(_courseId: number): Promise<
-    {
-        id: number;
-        name: string;
-        days: string[];
-        timeFrom: string | null;
-        timeTo: string | null;
-        capacity: number;
-        students?: unknown;
-    }[]
-> {
-    return [];
-}
-
-async function getDoctorCourseProjects(
-    _courseId: number
-): Promise<DoctorCourseProject[]> {
-    return [];
-}
-
-async function getDoctorProjectTeams(
-    _courseId: number,
-    _projectId: number
-): Promise<{ teamCount: number }> {
-    return { teamCount: 0 };
-}
-
-async function createDoctorCourseSection(
-    _courseId: number,
-    payload: NewSectionPayload
-): Promise<{
-    id: number;
-    name: string;
-    days: string[];
-    timeFrom: string | null;
-    timeTo: string | null;
-    capacity: number;
-    students?: unknown;
-}> {
+function doctorCourseStudentToSectionStudent(row: DoctorCourseStudent): SectionStudent {
     return {
-        id: Date.now(),
-        name: payload.name,
-        days: payload.days,
-        timeFrom: payload.timeFrom,
-        timeTo: payload.timeTo,
-        capacity: payload.capacity,
-        students: [],
+        id: String(row.studentId),
+        name: row.name?.trim() || "Student",
+        email: row.email?.trim() || undefined,
     };
 }
 
@@ -272,6 +214,42 @@ function formatTimeLabel(hhmm: string): string {
 function formatSectionScheduleTime(timeFrom: string, timeTo: string): string {
     if (!timeFrom || !timeTo) return "";
     return `${formatTimeLabel(timeFrom)} – ${formatTimeLabel(timeTo)}`;
+}
+
+// ----- Time picker helpers --------------------------------------------------
+const HOURS_24 = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES_STEP_5 = Array.from({ length: 12 }, (_, i) => i * 5);
+const WHEEL_ITEM_HEIGHT = 44;
+const WHEEL_VISIBLE_COUNT = 5;
+const WHEEL_HEIGHT = WHEEL_ITEM_HEIGHT * WHEEL_VISIBLE_COUNT;
+const WHEEL_PAD = ((WHEEL_VISIBLE_COUNT - 1) / 2) * WHEEL_ITEM_HEIGHT;
+
+function clampNumber(n: number, min: number, max: number): number {
+    return Math.max(min, Math.min(n, max));
+}
+
+function pad2(n: number): string {
+    return n < 10 ? `0${n}` : String(n);
+}
+
+function toHHMM(h: number, m: number): string {
+    return `${pad2(h)}:${pad2(m)}`;
+}
+
+function parseTimeOfDay(
+    raw: string,
+    fallback: { h: number; m: number },
+): { h: number; m: number } {
+    const parts = (raw ?? "").split(":");
+    const h = Number.parseInt(parts[0] ?? "", 10);
+    const m = Number.parseInt(parts[1] ?? "", 10);
+    const minuteSnapped = Number.isFinite(m)
+        ? clampNumber(Math.round(m / 5) * 5, 0, 55)
+        : fallback.m;
+    return {
+        h: Number.isFinite(h) ? clampNumber(h, 0, 23) : fallback.h,
+        m: minuteSnapped,
+    };
 }
 
 // ============================================================================
@@ -935,6 +913,32 @@ function createStyles(width: number) {
             letterSpacing: 0.5,
             textTransform: "uppercase",
         },
+        statusPillReady: {
+            backgroundColor: "#dcfce7",
+        },
+        statusPillReadyText: {
+            color: "#15803d",
+        },
+        statusPillPending: {
+            backgroundColor: "#fef3c7",
+        },
+        statusPillPendingText: {
+            color: "#a16207",
+        },
+        statusPillNeutral: {
+            backgroundColor: subtleBg,
+        },
+        statusPillNeutralText: {
+            color: dash.muted,
+        },
+        projectPillsRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 6,
+            flexShrink: 1,
+            justifyContent: "flex-end",
+        },
         projectMetaRow: {
             flexDirection: "row",
             flexWrap: "wrap",
@@ -992,124 +996,7 @@ function createStyles(width: number) {
             lineHeight: 19,
         },
 
-        // ------ Team panel (student view) -------------------------------------
-        teamPanel: {
-            marginTop: 14,
-            backgroundColor: subtleBg,
-            borderRadius: 14,
-            padding: 12,
-            gap: 12,
-        },
-        teamMembersRow: { gap: 10 },
-        teamMember: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-        },
-        teamMemberInfo: { flex: 1 },
-        teamMemberName: {
-            fontSize: 13,
-            fontWeight: "700",
-            color: dash.text,
-        },
-        teamMemberRole: {
-            marginTop: 2,
-            fontSize: 11,
-            color: dash.subtle,
-        },
-        leaderBadge: {
-            paddingHorizontal: 6,
-            paddingVertical: 2,
-            borderRadius: 6,
-            backgroundColor: "#fef3c7",
-        },
-        leaderBadgeText: {
-            fontSize: 10,
-            fontWeight: "700",
-            color: "#a16207",
-            letterSpacing: 0.3,
-            textTransform: "uppercase",
-        },
-        chatHeader: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            paddingTop: 10,
-            borderTopWidth: hair,
-            borderTopColor: dividerColor,
-        },
-        chatHeaderText: {
-            fontSize: 11,
-            fontWeight: "700",
-            color: dash.muted,
-            letterSpacing: 0.5,
-            textTransform: "uppercase",
-        },
-        chatList: { maxHeight: 180, gap: 6 },
-        chatBubbleWrap: {
-            flexDirection: "row",
-        },
-        chatBubble: {
-            paddingHorizontal: 10,
-            paddingVertical: 7,
-            borderRadius: 14,
-            maxWidth: "84%",
-        },
-        chatBubbleMine: {
-            backgroundColor: dash.accent,
-            alignSelf: "flex-end",
-            borderBottomRightRadius: 4,
-        },
-        chatBubbleTheirs: {
-            backgroundColor: "#e5e7eb",
-            alignSelf: "flex-start",
-            borderBottomLeftRadius: 4,
-        },
-        chatBubbleTextMine: { color: "#fff", fontSize: 13, lineHeight: 18 },
-        chatBubbleTextTheirs: { color: "#1f2937", fontSize: 13, lineHeight: 18 },
-        chatSenderLabel: {
-            fontSize: 10,
-            color: dash.subtle,
-            fontWeight: "700",
-            marginBottom: 2,
-            marginLeft: 4,
-            textTransform: "uppercase",
-            letterSpacing: 0.3,
-        },
-        chatInputRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-        },
-        chatInput: {
-            flex: 1,
-            backgroundColor: surface,
-            borderRadius: 999,
-            paddingVertical: Platform.OS === "ios" ? 10 : 8,
-            paddingHorizontal: 14,
-            fontSize: 13,
-            color: dash.text,
-            borderWidth: hair,
-            borderColor: hairlineColor,
-        },
-        chatSendBtn: {
-            width: 38,
-            height: 38,
-            borderRadius: 19,
-            backgroundColor: dash.accent,
-            alignItems: "center",
-            justifyContent: "center",
-            ...Platform.select({
-                ios: {
-                    shadowColor: dash.accent,
-                    shadowOffset: { width: 0, height: 3 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 6,
-                },
-                android: { elevation: 3 },
-                default: {},
-            }),
-        },
+        // ------ Team panel styles moved out: see ProjectTeamsPage.tsx --------
 
         // ------ Settings ------------------------------------------------------
         settingsBlock: {
@@ -1192,46 +1079,6 @@ function createStyles(width: number) {
         switchThumbOn: { alignSelf: "flex-end" },
         switchThumbOff: { alignSelf: "flex-start" },
 
-        stepperRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            paddingVertical: 10,
-            borderTopWidth: hair,
-            borderTopColor: dividerColor,
-        },
-        stepperRowFirst: { borderTopWidth: 0 },
-        stepperLabelCol: {
-            flex: 1,
-            minWidth: 0,
-            paddingRight: 12,
-        },
-        stepperWrap: {
-            flexShrink: 0,
-        },
-        stepper: {
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: inputFill,
-            borderRadius: 12,
-            paddingHorizontal: 2,
-            flexShrink: 0,
-        },
-        stepperBtn: {
-            width: 32,
-            height: 32,
-            alignItems: "center",
-            justifyContent: "center",
-        },
-        stepperInput: {
-            width: 36,
-            height: 32,
-            textAlign: "center",
-            fontSize: 15,
-            fontWeight: "700",
-            color: dash.text,
-            padding: 0,
-        },
-
         dateRow: {
             paddingVertical: 10,
             borderTopWidth: hair,
@@ -1257,6 +1104,64 @@ function createStyles(width: number) {
             paddingVertical: Platform.OS === "ios" ? 10 : 8,
             fontSize: 14,
             color: dash.text,
+        },
+        dateInputPlaceholder: {
+            color: dash.subtle,
+        },
+        datePickerOverlay: {
+            flex: 1,
+            justifyContent: "flex-end",
+        },
+        datePickerBackdrop: {
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: "rgba(15,23,42,0.18)",
+        },
+        datePickerSheet: {
+            backgroundColor: surface,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingBottom: Platform.OS === "ios" ? 26 : 16,
+            ...Platform.select({
+                ios: {
+                    shadowColor: "#0f172a",
+                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 16,
+                },
+                android: { elevation: 8 },
+                default: {},
+            }),
+        },
+        datePickerHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 16,
+            paddingTop: 14,
+            paddingBottom: 6,
+        },
+        datePickerTitle: {
+            fontSize: 14,
+            fontWeight: "700",
+            color: dash.text,
+            flex: 1,
+            textAlign: "center",
+            marginHorizontal: 12,
+        },
+        datePickerCancel: {
+            fontSize: 14,
+            fontWeight: "600",
+            color: dash.muted,
+        },
+        datePickerDone: {
+            fontSize: 14,
+            fontWeight: "700",
+            color: dash.accent,
+        },
+        datePickerInline: {
+            alignSelf: "center",
+            width: "100%",
+            maxWidth: 380,
         },
 
         // ------ Empty states --------------------------------------------------
@@ -1373,6 +1278,111 @@ function createStyles(width: number) {
         },
         timeRow: { flexDirection: "row", gap: 12 },
         timeField: { flex: 1 },
+        timeInputRow: {
+            minHeight: 48,
+            paddingHorizontal: 14,
+            borderRadius: 12,
+            backgroundColor: inputFill,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+        },
+        timeInputText: {
+            fontSize: 15,
+            fontWeight: "600",
+            color: dash.text,
+            flex: 1,
+        },
+        timeInputPlaceholder: {
+            color: dash.subtle,
+            fontWeight: "500",
+        },
+
+        // ------ Time picker overlay -------------------------------------------
+        pickerOverlay: {
+            ...StyleSheet.absoluteFillObject,
+            justifyContent: "flex-end",
+        },
+        pickerBackdrop: {
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: "rgba(15,23,42,0.5)",
+        },
+        pickerSheet: {
+            backgroundColor: surface,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingHorizontal: t.gutter,
+            paddingTop: 18,
+            paddingBottom: 24,
+        },
+        pickerHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 14,
+        },
+        pickerHeaderTitle: {
+            fontSize: 18,
+            fontWeight: "700",
+            color: dash.text,
+            letterSpacing: -0.3,
+        },
+        pickerHeaderPreview: {
+            marginTop: 4,
+            fontSize: 13,
+            color: dash.muted,
+            fontWeight: "600",
+        },
+        pickerHeaderIcon: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: dash.accentMuted,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        pickerWheelRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            height: WHEEL_HEIGHT,
+            position: "relative",
+        },
+        pickerWheelBand: {
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: WHEEL_PAD,
+            height: WHEEL_ITEM_HEIGHT,
+            borderRadius: 12,
+            backgroundColor: dash.accentMuted,
+        },
+        pickerWheelCol: {
+            width: 88,
+            height: WHEEL_HEIGHT,
+        },
+        pickerWheelItem: {
+            height: WHEEL_ITEM_HEIGHT,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        pickerWheelItemText: {
+            fontSize: 18,
+            fontWeight: "600",
+            color: dash.muted,
+        },
+        pickerWheelItemTextActive: {
+            fontSize: 22,
+            fontWeight: "800",
+            color: dash.accent,
+        },
+        pickerColon: {
+            fontSize: 24,
+            fontWeight: "800",
+            color: dash.text,
+            paddingHorizontal: 6,
+        },
+
         dayChip: {
             paddingVertical: 8,
             paddingHorizontal: 14,
@@ -1420,57 +1430,6 @@ function ToggleSwitch({
                 ]}
             />
         </Pressable>
-    );
-}
-
-function Stepper({
-    value,
-    onChange,
-    min = 1,
-    max = 99,
-    styles,
-}: {
-    value: string;
-    onChange: (next: string) => void;
-    min?: number;
-    max?: number;
-    styles: ReturnType<typeof createStyles>;
-}) {
-    const num = Number.parseInt(value, 10);
-    const safe = Number.isFinite(num) ? num : min;
-    const dec = () => onChange(String(Math.max(min, safe - 1)));
-    const inc = () => onChange(String(Math.min(max, safe + 1)));
-
-    return (
-        <View style={styles.stepper}>
-            <Pressable
-                onPress={dec}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                style={({ pressed }) => [
-                    styles.stepperBtn,
-                    pressed && styles.pressedOpacity,
-                ]}
-            >
-                <Ionicons name="remove" size={16} color={dash.text} />
-            </Pressable>
-            <TextInput
-                style={styles.stepperInput}
-                value={value}
-                onChangeText={(v) => onChange(v.replace(/[^\d]/g, ""))}
-                keyboardType="number-pad"
-                selectTextOnFocus
-            />
-            <Pressable
-                onPress={inc}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                style={({ pressed }) => [
-                    styles.stepperBtn,
-                    pressed && styles.pressedOpacity,
-                ]}
-            >
-                <Ionicons name="add" size={16} color={dash.text} />
-            </Pressable>
-        </View>
     );
 }
 
@@ -1566,48 +1525,35 @@ function SettingsRow({
     );
 }
 
-function StepperRow({
-    label,
-    description,
-    value,
-    onChange,
-    min,
-    max,
-    styles,
-    first,
-}: {
-    label: string;
-    description?: string;
-    value: string;
-    onChange: (next: string) => void;
-    min?: number;
-    max?: number;
-    styles: ReturnType<typeof createStyles>;
-    first?: boolean;
-}) {
-    return (
-        <View style={[styles.stepperRow, first && styles.stepperRowFirst]}>
-            <View style={styles.stepperLabelCol}>
-                <Text style={styles.settingsLabel} numberOfLines={1}>
-                    {label}
-                </Text>
-                {description ? (
-                    <Text style={styles.settingsDesc} numberOfLines={2}>
-                        {description}
-                    </Text>
-                ) : null}
-            </View>
-            <View style={styles.stepperWrap}>
-                <Stepper
-                    value={value}
-                    onChange={onChange}
-                    min={min}
-                    max={max}
-                    styles={styles}
-                />
-            </View>
-        </View>
-    );
+/** "YYYY-MM-DD" ↔ Date helpers used by the Timeline date pickers. */
+function toYmd(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+}
+
+function fromYmd(s: string | undefined | null): Date | null {
+    if (!s) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
+    if (!m) return null;
+    const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return Number.isFinite(date.getTime()) ? date : null;
+}
+
+/** Human-friendly label (e.g. "May 12, 2026"); falls back to placeholder copy. */
+function formatDateLabel(value: string): string | null {
+    const d = fromYmd(value);
+    if (!d) return null;
+    try {
+        return d.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "2-digit",
+        });
+    } catch {
+        return value;
+    }
 }
 
 function DateRow({
@@ -1623,27 +1569,161 @@ function DateRow({
     styles: ReturnType<typeof createStyles>;
     first?: boolean;
 }) {
+    // iOS uses a controlled modal with an inline picker + Done/Cancel. Android
+    // uses the native imperative dialog. Web renders an <input type="date"> so
+    // Expo Web previews behave like a real date input too.
+    const [iosOpen, setIosOpen] = useState(false);
+    const [iosDraft, setIosDraft] = useState<Date>(() => fromYmd(value) ?? new Date());
+
+    const openPicker = useCallback(() => {
+        const current = fromYmd(value) ?? new Date();
+        if (Platform.OS === "android") {
+            DateTimePickerAndroid.open({
+                mode: "date",
+                value: current,
+                onChange: (event, picked) => {
+                    if (event.type === "set" && picked) {
+                        onChange(toYmd(picked));
+                    }
+                },
+            });
+            return;
+        }
+        if (Platform.OS === "ios") {
+            setIosDraft(current);
+            setIosOpen(true);
+        }
+    }, [value, onChange]);
+
+    const displayLabel = formatDateLabel(value);
+
+    // ── Web: use the platform-native HTML date input for the best UX. ───────
+    if (Platform.OS === "web") {
+        const webInput = createDomElement("input", {
+            type: "date",
+            value,
+            onChange: (e: { target: { value?: string } }) =>
+                onChange(String(e.target?.value ?? "")),
+            "aria-label": label,
+            style: {
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                fontSize: 14,
+                color: dash.text,
+                padding: 0,
+                margin: 0,
+                fontFamily: "inherit",
+                cursor: "pointer",
+            },
+        });
+        return (
+            <View style={[styles.dateRow, first && styles.dateRowFirst]}>
+                <Text style={styles.dateRowLabel}>{label}</Text>
+                <View style={styles.dateInputWrap}>
+                    <Ionicons
+                        name="calendar-outline"
+                        size={17}
+                        color={dash.muted}
+                        style={styles.dateInputIcon}
+                    />
+                    {webInput}
+                    {value ? (
+                        <Pressable
+                            accessibilityLabel="Clear date"
+                            onPress={() => onChange("")}
+                            hitSlop={8}
+                            style={({ pressed }) => pressed && styles.pressedOpacity}
+                        >
+                            <Ionicons name="close" size={16} color={dash.muted} />
+                        </Pressable>
+                    ) : null}
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={[styles.dateRow, first && styles.dateRowFirst]}>
             <Text style={styles.dateRowLabel}>{label}</Text>
-            <View style={styles.dateInputWrap}>
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${label}: ${displayLabel ?? "no date selected"}. Tap to pick a date.`}
+                onPress={openPicker}
+                style={({ pressed }) => [
+                    styles.dateInputWrap,
+                    pressed && styles.pressedOpacity,
+                ]}
+            >
                 <Ionicons
                     name="calendar-outline"
                     size={17}
                     color={dash.muted}
                     style={styles.dateInputIcon}
                 />
-                <TextInput
-                    style={styles.dateInput}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={dash.subtle}
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    keyboardType="numbers-and-punctuation"
-                />
-            </View>
+                <Text style={[styles.dateInput, !displayLabel && styles.dateInputPlaceholder]}>
+                    {displayLabel ?? "Select date"}
+                </Text>
+                {value ? (
+                    <Pressable
+                        accessibilityLabel="Clear date"
+                        onPress={() => onChange("")}
+                        hitSlop={8}
+                        style={({ pressed }) => pressed && styles.pressedOpacity}
+                    >
+                        <Ionicons name="close" size={16} color={dash.muted} />
+                    </Pressable>
+                ) : null}
+            </Pressable>
+
+            {Platform.OS === "ios" && iosOpen ? (
+                <Modal
+                    transparent
+                    visible
+                    animationType="fade"
+                    onRequestClose={() => setIosOpen(false)}
+                >
+                    <View style={styles.datePickerOverlay}>
+                        <Pressable
+                            style={styles.datePickerBackdrop}
+                            onPress={() => setIosOpen(false)}
+                        />
+                        <View style={styles.datePickerSheet}>
+                            <View style={styles.datePickerHeader}>
+                                <Pressable
+                                    onPress={() => setIosOpen(false)}
+                                    hitSlop={8}
+                                    style={({ pressed }) => pressed && styles.pressedOpacity}
+                                >
+                                    <Text style={styles.datePickerCancel}>Cancel</Text>
+                                </Pressable>
+                                <Text style={styles.datePickerTitle}>{label}</Text>
+                                <Pressable
+                                    onPress={() => {
+                                        onChange(toYmd(iosDraft));
+                                        setIosOpen(false);
+                                    }}
+                                    hitSlop={8}
+                                    style={({ pressed }) => pressed && styles.pressedOpacity}
+                                >
+                                    <Text style={styles.datePickerDone}>Done</Text>
+                                </Pressable>
+                            </View>
+                            <DateTimePicker
+                                mode="date"
+                                display="inline"
+                                value={iosDraft}
+                                onChange={(_event, picked) => {
+                                    if (picked) setIosDraft(picked);
+                                }}
+                                themeVariant="light"
+                                style={styles.datePickerInline}
+                            />
+                        </View>
+                    </View>
+                </Modal>
+            ) : null}
         </View>
     );
 }
@@ -1651,6 +1731,174 @@ function DateRow({
 // ============================================================================
 // Create-section bottom sheet (mobile replacement for web CreateSectionForm).
 // ============================================================================
+
+function TimeWheelColumn({
+    values,
+    selected,
+    onChange,
+    styles,
+    accessibilityLabel,
+}: {
+    values: number[];
+    selected: number;
+    onChange: (v: number) => void;
+    styles: ReturnType<typeof createStyles>;
+    accessibilityLabel?: string;
+}) {
+    const ref = useRef<ScrollView | null>(null);
+    const idx = useMemo(() => {
+        const i = values.indexOf(selected);
+        return i < 0 ? 0 : i;
+    }, [values, selected]);
+
+    useEffect(() => {
+        const handle = requestAnimationFrame(() => {
+            ref.current?.scrollTo({ y: idx * WHEEL_ITEM_HEIGHT, animated: false });
+        });
+        return () => cancelAnimationFrame(handle);
+    }, [idx]);
+
+    return (
+        <View
+            style={styles.pickerWheelCol}
+            accessibilityRole="adjustable"
+            accessibilityLabel={accessibilityLabel}
+        >
+            <ScrollView
+                ref={ref}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={WHEEL_ITEM_HEIGHT}
+                snapToAlignment="start"
+                decelerationRate="fast"
+                contentContainerStyle={{ paddingVertical: WHEEL_PAD }}
+                onMomentumScrollEnd={(e) => {
+                    const next = clampNumber(
+                        Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_HEIGHT),
+                        0,
+                        values.length - 1,
+                    );
+                    const v = values[next];
+                    if (v !== undefined && v !== selected) onChange(v);
+                }}
+            >
+                {values.map((v, i) => {
+                    const active = i === idx;
+                    return (
+                        <Pressable
+                            key={v}
+                            onPress={() => {
+                                onChange(v);
+                                ref.current?.scrollTo({
+                                    y: i * WHEEL_ITEM_HEIGHT,
+                                    animated: true,
+                                });
+                            }}
+                            style={styles.pickerWheelItem}
+                        >
+                            <Text
+                                style={[
+                                    styles.pickerWheelItemText,
+                                    active && styles.pickerWheelItemTextActive,
+                                ]}
+                            >
+                                {pad2(v)}
+                            </Text>
+                        </Pressable>
+                    );
+                })}
+            </ScrollView>
+        </View>
+    );
+}
+
+function TimePickerOverlay({
+    title,
+    initial,
+    fallback,
+    onCancel,
+    onConfirm,
+    styles,
+}: {
+    title: string;
+    initial: string;
+    fallback: { h: number; m: number };
+    onCancel: () => void;
+    onConfirm: (hhmm: string) => void;
+    styles: ReturnType<typeof createStyles>;
+}) {
+    const initialParsed = useMemo(
+        () => parseTimeOfDay(initial, fallback),
+        [initial, fallback],
+    );
+    const [hour, setHour] = useState(initialParsed.h);
+    const [minute, setMinute] = useState(initialParsed.m);
+
+    const preview = useMemo(
+        () => formatTimeLabel(toHHMM(hour, minute)),
+        [hour, minute],
+    );
+
+    return (
+        <View style={styles.pickerOverlay}>
+            <Pressable style={styles.pickerBackdrop} onPress={onCancel} />
+            <View style={styles.pickerSheet}>
+                <View style={styles.pickerHeader}>
+                    <View>
+                        <Text style={styles.pickerHeaderTitle}>{title}</Text>
+                        <Text style={styles.pickerHeaderPreview}>{preview}</Text>
+                    </View>
+                    <View style={styles.pickerHeaderIcon}>
+                        <Ionicons name="time-outline" size={20} color={dash.accent} />
+                    </View>
+                </View>
+
+                <View style={styles.pickerWheelRow}>
+                    <View pointerEvents="none" style={styles.pickerWheelBand} />
+                    <TimeWheelColumn
+                        values={HOURS_24}
+                        selected={hour}
+                        onChange={setHour}
+                        styles={styles}
+                        accessibilityLabel="Hour"
+                    />
+                    <Text style={styles.pickerColon}>:</Text>
+                    <TimeWheelColumn
+                        values={MINUTES_STEP_5}
+                        selected={minute}
+                        onChange={setMinute}
+                        styles={styles}
+                        accessibilityLabel="Minute"
+                    />
+                </View>
+
+                <View style={styles.modalActions}>
+                    <Pressable
+                        onPress={onCancel}
+                        style={({ pressed }) => [
+                            styles.ghostBtn,
+                            { flex: 1 },
+                            pressed && styles.pressedOpacity,
+                        ]}
+                    >
+                        <Text style={styles.ghostBtnText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                        onPress={() => onConfirm(toHHMM(hour, minute))}
+                        style={({ pressed }) => [
+                            styles.primaryBtn,
+                            styles.primaryBtnBig,
+                            { flex: 1 },
+                            pressed && styles.pressedOpacity,
+                        ]}
+                    >
+                        <Ionicons name="checkmark" size={18} color="#fff" />
+                        <Text style={styles.primaryBtnBigText}>Set time</Text>
+                    </Pressable>
+                </View>
+            </View>
+        </View>
+    );
+}
 
 function CreateSectionSheet({
     visible,
@@ -1671,6 +1919,7 @@ function CreateSectionSheet({
     const [timeTo, setTimeTo] = useState("");
     const [capacityInput, setCapacityInput] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [pickerMode, setPickerMode] = useState<"from" | "to" | null>(null);
 
     useEffect(() => {
         if (!visible) {
@@ -1680,6 +1929,7 @@ function CreateSectionSheet({
             setTimeTo("");
             setCapacityInput("");
             setError(null);
+            setPickerMode(null);
         }
     }, [visible]);
 
@@ -1789,27 +2039,65 @@ function CreateSectionSheet({
                             <View style={styles.timeRow}>
                                 <View style={styles.timeField}>
                                     <Text style={styles.fieldLabel}>From</Text>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={timeFrom}
-                                        onChangeText={setTimeFrom}
-                                        placeholder="09:00"
-                                        placeholderTextColor={dash.subtle}
-                                        keyboardType="numbers-and-punctuation"
-                                        autoCorrect={false}
-                                    />
+                                    <Pressable
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Pick start time"
+                                        onPress={() => setPickerMode("from")}
+                                        style={({ pressed }) => [
+                                            styles.timeInputRow,
+                                            pressed && styles.pressedOpacity,
+                                        ]}
+                                    >
+                                        <Ionicons
+                                            name="time-outline"
+                                            size={18}
+                                            color={timeFrom ? dash.accent : dash.muted}
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.timeInputText,
+                                                !timeFrom && styles.timeInputPlaceholder,
+                                            ]}
+                                        >
+                                            {timeFrom ? formatTimeLabel(timeFrom) : "09:00"}
+                                        </Text>
+                                        <Ionicons
+                                            name="chevron-down"
+                                            size={16}
+                                            color={dash.subtle}
+                                        />
+                                    </Pressable>
                                 </View>
                                 <View style={styles.timeField}>
                                     <Text style={styles.fieldLabel}>To</Text>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={timeTo}
-                                        onChangeText={setTimeTo}
-                                        placeholder="10:30"
-                                        placeholderTextColor={dash.subtle}
-                                        keyboardType="numbers-and-punctuation"
-                                        autoCorrect={false}
-                                    />
+                                    <Pressable
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Pick end time"
+                                        onPress={() => setPickerMode("to")}
+                                        style={({ pressed }) => [
+                                            styles.timeInputRow,
+                                            pressed && styles.pressedOpacity,
+                                        ]}
+                                    >
+                                        <Ionicons
+                                            name="time-outline"
+                                            size={18}
+                                            color={timeTo ? dash.accent : dash.muted}
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.timeInputText,
+                                                !timeTo && styles.timeInputPlaceholder,
+                                            ]}
+                                        >
+                                            {timeTo ? formatTimeLabel(timeTo) : "10:30"}
+                                        </Text>
+                                        <Ionicons
+                                            name="chevron-down"
+                                            size={16}
+                                            color={dash.subtle}
+                                        />
+                                    </Pressable>
                                 </View>
                             </View>
                         </View>
@@ -1860,6 +2148,23 @@ function CreateSectionSheet({
                         </Pressable>
                     </View>
                 </View>
+
+                {pickerMode ? (
+                    <TimePickerOverlay
+                        title={pickerMode === "from" ? "Start time" : "End time"}
+                        initial={pickerMode === "from" ? timeFrom : timeTo}
+                        fallback={
+                            pickerMode === "from" ? { h: 9, m: 0 } : { h: 10, m: 30 }
+                        }
+                        onCancel={() => setPickerMode(null)}
+                        onConfirm={(v) => {
+                            if (pickerMode === "from") setTimeFrom(v);
+                            else setTimeTo(v);
+                            setPickerMode(null);
+                        }}
+                        styles={styles}
+                    />
+                ) : null}
             </KeyboardAvoidingView>
         </Modal>
     );
@@ -1881,31 +2186,23 @@ export default function CourseWorkspacePage() {
         role?: string | string[];
     }>();
 
-    const courseId = pickParam(searchParams.courseId) ?? "mock-course";
+    const courseIdParam = pickParam(searchParams.courseId);
+    const backendCourseId = parseBackendCourseId(courseIdParam);
     const initialCourseName = pickParam(searchParams.courseName) ?? "Course";
     const initialCourseCode = pickParam(searchParams.courseCode) ?? "—";
 
-    /** localStorage equivalent is not available on mobile. Default to doctor;
-     *  override by passing `?role=student` while the auth store isn't wired. */
+    /** On native, default role is doctor; pass `?role=student` for student UI. */
     const role = (pickParam(searchParams.role) ?? "doctor").toLowerCase();
     const isDoctor = role === "doctor";
 
     const [activeTab, setActiveTab] = useState<WorkspaceTab>("sections");
     const [sections, setSections] = useState<WorkspaceSection[]>([]);
     const [openedSectionId, setOpenedSectionId] = useState<string | null>(null);
-    const [projects, setProjects] = useState<WorkspaceProject[]>([]);
     const [apiProjects, setApiProjects] = useState<DoctorCourseProject[]>([]);
-    const [projectTeamCounts, setProjectTeamCounts] = useState<Record<number, number>>(
-        {}
-    );
+    const [projectTeamCounts, setProjectTeamCounts] = useState<Record<number, number>>({});
     const [showCreateSection, setShowCreateSection] = useState(false);
-    const [openedTeamProjectId, setOpenedTeamProjectId] = useState<number | null>(null);
-    const [teamMessages, setTeamMessages] = useState<
-        { id: number; sender: string; text: string }[]
-    >([{ id: 1, sender: "Mohammad", text: "Hello team!" }]);
-    const [teamChatInput, setTeamChatInput] = useState("");
     const [courseSettings, setCourseSettings] = useState<CourseWorkspaceSettingsForm>(
-        defaultCourseWorkspaceSettings
+        defaultCourseWorkspaceSettings,
     );
     const [courseHeader, setCourseHeader] = useState<{ name: string; code: string }>({
         name: initialCourseName,
@@ -1913,6 +2210,8 @@ export default function CourseWorkspacePage() {
     });
     const [copiedCode, setCopiedCode] = useState(false);
     const [creatingSection, setCreatingSection] = useState(false);
+    const [workspaceLoading, setWorkspaceLoading] = useState(true);
+    const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
     const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1920,63 +2219,83 @@ export default function CourseWorkspacePage() {
         () => () => {
             if (copyFeedbackTimerRef.current) clearTimeout(copyFeedbackTimerRef.current);
         },
-        []
+        [],
     );
 
     useEffect(() => {
         setCourseHeader({ name: initialCourseName, code: initialCourseCode });
     }, [initialCourseName, initialCourseCode]);
 
-    // ---- Backend loaders (mocked; flip flag once wired) ---------------------
-    useEffect(() => {
-        const backendId = parseBackendCourseId(courseId);
-        if (backendId == null || !ENABLE_COURSE_WORKSPACE_BACKEND_API) return;
-        let cancelled = false;
-        getDoctorCourseSections(backendId)
-            .then((apiSections) => {
-                if (cancelled) return;
-                setSections(
-                    apiSections.map((s) => ({
-                        id: String(s.id),
-                        name: s.name,
-                        days: s.days,
-                        timeFrom: s.timeFrom ?? "",
-                        timeTo: s.timeTo ?? "",
-                        capacity: s.capacity,
-                        students: normalizeSectionStudents(
-                            (s as { students?: unknown }).students
-                        ),
-                    }))
-                );
-            })
-            .catch((err) => {
-                if (cancelled) return;
-                showToast(parseApiErrorMessage(err), "error");
+    const loadWorkspace = useCallback(async () => {
+        const id = parseBackendCourseId(courseIdParam);
+        if (id == null) {
+            setWorkspaceLoading(false);
+            setWorkspaceError(null);
+            setSections([]);
+            setApiProjects([]);
+            setProjectTeamCounts({});
+            return;
+        }
+        setWorkspaceLoading(true);
+        setWorkspaceError(null);
+        try {
+            const detail = await getDoctorCourseDetail(id);
+            setCourseHeader({
+                name: detail.name?.trim() || initialCourseName,
+                code: detail.code?.trim() || initialCourseCode,
             });
-        return () => {
-            cancelled = true;
-        };
-    }, [courseId]);
+
+            const [apiSecs, projs] = await Promise.all([
+                getDoctorCourseSections(id),
+                getDoctorCourseProjects(id),
+            ]);
+
+            const studentRows = await Promise.all(
+                apiSecs.map(async (s) => {
+                    try {
+                        const rows = await getDoctorSectionStudents(s.id);
+                        return {
+                            sectionId: s.id,
+                            students: rows.map(doctorCourseStudentToSectionStudent),
+                        };
+                    } catch {
+                        return { sectionId: s.id, students: [] as SectionStudent[] };
+                    }
+                }),
+            );
+            const bySectionId = new Map(
+                studentRows.map((x) => [x.sectionId, x.students] as const),
+            );
+
+            setSections(
+                apiSecs.map((s) => ({
+                    id: String(s.id),
+                    name: s.name,
+                    days: s.days,
+                    timeFrom: s.timeFrom ?? "",
+                    timeTo: s.timeTo ?? "",
+                    capacity: s.capacity,
+                    students: bySectionId.get(s.id) ?? [],
+                })),
+            );
+            setApiProjects(projs);
+        } catch (e) {
+            setWorkspaceError(parseApiErrorMessage(e));
+            setSections([]);
+            setApiProjects([]);
+        } finally {
+            setWorkspaceLoading(false);
+        }
+    }, [courseIdParam, initialCourseName, initialCourseCode]);
+
+    useFocusEffect(
+        useCallback(() => {
+            void loadWorkspace();
+        }, [loadWorkspace]),
+    );
 
     useEffect(() => {
-        const backendId = parseBackendCourseId(courseId);
-        if (backendId == null || !ENABLE_COURSE_WORKSPACE_BACKEND_API) return;
-        let cancelled = false;
-        getDoctorCourseProjects(backendId)
-            .then((data) => {
-                if (!cancelled) setApiProjects(data);
-            })
-            .catch(() => {
-                /* non-critical */
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [courseId]);
-
-    useEffect(() => {
-        const backendId = parseBackendCourseId(courseId);
-        if (backendId == null || apiProjects.length === 0) {
+        if (backendCourseId == null || apiProjects.length === 0) {
             setProjectTeamCounts({});
             return;
         }
@@ -1985,47 +2304,52 @@ export default function CourseWorkspacePage() {
             const entries = await Promise.all(
                 apiProjects.map(async (project) => {
                     try {
-                        const res = await getDoctorProjectTeams(backendId, project.id);
+                        const res = await getDoctorProjectTeams(backendCourseId, project.id);
                         return [project.id, res.teamCount] as const;
                     } catch {
                         return [project.id, 0] as const;
                     }
-                })
+                }),
             );
             if (!cancelled) setProjectTeamCounts(Object.fromEntries(entries));
         })();
         return () => {
             cancelled = true;
         };
-    }, [courseId, apiProjects]);
+    }, [backendCourseId, apiProjects]);
 
-    // ---- Actions ------------------------------------------------------------
+    /** Visible status for a project card: drives the small pill in the header. */
+    const projectStatus = useCallback(
+        (project: DoctorCourseProject) => {
+            const count = projectTeamCounts[project.id];
+            if (count == null) return { label: "Loading", tone: "neutral" as const };
+            if (count > 0) return { label: "Active", tone: "ready" as const };
+            return {
+                label: project.aiMode === "doctor" ? "Pending AI" : "Awaiting students",
+                tone: "pending" as const,
+            };
+        },
+        [projectTeamCounts],
+    );
+
     const handleAddSection = async (payload: NewSectionPayload) => {
         if (creatingSection) return;
-        const backendId = parseBackendCourseId(courseId);
-        if (backendId == null || !ENABLE_COURSE_WORKSPACE_BACKEND_API) {
-            setSections((prev) => [...prev, { ...payload, id: `temp-${Date.now()}` }]);
-            setShowCreateSection(false);
+        const id = parseBackendCourseId(courseIdParam);
+        if (id == null) {
+            showToast("Invalid course — cannot add a section.", "error");
             return;
         }
         setCreatingSection(true);
         try {
-            const created = await createDoctorCourseSection(backendId, payload);
-            setSections((prev) => [
-                ...prev,
-                {
-                    id: String(created.id),
-                    name: created.name,
-                    days: created.days,
-                    timeFrom: created.timeFrom ?? "",
-                    timeTo: created.timeTo ?? "",
-                    capacity: created.capacity,
-                    students: normalizeSectionStudents(
-                        (created as { students?: unknown }).students
-                    ),
-                },
-            ]);
+            await createDoctorCourseSection(id, {
+                name: payload.name,
+                days: payload.days,
+                timeFrom: payload.timeFrom.trim(),
+                timeTo: payload.timeTo.trim(),
+                capacity: payload.capacity,
+            });
             setShowCreateSection(false);
+            await loadWorkspace();
         } catch (err) {
             showToast(parseApiErrorMessage(err), "error");
         } finally {
@@ -2041,14 +2365,39 @@ export default function CourseWorkspacePage() {
         router.replace("/" as Href);
     };
 
+    /** Navigate to the dedicated mobile teams screen for this project. */
+    const openProjectTeams = useCallback(
+        (project: DoctorCourseProject) => {
+            if (backendCourseId == null) {
+                showToast(
+                    "Invalid course id — cannot open project teams.",
+                    "error",
+                );
+                return;
+            }
+            const q = new URLSearchParams();
+            q.set("courseId", String(backendCourseId));
+            q.set("projectId", String(project.id));
+            q.set("projectTitle", project.title || "Project teams");
+            q.set("aiMode", project.aiMode);
+            q.set("role", isDoctor ? "doctor" : "student");
+            router.push(`/ProjectTeamsPage?${q.toString()}` as Href);
+        },
+        [backendCourseId, isDoctor, router],
+    );
+
     const openCreateProject = () => {
+        if (backendCourseId == null) {
+            showToast("Invalid course — open this workspace from your course list.", "error");
+            return;
+        }
         const sectionsJson = encodeURIComponent(
-            JSON.stringify(sections.map((s) => ({ id: s.id, name: s.name })))
+            JSON.stringify(sections.map((s) => ({ id: s.id, name: s.name }))),
         );
         router.push(
             `/CourseProjectCreatePage?courseId=${encodeURIComponent(
-                courseId
-            )}&sectionsJson=${sectionsJson}` as Href
+                String(backendCourseId),
+            )}&sectionsJson=${sectionsJson}` as Href,
         );
     };
 
@@ -2062,26 +2411,15 @@ export default function CourseWorkspacePage() {
     };
 
     const saveCourseSettings = () => {
-        if (__DEV__) console.log("Course settings (local draft)", courseSettings);
-        showToast("Settings saved locally.", "success");
+        void loadWorkspace();
+        showToast(
+            "Preferences updated on this device. Course-wide team rules are not synced to the server from this screen yet; reloading refreshed sections and projects from the API.",
+            "success",
+        );
     };
 
-    const handleSendTeamMessage = () => {
-        const text = teamChatInput.trim();
-        if (!text) return;
-        setTeamMessages((prev) => [...prev, { id: Date.now(), sender: "You", text }]);
-        setTeamChatInput("");
-    };
-
-    const teamMembers = [
-        { id: 1, name: "Mohammad", role: "Leader" },
-        { id: 2, name: "Ahmad", role: "Member" },
-    ];
-
-    // ---- Derived values -----------------------------------------------------
-    const isRealBackend =
-        parseBackendCourseId(courseId) != null && ENABLE_COURSE_WORKSPACE_BACKEND_API;
-    const displayProjectsCount = isRealBackend ? apiProjects.length : projects.length;
+    const isRealBackend = backendCourseId != null;
+    const displayProjectsCount = backendCourseId != null ? apiProjects.length : 0;
     const sectionsCount = sections.length;
 
     // ============== RENDER ==================================================
@@ -2098,6 +2436,60 @@ export default function CourseWorkspacePage() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
+                    {!backendCourseId ? (
+                        <View
+                            style={{
+                                marginBottom: 12,
+                                padding: 12,
+                                borderRadius: 12,
+                                backgroundColor: "#fff1f2",
+                                borderWidth: 1,
+                                borderColor: "#fecaca",
+                            }}
+                        >
+                            <Text style={{ color: "#9f1239", fontWeight: "600", fontSize: 13 }}>
+                                Invalid course id. Open this workspace from your dashboard course
+                                list.
+                            </Text>
+                        </View>
+                    ) : null}
+                    {workspaceError ? (
+                        <View style={{ marginBottom: 12 }}>
+                            <Text style={styles.errorText}>{workspaceError}</Text>
+                            <Pressable
+                                onPress={() => void loadWorkspace()}
+                                style={({ pressed }) => [
+                                    { marginTop: 10, alignSelf: "flex-start" },
+                                    pressed && styles.pressedOpacity,
+                                ]}
+                            >
+                                <Text style={{ color: dash.accent, fontWeight: "700", fontSize: 14 }}>
+                                    Retry
+                                </Text>
+                            </Pressable>
+                        </View>
+                    ) : null}
+                    {workspaceLoading && backendCourseId != null && !workspaceError ? (
+                        <View
+                            style={{
+                                paddingVertical: 16,
+                                alignItems: "center",
+                                marginBottom: 8,
+                            }}
+                        >
+                            <ActivityIndicator size="large" color={dash.accent} />
+                            <Text
+                                style={{
+                                    marginTop: 10,
+                                    color: dash.muted,
+                                    fontWeight: "600",
+                                    fontSize: 13,
+                                }}
+                            >
+                                Loading course…
+                            </Text>
+                        </View>
+                    ) : null}
                     {/* --------- Top bar ------------------------------------- */}
                     <View style={styles.topBar}>
                         <Pressable
@@ -2316,10 +2708,12 @@ export default function CourseWorkspacePage() {
                                     </Text>
                                 </View>
                                 <Pressable
+                                    disabled={backendCourseId == null}
                                     onPress={() => setShowCreateSection(true)}
                                     style={({ pressed }) => [
                                         styles.primaryBtn,
                                         pressed && styles.pressedOpacity,
+                                        backendCourseId == null && { opacity: 0.45 },
                                     ]}
                                 >
                                     <Ionicons name="add" size={16} color="#fff" />
@@ -2445,7 +2839,9 @@ export default function CourseWorkspacePage() {
                                                     onPress={() =>
                                                         router.push(
                                                             `/SectionStudentsPage?courseId=${encodeURIComponent(
-                                                                courseId
+                                                                backendCourseId != null
+                                                                    ? String(backendCourseId)
+                                                                    : (courseIdParam ?? "")
                                                             )}&sectionId=${encodeURIComponent(
                                                                 String(s.id)
                                                             )}&sectionName=${encodeURIComponent(
@@ -2584,12 +2980,14 @@ export default function CourseWorkspacePage() {
                                         group to start organizing this course.
                                     </Text>
                                     <Pressable
+                                        disabled={backendCourseId == null}
                                         onPress={() => setShowCreateSection(true)}
                                         style={({ pressed }) => [
                                             styles.primaryBtn,
                                             styles.primaryBtnBig,
                                             styles.emptyCta,
                                             pressed && styles.pressedOpacity,
+                                            backendCourseId == null && { opacity: 0.45 },
                                         ]}
                                     >
                                         <Ionicons name="add" size={18} color="#fff" />
@@ -2613,10 +3011,12 @@ export default function CourseWorkspacePage() {
                                     </Text>
                                 </View>
                                 <Pressable
+                                    disabled={backendCourseId == null}
                                     onPress={openCreateProject}
                                     style={({ pressed }) => [
                                         styles.primaryBtn,
                                         pressed && styles.pressedOpacity,
+                                        backendCourseId == null && { opacity: 0.45 },
                                     ]}
                                 >
                                     <Ionicons name="add" size={16} color="#fff" />
@@ -2624,33 +3024,40 @@ export default function CourseWorkspacePage() {
                                 </Pressable>
                             </View>
 
-                            {displayProjectsCount > 0 ? (
-                                isRealBackend ? (
-                                    (apiProjects as DoctorCourseProject[]).map((project) => {
-                                        const isDoctorAssignedProject =
-                                            isDoctor && project.aiMode === "doctor";
+                            {displayProjectsCount > 0 && isRealBackend ? (
+                                    apiProjects.map((project) => {
                                         const sectionsLabelList = project.applyToAllSections
                                             ? ["All sections"]
                                             : project.sections.map(
                                                   (s) => s.sectionName.trim() || "Section"
                                               );
+                                        const status = projectStatus(project);
+                                        const statusPillStyles = [
+                                            styles.statusPill,
+                                            status.tone === "ready" && styles.statusPillReady,
+                                            status.tone === "pending" && styles.statusPillPending,
+                                            status.tone === "neutral" && styles.statusPillNeutral,
+                                        ];
+                                        const statusPillTextStyles = [
+                                            styles.statusPillText,
+                                            status.tone === "ready" && styles.statusPillReadyText,
+                                            status.tone === "pending" && styles.statusPillPendingText,
+                                            status.tone === "neutral" && styles.statusPillNeutralText,
+                                        ];
+                                        const statusIconColor =
+                                            status.tone === "ready"
+                                                ? "#15803d"
+                                                : status.tone === "pending"
+                                                  ? "#a16207"
+                                                  : dash.muted;
+                                        const statusIcon =
+                                            status.tone === "ready"
+                                                ? "checkmark-circle-outline"
+                                                : status.tone === "pending"
+                                                  ? "time-outline"
+                                                  : "ellipsis-horizontal";
                                         return (
-                                            <Pressable
-                                                key={project.id}
-                                                onPress={() => {
-                                                    if (!isDoctorAssignedProject) return;
-                                                    showToast(
-                                                        "Project team management is not wired in mobile yet.",
-                                                        "default"
-                                                    );
-                                                }}
-                                                style={({ pressed }) => [
-                                                    styles.card,
-                                                    pressed &&
-                                                        isDoctorAssignedProject &&
-                                                        styles.pressedOpacity,
-                                                ]}
-                                            >
+                                            <View key={project.id} style={styles.card}>
                                                 <View style={styles.projectHeaderRow}>
                                                     <Text
                                                         style={styles.cardTitle}
@@ -2658,21 +3065,33 @@ export default function CourseWorkspacePage() {
                                                     >
                                                         {project.title}
                                                     </Text>
-                                                    <View style={styles.statusPill}>
-                                                        <Ionicons
-                                                            name={
-                                                                project.aiMode === "doctor"
-                                                                    ? "sparkles-outline"
-                                                                    : "person-outline"
-                                                            }
-                                                            size={10}
-                                                            color={dash.accent}
-                                                        />
-                                                        <Text style={styles.statusPillText}>
-                                                            {project.aiMode === "doctor"
-                                                                ? "AI assigns"
-                                                                : "Students pick"}
-                                                        </Text>
+                                                    <View style={styles.projectPillsRow}>
+                                                        <View style={styles.statusPill}>
+                                                            <Ionicons
+                                                                name={
+                                                                    project.aiMode === "doctor"
+                                                                        ? "sparkles-outline"
+                                                                        : "person-outline"
+                                                                }
+                                                                size={10}
+                                                                color={dash.accent}
+                                                            />
+                                                            <Text style={styles.statusPillText}>
+                                                                {project.aiMode === "doctor"
+                                                                    ? "AI assigns"
+                                                                    : "Students pick"}
+                                                            </Text>
+                                                        </View>
+                                                        <View style={statusPillStyles}>
+                                                            <Ionicons
+                                                                name={statusIcon}
+                                                                size={10}
+                                                                color={statusIconColor}
+                                                            />
+                                                            <Text style={statusPillTextStyles}>
+                                                                {status.label}
+                                                            </Text>
+                                                        </View>
                                                     </View>
                                                 </View>
 
@@ -2734,330 +3153,42 @@ export default function CourseWorkspacePage() {
                                                         { justifyContent: "flex-end" },
                                                     ]}
                                                 >
-                                                    {isDoctor ? (
-                                                        <Pressable
-                                                            onPress={() =>
-                                                                showToast(
-                                                                    "Project team management is not wired in mobile yet.",
-                                                                    "default"
-                                                                )
-                                                            }
-                                                            style={({ pressed }) => [
-                                                                styles.primaryBtn,
-                                                                pressed &&
-                                                                    styles.pressedOpacity,
-                                                            ]}
-                                                        >
-                                                            <Ionicons
-                                                                name="people"
-                                                                size={14}
-                                                                color="#fff"
-                                                            />
-                                                            <Text style={styles.primaryBtnText}>
-                                                                Assign teams
-                                                            </Text>
-                                                        </Pressable>
-                                                    ) : (
-                                                        <Pressable
-                                                            onPress={() =>
-                                                                setOpenedTeamProjectId(
-                                                                    (prev) =>
-                                                                        prev === project.id
-                                                                            ? null
-                                                                            : project.id
-                                                                )
-                                                            }
-                                                            style={({ pressed }) => [
-                                                                styles.secondaryBtn,
-                                                                pressed &&
-                                                                    styles.pressedOpacity,
-                                                            ]}
-                                                        >
-                                                            <Ionicons
-                                                                name={
-                                                                    openedTeamProjectId ===
-                                                                    project.id
-                                                                        ? "chevron-up"
-                                                                        : "chevron-down"
-                                                                }
-                                                                size={14}
-                                                                color={dash.text}
-                                                            />
-                                                            <Text
-                                                                style={
-                                                                    styles.secondaryBtnText
-                                                                }
-                                                            >
-                                                                View my team
-                                                            </Text>
-                                                        </Pressable>
-                                                    )}
-                                                </View>
-
-                                                {!isDoctor &&
-                                                openedTeamProjectId === project.id ? (
-                                                    <View style={styles.teamPanel}>
-                                                        <View style={styles.teamMembersRow}>
-                                                            {teamMembers.map((member) => {
-                                                                const c = avatarColors(
-                                                                    member.name
-                                                                );
-                                                                return (
-                                                                    <View
-                                                                        key={member.id}
-                                                                        style={
-                                                                            styles.teamMember
-                                                                        }
-                                                                    >
-                                                                        <View
-                                                                            style={[
-                                                                                styles.studentAvatar,
-                                                                                {
-                                                                                    backgroundColor:
-                                                                                        c.bg,
-                                                                                },
-                                                                            ]}
-                                                                        >
-                                                                            <Text
-                                                                                style={[
-                                                                                    styles.studentAvatarText,
-                                                                                    {
-                                                                                        color: c.fg,
-                                                                                    },
-                                                                                ]}
-                                                                            >
-                                                                                {initialsOf(
-                                                                                    member.name
-                                                                                )}
-                                                                            </Text>
-                                                                        </View>
-                                                                        <View
-                                                                            style={
-                                                                                styles.teamMemberInfo
-                                                                            }
-                                                                        >
-                                                                            <Text
-                                                                                style={
-                                                                                    styles.teamMemberName
-                                                                                }
-                                                                            >
-                                                                                {member.name}
-                                                                            </Text>
-                                                                            <Text
-                                                                                style={
-                                                                                    styles.teamMemberRole
-                                                                                }
-                                                                            >
-                                                                                {member.role}
-                                                                            </Text>
-                                                                        </View>
-                                                                        {member.role ===
-                                                                        "Leader" ? (
-                                                                            <View
-                                                                                style={
-                                                                                    styles.leaderBadge
-                                                                                }
-                                                                            >
-                                                                                <Text
-                                                                                    style={
-                                                                                        styles.leaderBadgeText
-                                                                                    }
-                                                                                >
-                                                                                    Leader
-                                                                                </Text>
-                                                                            </View>
-                                                                        ) : null}
-                                                                    </View>
-                                                                );
-                                                            })}
-                                                        </View>
-
-                                                        <View style={styles.chatHeader}>
-                                                            <Ionicons
-                                                                name="chatbubbles-outline"
-                                                                size={13}
-                                                                color={dash.muted}
-                                                            />
-                                                            <Text style={styles.chatHeaderText}>
-                                                                Team chat
-                                                            </Text>
-                                                        </View>
-                                                        <ScrollView
-                                                            style={styles.chatList}
-                                                            contentContainerStyle={{ gap: 6 }}
-                                                            showsVerticalScrollIndicator={
-                                                                false
-                                                            }
-                                                        >
-                                                            {teamMessages.map((m) => {
-                                                                const mine =
-                                                                    m.sender === "You";
-                                                                return (
-                                                                    <View
-                                                                        key={m.id}
-                                                                        style={
-                                                                            styles.chatBubbleWrap
-                                                                        }
-                                                                    >
-                                                                        <View
-                                                                            style={[
-                                                                                styles.chatBubble,
-                                                                                mine
-                                                                                    ? styles.chatBubbleMine
-                                                                                    : styles.chatBubbleTheirs,
-                                                                            ]}
-                                                                        >
-                                                                            {!mine ? (
-                                                                                <Text
-                                                                                    style={
-                                                                                        styles.chatSenderLabel
-                                                                                    }
-                                                                                >
-                                                                                    {m.sender}
-                                                                                </Text>
-                                                                            ) : null}
-                                                                            <Text
-                                                                                style={
-                                                                                    mine
-                                                                                        ? styles.chatBubbleTextMine
-                                                                                        : styles.chatBubbleTextTheirs
-                                                                                }
-                                                                            >
-                                                                                {m.text}
-                                                                            </Text>
-                                                                        </View>
-                                                                    </View>
-                                                                );
-                                                            })}
-                                                        </ScrollView>
-                                                        <View style={styles.chatInputRow}>
-                                                            <TextInput
-                                                                value={teamChatInput}
-                                                                onChangeText={setTeamChatInput}
-                                                                placeholder="Message your team…"
-                                                                placeholderTextColor={
-                                                                    dash.subtle
-                                                                }
-                                                                onSubmitEditing={
-                                                                    handleSendTeamMessage
-                                                                }
-                                                                returnKeyType="send"
-                                                                style={styles.chatInput}
-                                                            />
-                                                            <Pressable
-                                                                onPress={
-                                                                    handleSendTeamMessage
-                                                                }
-                                                                style={({ pressed }) => [
-                                                                    styles.chatSendBtn,
-                                                                    pressed &&
-                                                                        styles.pressedOpacity,
-                                                                ]}
-                                                                accessibilityLabel="Send message"
-                                                            >
-                                                                <Ionicons
-                                                                    name="arrow-up"
-                                                                    size={17}
-                                                                    color="#fff"
-                                                                />
-                                                            </Pressable>
-                                                        </View>
-                                                    </View>
-                                                ) : null}
-                                            </Pressable>
-                                        );
-                                    })
-                                ) : (
-                                    (projects as WorkspaceProject[]).map((p) => (
-                                        <View key={p.id} style={styles.card}>
-                                            <View style={styles.projectHeaderRow}>
-                                                <Text
-                                                    style={styles.cardTitle}
-                                                    numberOfLines={2}
-                                                >
-                                                    {p.title}
-                                                </Text>
-                                                <View style={styles.statusPill}>
-                                                    <Ionicons
-                                                        name={
-                                                            p.aiMode === "doctor"
-                                                                ? "sparkles-outline"
-                                                                : "person-outline"
-                                                        }
-                                                        size={10}
-                                                        color={dash.accent}
-                                                    />
-                                                    <Text style={styles.statusPillText}>
-                                                        {p.aiMode === "doctor"
-                                                            ? "AI assigns"
-                                                            : "Students pick"}
-                                                    </Text>
-                                                </View>
-                                            </View>
-
-                                            <View style={styles.projectMetaRow}>
-                                                <View style={styles.sectionMetaChip}>
-                                                    <Ionicons
-                                                        name="layers-outline"
-                                                        size={11}
-                                                        color={dash.muted}
-                                                    />
-                                                    <Text
-                                                        style={styles.sectionMetaChipText}
-                                                        numberOfLines={1}
+                                                    <Pressable
+                                                        accessibilityRole="button"
+                                                        onPress={() => openProjectTeams(project)}
+                                                        style={({ pressed }) => [
+                                                            isDoctor
+                                                                ? styles.primaryBtn
+                                                                : styles.secondaryBtn,
+                                                            pressed && styles.pressedOpacity,
+                                                        ]}
                                                     >
-                                                        {p.sectionLabel}
-                                                    </Text>
-                                                </View>
-                                                {p.duration ? (
-                                                    <View style={styles.sectionMetaChip}>
                                                         <Ionicons
-                                                            name="time-outline"
-                                                            size={11}
-                                                            color={dash.muted}
+                                                            name="people-outline"
+                                                            size={14}
+                                                            color={isDoctor ? "#fff" : dash.text}
                                                         />
                                                         <Text
                                                             style={
-                                                                styles.sectionMetaChipText
+                                                                isDoctor
+                                                                    ? styles.primaryBtnText
+                                                                    : styles.secondaryBtnText
                                                             }
-                                                            numberOfLines={1}
                                                         >
-                                                            {p.duration}
+                                                            {isDoctor
+                                                                ? "View teams"
+                                                                : "View my team"}
                                                         </Text>
-                                                    </View>
-                                                ) : null}
-                                            </View>
-
-                                            <View style={styles.statBlocksRow}>
-                                                <View style={styles.statBlock}>
-                                                    <Text style={styles.statBlockLabel}>
-                                                        Team size
-                                                    </Text>
-                                                    <Text style={styles.statBlockValue}>
-                                                        {p.teamSize}
-                                                    </Text>
-                                                </View>
-                                                <View style={styles.statBlock}>
-                                                    <Text style={styles.statBlockLabel}>
-                                                        Status
-                                                    </Text>
-                                                    <Text style={styles.statBlockValue}>
-                                                        Draft
-                                                    </Text>
+                                                        <Ionicons
+                                                            name="chevron-forward"
+                                                            size={14}
+                                                            color={isDoctor ? "#fff" : dash.text}
+                                                        />
+                                                    </Pressable>
                                                 </View>
                                             </View>
-
-                                            {p.abstract ? (
-                                                <Text
-                                                    style={styles.projectDesc}
-                                                    numberOfLines={3}
-                                                >
-                                                    {p.abstract}
-                                                </Text>
-                                            ) : null}
-                                        </View>
-                                    ))
-                                )
+                                        );
+                                    })
                             ) : (
                                 <View style={styles.emptyWrap}>
                                     <View style={styles.emptyIconWrap}>
@@ -3073,12 +3204,14 @@ export default function CourseWorkspacePage() {
                                         launch the first project for this course.
                                     </Text>
                                     <Pressable
+                                        disabled={backendCourseId == null}
                                         onPress={openCreateProject}
                                         style={({ pressed }) => [
                                             styles.primaryBtn,
                                             styles.primaryBtnBig,
                                             styles.emptyCta,
                                             pressed && styles.pressedOpacity,
+                                            backendCourseId == null && { opacity: 0.45 },
                                         ]}
                                     >
                                         <Ionicons name="add" size={18} color="#fff" />
@@ -3098,8 +3231,9 @@ export default function CourseWorkspacePage() {
                                 <View style={styles.panelTitleCol}>
                                     <Text style={styles.panelTitle}>Course settings</Text>
                                     <Text style={styles.panelSubtitle}>
-                                        Team rules, AI behavior, and project deadlines.
-                                        Local only until an API is connected.
+                                        Team rules, AI behavior, and project deadlines. Values
+                                        below are stored on this device; use Save to reload course
+                                        data from the server.
                                     </Text>
                                 </View>
                             </View>
@@ -3128,28 +3262,6 @@ export default function CourseWorkspacePage() {
                                             allowCrossSectionTeams: v,
                                         }))
                                     }
-                                />
-                                <StepperRow
-                                    styles={styles}
-                                    label="Min team size"
-                                    description="Smallest allowed team."
-                                    value={courseSettings.minTeamSize}
-                                    onChange={(v) =>
-                                        setCourseSettings((s) => ({ ...s, minTeamSize: v }))
-                                    }
-                                    min={1}
-                                    max={50}
-                                />
-                                <StepperRow
-                                    styles={styles}
-                                    label="Max team size"
-                                    description="Largest allowed team."
-                                    value={courseSettings.maxTeamSize}
-                                    onChange={(v) =>
-                                        setCourseSettings((s) => ({ ...s, maxTeamSize: v }))
-                                    }
-                                    min={1}
-                                    max={50}
                                 />
                             </View>
 
@@ -3180,7 +3292,7 @@ export default function CourseWorkspacePage() {
                                 />
                                 <SettingsRow
                                     styles={styles}
-                                    label="Students choose teammates"
+                                    label="Allow students to choose teammates"
                                     description="When off, team composition is guided by course rules or staff."
                                     checked={courseSettings.allowStudentsChooseTeammates}
                                     onChange={(v) =>
@@ -3189,51 +3301,6 @@ export default function CourseWorkspacePage() {
                                             allowStudentsChooseTeammates: v,
                                         }))
                                     }
-                                />
-                            </View>
-
-                            {/* Project rules */}
-                            <View style={styles.settingsBlock}>
-                                <View style={styles.settingsBlockHeader}>
-                                    <View style={styles.settingsBlockIcon}>
-                                        <Ionicons
-                                            name="folder-open-outline"
-                                            size={15}
-                                            color={dash.accent}
-                                        />
-                                    </View>
-                                    <Text style={styles.settingsBlockTitle}>
-                                        Project rules
-                                    </Text>
-                                </View>
-                                <SettingsRow
-                                    styles={styles}
-                                    first
-                                    label="Multiple projects per section"
-                                    description="Sections can run more than one active project at a time."
-                                    checked={
-                                        courseSettings.allowMultipleProjectsPerSection
-                                    }
-                                    onChange={(v) =>
-                                        setCourseSettings((s) => ({
-                                            ...s,
-                                            allowMultipleProjectsPerSection: v,
-                                        }))
-                                    }
-                                />
-                                <StepperRow
-                                    styles={styles}
-                                    label="Max projects per course"
-                                    description="Cap how many projects can run in this course."
-                                    value={courseSettings.maxProjectsPerCourse}
-                                    onChange={(v) =>
-                                        setCourseSettings((s) => ({
-                                            ...s,
-                                            maxProjectsPerCourse: v,
-                                        }))
-                                    }
-                                    min={1}
-                                    max={99}
                                 />
                             </View>
 
