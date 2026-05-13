@@ -48,10 +48,20 @@ import {
 } from "@/api/notificationsApi";
 import { getRecommendedSupervisors, requestSupervisor } from "@/api/supervisorApi";
 import type { Supervisor } from "@/api/supervisorApi";
-import { getEnrolledCourses, getCoursePartnerRequests } from "@/api/studentCoursesApi";
+import {
+  acceptTeamInvitation,
+  getCoursePartnerRequests,
+  getEnrolledCourses,
+  getTeamInvitations,
+  rejectTeamInvitation,
+  type TeamInvitationItem,
+} from "@/api/studentCoursesApi";
 import { radius, spacing } from "@/constants/responsiveLayout";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { subscribeInboxNotificationCreated } from "@/lib/notificationsHubInbox";
+import {
+  subscribeHubReconnected,
+  subscribeInboxNotificationCreated,
+} from "@/lib/notificationsHubInbox";
 import { clearSession, getItem } from "@/utils/authStorage";
 import { getCourseId } from "@/utils/getCourseId";
 
@@ -124,9 +134,22 @@ interface Application {
   status: string;
 }
 
-/** Pending graduation-project invitation row for the student dashboard (enriched for UI). */
+/**
+ * Pending team-invitation row for the student dashboard card.
+ *
+ * The dashboard merges two independent backend invitation systems:
+ *   - graduation_project — GET /api/invitations/received  → accept/reject via
+ *                          /api/invitations/{id}/{accept|reject}
+ *   - course_team        — GET /api/courses/team-invitations → accept/reject
+ *                          via /api/courses/team-invitations/{id}/{accept|reject}
+ *
+ * `kind` lets the accept/reject handler dispatch to the correct endpoint.
+ */
+type DashboardInvitationKind = "graduation_project" | "course_team";
+
 interface DashboardPendingTeamInvitation {
   id: number;
+  kind: DashboardInvitationKind;
   projectId: number;
   project: string;
   invitedBy: string;
@@ -138,12 +161,33 @@ interface DashboardPendingTeamInvitation {
   inviterUserId: number | null;
 }
 
+/**
+ * SignalR payload from /hubs/notifications has shape
+ *   { id, title, body, eventType, category, projectId, createdAt, readAt }.
+ *
+ * Invitation notifications use category="graduation_project" (or "course" for
+ * course-team invites) with eventType strings like:
+ *   - invitation_received
+ *   - invitation_rejected
+ *   - invitation_cancelled_by_sender
+ *   - invitation_expired_after_acceptance
+ *   - course_teammate_invitation_pending / _accepted / _rejected
+ *
+ * The previous implementation matched on `category.startsWith("invitation")`,
+ * but no notification category begins with "invitation" — every payload was
+ * rejected, so the live refresh never fired and the dashboard sat on stale
+ * "No pending invitations" until the 10s poll happened (or didn't).
+ *
+ * Mirror the web behavior: refresh the invitation list whenever an
+ * invitation-related event arrives.
+ */
 function invitationHubShouldRefreshTeamInvites(payload: unknown): boolean {
   if (!payload || typeof payload !== "object") return false;
-  const cat = String((payload as { category?: string }).category ?? "")
-    .trim()
-    .toLowerCase();
-  return cat.startsWith("invitation");
+  const p = payload as { category?: unknown; eventType?: unknown };
+  const evt = String(p.eventType ?? "").trim().toLowerCase();
+  if (evt.includes("invitation")) return true;
+  const cat = String(p.category ?? "").trim().toLowerCase();
+  return cat === "graduation_project" || cat === "course";
 }
 
 function formatInvitationTimestamp(iso: string | null | undefined): string | null {
@@ -283,15 +327,136 @@ export function StudentDashboardScreen() {
     };
   }, [gradProject]);
 
+  /**
+   * fetchInvitations — pulls REAL pending invitations from BOTH backend
+   * invitation systems so the dashboard card matches what the dedicated
+   * Team Invitations screen / NotificationsPage reflects:
+   *
+   *   1. Graduation-project invitations
+   *        GET /api/invitations/received  (returns rows with explicit status)
+   *   2. Course-team invitations
+   *        GET /api/courses/team-invitations
+   *        (backend returns pending-only rows — no `status` field on the wire,
+   *         so we tag them locally with `status: "pending"` so the shared
+   *         normalized filter below treats them as pending.)
+   *
+   * Pending filter — applied identically to BOTH sources, per spec:
+   *     String(inv.status).trim().toLowerCase() === "pending"
+   *
+   * Errors from either source are non-critical and silently swallowed (web
+   * parity). We deliberately do NOT clear the existing list on a transient
+   * blip — a stale-but-correct list is always preferred over a false
+   * "No pending invitations" empty state.
+   *
+   * Each row carries a `kind` so the Accept / Reject handler can dispatch to
+   * the correct backend endpoint without checking IDs.
+   *
+   * Mobile-only enrichment: for graduation-project rows we additionally fetch
+   * the project details (required skills / teammate count / inviter ids)
+   * after the basic list is already committed to state, so the card updates
+   * instantly and enrichment failures NEVER hide a real invitation.
+   */
   const fetchInvitations = useCallback(async () => {
     const myGen = ++invitationsFetchGenRef.current;
     setInvitationsRefreshing(true);
-    setInvitationsError(null);
-    try {
-      const received = await getReceivedInvitations();
-      const pendingOnly = received.filter((i) => normApiStatus(i.status) === "pending");
 
-      const projectIds = [...new Set(pendingOnly.map((p) => p.projectId))];
+    const mapGradProject = (
+      i: Awaited<ReturnType<typeof getReceivedInvitations>>[number],
+    ): DashboardPendingTeamInvitation => {
+      const createdRaw = (i.createdAt ?? "").trim();
+      return {
+        id: i.invitationId,
+        kind: "graduation_project",
+        projectId: i.projectId,
+        project: i.projectName,
+        invitedBy: i.senderName,
+        status: i.status,
+        createdAt: createdRaw.length > 0 ? createdRaw : null,
+        requiredSkills: [],
+        teammateSummary: null,
+        inviterProfileId: null,
+        inviterUserId: null,
+      };
+    };
+
+    const mapCourseTeam = (i: TeamInvitationItem): DashboardPendingTeamInvitation => {
+      const createdRaw = (i.invitedAt ?? "").trim();
+      const courseLabel = (i.courseName ?? "").trim();
+      const sectionLabel = (i.senderSection ?? "").trim();
+      let teammateSummary: string | null = null;
+      if (courseLabel.length > 0 && sectionLabel.length > 0) {
+        teammateSummary = `${courseLabel} · ${sectionLabel}`;
+      } else if (courseLabel.length > 0) {
+        teammateSummary = courseLabel;
+      } else if (sectionLabel.length > 0) {
+        teammateSummary = sectionLabel;
+      }
+      return {
+        id: i.invitationId,
+        kind: "course_team",
+        projectId: i.projectId,
+        project: i.projectTitle,
+        invitedBy: i.senderName,
+        // Backend `/api/courses/team-invitations` returns pending-only rows
+        // and does not include a status field on the wire — tag locally so
+        // the shared `String(status).trim().toLowerCase() === "pending"`
+        // filter treats them as pending.
+        status: typeof i.status === "string" && i.status.trim() !== "" ? i.status : "pending",
+        createdAt: createdRaw.length > 0 ? createdRaw : null,
+        requiredSkills:
+          i.senderSkills
+            ?.filter((s) => typeof s === "string" && s.trim() !== "")
+            .map((s) => s.trim()) ?? [],
+        teammateSummary,
+        inviterProfileId:
+          typeof i.senderId === "number" && Number.isFinite(i.senderId) ? i.senderId : null,
+        // Course-team payload doesn't carry inviter user-id; the "Message"
+        // shortcut button just stays hidden — UI handles `null` gracefully.
+        inviterUserId: null,
+      };
+    };
+
+    try {
+      // Fan both sources out in parallel; a failure in one MUST NOT prevent
+      // the other from showing up in the dashboard card.
+      const [recvSettled, teamSettled] = await Promise.allSettled([
+        getReceivedInvitations(),
+        getTeamInvitations(),
+      ]);
+
+      const received =
+        recvSettled.status === "fulfilled" ? recvSettled.value : [];
+      const teamInvites =
+        teamSettled.status === "fulfilled" ? teamSettled.value : [];
+
+      // Shared pending filter — applied identically to both sources.
+      const isPending = (status: unknown) =>
+        String(status).trim().toLowerCase() === "pending";
+
+      const gradPending = received.filter((i) => isPending(i.status));
+      // Course-team rows: backend returns pending-only, but if a future
+      // payload starts carrying a status field we still honor it.
+      const teamPending = teamInvites.filter(
+        (i) => i.status == null || String(i.status).trim() === "" || isPending(i.status),
+      );
+
+      const basicRows: DashboardPendingTeamInvitation[] = [
+        ...gradPending.map(mapGradProject),
+        ...teamPending.map(mapCourseTeam),
+      ];
+
+      // Stage 1 — commit the basic, merged list immediately so the
+      // dashboard reflects the real pending state without waiting on
+      // any enrichment.
+      if (myGen !== invitationsFetchGenRef.current) return;
+      setInvitations(basicRows);
+      setInvitationsError(null);
+
+      if (gradPending.length === 0) return;
+
+      // Stage 2 — best-effort enrichment for graduation-project rows only.
+      // Course-team rows already arrive enriched from `/courses/team-invitations`.
+      const projectIds = [...new Set(gradPending.map((p) => p.projectId))];
       const projectEntries = await Promise.all(
         projectIds.map(async (projectId) => {
           try {
@@ -307,31 +472,34 @@ export function StudentDashboardScreen() {
         projectById.set(projectId, project);
       }
 
-      const merged: DashboardPendingTeamInvitation[] = pendingOnly.map((i) => {
+      const enrichedGrad: DashboardPendingTeamInvitation[] = gradPending.map((i) => {
+        const base = mapGradProject(i);
         const p = projectById.get(i.projectId) ?? null;
+        if (!p) return base;
+
         let inviterProfileId: number | null = null;
         let inviterUserId: number | null = null;
-
-        if (p) {
-          const ownerName = (p.ownerName ?? "").trim();
-          const senderName = (i.senderName ?? "").trim();
-          if (
-            ownerName.length > 0 &&
-            senderName.length > 0 &&
-            ownerName.toLowerCase() === senderName.toLowerCase()
-          ) {
-            inviterProfileId = typeof p.ownerId === "number" && Number.isFinite(p.ownerId) ? p.ownerId : null;
-            const uid = p.ownerUserId;
-            inviterUserId = typeof uid === "number" && Number.isFinite(uid) && uid > 0 ? uid : null;
-          }
+        const ownerName = (p.ownerName ?? "").trim();
+        const senderName = (i.senderName ?? "").trim();
+        if (
+          ownerName.length > 0 &&
+          senderName.length > 0 &&
+          ownerName.toLowerCase() === senderName.toLowerCase()
+        ) {
+          inviterProfileId =
+            typeof p.ownerId === "number" && Number.isFinite(p.ownerId) ? p.ownerId : null;
+          const uid = p.ownerUserId;
+          inviterUserId =
+            typeof uid === "number" && Number.isFinite(uid) && uid > 0 ? uid : null;
         }
 
         const requiredSkills =
-          p?.requiredSkills?.filter((s) => typeof s === "string" && s.trim() !== "").map((s) => s.trim()) ?? [];
+          p.requiredSkills
+            ?.filter((s) => typeof s === "string" && s.trim() !== "")
+            .map((s) => s.trim()) ?? [];
 
         let teammateSummary: string | null = null;
         if (
-          p &&
           typeof p.currentMembers === "number" &&
           Number.isFinite(p.currentMembers) &&
           typeof p.partnersCount === "number" &&
@@ -340,15 +508,8 @@ export function StudentDashboardScreen() {
           teammateSummary = `${p.currentMembers} / ${p.partnersCount} teammates`;
         }
 
-        const createdRaw = (i.createdAt ?? "").trim();
-
         return {
-          id: i.invitationId,
-          projectId: i.projectId,
-          project: i.projectName,
-          invitedBy: i.senderName,
-          status: i.status,
-          createdAt: createdRaw.length > 0 ? createdRaw : null,
+          ...base,
           requiredSkills,
           teammateSummary,
           inviterProfileId,
@@ -356,12 +517,18 @@ export function StudentDashboardScreen() {
         };
       });
 
+      const enriched: DashboardPendingTeamInvitation[] = [
+        ...enrichedGrad,
+        ...teamPending.map(mapCourseTeam),
+      ];
+
       if (myGen !== invitationsFetchGenRef.current) return;
-      setInvitations(merged);
-    } catch (err: unknown) {
-      if (myGen !== invitationsFetchGenRef.current) return;
-      setInvitations([]);
-      setInvitationsError(parseApiErrorMessage(err));
+      setInvitations(enriched);
+    } catch {
+      // Match web exactly: errors here are non-critical and silently
+      // swallowed. We deliberately do NOT clear the existing invitation list
+      // — a stale-but-correct list is always preferred over a false "No
+      // pending invitations" empty state caused by a transient blip.
     } finally {
       if (myGen === invitationsFetchGenRef.current) {
         setInvitationsRefreshing(false);
@@ -522,6 +689,11 @@ export function StudentDashboardScreen() {
         });
         setTeammates([]);
       } finally {
+        // CRITICAL: fetchInvitations() must run regardless of whether any
+        // earlier dashboard request (profile, dashboard summary, grad project)
+        // succeeded or failed. Keeping this in `finally` mirrors the spec:
+        // "fetchInvitations() must NOT be skipped if another dashboard
+        //  request fails."
         await fetchInvitations();
         setLoading(false);
       }
@@ -605,13 +777,50 @@ export function StudentDashboardScreen() {
     }
   }, [fetchInvitations, refreshCourseTeamsDashCardCounts, refetchGradProject]);
 
+  // Realtime: subscribe to the shared SignalR hub at /hubs/notifications.
+  //
+  // This is the mobile mirror of the web SignalR wiring in
+  // `GradProjectNotificationBell.tsx`. The backend pushes invitation events
+  // through `GraduationProjectNotificationService.PushRealtimeAsync` as
+  // "NotificationCreated" payloads with:
+  //   - category   : "graduation_project" (or "course")
+  //   - eventType  : "invitation_received" / "invitation_rejected" /
+  //                  "invitation_cancelled_by_sender" /
+  //                  "invitation_expired_after_acceptance" / etc.
+  //   - projectId  : the graduation project the invitation belongs to
+  //
+  // When an invitation-related event arrives we:
+  //   1. Tick the notification badge counters (matches web's badge refresh).
+  //   2. Re-fetch the Team Invitations list so the card and the
+  //      "Team Invitations" stat update instantly without polling.
+  //
+  // We also subscribe to hub (re)connect events. After the initial connect
+  // and after every reconnect the hub fans out a synthetic "reconnected"
+  // signal — mirroring web's `connection.onreconnected → refreshUnread()`.
+  // We use it to pull the latest invitation list so anything that landed
+  // while the socket was offline shows up immediately.
   useEffect(() => {
-    return subscribeInboxNotificationCreated((payload: unknown) => {
+    const unsubMessages = subscribeInboxNotificationCreated((payload: unknown) => {
       void notifTickRef.current();
       if (invitationHubShouldRefreshTeamInvites(payload)) {
+        console.log(
+          "[StudentDashboard] invitation event received -> refreshing Team Invitations",
+          payload,
+        );
         void fetchInvitationsRef.current?.();
       }
     });
+
+    const unsubReconnect = subscribeHubReconnected(() => {
+      console.log("[StudentDashboard] hub (re)connected -> refreshing Team Invitations");
+      void fetchInvitationsRef.current?.();
+      void notifTickRef.current();
+    });
+
+    return () => {
+      unsubMessages();
+      unsubReconnect();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -780,20 +989,40 @@ export function StudentDashboardScreen() {
     }
   };
 
+  /**
+   * Accept / reject a pending dashboard invitation.
+   *
+   * The dashboard merges two invitation systems with different REST routes,
+   * so we look up the row's `kind` and dispatch to the matching API:
+   *   - graduation_project  → /api/invitations/{id}/{accept|reject}
+   *   - course_team         → /api/courses/team-invitations/{id}/{accept|reject}
+   */
   const handleInvite = async (id: number, action: "accept" | "reject") => {
+    const row = invitations.find((i) => i.id === id);
+    const kind: DashboardInvitationKind = row?.kind ?? "graduation_project";
     setInviteLoading(id);
     setInviteMsg(null);
     try {
-      if (action === "accept") await acceptInvitation(id);
-      else await rejectInvitation(id);
-      setInvitations((prev) => prev.filter((i) => i.id !== id));
+      if (kind === "course_team") {
+        if (action === "accept") await acceptTeamInvitation(id);
+        else await rejectTeamInvitation(id);
+      } else {
+        if (action === "accept") await acceptInvitation(id);
+        else await rejectInvitation(id);
+      }
+      // Optimistic remove — filter by both kind+id so we never remove a
+      // graduation-project row that happens to share an ID with a
+      // course-team row (different backend tables, IDs can overlap).
+      setInvitations((prev) => prev.filter((i) => !(i.id === id && i.kind === kind)));
       setInviteMsg({
         id,
         msg: action === "accept" ? "✅ Invitation accepted!" : "❌ Invitation rejected.",
         ok: action === "accept",
       });
       await fetchInvitations();
-      if (action === "accept") await refetchGradProject();
+      if (action === "accept" && kind === "graduation_project") {
+        await refetchGradProject();
+      }
     } catch (err: unknown) {
       const msg = parseApiErrorMessage(err);
       setInviteMsg({ id, msg, ok: false });
@@ -1233,7 +1462,7 @@ export function StudentDashboardScreen() {
                 const statusLabel =
                   st.length > 0 ? st.charAt(0).toUpperCase() + st.slice(1) : "Pending";
                 return (
-                  <View key={inv.id} style={styles.inviteCard}>
+                  <View key={`${inv.kind}-${inv.id}`} style={styles.inviteCard}>
                     <Text style={styles.inviteHint}>You were invited to join:</Text>
                     <Text style={styles.inviteProject}>{inv.project}</Text>
                     <View style={styles.inviteNameRow}>

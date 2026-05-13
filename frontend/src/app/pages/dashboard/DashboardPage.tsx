@@ -70,6 +70,7 @@ import { GradProjectNotificationBell } from "../../components/notifications/Grad
 import { MessagesNotificationBell } from "../../components/notifications/MessagesNotificationBell";
 import {
   acceptPartnerRequest,
+  acceptTeamInvitation,
   createPartnerRequest,
   getCourseById,
   getCoursePartnerRequests,
@@ -78,8 +79,10 @@ import {
   getCourseStudents,
   getEnrolledCourses,
   getMyTeam,
+  getTeamInvitations,
   leaveCourse,
   rejectPartnerRequest,
+  rejectTeamInvitation,
   removeTeamMember,
   normalizeCourseProjectsFromDetail,
   type CourseDetails,
@@ -91,6 +94,7 @@ import {
   type PartnerRequestsResponse,
   type RecommendedPartner,
   type RecommendedPartnerMode,
+  type TeamInvitationItem,
   type TeamMember,
 } from "../../../api/studentCoursesApi";
 
@@ -159,8 +163,23 @@ interface Application {
   status: string;
 }
 
+/**
+ * Pending team-invitation row for the dashboard "Team Invitations" card.
+ *
+ * The dashboard merges two independent backend invitation systems so the card
+ * matches what the dedicated Team Invitations page / NotificationsPage show:
+ *   - graduation_project — GET /api/invitations/received
+ *                          accept/reject via /api/invitations/{id}/{accept|reject}
+ *   - course_team        — GET /api/courses/team-invitations
+ *                          accept/reject via /api/courses/team-invitations/{id}/{accept|reject}
+ *
+ * `kind` lets the accept/reject handler dispatch to the correct endpoint.
+ */
+type DashboardInvitationKind = "graduation_project" | "course_team";
+
 interface Invitation {
   id: number;
+  kind: DashboardInvitationKind;
   project: string;
   invitedBy: string;
 }
@@ -637,23 +656,70 @@ export default function DashboardPage() {
   }, [gradProject]);
 
   // ── fetchInvitations: reusable, callable manually or by effects ──────────
-  // Extracted so it can be triggered on:
+  //
+  // The dashboard "Team Invitations" card pulls REAL pending invitations from
+  // BOTH backend systems so the card reflects what the dedicated Team
+  // Invitations page and the NotificationsPage already show:
+  //
+  //   1. Graduation-project invitations — GET /api/invitations/received
+  //      (returns rows with an explicit `status` field)
+  //
+  //   2. Course-team invitations — GET /api/courses/team-invitations
+  //      (backend returns pending-only rows and does not include a `status`
+  //       field on the wire; we tag them locally with "pending" so the shared
+  //       normalized filter below treats them as pending.)
+  //
+  // Pending filter — applied identically to BOTH sources, per spec:
+  //     String(inv.status).trim().toLowerCase() === "pending"
+  //
+  // Each row carries a `kind` so handleInvite can route Accept / Reject to
+  // the matching backend endpoint without inspecting IDs.
+  //
+  // Triggered by:
   //   1. Initial load (inside fetchData)
   //   2. Page focus / visibility change (window event)
   //   3. After accept/reject actions (handleInvite calls it)
+  //   4. SignalR notification arrivals (downstream via the realtime hub)
   const fetchInvitations = useCallback(async () => {
     try {
-      const received = await getReceivedInvitations();
-      const pendingOnly = received
-        .filter((i) => i.status?.toLowerCase() === "pending")
+      const [recvSettled, teamSettled] = await Promise.allSettled([
+        getReceivedInvitations(),
+        getTeamInvitations(),
+      ]);
+
+      const received = recvSettled.status === "fulfilled" ? recvSettled.value : [];
+      const teamInvites = teamSettled.status === "fulfilled" ? teamSettled.value : [];
+
+      const isPending = (status: unknown) =>
+        String(status).trim().toLowerCase() === "pending";
+
+      const gradPending: Invitation[] = received
+        .filter((i) => isPending(i.status))
         .map((i) => ({
           id: i.invitationId,
+          kind: "graduation_project" as const,
           project: i.projectName,
           invitedBy: i.senderName,
         }));
-      setInvitations(pendingOnly);
+
+      // Course-team rows: backend returns pending-only, but if a future
+      // payload starts carrying a status field we still honor it.
+      const teamPending: Invitation[] = teamInvites
+        .filter((i: TeamInvitationItem) => {
+          const raw = (i as { status?: string | null }).status;
+          if (raw == null || String(raw).trim() === "") return true;
+          return isPending(raw);
+        })
+        .map((i: TeamInvitationItem) => ({
+          id: i.invitationId,
+          kind: "course_team" as const,
+          project: i.projectTitle,
+          invitedBy: i.senderName,
+        }));
+
+      setInvitations([...gradPending, ...teamPending]);
     } catch {
-      /* non-critical */
+      /* non-critical — silently swallow, keep the existing list */
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1515,14 +1581,32 @@ export default function DashboardPage() {
       alert(err?.response?.data?.message || "Failed to join project.");
     }
   };
+  /**
+   * Accept / reject a pending dashboard invitation.
+   *
+   * The dashboard card merges two invitation systems with different REST
+   * routes, so we look up the row's `kind` and dispatch to the matching API:
+   *   - graduation_project → /api/invitations/{id}/{accept|reject}
+   *   - course_team        → /api/courses/team-invitations/{id}/{accept|reject}
+   */
   const handleInvite = async (id: number, action: "accept" | "reject") => {
+    const row = invitations.find((i) => i.id === id);
+    const kind: DashboardInvitationKind = row?.kind ?? "graduation_project";
     setInviteLoading(id);
     setInviteMsg(null);
 
     try {
-      await api.post(`/invitations/${id}/${action}`);
+      if (kind === "course_team") {
+        if (action === "accept") await acceptTeamInvitation(id);
+        else await rejectTeamInvitation(id);
+      } else {
+        await api.post(`/invitations/${id}/${action}`);
+      }
 
-      setInvitations((prev) => prev.filter((i) => i.id !== id));
+      // Optimistic remove — filter by both kind+id so we never remove a
+      // graduation-project row that happens to share an ID with a
+      // course-team row (different backend tables, IDs can overlap).
+      setInvitations((prev) => prev.filter((i) => !(i.id === id && i.kind === kind)));
 
       setInviteMsg({
         id,
@@ -1535,8 +1619,11 @@ export default function DashboardPage() {
 
       await fetchInvitations();
 
-      // ✅ الحل هون
-      if (action === "accept") {
+      // Re-pull graduation-project state only when a graduation-project
+      // invitation was accepted (the team membership / capacity changed).
+      // Course-team accept goes through a separate domain — no need to
+      // refresh the grad project card.
+      if (action === "accept" && kind === "graduation_project") {
         await refetchGradProject();
       }
     } catch (err: any) {
@@ -2060,7 +2147,7 @@ export default function DashboardPage() {
               ) : (
                 invitations.map((inv) => (
                   <div
-                    key={inv.id}
+                    key={`${inv.kind}-${inv.id}`}
                     style={{
                       padding: "14px",
                       background: "#faf5ff",
