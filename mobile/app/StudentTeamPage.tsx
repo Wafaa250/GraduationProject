@@ -18,6 +18,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
+import {
+  fetchConversationsForCurrentUser,
+  type ConversationListItemDto,
+} from "@/api/conversationsApi";
 import { markChatScopeRead } from "@/api/notificationsApi";
 import {
   fetchMeForTeamChat,
@@ -141,6 +145,7 @@ export default function StudentTeamPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [doctorConversationId, setDoctorConversationId] = useState<number | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const listRef = useRef<FlatList<TeamChatMessageDto>>(null);
@@ -162,11 +167,15 @@ export default function StudentTeamPage() {
     else void goHome();
   }, [goHome, router]);
 
+  // Open the STUDENT course detail/workspace page, NOT the doctor `CourseWorkspacePage`
+  // (which calls /api/courses/* doctor-only endpoints and 403s for students with
+  // "You do not have permission to access this resource."). The student equivalent
+  // route is `/courses/{courseId}`, served by `mobile/app/courses/[courseId].tsx`,
+  // which uses the student APIs (studentCoursesApi) — same place students reach from
+  // the home courses tab.
   const openCourseWorkspace = useCallback(
-    (courseId: number, titleHint: string) => {
-      router.push(
-        `/CourseWorkspacePage?courseId=${encodeURIComponent(String(courseId))}&courseName=${encodeURIComponent(titleHint)}&courseCode=${encodeURIComponent("—")}&role=student` as Href,
-      );
+    (courseId: number) => {
+      router.push(`/courses/${encodeURIComponent(String(courseId))}` as Href);
     },
     [router],
   );
@@ -185,6 +194,38 @@ export default function StudentTeamPage() {
     },
     [router],
   );
+
+  // Look up the shared team↔doctor conversation client-side from /conversations.
+  // The doctor creates this group conversation through POST /course-teams/{teamId}/conversation
+  // (student-side is blocked by [Authorize(Roles="doctor")]). Once it exists, every team
+  // member receives it in their /conversations list with `courseTeamId` set, and the
+  // ChatPage opens it the same way it opens any group conversation.
+  const refreshDoctorConversation = useCallback(
+    async (teamId: number | null | undefined): Promise<number | null> => {
+      if (!teamId) {
+        setDoctorConversationId(null);
+        return null;
+      }
+      try {
+        const list: ConversationListItemDto[] = await fetchConversationsForCurrentUser();
+        const match = list.find((c) => c.courseTeamId === teamId);
+        const id = typeof match?.id === "number" && match.id > 0 ? match.id : null;
+        setDoctorConversationId(id);
+        return id;
+      } catch {
+        // Silent — same as web's chat list error handling. The button just stays hidden.
+        return null;
+      }
+    },
+    [],
+  );
+
+  const openDoctorTeamChat = useCallback(() => {
+    if (doctorConversationId == null) return;
+    router.push(
+      `/ChatPage?conversationId=${encodeURIComponent(String(doctorConversationId))}` as Href,
+    );
+  }, [doctorConversationId, router]);
 
   const loadTeam = useCallback(async (): Promise<MyCourseTeamResponse | null> => {
     if (projectId == null) return null;
@@ -226,26 +267,33 @@ export default function StudentTeamPage() {
   useEffect(() => {
     if (!team?.teamId) return;
     void loadMessages(team.teamId);
+    void refreshDoctorConversation(team.teamId);
 
     pollRef.current = setInterval(() => {
       void loadMessages(team.teamId);
+      // Re-check whether the doctor has started the team↔doctor conversation
+      // so the button appears as soon as they do, no manual refresh required.
+      void refreshDoctorConversation(team.teamId);
     }, 4000);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [team?.teamId, loadMessages]);
+  }, [team?.teamId, loadMessages, refreshDoctorConversation]);
 
   const onRefresh = useCallback(async () => {
     if (projectId == null) return;
     setRefreshing(true);
     try {
       const t = await loadTeam();
-      if (t?.teamId) await loadMessages(t.teamId);
+      if (t?.teamId) {
+        await loadMessages(t.teamId);
+        await refreshDoctorConversation(t.teamId);
+      }
     } finally {
       setRefreshing(false);
     }
-  }, [loadMessages, loadTeam, projectId]);
+  }, [loadMessages, loadTeam, projectId, refreshDoctorConversation]);
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
@@ -262,12 +310,40 @@ export default function StudentTeamPage() {
     }
   }, [input, showToast, team?.teamId]);
 
+  const pad = horizontalPadding;
+  const contentMax = maxDashboardWidth;
+
+  // IMPORTANT: every hook MUST be declared before any early return below, otherwise
+  // the hook order changes between renders ("Rendered more hooks than during the
+  // previous render"). `renderMessage` lives here for that reason.
+  const renderMessage = useCallback(
+    ({ item: msg }: { item: TeamChatMessageDto }) => {
+      const isMe = msg.senderUserId === currentUserId;
+      return (
+        <View style={[styles.msgRow, isMe ? styles.msgRowMe : styles.msgRowThem, { maxWidth: contentMax * 0.92 }]}>
+          {!isMe ? <Text style={[styles.senderLabel, { color: C.sub }]}>{msg.senderName}</Text> : null}
+          <View
+            style={[
+              styles.bubble,
+              isMe
+                ? { backgroundColor: C.bubbleMe, borderBottomRightRadius: 4 }
+                : { backgroundColor: C.bubbleOther, borderBottomLeftRadius: 4 },
+            ]}
+          >
+            <Text style={[styles.bubbleText, { color: isMe ? C.bubbleMeText : C.bubbleOtherText }]}>{msg.text}</Text>
+            <Text style={[styles.timeText, { color: isMe ? "rgba(255,255,255,0.75)" : C.sub }]}>
+              {new Date(msg.sentAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            </Text>
+          </View>
+        </View>
+      );
+    },
+    [C, contentMax, currentUserId, styles],
+  );
+
   const teamLabel = team
     ? `Team ${TEAM_LETTERS[team.teamIndex] ?? String(team.teamIndex)}`
     : "";
-
-  const pad = horizontalPadding;
-  const contentMax = maxDashboardWidth;
 
   if (projectId == null) {
     return (
@@ -419,12 +495,29 @@ export default function StudentTeamPage() {
           {teamLabel} · Team workspace
         </Text>
         <Pressable
-          onPress={() => openCourseWorkspace(team.courseId, team.projectTitle)}
+          onPress={() => openCourseWorkspace(team.courseId)}
           style={[styles.courseLink, { marginTop: spacing.md }]}
         >
           <Ionicons name="school-outline" size={16} color={C.accent} />
           <Text style={[styles.courseLinkText, { color: C.accent }]}>Open course workspace</Text>
         </Pressable>
+
+        {doctorConversationId != null ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open team chat with doctor"
+            onPress={openDoctorTeamChat}
+            style={[
+              styles.doctorChatBtn,
+              { borderColor: C.border, backgroundColor: C.accentMuted, marginTop: spacing.md },
+            ]}
+          >
+            <Ionicons name="chatbubbles" size={16} color={C.accent} />
+            <Text style={[styles.doctorChatBtnText, { color: C.accent }]}>
+              Open team chat with doctor
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={{ marginTop: spacing.md }}>{membersBlock}</View>
@@ -441,31 +534,6 @@ export default function StudentTeamPage() {
         </Text>
       ) : null}
     </View>
-  );
-
-  const renderMessage = useCallback(
-    ({ item: msg }: { item: TeamChatMessageDto }) => {
-      const isMe = msg.senderUserId === currentUserId;
-      return (
-        <View style={[styles.msgRow, isMe ? styles.msgRowMe : styles.msgRowThem, { maxWidth: contentMax * 0.92 }]}>
-          {!isMe ? <Text style={[styles.senderLabel, { color: C.sub }]}>{msg.senderName}</Text> : null}
-          <View
-            style={[
-              styles.bubble,
-              isMe
-                ? { backgroundColor: C.bubbleMe, borderBottomRightRadius: 4 }
-                : { backgroundColor: C.bubbleOther, borderBottomLeftRadius: 4 },
-            ]}
-          >
-            <Text style={[styles.bubbleText, { color: isMe ? C.bubbleMeText : C.bubbleOtherText }]}>{msg.text}</Text>
-            <Text style={[styles.timeText, { color: isMe ? "rgba(255,255,255,0.75)" : C.sub }]}>
-              {new Date(msg.sentAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-            </Text>
-          </View>
-        </View>
-      );
-    },
-    [C, contentMax, currentUserId],
   );
 
   return (
@@ -573,6 +641,17 @@ function createStyles() {
     projectSub: { marginTop: 4, fontSize: 13, fontWeight: "600" },
     courseLink: { flexDirection: "row", alignItems: "center", gap: 8 },
     courseLinkText: { fontSize: 13, fontWeight: "700" },
+    doctorChatBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      alignSelf: "flex-start",
+    },
+    doctorChatBtnText: { fontSize: 13, fontWeight: "800" },
     chatUnavailable: {
       flex: 1,
       minHeight: 120,

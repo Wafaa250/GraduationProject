@@ -21,6 +21,7 @@ import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
     generateDoctorProjectTeams,
     getDoctorProjectTeams,
+    openCourseTeamConversation,
     type DoctorProjectTeam,
 } from "@/api/doctorCoursesApi";
 
@@ -115,6 +116,7 @@ export default function ProjectTeamsPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [generating, setGenerating] = useState(false);
+    const [openingChatTeamId, setOpeningChatTeamId] = useState<number | null>(null);
 
     const goBack = () => {
         if (router.canGoBack()) {
@@ -187,13 +189,57 @@ export default function ProjectTeamsPage() {
     const teamCount = teams.length;
     const showDoctorAi = isDoctor && aiMode === "doctor";
 
+    const openTeamChat = useCallback(
+        async (teamId: number) => {
+            if (!teamId || openingChatTeamId === teamId) return;
+            setOpeningChatTeamId(teamId);
+            try {
+                const { conversationId } = await openCourseTeamConversation(teamId);
+                router.push(
+                    `/ChatPage?conversationId=${encodeURIComponent(String(conversationId))}` as Href,
+                );
+            } catch (err) {
+                setError(parseApiErrorMessage(err));
+            } finally {
+                setOpeningChatTeamId(null);
+            }
+        },
+        [openingChatTeamId, router],
+    );
+
     const renderTeam: ListRenderItem<DoctorProjectTeam> = useCallback(
         ({ item, index }) => {
             const label = `Team ${item.teamIndex > 0 ? item.teamIndex : index + 1}`;
+            const canOpenChat = !!item.teamId;
+            const chatBusy = openingChatTeamId === item.teamId;
             return (
                 <View style={styles.teamCard}>
                     <View style={styles.teamCardHeader}>
-                        <Text style={styles.teamCardTitle}>{label}</Text>
+                        <View style={styles.teamCardHeaderLeft}>
+                            <Text style={styles.teamCardTitle}>{label}</Text>
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={`Open team chat with ${label}`}
+                                disabled={!canOpenChat || chatBusy}
+                                onPress={() => {
+                                    if (item.teamId) void openTeamChat(item.teamId);
+                                }}
+                                style={({ pressed }) => [
+                                    styles.openChatBtn,
+                                    pressed && styles.pressedOpacity,
+                                    (!canOpenChat || chatBusy) && styles.btnDisabled,
+                                ]}
+                            >
+                                {chatBusy ? (
+                                    <ActivityIndicator size="small" color={dash.accent} />
+                                ) : (
+                                    <Ionicons name="chatbubble-ellipses" size={12} color={dash.accent} />
+                                )}
+                                <Text style={styles.openChatBtnText}>
+                                    {chatBusy ? "Opening…" : "Open Team Chat"}
+                                </Text>
+                            </Pressable>
+                        </View>
                         <View style={styles.memberCountChip}>
                             <Ionicons name="people-outline" size={11} color={dash.accent} />
                             <Text style={styles.memberCountChipText}>
@@ -240,7 +286,7 @@ export default function ProjectTeamsPage() {
                 </View>
             );
         },
-        [styles],
+        [styles, openTeamChat, openingChatTeamId],
     );
 
     const listEmpty = useMemo(() => {
@@ -607,12 +653,37 @@ function createStyles(screenWidth: number) {
             alignItems: "center",
             justifyContent: "space-between",
             marginBottom: 12,
+            gap: 8,
+        },
+        teamCardHeaderLeft: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 1,
+            minWidth: 0,
         },
         teamCardTitle: {
             fontSize: 15,
             fontWeight: "700",
             color: dash.text,
             letterSpacing: -0.2,
+        },
+        openChatBtn: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 999,
+            backgroundColor: dash.accentMuted,
+            borderWidth: hair,
+            borderColor: "#c7d2fe",
+        },
+        openChatBtnText: {
+            fontSize: 11,
+            fontWeight: "700",
+            color: dash.accent,
+            letterSpacing: 0.2,
         },
         memberCountChip: {
             flexDirection: "row",

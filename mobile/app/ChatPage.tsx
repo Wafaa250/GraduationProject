@@ -1,4 +1,5 @@
 import * as signalR from "@microsoft/signalr";
+import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -488,6 +489,21 @@ export default function ChatPage() {
     }, 50);
     return () => clearTimeout(t);
   }, [selectedConversation?.messages.length, selectedConversationId]);
+
+  // Refresh on focus — re-fetch the conversation list and the currently selected
+  // conversation whenever the screen regains focus (e.g. coming back from the
+  // team workspace or the background). SignalR keeps things live while mounted,
+  // but on mobile the OS may suspend the socket, so refreshing on focus ensures
+  // messages are never stale after re-entering the chat tab — matching the
+  // implicit "always-live" feel of the web ChatPage.
+  useFocusEffect(
+    useCallback(() => {
+      if (!userIdReady || currentUserId == null) return;
+      void loadConversations();
+      const id = selectedConversationIdRef.current;
+      if (id != null) void loadConversationById(id);
+    }, [currentUserId, loadConversationById, loadConversations, userIdReady]),
+  );
 
   const onRefreshList = useCallback(async () => {
     setListRefreshing(true);

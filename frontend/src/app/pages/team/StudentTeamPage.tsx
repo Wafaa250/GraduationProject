@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, Send, Users } from "lucide-react";
+import { ArrowLeft, MessageCircle, Send, Users } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
 import { markChatScopeRead } from "../../../api/notificationsApi";
@@ -34,6 +34,11 @@ type ChatMessage = {
     sentAt: string;
 };
 
+type ConversationListRow = {
+    id: number;
+    courseTeamId?: number | null;
+};
+
 const TEAM_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -52,6 +57,7 @@ export default function StudentTeamPage() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [sending, setSending] = useState(false);
+    const [doctorConversationId, setDoctorConversationId] = useState<number | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -93,19 +99,39 @@ export default function StudentTeamPage() {
         }
     }, []);
 
+    // Look up the shared team↔doctor conversation client-side from /conversations.
+    // The doctor opens it through POST /course-teams/{teamId}/conversation
+    // (a student-side trigger is blocked by Authorize(Roles="doctor")). Once it
+    // exists, every team member receives it in /conversations with `courseTeamId`
+    // set, and ChatPage opens it like any other group conversation.
+    const refreshDoctorConversation = useCallback(async (teamId: number) => {
+        try {
+            const res = await api.get<ConversationListRow[]>("/conversations");
+            const rows = Array.isArray(res.data) ? res.data : [];
+            const match = rows.find((c) => c.courseTeamId === teamId);
+            setDoctorConversationId(typeof match?.id === "number" && match.id > 0 ? match.id : null);
+        } catch {
+            // silent — keep the previous value; the button just stays hidden.
+        }
+    }, []);
+
     // Start polling when we have the teamId
     useEffect(() => {
         if (!team?.teamId) return;
         void loadMessages(team.teamId);
+        void refreshDoctorConversation(team.teamId);
 
         pollRef.current = setInterval(() => {
             void loadMessages(team.teamId);
+            // Re-check whether the doctor has started the team↔doctor conversation
+            // so the button appears automatically once they do.
+            void refreshDoctorConversation(team.teamId);
         }, 4000);
 
         return () => {
             if (pollRef.current) clearInterval(pollRef.current);
         };
-    }, [team?.teamId, loadMessages]);
+    }, [team?.teamId, loadMessages, refreshDoctorConversation]);
 
     // Scroll to bottom when new messages arrive
     useEffect(() => {
@@ -166,11 +192,28 @@ export default function StudentTeamPage() {
 
                 {/* Header */}
                 <section style={S.headerCard}>
-                    <div>
-                        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{team.projectTitle}</h1>
-                        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
-                            {teamLabel} · Team workspace
-                        </p>
+                    <div style={S.headerCardRow}>
+                        <div>
+                            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{team.projectTitle}</h1>
+                            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
+                                {teamLabel} · Team workspace
+                            </p>
+                        </div>
+                        {doctorConversationId != null && (
+                            <button
+                                type="button"
+                                style={S.doctorChatBtn}
+                                onClick={() =>
+                                    navigate("/messages", {
+                                        state: { conversationId: doctorConversationId },
+                                    })
+                                }
+                                title="Open team chat with doctor"
+                            >
+                                <MessageCircle size={14} />
+                                Open team chat with doctor
+                            </button>
+                        )}
                     </div>
                 </section>
 
@@ -298,6 +341,17 @@ const S: Record<string, CSSProperties> = {
     headerCard: {
         marginTop: 14, border: "1px solid #e2e8f0", borderRadius: 14,
         background: "#fff", padding: 18, boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
+    },
+    headerCardRow: {
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 12, flexWrap: "wrap",
+    },
+    doctorChatBtn: {
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: "8px 14px", borderRadius: 999,
+        border: "1px solid #c7d2fe", background: "#eef2ff",
+        color: "#4338ca", fontSize: 13, fontWeight: 700,
+        cursor: "pointer", fontFamily: "inherit",
     },
     mainCard: {
         marginTop: 14, border: "1px solid #e2e8f0", borderRadius: 14,
