@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -170,6 +170,12 @@ interface FormState {
   tools: string[];
 }
 
+function filterSkillItems(items: string[], query: string): string[] {
+  const t = query.trim().toLowerCase();
+  if (!t) return items;
+  return items.filter((x) => x.toLowerCase().includes(t));
+}
+
 function parseRegisterError(data: unknown): string {
   if (data == null || typeof data !== "object") {
     return "Something went wrong. Please try again.";
@@ -209,8 +215,20 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
   const [apiError, setApiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [customDraft, setCustomDraft] = useState({ roles: "", technicalSkills: "", tools: "" });
+  const [skillPanelOpen, setSkillPanelOpen] = useState({
+    roles: true,
+    technicalSkills: true,
+    tools: true,
+  });
+  const [skillFilterQ, setSkillFilterQ] = useState({
+    roles: "",
+    technicalSkills: "",
+    tools: "",
+  });
 
   const layout = useResponsiveLayout();
+  /** Align with web skills UX (StudentRegisterForm): narrow columns use accordion + summary */
+  const skillsCompactLayout = layout.width < 560;
   const insets = useSafeAreaInsets();
 
   const [selectModal, setSelectModal] = useState<{
@@ -218,6 +236,16 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
     options: string[];
     placeholder: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    setSkillFilterQ({ roles: "", technicalSkills: "", tools: "" });
+    setSkillPanelOpen({
+      roles: true,
+      technicalSkills: !skillsCompactLayout,
+      tools: !skillsCompactLayout,
+    });
+  }, [step, skillsCompactLayout]);
 
   const setField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -753,145 +781,205 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                     </View>
                   ) : (
                     <>
+                      {skillsCompactLayout ? (
+                        <View style={st.skillsSummaryBar}>
+                          <Text style={st.skillsSummaryTitle}>Selections</Text>
+                          <Text style={st.skillsSummaryLine}>
+                            Roles {form.roles.length} · Tech {form.technicalSkills.length} · Tools{" "}
+                            {form.tools.length}
+                          </Text>
+                        </View>
+                      ) : null}
                       <SkillGroup
                         title="Team roles"
                         badge={`${form.roles.length} selected`}
                         hint="How you usually contribute on projects (separate from your major)"
                         required
                         error={errors.roles}
+                        collapsible={skillsCompactLayout}
+                        expanded={skillPanelOpen.roles}
+                        onToggle={() =>
+                          setSkillPanelOpen((p) => ({ ...p, roles: !p.roles }))
+                        }
+                        filterValue={skillFilterQ.roles}
+                        onFilterChange={(t) =>
+                          setSkillFilterQ((q) => ({ ...q, roles: t }))
+                        }
                       >
-                        <View style={st.chipGrid}>
-                          {skillsData.roles.map((r) => (
-                            <Chip
-                              key={r}
-                              label={r}
-                              active={form.roles.includes(r)}
-                              onPress={() => toggle("roles", r)}
-                              tone="indigo"
-                            />
-                          ))}
-                          {customSelections(form.roles, skillsData.roles).map((r) => (
-                            <Chip
-                              key={`custom-${r}`}
-                              label={r}
-                              active
-                              onPress={() => toggle("roles", r)}
-                              tone="indigo"
-                            />
-                          ))}
-                        </View>
-                        <Text style={st.customOtherHint}>
-                          Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
-                        </Text>
-                        <View style={st.customOtherRow}>
-                          <TextInput
-                            style={st.customOtherInput}
-                            value={customDraft.roles}
-                            onChangeText={(t) =>
-                              setCustomDraft((d) => ({ ...d, roles: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
-                            }
-                            placeholder="e.g. Kotlin Multiplatform"
-                            placeholderTextColor="#94a3b8"
-                            onSubmitEditing={() => addCustomSkill("roles")}
-                            returnKeyType="done"
-                          />
-                          <Pressable style={st.customAddBtn} onPress={() => addCustomSkill("roles")}>
-                            <Text style={st.customAddBtnText}>Add</Text>
-                          </Pressable>
-                        </View>
+                        {(() => {
+                          const pool = filterSkillItems(skillsData.roles, skillFilterQ.roles);
+                          const customs = filterSkillItems(
+                            customSelections(form.roles, skillsData.roles),
+                            skillFilterQ.roles,
+                          );
+                          const empty = pool.length === 0 && customs.length === 0;
+                          if (empty) {
+                            return (
+                              <Text style={st.skillEmptyFilter}>
+                                No matches — clear the filter to see every option.
+                              </Text>
+                            );
+                          }
+                          return (
+                            <View style={st.chipGrid}>
+                              {pool.map((r) => (
+                                <Chip
+                                  key={r}
+                                  label={r}
+                                  active={form.roles.includes(r)}
+                                  onPress={() => toggle("roles", r)}
+                                  tone="indigo"
+                                />
+                              ))}
+                              {customs.map((r) => (
+                                <Chip
+                                  key={`custom-${r}`}
+                                  label={r}
+                                  active
+                                  onPress={() => toggle("roles", r)}
+                                  tone="indigo"
+                                />
+                              ))}
+                            </View>
+                          );
+                        })()}
+                        <CustomSkillAddRow
+                          value={customDraft.roles}
+                          onChange={(t) =>
+                            setCustomDraft((d) => ({ ...d, roles: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
+                          }
+                          onAdd={() => addCustomSkill("roles")}
+                          maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                        />
                       </SkillGroup>
                       <SkillGroup
                         title="Technical Skills"
                         badge={`${form.technicalSkills.length} selected`}
                         hint="Select skills you're comfortable with"
+                        collapsible={skillsCompactLayout}
+                        expanded={skillPanelOpen.technicalSkills}
+                        onToggle={() =>
+                          setSkillPanelOpen((p) => ({
+                            ...p,
+                            technicalSkills: !p.technicalSkills,
+                          }))
+                        }
+                        filterValue={skillFilterQ.technicalSkills}
+                        onFilterChange={(t) =>
+                          setSkillFilterQ((q) => ({ ...q, technicalSkills: t }))
+                        }
                       >
-                        <View style={st.chipGrid}>
-                          {skillsData.technicalSkills.map((s) => (
-                            <Chip
-                              key={s}
-                              label={s}
-                              active={form.technicalSkills.includes(s)}
-                              onPress={() => toggle("technicalSkills", s)}
-                              tone="purple"
-                            />
-                          ))}
-                          {customSelections(form.technicalSkills, skillsData.technicalSkills).map((s) => (
-                            <Chip
-                              key={`custom-${s}`}
-                              label={s}
-                              active
-                              onPress={() => toggle("technicalSkills", s)}
-                              tone="purple"
-                            />
-                          ))}
-                        </View>
-                        <Text style={st.customOtherHint}>
-                          Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
-                        </Text>
-                        <View style={st.customOtherRow}>
-                          <TextInput
-                            style={st.customOtherInput}
-                            value={customDraft.technicalSkills}
-                            onChangeText={(t) =>
-                              setCustomDraft((d) => ({
-                                ...d,
-                                technicalSkills: t.slice(0, CUSTOM_SKILL_MAX_LENGTH),
-                              }))
-                            }
-                            placeholder="e.g. protocol design"
-                            placeholderTextColor="#94a3b8"
-                            onSubmitEditing={() => addCustomSkill("technicalSkills")}
-                            returnKeyType="done"
-                          />
-                          <Pressable style={st.customAddBtn} onPress={() => addCustomSkill("technicalSkills")}>
-                            <Text style={st.customAddBtnText}>Add</Text>
-                          </Pressable>
-                        </View>
+                        {(() => {
+                          const pool = filterSkillItems(
+                            skillsData.technicalSkills,
+                            skillFilterQ.technicalSkills,
+                          );
+                          const customs = filterSkillItems(
+                            customSelections(form.technicalSkills, skillsData.technicalSkills),
+                            skillFilterQ.technicalSkills,
+                          );
+                          const empty = pool.length === 0 && customs.length === 0;
+                          if (empty) {
+                            return (
+                              <Text style={st.skillEmptyFilter}>
+                                No matches — clear the filter to see every option.
+                              </Text>
+                            );
+                          }
+                          return (
+                            <View style={st.chipGrid}>
+                              {pool.map((s) => (
+                                <Chip
+                                  key={s}
+                                  label={s}
+                                  active={form.technicalSkills.includes(s)}
+                                  onPress={() => toggle("technicalSkills", s)}
+                                  tone="purple"
+                                />
+                              ))}
+                              {customs.map((s) => (
+                                <Chip
+                                  key={`custom-${s}`}
+                                  label={s}
+                                  active
+                                  onPress={() => toggle("technicalSkills", s)}
+                                  tone="purple"
+                                />
+                              ))}
+                            </View>
+                          );
+                        })()}
+                        <CustomSkillAddRow
+                          value={customDraft.technicalSkills}
+                          onChange={(t) =>
+                            setCustomDraft((d) => ({
+                              ...d,
+                              technicalSkills: t.slice(0, CUSTOM_SKILL_MAX_LENGTH),
+                            }))
+                          }
+                          onAdd={() => addCustomSkill("technicalSkills")}
+                          maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                        />
                       </SkillGroup>
                       <SkillGroup
                         title="Technologies & Tools"
                         badge={`${form.tools.length} selected`}
                         hint="Languages, frameworks, and tools you use"
+                        collapsible={skillsCompactLayout}
+                        expanded={skillPanelOpen.tools}
+                        onToggle={() =>
+                          setSkillPanelOpen((p) => ({ ...p, tools: !p.tools }))
+                        }
+                        filterValue={skillFilterQ.tools}
+                        onFilterChange={(t) =>
+                          setSkillFilterQ((q) => ({ ...q, tools: t }))
+                        }
                       >
-                        <View style={st.chipGrid}>
-                          {skillsData.tools.map((t) => (
-                            <Chip
-                              key={t}
-                              label={t}
-                              active={form.tools.includes(t)}
-                              onPress={() => toggle("tools", t)}
-                              tone="teal"
-                            />
-                          ))}
-                          {customSelections(form.tools, skillsData.tools).map((t) => (
-                            <Chip
-                              key={`custom-${t}`}
-                              label={t}
-                              active
-                              onPress={() => toggle("tools", t)}
-                              tone="teal"
-                            />
-                          ))}
-                        </View>
-                        <Text style={st.customOtherHint}>
-                          Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
-                        </Text>
-                        <View style={st.customOtherRow}>
-                          <TextInput
-                            style={st.customOtherInput}
-                            value={customDraft.tools}
-                            onChangeText={(t) =>
-                              setCustomDraft((d) => ({ ...d, tools: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
-                            }
-                            placeholder="e.g. specific IDE or library"
-                            placeholderTextColor="#94a3b8"
-                            onSubmitEditing={() => addCustomSkill("tools")}
-                            returnKeyType="done"
-                          />
-                          <Pressable style={st.customAddBtn} onPress={() => addCustomSkill("tools")}>
-                            <Text style={st.customAddBtnText}>Add</Text>
-                          </Pressable>
-                        </View>
+                        {(() => {
+                          const pool = filterSkillItems(skillsData.tools, skillFilterQ.tools);
+                          const customs = filterSkillItems(
+                            customSelections(form.tools, skillsData.tools),
+                            skillFilterQ.tools,
+                          );
+                          const empty = pool.length === 0 && customs.length === 0;
+                          if (empty) {
+                            return (
+                              <Text style={st.skillEmptyFilter}>
+                                No matches — clear the filter to see every option.
+                              </Text>
+                            );
+                          }
+                          return (
+                            <View style={st.chipGrid}>
+                              {pool.map((t) => (
+                                <Chip
+                                  key={t}
+                                  label={t}
+                                  active={form.tools.includes(t)}
+                                  onPress={() => toggle("tools", t)}
+                                  tone="teal"
+                                />
+                              ))}
+                              {customs.map((t) => (
+                                <Chip
+                                  key={`custom-${t}`}
+                                  label={t}
+                                  active
+                                  onPress={() => toggle("tools", t)}
+                                  tone="teal"
+                                />
+                              ))}
+                            </View>
+                          );
+                        })()}
+                        <CustomSkillAddRow
+                          value={customDraft.tools}
+                          onChange={(t) =>
+                            setCustomDraft((d) => ({ ...d, tools: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
+                          }
+                          onAdd={() => addCustomSkill("tools")}
+                          maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                        />
                       </SkillGroup>
                     </>
                   )}
@@ -1082,6 +1170,41 @@ function SelectTrigger({
   );
 }
 
+function CustomSkillAddRow({
+  value,
+  onChange,
+  onAdd,
+  maxLen,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onAdd: () => void;
+  maxLen: number;
+}) {
+  return (
+    <View style={st.customAddBlock}>
+      <Text style={st.customOtherHint}>
+        Other — not listed? Type and press Enter or Add (max {maxLen} characters).
+      </Text>
+      <View style={st.customOtherRow}>
+        <TextInput
+          style={st.customOtherInputFlex}
+          value={value}
+          maxLength={maxLen}
+          onChangeText={onChange}
+          placeholder="e.g. specific framework or method"
+          placeholderTextColor="#94a3b8"
+          onSubmitEditing={onAdd}
+          returnKeyType="done"
+        />
+        <Pressable style={st.btnAddCustom} onPress={onAdd}>
+          <Text style={st.btnAddCustomText}>Add</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function SkillGroup({
   title,
   badge,
@@ -1089,6 +1212,11 @@ function SkillGroup({
   required,
   error,
   children,
+  collapsible = false,
+  expanded = true,
+  onToggle,
+  filterValue = "",
+  onFilterChange,
 }: {
   title: string;
   badge: string;
@@ -1096,10 +1224,16 @@ function SkillGroup({
   required?: boolean;
   error?: string;
   children: ReactNode;
+  collapsible?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
+  filterValue?: string;
+  onFilterChange?: (v: string) => void;
 }) {
-  return (
-    <View style={st.skillGroup}>
-      <View style={st.skillHead}>
+  const showBody = !collapsible || expanded;
+  const headRow = (
+    <View style={st.skillHead}>
+      <View style={st.skillHeadLeft}>
         <Text style={st.skillTitle}>
           {title}
           {required ? <Text style={st.req}> *</Text> : null}
@@ -1108,8 +1242,49 @@ function SkillGroup({
           <Text style={st.badgeText}>{badge}</Text>
         </View>
       </View>
-      <Text style={st.skillHint}>{hint}</Text>
-      {children}
+      {collapsible ? (
+        <Text style={st.skillCollapseChev}>{expanded ? "▲" : "▼"}</Text>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <View style={st.skillGroup}>
+      {collapsible ? (
+        <Pressable
+          onPress={onToggle}
+          style={({ pressed }) => [st.skillSectionHeadBtn, pressed && st.skillSectionHeadBtnPressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`${title}, ${expanded ? "expanded" : "collapsed"}`}
+        >
+          {headRow}
+        </Pressable>
+      ) : (
+        <View style={st.skillHeadStaticWrap}>{headRow}</View>
+      )}
+      {collapsible && !expanded ? (
+        <Text style={st.skillCollapsedHint}>
+          Tap the header to open — every option stays available.
+        </Text>
+      ) : null}
+      {showBody ? (
+        <>
+          <Text style={st.skillHint}>{hint}</Text>
+          {onFilterChange ? (
+            <TextInput
+              style={st.skillFilterInput}
+              value={filterValue}
+              onChangeText={onFilterChange}
+              placeholder="Filter this list…"
+              placeholderTextColor="#94a3b8"
+              autoCorrect={false}
+              autoCapitalize="none"
+              clearButtonMode="while-editing"
+            />
+          ) : null}
+          {children}
+        </>
+      ) : null}
       {error ? <Text style={st.skillErr}>{error}</Text> : null}
     </View>
   );
@@ -1461,7 +1636,7 @@ export default function RegisterScreen() {
 }
 
 const st = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#f8f7ff" },
+  page: { flex: 1, backgroundColor: "#f3f1fc" },
   keyboardFlex: { flex: 1 },
   pageScroll: {
     flexGrow: 1,
@@ -1480,8 +1655,8 @@ const st = StyleSheet.create({
   wrap: { width: "100%", zIndex: 1, alignSelf: "stretch" },
   logoRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 18 },
   logoIconBox: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     backgroundColor: "#6366f1",
     alignItems: "center",
@@ -1493,7 +1668,7 @@ const st = StyleSheet.create({
     elevation: 4,
   },
   logoGlyph: { color: "#fff", fontSize: 11, fontWeight: "900", transform: [{ rotate: "90deg" }] },
-  logoTitle: { fontSize: 23, fontWeight: "800", color: "#0f172a" },
+  logoTitle: { fontSize: 22, fontWeight: "800", color: "#0f172a" },
   logoAccent: { color: "#7c3aed" },
   changeRoleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 },
   changeRoleBtn: { color: "#6366f1", fontWeight: "600", fontSize: 13 },
@@ -1551,23 +1726,23 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
     borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 26,
     shadowColor: "#6366f1",
     shadowOpacity: 0.08,
     shadowRadius: 32,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
-  sectionHeader: { marginBottom: 18 },
+  sectionHeader: { marginBottom: 24 },
   sectionTitle: {
-    fontSize: 23,
+    fontSize: 20,
     fontWeight: "800",
     color: "#0f172a",
     marginBottom: 4,
     flexShrink: 1,
   },
-  sectionSub: { fontSize: 14, color: "#64748b" },
+  sectionSub: { fontSize: 13, color: "#64748b", lineHeight: 18 },
   picRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1690,7 +1865,7 @@ const st = StyleSheet.create({
   gpaFill: { height: "100%", borderRadius: 3 },
   gpaMeterLabel: { fontSize: 11, fontWeight: "600" },
   warnBox: {
-    padding: 12,
+    padding: 16,
     backgroundColor: "#fffbeb",
     borderWidth: 1,
     borderColor: "#fde68a",
@@ -1698,8 +1873,65 @@ const st = StyleSheet.create({
     marginBottom: 8,
   },
   warnText: { color: "#92400e", fontSize: 13 },
-  skillGroup: { marginBottom: 20 },
-  skillHead: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  skillsSummaryBar: {
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    gap: 4,
+  },
+  skillsSummaryTitle: { fontSize: 12, fontWeight: "800", color: "#475569" },
+  skillsSummaryLine: { fontSize: 12, color: "#64748b" },
+  skillGroup: { marginBottom: 28 },
+  skillHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    flex: 1,
+  },
+  skillHeadLeft: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap", flex: 1 },
+  skillCollapseChev: { fontSize: 11, fontWeight: "800", color: "#64748b" },
+  skillSectionHeadBtn: {
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 0,
+  },
+  skillSectionHeadBtnPressed: { opacity: 0.92 },
+  skillHeadStaticWrap: { marginBottom: 4 },
+  skillCollapsedHint: {
+    fontSize: 11,
+    color: "#94a3b8",
+    marginTop: 6,
+    lineHeight: 16,
+  },
+  skillFilterInput: {
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#1e293b",
+    backgroundColor: "#fff",
+    marginBottom: 10,
+  },
+  skillEmptyFilter: {
+    fontSize: 12,
+    color: "#64748b",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 10,
+    marginBottom: 8,
+  },
   skillTitle: { fontSize: 13, fontWeight: "700", color: "#374151" },
   badge: {
     paddingVertical: 2,
@@ -1713,41 +1945,42 @@ const st = StyleSheet.create({
   skillHint: { fontSize: 12, color: "#94a3b8", marginBottom: 8 },
   skillErr: { fontSize: 12, color: "#ef4444", marginTop: 6, fontWeight: "500" },
   chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  customOtherHint: { fontSize: 11, color: "#94a3b8", marginTop: 10, marginBottom: 6 },
+  customAddBlock: { marginTop: 12 },
+  customOtherHint: { fontSize: 11, color: "#94a3b8", marginBottom: 8 },
   customOtherRow: { flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap" },
-  customOtherInput: {
+  customOtherInputFlex: {
     flex: 1,
     minWidth: 160,
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     fontSize: 14,
     color: "#1e293b",
     backgroundColor: "#fff",
   },
-  customAddBtn: {
+  btnAddCustom: {
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     backgroundColor: "#f8fafc",
     borderWidth: 1.5,
     borderColor: "#c7d2fe",
     borderRadius: 10,
   },
-  customAddBtnText: { color: "#4f46e5", fontSize: 13, fontWeight: "600" },
+  btnAddCustomText: { color: "#4f46e5", fontSize: 13, fontWeight: "600" },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1.5,
     flexShrink: 1,
     maxWidth: "100%",
   },
   chipCheck: { fontSize: 10, fontWeight: "900" },
-  chipLabel: { fontSize: 11, flexShrink: 1 },
+  chipLabel: { fontSize: 12, flexShrink: 1 },
   apiErrBox: {
     marginTop: 16,
     paddingVertical: 12,
@@ -1764,8 +1997,8 @@ const st = StyleSheet.create({
     alignItems: "center",
     flexWrap: "wrap",
     gap: 10,
-    marginTop: 20,
-    paddingTop: 16,
+    marginTop: 28,
+    paddingTop: 22,
     borderTopWidth: 1,
     borderTopColor: "#f1f5f9",
   },
@@ -1784,7 +2017,7 @@ const st = StyleSheet.create({
     flexBasis: "100%",
     marginTop: 4,
   },
-  stepFraction: { fontSize: 11, color: "#94a3b8", fontWeight: "600", flexShrink: 0 },
+  stepFraction: { fontSize: 12, color: "#94a3b8", fontWeight: "600", flexShrink: 0 },
   btnBack: {
     paddingVertical: 9,
     paddingHorizontal: 16,
@@ -1799,9 +2032,9 @@ const st = StyleSheet.create({
     minWidth: 0,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: "#5b21b6",
+    paddingVertical: 11,
+    paddingHorizontal: 26,
+    backgroundColor: "#4f46e5",
     borderRadius: 10,
     shadowColor: "#6366f1",
     shadowOpacity: 0.35,
@@ -1811,9 +2044,9 @@ const st = StyleSheet.create({
   },
   btnPrimaryDisabled: { opacity: 0.7 },
   btnPrimaryWide: { width: "100%", flexGrow: 0, flex: 0 },
-  btnPrimaryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  btnPrimaryText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  footerTag: { textAlign: "center", color: "#cbd5e1", fontSize: 11, marginTop: 18 },
+  footerTag: { textAlign: "center", color: "#cbd5e1", fontSize: 12, marginTop: 24 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(15,23,42,0.45)",

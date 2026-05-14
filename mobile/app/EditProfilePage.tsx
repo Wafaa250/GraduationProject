@@ -490,11 +490,18 @@ export default function EditProfilePage() {
 
             {activeSection === "skills" ? (
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Your skills</Text>
-                <Text style={styles.cardSub}>Select all that apply</Text>
+                <Text style={styles.cardTitle}>Your Skills</Text>
+                <Text style={styles.skillsCardSub}>Help the AI find the best team matches for you</Text>
 
-                <Text style={styles.label}>Team roles · {form.roles.length} selected</Text>
-                <Text style={styles.hint}>What role best describes you?</Text>
+                <View style={styles.skillHeadRow}>
+                  <Text style={styles.skillHeadTitle}>Team roles</Text>
+                  <View style={styles.skillsBadge}>
+                    <Text style={styles.skillsBadgeText}>{`${form.roles.length} selected`}</Text>
+                  </View>
+                </View>
+                <Text style={styles.skillHintWeb}>
+                  How you usually contribute on projects (separate from your major)
+                </Text>
                 <View style={styles.chipWrap}>
                   {rolesPool.map((r) => {
                     const active = form.roles.includes(r);
@@ -523,30 +530,36 @@ export default function EditProfilePage() {
                     </Pressable>
                   ))}
                 </View>
-                <Text style={styles.customOtherHint}>
-                  Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
-                </Text>
-                <View style={styles.customOtherRow}>
-                  <TextInput
-                    style={styles.customOtherInput}
-                    value={customDraft.roles}
-                    onChangeText={(t) =>
-                      setCustomDraft((d) => ({ ...d, roles: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
-                    }
-                    placeholder="Type and tap Add"
-                    placeholderTextColor="#94a3b8"
-                    onSubmitEditing={() => addCustomSkill("roles")}
-                    returnKeyType="done"
-                  />
-                  <Pressable style={styles.customAddBtn} onPress={() => addCustomSkill("roles")}>
-                    <Text style={styles.customAddBtnText}>Add</Text>
-                  </Pressable>
+                <View style={styles.customAddBlock}>
+                  <Text style={styles.customOtherHint}>
+                    Other — not listed? Type and press Enter or Add (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                  </Text>
+                  <View style={styles.customOtherRow}>
+                    <TextInput
+                      style={styles.customOtherInputFlex}
+                      value={customDraft.roles}
+                      onChangeText={(t) =>
+                        setCustomDraft((d) => ({ ...d, roles: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
+                      }
+                      placeholder="e.g. specific framework or method"
+                      placeholderTextColor="#94a3b8"
+                      onSubmitEditing={() => addCustomSkill("roles")}
+                      returnKeyType="done"
+                      maxLength={CUSTOM_SKILL_MAX_LENGTH}
+                    />
+                    <Pressable style={styles.btnAddCustom} onPress={() => addCustomSkill("roles")}>
+                      <Text style={styles.btnAddCustomText}>Add</Text>
+                    </Pressable>
+                  </View>
                 </View>
 
-                <Text style={[styles.label, { marginTop: spacing.lg }]}>
-                  Technical skills · {form.technicalSkills.length} selected
-                </Text>
-                <Text style={styles.hint}>Skills you are comfortable with</Text>
+                <View style={[styles.skillHeadRow, { marginTop: spacing.lg }]}>
+                  <Text style={styles.skillHeadTitle}>Technical Skills</Text>
+                  <View style={styles.skillsBadge}>
+                    <Text style={styles.skillsBadgeText}>{`${form.technicalSkills.length} selected`}</Text>
+                  </View>
+                </View>
+                <Text style={styles.skillHintWeb}>{"Select skills you're comfortable with"}</Text>
                 <View style={styles.chipWrap}>
                   {techPool.map((s) => {
                     const active = form.technicalSkills.includes(s);
@@ -575,33 +588,39 @@ export default function EditProfilePage() {
                     </Pressable>
                   ))}
                 </View>
-                <Text style={styles.customOtherHint}>
-                  Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
-                </Text>
-                <View style={styles.customOtherRow}>
-                  <TextInput
-                    style={styles.customOtherInput}
-                    value={customDraft.technicalSkills}
-                    onChangeText={(t) =>
-                      setCustomDraft((d) => ({
-                        ...d,
-                        technicalSkills: t.slice(0, CUSTOM_SKILL_MAX_LENGTH),
-                      }))
-                    }
-                    placeholder="Type and tap Add"
-                    placeholderTextColor="#94a3b8"
-                    onSubmitEditing={() => addCustomSkill("technicalSkills")}
-                    returnKeyType="done"
-                  />
-                  <Pressable style={styles.customAddBtn} onPress={() => addCustomSkill("technicalSkills")}>
-                    <Text style={styles.customAddBtnText}>Add</Text>
-                  </Pressable>
+                <View style={styles.customAddBlock}>
+                  <Text style={styles.customOtherHint}>
+                    Other — not listed? Type and press Enter or Add (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                  </Text>
+                  <View style={styles.customOtherRow}>
+                    <TextInput
+                      style={styles.customOtherInputFlex}
+                      value={customDraft.technicalSkills}
+                      onChangeText={(t) =>
+                        setCustomDraft((d) => ({
+                          ...d,
+                          technicalSkills: t.slice(0, CUSTOM_SKILL_MAX_LENGTH),
+                        }))
+                      }
+                      placeholder="e.g. specific framework or method"
+                      placeholderTextColor="#94a3b8"
+                      onSubmitEditing={() => addCustomSkill("technicalSkills")}
+                      returnKeyType="done"
+                      maxLength={CUSTOM_SKILL_MAX_LENGTH}
+                    />
+                    <Pressable style={styles.btnAddCustom} onPress={() => addCustomSkill("technicalSkills")}>
+                      <Text style={styles.btnAddCustomText}>Add</Text>
+                    </Pressable>
+                  </View>
                 </View>
 
-                <Text style={[styles.label, { marginTop: spacing.lg }]}>
-                  Technologies & tools · {form.tools.length} selected
-                </Text>
-                <Text style={styles.hint}>Languages, frameworks, and tools you use</Text>
+                <View style={[styles.skillHeadRow, { marginTop: spacing.lg }]}>
+                  <Text style={styles.skillHeadTitle}>Technologies & Tools</Text>
+                  <View style={styles.skillsBadge}>
+                    <Text style={styles.skillsBadgeText}>{`${form.tools.length} selected`}</Text>
+                  </View>
+                </View>
+                <Text style={styles.skillHintWeb}>Languages, frameworks, and tools you use</Text>
                 <View style={styles.chipWrap}>
                   {toolsPool.map((t) => {
                     const active = form.tools.includes(t);
@@ -630,24 +649,27 @@ export default function EditProfilePage() {
                     </Pressable>
                   ))}
                 </View>
-                <Text style={styles.customOtherHint}>
-                  Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
-                </Text>
-                <View style={styles.customOtherRow}>
-                  <TextInput
-                    style={styles.customOtherInput}
-                    value={customDraft.tools}
-                    onChangeText={(t) =>
-                      setCustomDraft((d) => ({ ...d, tools: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
-                    }
-                    placeholder="Type and tap Add"
-                    placeholderTextColor="#94a3b8"
-                    onSubmitEditing={() => addCustomSkill("tools")}
-                    returnKeyType="done"
-                  />
-                  <Pressable style={styles.customAddBtn} onPress={() => addCustomSkill("tools")}>
-                    <Text style={styles.customAddBtnText}>Add</Text>
-                  </Pressable>
+                <View style={styles.customAddBlock}>
+                  <Text style={styles.customOtherHint}>
+                    Other — not listed? Type and press Enter or Add (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                  </Text>
+                  <View style={styles.customOtherRow}>
+                    <TextInput
+                      style={styles.customOtherInputFlex}
+                      value={customDraft.tools}
+                      onChangeText={(t) =>
+                        setCustomDraft((d) => ({ ...d, tools: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
+                      }
+                      placeholder="e.g. specific framework or method"
+                      placeholderTextColor="#94a3b8"
+                      onSubmitEditing={() => addCustomSkill("tools")}
+                      returnKeyType="done"
+                      maxLength={CUSTOM_SKILL_MAX_LENGTH}
+                    />
+                    <Pressable style={styles.btnAddCustom} onPress={() => addCustomSkill("tools")}>
+                      <Text style={styles.btnAddCustomText}>Add</Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             ) : null}
@@ -835,8 +857,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     zIndex: 1,
   },
-  cardTitle: { fontSize: 18, fontWeight: "800", color: "#0f172a", marginBottom: 4 },
+  cardTitle: { fontSize: 20, fontWeight: "800", color: "#0f172a", marginBottom: 4 },
   cardSub: { fontSize: 13, color: "#94a3b8", marginBottom: spacing.lg },
+  skillsCardSub: { fontSize: 13, color: "#64748b", marginBottom: spacing.lg, lineHeight: 18 },
+  skillHeadRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  skillHeadTitle: { fontSize: 13, fontWeight: "700", color: "#374151" },
+  skillsBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    backgroundColor: "#eef2ff",
+    borderWidth: 1,
+    borderColor: "#c7d2fe",
+    borderRadius: 10,
+  },
+  skillsBadgeText: { fontSize: 11, fontWeight: "700", color: "#6366f1" },
+  skillHintWeb: { fontSize: 12, color: "#94a3b8", marginBottom: 10 },
   label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: spacing.sm },
   req: { color: "#ef4444" },
   hint: { fontSize: 12, color: "#94a3b8", marginBottom: spacing.sm, marginTop: -4 },
@@ -865,32 +900,33 @@ const styles = StyleSheet.create({
   readOnlyLine: { fontSize: 13, color: "#0f172a", marginBottom: 4 },
   readOnlyLabel: { fontWeight: "700", color: "#64748b" },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  customOtherHint: { fontSize: 11, color: "#94a3b8", marginTop: 10, marginBottom: 6 },
+  customAddBlock: { marginTop: 12 },
+  customOtherHint: { fontSize: 11, color: "#94a3b8", marginBottom: 8 },
   customOtherRow: { flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap" },
-  customOtherInput: {
+  customOtherInputFlex: {
     flex: 1,
     minWidth: 160,
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
     borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     fontSize: 14,
     color: "#1e293b",
     backgroundColor: "#fff",
   },
-  customAddBtn: {
+  btnAddCustom: {
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     backgroundColor: "#f8fafc",
     borderWidth: 1.5,
     borderColor: "#c7d2fe",
     borderRadius: radius.md,
   },
-  customAddBtnText: { color: "#4f46e5", fontSize: 13, fontWeight: "600" },
+  btnAddCustomText: { color: "#4f46e5", fontSize: 13, fontWeight: "600" },
   chip: {
     paddingVertical: 7,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1.5,
     borderColor: "#e2e8f0",

@@ -1,4 +1,4 @@
-import { useState, useRef, ReactNode, ChangeEvent, type CSSProperties } from 'react'
+import { useState, useRef, useEffect, ReactNode, ChangeEvent, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from "../../../context/UserContext"
 import { registerStudent } from '../../../api/authApi'
@@ -41,6 +41,8 @@ const STEPS = [
   { id: 'skills', label: 'Skills', icon: '⚡' },
 ]
 
+const SKILLS_COLLAPSE_MAX_PX = 560
+
 export default function StudentRegisterForm({ onBack = null }: { onBack?: (() => void) | null }) {
   const navigate = useNavigate()
   const { updateProfile } = useUser()
@@ -58,6 +60,28 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [customDraft, setCustomDraft] = useState({ roles: '', technicalSkills: '', tools: '' })
+  const [skillsNarrow, setSkillsNarrow] = useState(false)
+  const [skillPanelOpen, setSkillPanelOpen] = useState({ roles: true, technicalSkills: true, tools: true })
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia(`(max-width: ${SKILLS_COLLAPSE_MAX_PX - 1}px)`)
+    const apply = () => setSkillsNarrow(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  useEffect(() => {
+    if (step !== 3) return
+    if (typeof window === 'undefined') return
+    const narrow = window.innerWidth < SKILLS_COLLAPSE_MAX_PX
+    setSkillPanelOpen({
+      roles: true,
+      technicalSkills: !narrow,
+      tools: !narrow,
+    })
+  }, [step])
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm(f => ({ ...f, [field]: value }))
@@ -274,10 +298,29 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
               </div>
             ):(
               <>
+                {skillsNarrow && (
+                  <div style={S.skillsSummaryBar}>
+                    <span style={{ fontWeight: 700, color: '#475569' }}>Selections</span>
+                    <span style={{ color: '#64748b' }}>
+                      Roles {form.roles.length} · Tech {form.technicalSkills.length} · Tools {form.tools.length}
+                    </span>
+                  </div>
+                )}
                 {/* Team roles (stored as roles / generalSkills for AI matching — not your major) */}
-                <SkillGroup title="Team roles" badge={`${form.roles.length} selected`} hint="How you usually contribute on projects (separate from your major)" required error={errors.roles}>
+                <SkillGroup
+                  title="Team roles"
+                  badge={`${form.roles.length} selected`}
+                  hint="How you usually contribute on projects (separate from your major)"
+                  required
+                  error={errors.roles}
+                  collapsible={skillsNarrow}
+                  expanded={skillPanelOpen.roles}
+                  onToggle={() => setSkillPanelOpen(p => ({ ...p, roles: !p.roles }))}
+                >
                   <div style={S.chipGrid}>
-                    {skillsData.roles.map(r=><ChipBtn key={r} label={r} active={form.roles.includes(r)} onClick={()=>toggle('roles',r)} color="indigo"/>)}
+                    {skillsData.roles.map(r => (
+                      <ChipBtn key={r} label={r} active={form.roles.includes(r)} onClick={() => toggle('roles', r)} color="indigo" />
+                    ))}
                     {customSelections(form.roles, skillsData.roles).map(r => (
                       <ChipBtn key={`custom-${r}`} label={r} active onClick={() => toggle('roles', r)} color="indigo" />
                     ))}
@@ -291,9 +334,24 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 </SkillGroup>
 
                 {/* Technical Skills */}
-                <SkillGroup title="Technical Skills" badge={`${form.technicalSkills.length} selected`} hint="Select skills you're comfortable with">
+                <SkillGroup
+                  title="Technical Skills"
+                  badge={`${form.technicalSkills.length} selected`}
+                  hint="Select skills you're comfortable with"
+                  collapsible={skillsNarrow}
+                  expanded={skillPanelOpen.technicalSkills}
+                  onToggle={() => setSkillPanelOpen(p => ({ ...p, technicalSkills: !p.technicalSkills }))}
+                >
                   <div style={S.chipGrid}>
-                    {skillsData.technicalSkills.map(s=><ChipBtn key={s} label={s} active={form.technicalSkills.includes(s)} onClick={()=>toggle('technicalSkills',s)} color="purple"/>)}
+                    {skillsData.technicalSkills.map(s => (
+                      <ChipBtn
+                        key={s}
+                        label={s}
+                        active={form.technicalSkills.includes(s)}
+                        onClick={() => toggle('technicalSkills', s)}
+                        color="purple"
+                      />
+                    ))}
                     {customSelections(form.technicalSkills, skillsData.technicalSkills).map(s => (
                       <ChipBtn key={`custom-${s}`} label={s} active onClick={() => toggle('technicalSkills', s)} color="purple" />
                     ))}
@@ -307,9 +365,18 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 </SkillGroup>
 
                 {/* Technologies & Tools */}
-                <SkillGroup title="Technologies & Tools" badge={`${form.tools.length} selected`} hint="Languages, frameworks, and tools you use">
+                <SkillGroup
+                  title="Technologies & Tools"
+                  badge={`${form.tools.length} selected`}
+                  hint="Languages, frameworks, and tools you use"
+                  collapsible={skillsNarrow}
+                  expanded={skillPanelOpen.tools}
+                  onToggle={() => setSkillPanelOpen(p => ({ ...p, tools: !p.tools }))}
+                >
                   <div style={S.chipGrid}>
-                    {skillsData.tools.map(t=><ChipBtn key={t} label={t} active={form.tools.includes(t)} onClick={()=>toggle('tools',t)} color="teal"/>)}
+                    {skillsData.tools.map(t => (
+                      <ChipBtn key={t} label={t} active={form.tools.includes(t)} onClick={() => toggle('tools', t)} color="teal" />
+                    ))}
                     {customSelections(form.tools, skillsData.tools).map(t => (
                       <ChipBtn key={`custom-${t}`} label={t} active onClick={() => toggle('tools', t)} color="teal" />
                     ))}
@@ -350,16 +417,64 @@ function Section({ title, sub, children }: { title: string; sub: string; childre
   return <div><div style={{marginBottom:24}}><h3 style={{fontSize:20,fontWeight:800,color:'#0f172a',margin:'0 0 4px',fontFamily:'Syne, sans-serif'}}>{title}</h3><p style={{fontSize:13,color:'#64748b',margin:0}}>{sub}</p></div>{children}</div>
 }
 
-function SkillGroup({ title, badge, hint, required=false, error, children }: { title: string; badge: string; hint: string; required?: boolean; error?: string; children: ReactNode }) {
-  return (
-    <div style={{marginBottom:28}}>
-      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-        <label style={{fontSize:13,fontWeight:700,color:'#374151'}}>{title}{required&&<span style={{color:'#ef4444'}}> *</span>}</label>
-        <span style={{padding:'2px 8px',background:'#eef2ff',color:'#6366f1',borderRadius:10,fontSize:11,fontWeight:700,border:'1px solid #c7d2fe'}}>{badge}</span>
+function SkillGroup({
+  title,
+  badge,
+  hint,
+  required = false,
+  error,
+  children,
+  collapsible = false,
+  expanded = true,
+  onToggle,
+}: {
+  title: string
+  badge: string
+  hint: string
+  required?: boolean
+  error?: string
+  children: ReactNode
+  collapsible?: boolean
+  expanded?: boolean
+  onToggle?: () => void
+}) {
+  const showBody = !collapsible || expanded
+  const headInner = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+        <label style={{ fontSize: 13, fontWeight: 700, color: '#374151', margin: 0, cursor: collapsible ? 'pointer' : undefined }}>
+          {title}
+          {required && <span style={{ color: '#ef4444' }}> *</span>}
+        </label>
+        <span style={{ padding: '2px 8px', background: '#eef2ff', color: '#6366f1', borderRadius: 10, fontSize: 11, fontWeight: 700, border: '1px solid #c7d2fe' }}>{badge}</span>
       </div>
-      <p style={{fontSize:12,color:'#94a3b8',margin:'0 0 10px'}}>{hint}</p>
-      {children}
-      {error&&<span style={{display:'block',fontSize:12,color:'#ef4444',marginTop:6,fontWeight:500}}>{error}</span>}
+      {collapsible ? (
+        <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b', flexShrink: 0 }}>{expanded ? '▲' : '▼'}</span>
+      ) : null}
+    </div>
+  )
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      {collapsible ? (
+        <button type="button" style={S.skillSectionHeadBtn} onClick={onToggle} title={hint}>
+          {headInner}
+        </button>
+      ) : (
+        <div style={{ marginBottom: 4 }}>{headInner}</div>
+      )}
+      {collapsible && !expanded ? (
+        <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0', lineHeight: 1.45 }}>
+          Tap the header to open this section — every option is still here; nothing is removed.
+        </p>
+      ) : null}
+      {showBody ? (
+        <>
+          <p style={{ fontSize: 12, color: '#94a3b8', margin: collapsible ? '10px 0 8px' : '0 0 10px' }}>{hint}</p>
+          {children}
+        </>
+      ) : null}
+      {error && <span style={{ display: 'block', fontSize: 12, color: '#ef4444', marginTop: 6, fontWeight: 500 }}>{error}</span>}
     </div>
   )
 }
@@ -477,6 +592,8 @@ const S: Record<string, CSSProperties> = {
   picCircle:     {width:68,height:68,borderRadius:'50%',background:'#f1f5f9',border:'2px dashed #cbd5e1',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,overflow:'hidden'},
   picBtn:        {padding:'6px 14px',background:'#eef2ff',border:'1px solid #c7d2fe',borderRadius:8,color:'#6366f1',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'},
   chipGrid:      {display:'flex',flexWrap:'wrap' as const,gap:8},
+  skillsSummaryBar: { display:'flex',flexDirection:'column' as const,gap:4,marginBottom:18,padding:'12px 14px',background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:12,fontSize:12 },
+  skillSectionHeadBtn: { display:'block',width:'100%',textAlign:'left' as const,background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:12,padding:'12px 14px',marginBottom:0,cursor:'pointer',fontFamily:'inherit'},
   navRow:        {display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:28,paddingTop:22,borderTop:'1px solid #f1f5f9'},
   btnBack:       {padding:'10px 20px',background:'white',border:'1.5px solid #e2e8f0',borderRadius:10,color:'#64748b',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit'},
   btnPrimary:    {padding:'11px 26px',background:'linear-gradient(135deg,#4f46e5,#9333ea)',color:'white',border:'none',borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',fontFamily:'inherit',boxShadow:'0 4px 14px rgba(99,102,241,0.35)'},
