@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useUser } from "../../../context/UserContext"
 import { registerStudent } from '../../../api/authApi'
 import { navigateHome } from '../../../utils/homeNavigation'
+import {
+  CUSTOM_SKILL_MAX_LENGTH,
+  customSelections,
+  getSkillsPack,
+  normalizeCustomSkill,
+} from '../../../constants/studentSkillPools'
 
 interface FormState {
   fullName: string; email: string; password: string; confirmPassword: string
@@ -11,8 +17,6 @@ interface FormState {
   academicYear: string; gpa: string
   roles: string[]; technicalSkills: string[]; tools: string[]
 }
-
-type SkillCategory = 'tech' | 'engineering' | 'medical' | 'science'
 
 const UNIVERSITIES = ['An-Najah National University (NNU)']
 const UNIVERSITY_FACULTIES: Record<string, string[]> = {
@@ -30,34 +34,6 @@ const MAJORS: Record<string, string[]> = {
   'Nursing': ['Nursing'],
   'Agriculture and Veterinary Medicine': ['Agriculture','Plant Production and Protection','Animal Production','Food Science and Technology','Veterinary Medicine'],
 }
-const FACULTY_CATEGORY: Record<string, SkillCategory> = {
-  'Engineering and Information Technology':'engineering','Information Technology':'tech',
-  'Science':'science','Medicine and Health Sciences':'medical','Pharmacy':'medical',
-  'Nursing':'medical','Agriculture and Veterinary Medicine':'science',
-}
-const SKILLS_DATA: Record<SkillCategory, { roles: string[]; technicalSkills: string[]; tools: string[] }> = {
-  tech: {
-    roles: ['Frontend Developer','Backend Developer','Full Stack Developer','Mobile App Developer','AI Engineer','Data Scientist','Cybersecurity Specialist','DevOps Engineer','QA Tester','UI/UX Designer','Game Developer'],
-    technicalSkills: ['Web Development','API Development','Software Architecture','Machine Learning','Data Analysis','Cloud Systems','Network Security','Software Testing','Database Design','System Integration'],
-    tools: ['JavaScript','TypeScript','Python','Java','C++','C#','PHP','Go','Kotlin','Swift','Dart','R','MATLAB','React','Angular','Vue','Node.js','ASP.NET','Spring Boot','Django','Flutter','TensorFlow','PyTorch','Docker','Git'],
-  },
-  engineering: {
-    roles: ['Mechanical Engineer','Electrical Engineer','Civil Engineer','Mechatronics Engineer','Energy Engineer','Industrial Engineer'],
-    technicalSkills: ['Mechanical Design','Structural Analysis','Control Systems','Power Systems','Manufacturing Processes','Engineering Modeling','Project Engineering','Automation Systems','Robotics Systems','Energy Systems'],
-    tools: ['AutoCAD','SolidWorks','MATLAB','ANSYS','PLC Programming','Arduino','LabVIEW'],
-  },
-  medical: {
-    roles: ['Medical Doctor','Clinical Specialist','Health Information Specialist','Medical Data Analyst','Clinical Researcher','Healthcare Administrator'],
-    technicalSkills: ['Clinical Assessment','Patient Care','Medical Diagnostics','Health Data Analysis','Medical Documentation','Clinical Research','Healthcare Analytics','Medical Statistics','Healthcare Information Systems'],
-    tools: ['Electronic Health Records (EHR)','Hospital Information Systems','Medical Coding Systems','Healthcare Databases','Clinical Data Systems'],
-  },
-  science: {
-    roles: ['Research Scientist','Data Analyst','Lab Specialist','Biotechnology Researcher','Environmental Scientist','Statistician'],
-    technicalSkills: ['Scientific Research','Statistical Analysis','Data Modeling','Laboratory Analysis','Scientific Writing','Experimental Design'],
-    tools: ['SPSS','MATLAB','R','Python','Laboratory Equipment','Data Visualization Tools'],
-  },
-}
-
 const STEPS = [
   { id: 'account', label: 'Account', icon: '👤' },
   { id: 'student', label: 'Student Info', icon: '🎓' },
@@ -81,6 +57,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [customDraft, setCustomDraft] = useState({ roles: '', technicalSkills: '', tools: '' })
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm(f => ({ ...f, [field]: value }))
@@ -89,19 +66,39 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
   const toggle = (field: 'roles' | 'technicalSkills' | 'tools', val: string) => {
     setForm(f => { const arr = f[field] as string[]; return { ...f, [field]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] } })
   }
+  const addCustomSkill = (field: 'roles' | 'technicalSkills' | 'tools') => {
+    const v = normalizeCustomSkill(customDraft[field])
+    if (!v) return
+    setForm(f => {
+      const arr = f[field] as string[]
+      if (arr.some(x => x.toLowerCase() === v.toLowerCase())) return f
+      return { ...f, [field]: [...arr, v] }
+    })
+    setCustomDraft(d => ({ ...d, [field]: '' }))
+    setErrors(e => ({ ...e, [field]: '' }))
+  }
   const handlePic = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
     const reader = new FileReader()
     reader.onload = ev => { if (ev.target?.result) set('profilePicPreview', ev.target.result as string) }
     reader.readAsDataURL(file); set('profilePic', file)
   }
-  const handleUniversity = (val: string) => setForm(f => ({ ...f, university:val, faculty:'', major:'', roles:[], technicalSkills:[], tools:[] }))
-  const handleFaculty = (val: string) => setForm(f => ({ ...f, faculty:val, major:'', roles:[], technicalSkills:[], tools:[] }))
+  const handleUniversity = (val: string) => {
+    setForm(f => ({ ...f, university: val, faculty: '', major: '', roles: [], technicalSkills: [], tools: [] }))
+    setCustomDraft({ roles: '', technicalSkills: '', tools: '' })
+  }
+  const handleFaculty = (val: string) => {
+    setForm(f => ({ ...f, faculty: val, major: '', roles: [], technicalSkills: [], tools: [] }))
+    setCustomDraft({ roles: '', technicalSkills: '', tools: '' })
+  }
+  const handleMajor = (val: string) => {
+    setForm(f => ({ ...f, major: val, roles: [], technicalSkills: [], tools: [] }))
+    setCustomDraft({ roles: '', technicalSkills: '', tools: '' })
+  }
 
   const availableFaculties = form.university ? (UNIVERSITY_FACULTIES[form.university] ?? []) : []
   const availableMajors = MAJORS[form.faculty] ?? []
-  const category = FACULTY_CATEGORY[form.faculty] as SkillCategory | undefined
-  const skillsData = category ? SKILLS_DATA[category] : null
+  const skillsData = getSkillsPack(form.faculty, form.major)
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -123,7 +120,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
       if (!form.academicYear) e.academicYear = 'Please select your academic year'
       if (form.gpa.trim() && (isNaN(parseFloat(form.gpa)) || parseFloat(form.gpa) < 0 || parseFloat(form.gpa) > 4)) e.gpa = 'GPA must be between 0.0 and 4.0'
     }
-    if (step === 3) { if (form.roles.length === 0) e.roles = 'Please select at least one specialization' }
+    if (step === 3) { if (form.roles.length === 0) e.roles = 'Please select at least one team role' }
     setErrors(e); return Object.keys(e).length === 0
   }
 
@@ -247,7 +244,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
               <Select label="University" value={form.university} onChange={handleUniversity} error={errors.university} required options={UNIVERSITIES} placeholder="Select your university"/>
             </div>
             <Select label="Faculty / College" value={form.faculty} onChange={handleFaculty} error={errors.faculty} required options={availableFaculties} placeholder={form.university?'Select your faculty':'Select a university first'} disabled={!form.university}/>
-            <Select label="Major / Department" value={form.major} onChange={v=>set('major',v)} error={errors.major} required options={availableMajors} placeholder={form.faculty?'Select your major':'Select a faculty first'} disabled={!form.faculty}/>
+            <Select label="Major / Department" value={form.major} onChange={handleMajor} error={errors.major} required options={availableMajors} placeholder={form.faculty?'Select your major':'Select a faculty first'} disabled={!form.faculty}/>
           </Section>}
 
           {/* STEP 2 */}
@@ -273,29 +270,56 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
           {step===3&&<Section title="Your Skills" sub="Help the AI find the best team matches for you">
             {!skillsData?(
               <div style={{padding:16,background:'#fffbeb',border:'1px solid #fde68a',borderRadius:10,color:'#92400e',fontSize:13}}>
-                ⚠️ Please complete your faculty selection in Step 2 to see your skills options.
+                ⚠️ Please complete your faculty and major in Step 2 to see skills matched to your program.
               </div>
             ):(
               <>
-                {/* Specialization */}
-                <SkillGroup title="Specialization" badge={`${form.roles.length} selected`} hint="What role best describes you?" required error={errors.roles}>
+                {/* Team roles (stored as roles / generalSkills for AI matching — not your major) */}
+                <SkillGroup title="Team roles" badge={`${form.roles.length} selected`} hint="How you usually contribute on projects (separate from your major)" required error={errors.roles}>
                   <div style={S.chipGrid}>
                     {skillsData.roles.map(r=><ChipBtn key={r} label={r} active={form.roles.includes(r)} onClick={()=>toggle('roles',r)} color="indigo"/>)}
+                    {customSelections(form.roles, skillsData.roles).map(r => (
+                      <ChipBtn key={`custom-${r}`} label={r} active onClick={() => toggle('roles', r)} color="indigo" />
+                    ))}
                   </div>
+                  <CustomSkillAddRow
+                    value={customDraft.roles}
+                    onChange={v => setCustomDraft(d => ({ ...d, roles: v }))}
+                    onAdd={() => addCustomSkill('roles')}
+                    maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                  />
                 </SkillGroup>
 
                 {/* Technical Skills */}
                 <SkillGroup title="Technical Skills" badge={`${form.technicalSkills.length} selected`} hint="Select skills you're comfortable with">
                   <div style={S.chipGrid}>
                     {skillsData.technicalSkills.map(s=><ChipBtn key={s} label={s} active={form.technicalSkills.includes(s)} onClick={()=>toggle('technicalSkills',s)} color="purple"/>)}
+                    {customSelections(form.technicalSkills, skillsData.technicalSkills).map(s => (
+                      <ChipBtn key={`custom-${s}`} label={s} active onClick={() => toggle('technicalSkills', s)} color="purple" />
+                    ))}
                   </div>
+                  <CustomSkillAddRow
+                    value={customDraft.technicalSkills}
+                    onChange={v => setCustomDraft(d => ({ ...d, technicalSkills: v }))}
+                    onAdd={() => addCustomSkill('technicalSkills')}
+                    maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                  />
                 </SkillGroup>
 
                 {/* Technologies & Tools */}
                 <SkillGroup title="Technologies & Tools" badge={`${form.tools.length} selected`} hint="Languages, frameworks, and tools you use">
                   <div style={S.chipGrid}>
                     {skillsData.tools.map(t=><ChipBtn key={t} label={t} active={form.tools.includes(t)} onClick={()=>toggle('tools',t)} color="teal"/>)}
+                    {customSelections(form.tools, skillsData.tools).map(t => (
+                      <ChipBtn key={`custom-${t}`} label={t} active onClick={() => toggle('tools', t)} color="teal" />
+                    ))}
                   </div>
+                  <CustomSkillAddRow
+                    value={customDraft.tools}
+                    onChange={v => setCustomDraft(d => ({ ...d, tools: v }))}
+                    onAdd={() => addCustomSkill('tools')}
+                    maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                  />
                 </SkillGroup>
               </>
             )}
@@ -336,6 +360,45 @@ function SkillGroup({ title, badge, hint, required=false, error, children }: { t
       <p style={{fontSize:12,color:'#94a3b8',margin:'0 0 10px'}}>{hint}</p>
       {children}
       {error&&<span style={{display:'block',fontSize:12,color:'#ef4444',marginTop:6,fontWeight:500}}>{error}</span>}
+    </div>
+  )
+}
+
+function CustomSkillAddRow({
+  value,
+  onChange,
+  onAdd,
+  maxLen,
+}: {
+  value: string
+  onChange: (v: string) => void
+  onAdd: () => void
+  maxLen: number
+}) {
+  return (
+    <div style={{ marginTop: 12 }}>
+      <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>
+        Other — not listed? Type and press Enter or Add (max {maxLen} characters).
+      </p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          type="text"
+          style={{ ...S.input, flex: '1 1 220px', maxWidth: '100%' }}
+          value={value}
+          maxLength={maxLen}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onAdd()
+            }
+          }}
+          placeholder="e.g. specific framework or method"
+        />
+        <button type="button" style={S.btnAddCustom} onClick={onAdd}>
+          Add
+        </button>
+      </div>
     </div>
   )
 }
@@ -429,4 +492,5 @@ const S: Record<string, CSSProperties> = {
   successLabel:  {fontSize:11,color:'#94a3b8',fontWeight:600,textTransform:'uppercase' as const,letterSpacing:'0.05em'},
   successDivider:{width:1,height:36,background:'#e2e8f0',margin:'0 16px'},
   btnOutline:    {padding:'11px 24px',background:'white',border:'1.5px solid #e2e8f0',borderRadius:10,color:'#64748b',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit'},
+  btnAddCustom:  {padding:'10px 16px',background:'#f8fafc',border:'1.5px solid #c7d2fe',borderRadius:10,color:'#4f46e5',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit',flexShrink:0},
 }

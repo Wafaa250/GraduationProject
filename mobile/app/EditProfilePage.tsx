@@ -24,7 +24,10 @@ import {
 import {
   ALL_LANGUAGES,
   AVAILABILITY_OPTIONS,
+  CUSTOM_SKILL_MAX_LENGTH,
   LOOKING_FOR_OPTIONS,
+  customSelections,
+  normalizeCustomSkill,
   poolsForFaculty,
 } from "@/constants/editProfilePools";
 import { radius, spacing } from "@/constants/responsiveLayout";
@@ -111,8 +114,12 @@ export default function EditProfilePage() {
   const [saved, setSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [customDraft, setCustomDraft] = useState({ roles: "", technicalSkills: "", tools: "" });
 
-  const { rolesPool, techPool, toolsPool } = useMemo(() => poolsForFaculty(faculty), [faculty]);
+  const { rolesPool, techPool, toolsPool } = useMemo(
+    () => poolsForFaculty(faculty, readOnlyAcademic.major),
+    [faculty, readOnlyAcademic.major]
+  );
 
   useEffect(() => {
     setActiveSection(parseSectionParam(sectionParam));
@@ -173,6 +180,18 @@ export default function EditProfilePage() {
       const next = arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
       return { ...f, [field]: next };
     });
+    setSaved(false);
+  };
+
+  const addCustomSkill = (field: "roles" | "technicalSkills" | "tools") => {
+    const v = normalizeCustomSkill(customDraft[field]);
+    if (!v) return;
+    setForm((f) => {
+      const arr = f[field] as string[];
+      if (arr.some((x) => x.toLowerCase() === v.toLowerCase())) return f;
+      return { ...f, [field]: [...arr, v] };
+    });
+    setCustomDraft((d) => ({ ...d, [field]: "" }));
     setSaved(false);
   };
 
@@ -474,7 +493,7 @@ export default function EditProfilePage() {
                 <Text style={styles.cardTitle}>Your skills</Text>
                 <Text style={styles.cardSub}>Select all that apply</Text>
 
-                <Text style={styles.label}>Specialization · {form.roles.length} selected</Text>
+                <Text style={styles.label}>Team roles · {form.roles.length} selected</Text>
                 <Text style={styles.hint}>What role best describes you?</Text>
                 <View style={styles.chipWrap}>
                   {rolesPool.map((r) => {
@@ -492,6 +511,36 @@ export default function EditProfilePage() {
                       </Pressable>
                     );
                   })}
+                  {customSelections(form.roles, rolesPool).map((r) => (
+                    <Pressable
+                      key={`custom-${r}`}
+                      onPress={() => toggleArr("roles", r)}
+                      style={[styles.chip, styles.chipIndigo]}
+                    >
+                      <Text style={[styles.chipText, styles.chipTextIndigo]} numberOfLines={2}>
+                        ✓ {r}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.customOtherHint}>
+                  Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                </Text>
+                <View style={styles.customOtherRow}>
+                  <TextInput
+                    style={styles.customOtherInput}
+                    value={customDraft.roles}
+                    onChangeText={(t) =>
+                      setCustomDraft((d) => ({ ...d, roles: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
+                    }
+                    placeholder="Type and tap Add"
+                    placeholderTextColor="#94a3b8"
+                    onSubmitEditing={() => addCustomSkill("roles")}
+                    returnKeyType="done"
+                  />
+                  <Pressable style={styles.customAddBtn} onPress={() => addCustomSkill("roles")}>
+                    <Text style={styles.customAddBtnText}>Add</Text>
+                  </Pressable>
                 </View>
 
                 <Text style={[styles.label, { marginTop: spacing.lg }]}>
@@ -514,6 +563,39 @@ export default function EditProfilePage() {
                       </Pressable>
                     );
                   })}
+                  {customSelections(form.technicalSkills, techPool).map((s) => (
+                    <Pressable
+                      key={`custom-${s}`}
+                      onPress={() => toggleArr("technicalSkills", s)}
+                      style={[styles.chip, styles.chipPurple]}
+                    >
+                      <Text style={[styles.chipText, styles.chipTextPurple]} numberOfLines={2}>
+                        ✓ {s}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.customOtherHint}>
+                  Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                </Text>
+                <View style={styles.customOtherRow}>
+                  <TextInput
+                    style={styles.customOtherInput}
+                    value={customDraft.technicalSkills}
+                    onChangeText={(t) =>
+                      setCustomDraft((d) => ({
+                        ...d,
+                        technicalSkills: t.slice(0, CUSTOM_SKILL_MAX_LENGTH),
+                      }))
+                    }
+                    placeholder="Type and tap Add"
+                    placeholderTextColor="#94a3b8"
+                    onSubmitEditing={() => addCustomSkill("technicalSkills")}
+                    returnKeyType="done"
+                  />
+                  <Pressable style={styles.customAddBtn} onPress={() => addCustomSkill("technicalSkills")}>
+                    <Text style={styles.customAddBtnText}>Add</Text>
+                  </Pressable>
                 </View>
 
                 <Text style={[styles.label, { marginTop: spacing.lg }]}>
@@ -536,6 +618,36 @@ export default function EditProfilePage() {
                       </Pressable>
                     );
                   })}
+                  {customSelections(form.tools, toolsPool).map((t) => (
+                    <Pressable
+                      key={`custom-${t}`}
+                      onPress={() => toggleArr("tools", t)}
+                      style={[styles.chip, styles.chipTeal]}
+                    >
+                      <Text style={[styles.chipText, styles.chipTextTeal]} numberOfLines={2}>
+                        ✓ {t}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.customOtherHint}>
+                  Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                </Text>
+                <View style={styles.customOtherRow}>
+                  <TextInput
+                    style={styles.customOtherInput}
+                    value={customDraft.tools}
+                    onChangeText={(t) =>
+                      setCustomDraft((d) => ({ ...d, tools: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
+                    }
+                    placeholder="Type and tap Add"
+                    placeholderTextColor="#94a3b8"
+                    onSubmitEditing={() => addCustomSkill("tools")}
+                    returnKeyType="done"
+                  />
+                  <Pressable style={styles.customAddBtn} onPress={() => addCustomSkill("tools")}>
+                    <Text style={styles.customAddBtnText}>Add</Text>
+                  </Pressable>
                 </View>
               </View>
             ) : null}
@@ -753,6 +865,29 @@ const styles = StyleSheet.create({
   readOnlyLine: { fontSize: 13, color: "#0f172a", marginBottom: 4 },
   readOnlyLabel: { fontWeight: "700", color: "#64748b" },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  customOtherHint: { fontSize: 11, color: "#94a3b8", marginTop: 10, marginBottom: 6 },
+  customOtherRow: { flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap" },
+  customOtherInput: {
+    flex: 1,
+    minWidth: 160,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#1e293b",
+    backgroundColor: "#fff",
+  },
+  customAddBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#c7d2fe",
+    borderRadius: radius.md,
+  },
+  customAddBtnText: { color: "#4f46e5", fontSize: 13, fontWeight: "600" },
   chip: {
     paddingVertical: 7,
     paddingHorizontal: 12,

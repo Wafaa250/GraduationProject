@@ -18,6 +18,12 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 
 import { spacing } from "@/constants/responsiveLayout";
+import {
+  CUSTOM_SKILL_MAX_LENGTH,
+  customSelections,
+  getSkillsPack,
+  normalizeCustomSkill,
+} from "@/constants/editProfilePools";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 
@@ -72,8 +78,6 @@ const ROLES: RoleCard[] = [
     iconBg: "#f59e0b",
   },
 ];
-
-type SkillCategory = "tech" | "engineering" | "medical" | "science";
 
 const UNIVERSITIES = ["An-Najah National University (NNU)"] as const;
 
@@ -140,146 +144,6 @@ const MAJORS: Record<string, string[]> = {
   ],
 };
 
-const FACULTY_CATEGORY: Record<string, SkillCategory> = {
-  "Engineering and Information Technology": "engineering",
-  "Information Technology": "tech",
-  Science: "science",
-  "Medicine and Health Sciences": "medical",
-  Pharmacy: "medical",
-  Nursing: "medical",
-  "Agriculture and Veterinary Medicine": "science",
-};
-
-const SKILLS_DATA: Record<
-  SkillCategory,
-  { roles: string[]; technicalSkills: string[]; tools: string[] }
-> = {
-  tech: {
-    roles: [
-      "Frontend Developer",
-      "Backend Developer",
-      "Full Stack Developer",
-      "Mobile App Developer",
-      "AI Engineer",
-      "Data Scientist",
-      "Cybersecurity Specialist",
-      "DevOps Engineer",
-      "QA Tester",
-      "UI/UX Designer",
-      "Game Developer",
-    ],
-    technicalSkills: [
-      "Web Development",
-      "API Development",
-      "Software Architecture",
-      "Machine Learning",
-      "Data Analysis",
-      "Cloud Systems",
-      "Network Security",
-      "Software Testing",
-      "Database Design",
-      "System Integration",
-    ],
-    tools: [
-      "JavaScript",
-      "TypeScript",
-      "Python",
-      "Java",
-      "C++",
-      "C#",
-      "PHP",
-      "Go",
-      "Kotlin",
-      "Swift",
-      "Dart",
-      "R",
-      "MATLAB",
-      "React",
-      "Angular",
-      "Vue",
-      "Node.js",
-      "ASP.NET",
-      "Spring Boot",
-      "Django",
-      "Flutter",
-      "TensorFlow",
-      "PyTorch",
-      "Docker",
-      "Git",
-    ],
-  },
-  engineering: {
-    roles: [
-      "Mechanical Engineer",
-      "Electrical Engineer",
-      "Civil Engineer",
-      "Mechatronics Engineer",
-      "Energy Engineer",
-      "Industrial Engineer",
-    ],
-    technicalSkills: [
-      "Mechanical Design",
-      "Structural Analysis",
-      "Control Systems",
-      "Power Systems",
-      "Manufacturing Processes",
-      "Engineering Modeling",
-      "Project Engineering",
-      "Automation Systems",
-      "Robotics Systems",
-      "Energy Systems",
-    ],
-    tools: ["AutoCAD", "SolidWorks", "MATLAB", "ANSYS", "PLC Programming", "Arduino", "LabVIEW"],
-  },
-  medical: {
-    roles: [
-      "Medical Doctor",
-      "Clinical Specialist",
-      "Health Information Specialist",
-      "Medical Data Analyst",
-      "Clinical Researcher",
-      "Healthcare Administrator",
-    ],
-    technicalSkills: [
-      "Clinical Assessment",
-      "Patient Care",
-      "Medical Diagnostics",
-      "Health Data Analysis",
-      "Medical Documentation",
-      "Clinical Research",
-      "Healthcare Analytics",
-      "Medical Statistics",
-      "Healthcare Information Systems",
-    ],
-    tools: [
-      "Electronic Health Records (EHR)",
-      "Hospital Information Systems",
-      "Medical Coding Systems",
-      "Healthcare Databases",
-      "Clinical Data Systems",
-    ],
-  },
-  science: {
-    roles: [
-      "Research Scientist",
-      "Data Analyst",
-      "Lab Specialist",
-      "Biotechnology Researcher",
-      "Environmental Scientist",
-      "Statistician",
-    ],
-    technicalSkills: [
-      "Scientific Research",
-      "Statistical Analysis",
-      "Data Modeling",
-      "Laboratory Analysis",
-      "Scientific Writing",
-      "Experimental Design",
-    ],
-    tools: ["SPSS", "MATLAB", "R", "Python", "Laboratory Equipment", "Data Visualization Tools"],
-  },
-};
-
 const STEPS = [
   { id: "account", label: "Account", icon: "👤" },
   { id: "student", label: "Student Info", icon: "🎓" },
@@ -344,6 +208,7 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
   const [showConfirm, setShowConfirm] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [customDraft, setCustomDraft] = useState({ roles: "", technicalSkills: "", tools: "" });
 
   const layout = useResponsiveLayout();
   const insets = useSafeAreaInsets();
@@ -368,6 +233,18 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
     setErrors((e) => ({ ...e, roles: "" }));
   };
 
+  const addCustomSkill = (field: "roles" | "technicalSkills" | "tools") => {
+    const v = normalizeCustomSkill(customDraft[field]);
+    if (!v) return;
+    setForm((f) => {
+      const arr = f[field] as string[];
+      if (arr.some((x) => x.toLowerCase() === v.toLowerCase())) return f;
+      return { ...f, [field]: [...arr, v] };
+    });
+    setCustomDraft((d) => ({ ...d, [field]: "" }));
+    setErrors((e) => ({ ...e, [field]: "" }));
+  };
+
   const handleUniversity = (val: string) => {
     setForm((f) => ({
       ...f,
@@ -378,6 +255,7 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
       technicalSkills: [],
       tools: [],
     }));
+    setCustomDraft({ roles: "", technicalSkills: "", tools: "" });
     setErrors((e) => ({ ...e, university: "", faculty: "", major: "" }));
   };
 
@@ -390,13 +268,25 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
       technicalSkills: [],
       tools: [],
     }));
+    setCustomDraft({ roles: "", technicalSkills: "", tools: "" });
     setErrors((e) => ({ ...e, faculty: "", major: "" }));
+  };
+
+  const handleMajor = (val: string) => {
+    setForm((f) => ({
+      ...f,
+      major: val,
+      roles: [],
+      technicalSkills: [],
+      tools: [],
+    }));
+    setCustomDraft({ roles: "", technicalSkills: "", tools: "" });
+    setErrors((e) => ({ ...e, major: "" }));
   };
 
   const availableFaculties = form.university ? UNIVERSITY_FACULTIES[form.university] ?? [] : [];
   const availableMajors = MAJORS[form.faculty] ?? [];
-  const category = FACULTY_CATEGORY[form.faculty] as SkillCategory | undefined;
-  const skillsData = category ? SKILLS_DATA[category] : null;
+  const skillsData = getSkillsPack(form.faculty, form.major);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -426,7 +316,7 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
       }
     }
     if (step === 3) {
-      if (form.roles.length === 0) e.roles = "Please select at least one specialization";
+      if (form.roles.length === 0) e.roles = "Please select at least one team role";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -858,15 +748,15 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                   {!skillsData ? (
                     <View style={st.warnBox}>
                       <Text style={st.warnText}>
-                        ⚠️ Please complete your faculty selection in Step 2 to see your skills options.
+                        ⚠️ Please complete your faculty and major in Step 2 to see skills matched to your program.
                       </Text>
                     </View>
                   ) : (
                     <>
                       <SkillGroup
-                        title="Specialization"
+                        title="Team roles"
                         badge={`${form.roles.length} selected`}
-                        hint="What role best describes you?"
+                        hint="How you usually contribute on projects (separate from your major)"
                         required
                         error={errors.roles}
                       >
@@ -880,6 +770,34 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                               tone="indigo"
                             />
                           ))}
+                          {customSelections(form.roles, skillsData.roles).map((r) => (
+                            <Chip
+                              key={`custom-${r}`}
+                              label={r}
+                              active
+                              onPress={() => toggle("roles", r)}
+                              tone="indigo"
+                            />
+                          ))}
+                        </View>
+                        <Text style={st.customOtherHint}>
+                          Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                        </Text>
+                        <View style={st.customOtherRow}>
+                          <TextInput
+                            style={st.customOtherInput}
+                            value={customDraft.roles}
+                            onChangeText={(t) =>
+                              setCustomDraft((d) => ({ ...d, roles: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
+                            }
+                            placeholder="e.g. Kotlin Multiplatform"
+                            placeholderTextColor="#94a3b8"
+                            onSubmitEditing={() => addCustomSkill("roles")}
+                            returnKeyType="done"
+                          />
+                          <Pressable style={st.customAddBtn} onPress={() => addCustomSkill("roles")}>
+                            <Text style={st.customAddBtnText}>Add</Text>
+                          </Pressable>
                         </View>
                       </SkillGroup>
                       <SkillGroup
@@ -897,6 +815,37 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                               tone="purple"
                             />
                           ))}
+                          {customSelections(form.technicalSkills, skillsData.technicalSkills).map((s) => (
+                            <Chip
+                              key={`custom-${s}`}
+                              label={s}
+                              active
+                              onPress={() => toggle("technicalSkills", s)}
+                              tone="purple"
+                            />
+                          ))}
+                        </View>
+                        <Text style={st.customOtherHint}>
+                          Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                        </Text>
+                        <View style={st.customOtherRow}>
+                          <TextInput
+                            style={st.customOtherInput}
+                            value={customDraft.technicalSkills}
+                            onChangeText={(t) =>
+                              setCustomDraft((d) => ({
+                                ...d,
+                                technicalSkills: t.slice(0, CUSTOM_SKILL_MAX_LENGTH),
+                              }))
+                            }
+                            placeholder="e.g. protocol design"
+                            placeholderTextColor="#94a3b8"
+                            onSubmitEditing={() => addCustomSkill("technicalSkills")}
+                            returnKeyType="done"
+                          />
+                          <Pressable style={st.customAddBtn} onPress={() => addCustomSkill("technicalSkills")}>
+                            <Text style={st.customAddBtnText}>Add</Text>
+                          </Pressable>
                         </View>
                       </SkillGroup>
                       <SkillGroup
@@ -914,6 +863,34 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                               tone="teal"
                             />
                           ))}
+                          {customSelections(form.tools, skillsData.tools).map((t) => (
+                            <Chip
+                              key={`custom-${t}`}
+                              label={t}
+                              active
+                              onPress={() => toggle("tools", t)}
+                              tone="teal"
+                            />
+                          ))}
+                        </View>
+                        <Text style={st.customOtherHint}>
+                          Other — not listed? Add your own (max {CUSTOM_SKILL_MAX_LENGTH} characters).
+                        </Text>
+                        <View style={st.customOtherRow}>
+                          <TextInput
+                            style={st.customOtherInput}
+                            value={customDraft.tools}
+                            onChangeText={(t) =>
+                              setCustomDraft((d) => ({ ...d, tools: t.slice(0, CUSTOM_SKILL_MAX_LENGTH) }))
+                            }
+                            placeholder="e.g. specific IDE or library"
+                            placeholderTextColor="#94a3b8"
+                            onSubmitEditing={() => addCustomSkill("tools")}
+                            returnKeyType="done"
+                          />
+                          <Pressable style={st.customAddBtn} onPress={() => addCustomSkill("tools")}>
+                            <Text style={st.customAddBtnText}>Add</Text>
+                          </Pressable>
                         </View>
                       </SkillGroup>
                     </>
@@ -989,7 +966,7 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
                       if (!selectModal) return;
                       if (selectModal.kind === "university") handleUniversity(item);
                       else if (selectModal.kind === "faculty") handleFaculty(item);
-                      else setField("major", item);
+                      else handleMajor(item);
                       setSelectModal(null);
                     }}
                   >
@@ -1736,6 +1713,29 @@ const st = StyleSheet.create({
   skillHint: { fontSize: 12, color: "#94a3b8", marginBottom: 8 },
   skillErr: { fontSize: 12, color: "#ef4444", marginTop: 6, fontWeight: "500" },
   chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  customOtherHint: { fontSize: 11, color: "#94a3b8", marginTop: 10, marginBottom: 6 },
+  customOtherRow: { flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap" },
+  customOtherInput: {
+    flex: 1,
+    minWidth: 160,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#1e293b",
+    backgroundColor: "#fff",
+  },
+  customAddBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#c7d2fe",
+    borderRadius: 10,
+  },
+  customAddBtnText: { color: "#4f46e5", fontSize: 13, fontWeight: "600" },
   chip: {
     flexDirection: "row",
     alignItems: "center",
