@@ -12,6 +12,24 @@ export const FACULTY_CATEGORY: Record<string, SkillCategory> = {
   "Agriculture and Veterinary Medicine": "science",
 };
 
+const MEDICAL_MAJORS_USE_TECH = new Set(["Health Information Management", "Medical Imaging"]);
+
+const SCIENCE_MAJORS_USE_TECH = new Set(["Statistics"]);
+
+export const CUSTOM_SKILL_MAX_LENGTH = 80;
+
+export function normalizeCustomSkill(raw: string): string | null {
+  const t = raw.trim().replace(/\s+/g, " ");
+  if (!t || t.length > CUSTOM_SKILL_MAX_LENGTH) return null;
+  return t;
+}
+
+export function customSelections(selected: string[], pool: string[]): string[] {
+  return selected.filter((x) => !pool.includes(x));
+}
+
+export type SkillPack = { roles: string[]; technicalSkills: string[]; tools: string[] };
+
 export const SKILLS_DATA: Record<
   SkillCategory,
   { roles: string[]; technicalSkills: string[]; tools: string[] }
@@ -22,6 +40,8 @@ export const SKILLS_DATA: Record<
       "Backend Developer",
       "Full Stack Developer",
       "Mobile App Developer",
+      "Embedded Systems Engineer",
+      "Firmware Developer",
       "AI Engineer",
       "Data Scientist",
       "Cybersecurity Specialist",
@@ -34,6 +54,10 @@ export const SKILLS_DATA: Record<
       "Web Development",
       "API Development",
       "Software Architecture",
+      "Embedded Systems",
+      "Digital Logic & FPGA",
+      "Computer Architecture",
+      "Operating Systems",
       "Machine Learning",
       "Data Analysis",
       "Cloud Systems",
@@ -47,27 +71,19 @@ export const SKILLS_DATA: Record<
       "TypeScript",
       "Python",
       "Java",
+      "C",
       "C++",
       "C#",
-      "PHP",
       "Go",
-      "Kotlin",
-      "Swift",
-      "Dart",
-      "R",
+      "Rust",
+      "Verilog / VHDL",
       "MATLAB",
       "React",
-      "Angular",
-      "Vue",
       "Node.js",
-      "ASP.NET",
-      "Spring Boot",
-      "Django",
-      "Flutter",
-      "TensorFlow",
-      "PyTorch",
       "Docker",
       "Git",
+      "Linux",
+      "STM32 / ARM",
     ],
   },
   engineering: {
@@ -142,17 +158,218 @@ export const SKILLS_DATA: Record<
   },
 };
 
+/** Per-major chips for Engineering & IT — keep keys aligned with `MAJORS` in register. */
+export const ENGINEERING_MAJOR_PACKS: Record<string, SkillPack> = {
+  "Computer Engineering": SKILLS_DATA.tech,
+  "Communication Engineering": {
+    roles: [
+      "RF / Wireless Engineer",
+      "Telecommunications Engineer",
+      "Network Engineer",
+      "DSP Engineer",
+      "Antenna & Propagation Specialist",
+      "Field Test Engineer",
+      "Embedded Communications Developer",
+      "5G / Cellular Systems Engineer",
+    ],
+    technicalSkills: [
+      "Wireless & Mobile Communications",
+      "Digital Signal Processing (DSP)",
+      "RF Circuit & System Design",
+      "Antenna Theory & Design",
+      "Information Theory & Coding",
+      "Optical Fiber Communications",
+      "Network Protocols & Performance",
+      "Software-Defined Radio concepts",
+      "Channel Modeling & Simulation",
+    ],
+    tools: ["MATLAB", "Python", "GNU Radio", "LabVIEW", "CST Studio Suite", "ADS", "Wireshark", "NS-3 / simulation"],
+  },
+  "Electrical Engineering": {
+    roles: [
+      "Power Systems Engineer",
+      "Protection & Control Engineer",
+      "Power Electronics Engineer",
+      "Electric Machines Specialist",
+      "Control Systems Engineer",
+      "Electronics Design Engineer",
+    ],
+    technicalSkills: [
+      "Power System Analysis & Stability",
+      "High / Medium Voltage Design",
+      "Power Electronics & Drives",
+      "Electric Machines & Transformers",
+      "Protective Relaying & Grid Codes",
+      "Analog & Digital Circuit Design",
+      "Classical & Modern Control",
+      "Renewable Integration (grid side)",
+    ],
+    tools: ["MATLAB / Simulink", "ETAP / SKM", "PSCAD", "PSIM", "SPICE", "Altium / KiCad", "LabVIEW"],
+  },
+  "Mechanical Engineering": {
+    roles: [
+      "Mechanical Design Engineer",
+      "HVAC / Thermal Engineer",
+      "CAE / FEA Analyst",
+      "Manufacturing & Process Engineer",
+      "R&D Mechanical Engineer",
+    ],
+    technicalSkills: [
+      "Solid Mechanics & Machine Design",
+      "Thermodynamics & Heat Transfer",
+      "Fluid Mechanics",
+      "Materials Selection",
+      "CAD & Drafting",
+      "FEA & Structural Simulation",
+      "Manufacturing Processes",
+      "Mechanical Measurements & Testing",
+    ],
+    tools: ["SolidWorks", "Inventor", "AutoCAD", "ANSYS Mechanical", "MATLAB", "CAM (e.g. Mastercam)", "CFD basics"],
+  },
+  "Civil Engineering": {
+    roles: [
+      "Structural Engineer",
+      "Geotechnical Engineer",
+      "Transportation Engineer",
+      "Hydraulics / Water Resources Engineer",
+      "Site & Construction Engineer",
+      "BIM / Civil Coordinator",
+    ],
+    technicalSkills: [
+      "Structural Analysis & Design",
+      "Reinforced Concrete & Steel",
+      "Geotechnical Investigation & Foundations",
+      "Hydraulics & Hydrology",
+      "Transportation Planning & Pavement",
+      "Surveying & GIS basics",
+      "Construction Management & Scheduling",
+    ],
+    tools: ["AutoCAD Civil 3D", "Revit", "ETABS", "SAP2000", "STAAD.Pro", "Plaxis / GeoStudio", "MS Project / Primavera"],
+  },
+  "Industrial Engineering": {
+    roles: [
+      "Process Improvement Engineer",
+      "Operations Research Analyst",
+      "Quality & Reliability Engineer",
+      "Supply Chain Analyst",
+      "Simulation & Planning Specialist",
+    ],
+    technicalSkills: [
+      "Operations Research & Optimization",
+      "Lean Manufacturing & Six Sigma",
+      "Quality Systems (SPC, DOE)",
+      "Supply Chain & Logistics Design",
+      "Discrete-Event Simulation",
+      "Work Measurement & Ergonomics",
+      "Production Planning & Scheduling",
+    ],
+    tools: ["Excel / advanced analytics", "Arena / Simio / AnyLogic", "Minitab", "Tableau / Power BI", "Visio", "Python (ops analytics)"],
+  },
+  "Architectural Engineering": {
+    roles: [
+      "Building Systems (MEP) Engineer",
+      "Energy & Sustainability Consultant",
+      "BIM / Revit Specialist",
+      "Acoustics / Lighting (building) focus",
+    ],
+    technicalSkills: [
+      "HVAC Load & System Design",
+      "Building Energy Modeling",
+      "Building Codes & Compliance",
+      "Integrated Building Design",
+      "Daylighting & Environmental Quality",
+      "Structural–Architecture coordination",
+    ],
+    tools: ["Revit", "AutoCAD", "TRACE 700 / IES VE", "EnergyPlus", "Rhino / Grasshopper (optional)", "SketchUp"],
+  },
+  "Mechatronics Engineering": {
+    roles: [
+      "Mechatronics Integration Engineer",
+      "Robotics Engineer",
+      "Automation & Controls Engineer",
+      "Embedded Systems (mechatronics)",
+      "Motion Control Specialist",
+    ],
+    technicalSkills: [
+      "Sensors, Actuators & Instrumentation",
+      "Robotics Kinematics & Dynamics",
+      "Industrial Automation & PLCs",
+      "Embedded Control & Real-time Systems",
+      "Mechanical–Electrical System Integration",
+      "Motion Control & Servo Drives",
+    ],
+    tools: ["MATLAB / Simulink", "ROS / ROS 2", "SolidWorks", "TwinCAT / TIA Portal", "LabVIEW", "Arduino / Raspberry Pi"],
+  },
+  "Energy and Renewable Energy Engineering": {
+    roles: [
+      "Renewable Energy Systems Engineer",
+      "Solar PV Design Engineer",
+      "Wind Resource / Wind Energy Analyst",
+      "Energy Storage & Hybrid Systems Engineer",
+      "Sustainability & Energy Policy Analyst",
+    ],
+    technicalSkills: [
+      "Solar PV System Design & Yield",
+      "Wind Resource Assessment & Turbines",
+      "Energy Storage & Microgrids",
+      "Grid Codes & Interconnection Studies",
+      "Thermodynamic Cycles (power plants)",
+      "Energy Economics & Project Feasibility",
+    ],
+    tools: ["PVsyst", "HOMER Pro", "MATLAB", "OpenWind / WAsP (intro)", "AutoCAD", "RETScreen (optional)"],
+  },
+};
+
+export function getSkillsPack(faculty: string | undefined, major: string | undefined): SkillPack | null {
+  if (!faculty) return null;
+
+  if (faculty === "Engineering and Information Technology") {
+    if (major && ENGINEERING_MAJOR_PACKS[major]) return ENGINEERING_MAJOR_PACKS[major];
+    return SKILLS_DATA.engineering;
+  }
+
+  if (faculty === "Information Technology") return SKILLS_DATA.tech;
+
+  if (faculty === "Medicine and Health Sciences") {
+    if (major && MEDICAL_MAJORS_USE_TECH.has(major)) return SKILLS_DATA.tech;
+    return SKILLS_DATA.medical;
+  }
+
+  if (faculty === "Science") {
+    if (major && SCIENCE_MAJORS_USE_TECH.has(major)) return SKILLS_DATA.tech;
+    return SKILLS_DATA.science;
+  }
+
+  const cat = FACULTY_CATEGORY[faculty];
+  return cat ? SKILLS_DATA[cat] : null;
+}
+
+/** Coarse category; use {@link getSkillsPack} for chips. */
+export function resolveSkillCategory(
+  faculty: string | undefined,
+  major: string | undefined
+): SkillCategory | undefined {
+  const pack = getSkillsPack(faculty, major);
+  if (!pack) return undefined;
+  if (pack === SKILLS_DATA.tech) return "tech";
+  if (pack === SKILLS_DATA.medical) return "medical";
+  if (pack === SKILLS_DATA.science) return "science";
+  return "engineering";
+}
+
 const ALL_ROLES = [...new Set(Object.values(SKILLS_DATA).flatMap((d) => d.roles))];
 const ALL_TECH_SKILLS = [...new Set(Object.values(SKILLS_DATA).flatMap((d) => d.technicalSkills))];
 const ALL_TOOLS_LIST = [...new Set(Object.values(SKILLS_DATA).flatMap((d) => d.tools))];
 
-export function poolsForFaculty(faculty: string | undefined): {
+export function poolsForFaculty(
+  faculty: string | undefined,
+  major?: string | undefined
+): {
   rolesPool: string[];
   techPool: string[];
   toolsPool: string[];
 } {
-  const category = faculty ? FACULTY_CATEGORY[faculty] : undefined;
-  const skillsPool = category ? SKILLS_DATA[category] : null;
+  const skillsPool = getSkillsPack(faculty, major);
   return {
     rolesPool: skillsPool?.roles ?? ALL_ROLES,
     techPool: skillsPool?.technicalSkills ?? ALL_TECH_SKILLS,

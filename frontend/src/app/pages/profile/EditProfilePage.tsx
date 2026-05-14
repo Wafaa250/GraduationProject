@@ -3,6 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Camera, Github, Linkedin, Globe, CheckCircle2 } from 'lucide-react'
 import { useUser, normalizeSkillStringList } from "../../../context/UserContext"
 import api from '../../../api/axiosInstance'
+import {
+  CUSTOM_SKILL_MAX_LENGTH,
+  customSelections,
+  normalizeCustomSkill,
+  poolsForStudent,
+} from '../../../constants/studentSkillPools'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface EditFormState {
@@ -19,47 +25,6 @@ interface EditFormState {
   tools:             string[]
   profilePicPreview: string | null
 }
-
-type SkillCategory = 'tech' | 'engineering' | 'medical' | 'science'
-
-// ─── Static Data ─────────────────────────────────────────────────────────────
-const FACULTY_CATEGORY: Record<string, SkillCategory> = {
-  'Engineering and Information Technology': 'engineering',
-  'Information Technology':                 'tech',
-  'Science':                                'science',
-  'Medicine and Health Sciences':           'medical',
-  'Pharmacy':                               'medical',
-  'Nursing':                                'medical',
-  'Agriculture and Veterinary Medicine':    'science',
-}
-
-const SKILLS_DATA: Record<SkillCategory, { roles: string[]; technicalSkills: string[]; tools: string[] }> = {
-  tech: {
-    roles:           ['Frontend Developer','Backend Developer','Full Stack Developer','Mobile App Developer','AI Engineer','Data Scientist','Cybersecurity Specialist','DevOps Engineer','QA Tester','UI/UX Designer','Game Developer'],
-    technicalSkills: ['Web Development','API Development','Software Architecture','Machine Learning','Data Analysis','Cloud Systems','Network Security','Software Testing','Database Design','System Integration'],
-    tools:           ['JavaScript','TypeScript','Python','Java','C++','C#','PHP','Go','Kotlin','Swift','Dart','R','MATLAB','React','Angular','Vue','Node.js','ASP.NET','Spring Boot','Django','Flutter','TensorFlow','PyTorch','Docker','Git'],
-  },
-  engineering: {
-    roles:           ['Mechanical Engineer','Electrical Engineer','Civil Engineer','Mechatronics Engineer','Energy Engineer','Industrial Engineer'],
-    technicalSkills: ['Mechanical Design','Structural Analysis','Control Systems','Power Systems','Manufacturing Processes','Engineering Modeling','Project Engineering','Automation Systems','Robotics Systems','Energy Systems'],
-    tools:           ['AutoCAD','SolidWorks','MATLAB','ANSYS','PLC Programming','Arduino','LabVIEW'],
-  },
-  medical: {
-    roles:           ['Medical Doctor','Clinical Specialist','Health Information Specialist','Medical Data Analyst','Clinical Researcher','Healthcare Administrator'],
-    technicalSkills: ['Clinical Assessment','Patient Care','Medical Diagnostics','Health Data Analysis','Medical Documentation','Clinical Research','Healthcare Analytics','Medical Statistics','Healthcare Information Systems'],
-    tools:           ['Electronic Health Records (EHR)','Hospital Information Systems','Medical Coding Systems','Healthcare Databases','Clinical Data Systems'],
-  },
-  science: {
-    roles:           ['Research Scientist','Data Analyst','Lab Specialist','Biotechnology Researcher','Environmental Scientist','Statistician'],
-    technicalSkills: ['Scientific Research','Statistical Analysis','Data Modeling','Laboratory Analysis','Scientific Writing','Experimental Design'],
-    tools:           ['SPSS','MATLAB','R','Python','Laboratory Equipment','Data Visualization Tools'],
-  },
-}
-
-// Flattened fallbacks (used when faculty is unknown)
-const ALL_ROLES       = [...new Set(Object.values(SKILLS_DATA).flatMap(d => d.roles))]
-const ALL_TECH_SKILLS = [...new Set(Object.values(SKILLS_DATA).flatMap(d => d.technicalSkills))]
-const ALL_TOOLS_LIST  = [...new Set(Object.values(SKILLS_DATA).flatMap(d => d.tools))]
 
 const AVAILABILITY_OPTIONS = [
   'Less than 5 hours/week', '5–10 hours/week',
@@ -99,14 +64,12 @@ export default function EditProfilePage() {
   const [isSaving,      setIsSaving]      = useState(false)
   const [saveError,     setSaveError]     = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string>('basic')
+  const [customDraft, setCustomDraft] = useState({ roles: '', technicalSkills: '', tools: '' })
 
-  // ── Determine skill pool based on faculty in profile ──────────────────────
-  const faculty       = (profile as any).faculty as string | undefined
-  const category      = faculty ? FACULTY_CATEGORY[faculty] : undefined
-  const skillsPool    = category ? SKILLS_DATA[category] : null
-  const rolesPool     = skillsPool?.roles        ?? ALL_ROLES
-  const techPool      = skillsPool?.technicalSkills ?? ALL_TECH_SKILLS
-  const toolsPool     = skillsPool?.tools        ?? ALL_TOOLS_LIST
+  // ── Skill pools from faculty + major (e.g. Computer Engineering → tech, not civil/mechanical) ──
+  const faculty = (profile as any).faculty as string | undefined
+  const major = (profile as any).major as string | undefined
+  const { rolesPool, techPool, toolsPool } = poolsForStudent(faculty, major)
 
   // ── Fetch profile on mount ─────────────────────────────────────────────────
   useEffect(() => {
@@ -151,6 +114,18 @@ export default function EditProfilePage() {
       const arr = f[field] as string[]
       return { ...f, [field]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] }
     })
+    setSaved(false)
+  }
+
+  const addCustomSkill = (field: 'roles' | 'technicalSkills' | 'tools') => {
+    const v = normalizeCustomSkill(customDraft[field])
+    if (!v) return
+    setForm(f => {
+      const arr = f[field] as string[]
+      if (arr.some(x => x.toLowerCase() === v.toLowerCase())) return f
+      return { ...f, [field]: [...arr, v] }
+    })
+    setCustomDraft(d => ({ ...d, [field]: '' }))
     setSaved(false)
   }
 
@@ -316,8 +291,8 @@ export default function EditProfilePage() {
           {activeSection === 'skills' && (
             <FormSection title="Your Skills" sub="Select all that apply to you">
 
-              {/* Specialization */}
-              <Field label={`Specialization · ${form.roles.length} selected`}>
+              {/* Team roles (generalSkills) */}
+              <Field label={`Team roles · ${form.roles.length} selected`}>
                 <p style={S.hint}>What role best describes you?</p>
                 <div style={S.chipRow}>
                   {rolesPool.map(r => (
@@ -327,7 +302,21 @@ export default function EditProfilePage() {
                       {form.roles.includes(r) && <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span>} {r}
                     </button>
                   ))}
+                  {customSelections(form.roles, rolesPool).map(r => (
+                    <button key={`extra-${r}`}
+                      type="button"
+                      style={{ ...S.chip, ...S.chipActiveIndigo }}
+                      onClick={() => toggleArr('roles', r)}>
+                      <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span> {r}
+                    </button>
+                  ))}
                 </div>
+                <SkillsCustomAdd
+                  value={customDraft.roles}
+                  onChange={v => setCustomDraft(d => ({ ...d, roles: v }))}
+                  onAdd={() => addCustomSkill('roles')}
+                  maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                />
               </Field>
 
               {/* Technical Skills */}
@@ -341,7 +330,21 @@ export default function EditProfilePage() {
                       {form.technicalSkills.includes(s) && <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span>} {s}
                     </button>
                   ))}
+                  {customSelections(form.technicalSkills, techPool).map(s => (
+                    <button key={`extra-${s}`}
+                      type="button"
+                      style={{ ...S.chip, ...S.chipActivePurple }}
+                      onClick={() => toggleArr('technicalSkills', s)}>
+                      <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span> {s}
+                    </button>
+                  ))}
                 </div>
+                <SkillsCustomAdd
+                  value={customDraft.technicalSkills}
+                  onChange={v => setCustomDraft(d => ({ ...d, technicalSkills: v }))}
+                  onAdd={() => addCustomSkill('technicalSkills')}
+                  maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                />
               </Field>
 
               {/* Technologies & Tools */}
@@ -355,7 +358,21 @@ export default function EditProfilePage() {
                       {form.tools.includes(t) && <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span>} {t}
                     </button>
                   ))}
+                  {customSelections(form.tools, toolsPool).map(t => (
+                    <button key={`extra-${t}`}
+                      type="button"
+                      style={{ ...S.chip, ...S.chipActiveTeal }}
+                      onClick={() => toggleArr('tools', t)}>
+                      <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span> {t}
+                    </button>
+                  ))}
                 </div>
+                <SkillsCustomAdd
+                  value={customDraft.tools}
+                  onChange={v => setCustomDraft(d => ({ ...d, tools: v }))}
+                  onAdd={() => addCustomSkill('tools')}
+                  maxLen={CUSTOM_SKILL_MAX_LENGTH}
+                />
               </Field>
 
             </FormSection>
@@ -422,6 +439,45 @@ function FormSection({ title, sub, children }: { title: string; sub: string; chi
   )
 }
 
+function SkillsCustomAdd({
+  value,
+  onChange,
+  onAdd,
+  maxLen,
+}: {
+  value: string
+  onChange: (v: string) => void
+  onAdd: () => void
+  maxLen: number
+}) {
+  return (
+    <div style={{ marginTop: 12 }}>
+      <p style={{ ...S.hint, margin: '0 0 8px' }}>
+        Other — not listed? Type and press Enter or Add (max {maxLen} characters).
+      </p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          type="text"
+          style={{ ...S.input, flex: '1 1 220px', maxWidth: '100%' }}
+          value={value}
+          maxLength={maxLen}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onAdd()
+            }
+          }}
+          placeholder="e.g. specific tool or method"
+        />
+        <button type="button" style={S.btnAddCustom} onClick={onAdd}>
+          Add
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function Field({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
@@ -476,6 +532,7 @@ const S: Record<string, CSSProperties> = {
   chipActiveIndigo:  { background: '#eef2ff', border: '1.5px solid #6366f1', color: '#6366f1', fontWeight: 700 },
   chipActivePurple:  { background: '#faf5ff', border: '1.5px solid #a855f7', color: '#a855f7', fontWeight: 700 },
   chipActiveTeal:    { background: '#f0fdfa', border: '1.5px solid #14b8a6', color: '#0d9488', fontWeight: 700 },
+  btnAddCustom:      { padding: '10px 16px', background: '#f8fafc', border: '1.5px solid #c7d2fe', borderRadius: 10, color: '#4f46e5', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 },
   // Radio
   radioRow:          { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' },
   radioRowActive:    { background: '#eef2ff', borderColor: '#c7d2fe' },
