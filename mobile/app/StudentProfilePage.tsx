@@ -121,6 +121,7 @@ export default function StudentProfilePage() {
     isMember: boolean;
     hasPendingInvite: boolean;
     canInvite?: boolean;
+    ownsGraduationProject?: boolean;
   } | null>(null);
   const [inviting, setInviting] = useState(false);
 
@@ -186,6 +187,7 @@ export default function StudentProfilePage() {
                     isMember: row.isMember,
                     hasPendingInvite: row.hasPendingInvite,
                     canInvite: row.canInvite,
+                    ownsGraduationProject: row.ownsGraduationProject,
                   });
                 } else {
                   setBrowseInvite(null);
@@ -311,6 +313,12 @@ export default function StudentProfilePage() {
       )
     : null;
 
+  const inviteDisabledLabel = browseInvite?.ownsGraduationProject
+    ? "Own project"
+    : isTeamFull
+      ? "Team full"
+      : "Unavailable";
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
@@ -418,7 +426,11 @@ export default function StudentProfilePage() {
                       <Text style={styles.primaryBtnText}>Message</Text>
                     </Pressable>
                     {projectId ? (
-                      <InviteButton kind={inviteKind} isTeamFull={isTeamFull} onPress={() => void handleInvite()} />
+                      <InviteButton
+                        kind={inviteKind}
+                        disabledLabel={inviteDisabledLabel}
+                        onPress={() => void handleInvite()}
+                      />
                     ) : null}
                   </View>
 
@@ -607,11 +619,11 @@ function InfoLine({ label, value }: { label: string; value: string }) {
 
 function InviteButton({
   kind,
-  isTeamFull,
+  disabledLabel,
   onPress,
 }: {
   kind: InviteKind | null;
-  isTeamFull: boolean;
+  disabledLabel: string;
   onPress: () => void;
 }) {
   if (kind == null) return null;
@@ -639,7 +651,7 @@ function InviteButton({
   if (kind === "disabled") {
     return (
       <View style={[styles.inviteBtn, styles.inviteMuted]}>
-        <Text style={styles.inviteMutedText}>{isTeamFull ? "Team full" : "Unavailable"}</Text>
+        <Text style={styles.inviteMutedText}>{disabledLabel}</Text>
       </View>
     );
   }

@@ -42,13 +42,28 @@ export type DoctorDashboardSection =
   | "deleted"
   | "courses";
 
+export type RequestRowSupervisionTeamMember = {
+  studentId: number;
+  name: string;
+  role: string;
+  major: string;
+};
+
 export type RequestRow =
   | {
       kind: "supervision";
       requestId: number;
+      projectId: number;
       projectName: string;
       studentName: string;
       status: string;
+      /** Abstract / idea */
+      projectAbstract: string | null;
+      requiredSkills: string[];
+      projectType: string;
+      partnersCount: number;
+      memberCount: number;
+      teamMembers: RequestRowSupervisionTeamMember[];
     }
   | {
       kind: "cancellation";

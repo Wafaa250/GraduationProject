@@ -51,13 +51,30 @@ type DoctorDashboardSection =
     | "deleted"
     | "courses";
 
-type RequestRow = {
-    kind: "supervision" | "cancellation";
+type RequestRowSupervision = {
+    kind: "supervision";
+    requestId: number;
+    projectId: number;
+    projectName: string;
+    studentName: string;
+    status: string;
+    projectAbstract: string | null;
+    requiredSkills: string[];
+    projectType: string;
+    partnersCount: number;
+    memberCount: number;
+    teamMembers: { studentId: number; name: string; role: string; major: string }[];
+};
+
+type RequestRowCancellation = {
+    kind: "cancellation";
     requestId: number;
     projectName: string;
     studentName: string;
     status: string;
 };
+
+type RequestRow = RequestRowSupervision | RequestRowCancellation;
 
 type DeletedProjectRecord = {
     projectId: number;
@@ -92,6 +109,21 @@ function formatDateTime(iso: string): string {
     return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+const REQUEST_ABSTRACT_PREVIEW = 280;
+
+function truncateRequestAbstract(text: string, max: number): string {
+    const t = text.trim();
+    if (t.length <= max) return t;
+    return `${t.slice(0, max).trim()}?`;
+}
+
+function formatTeamMemberRole(role: string): string {
+    const r = role?.toLowerCase();
+    if (r === "leader") return "Leader";
+    if (r === "member") return "Member";
+    return role || "Member";
+}
+
 function initialsOf(name: string): string {
     const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return "DR";
@@ -110,13 +142,29 @@ function mergeDoctorRequestRows(
     return [
         ...supervisionRequests
             .filter((r) => isPendingRequestStatus(r.status))
-            .map((r) => ({
-                kind: "supervision" as const,
-                requestId: r.requestId,
-                projectName: r.project?.name ?? "",
-                studentName: r.sender?.name ?? "",
-                status: r.status,
-            })),
+            .map((r) => {
+                const p = r.project;
+                const teamMembers = (p?.members ?? []).map((m) => ({
+                    studentId: m.studentId,
+                    name: m.name ?? "",
+                    role: m.role ?? "member",
+                    major: m.major ?? "",
+                }));
+                return {
+                    kind: "supervision" as const,
+                    requestId: r.requestId,
+                    projectId: p?.projectId ?? 0,
+                    projectName: p?.name ?? "",
+                    studentName: r.sender?.name ?? "",
+                    status: r.status,
+                    projectAbstract: p?.description ?? null,
+                    requiredSkills: Array.isArray(p?.requiredSkills) ? p.requiredSkills : [],
+                    projectType: p?.projectType ?? "GP",
+                    partnersCount: typeof p?.partnersCount === "number" ? p.partnersCount : 0,
+                    memberCount: typeof p?.memberCount === "number" ? p.memberCount : teamMembers.length,
+                    teamMembers,
+                };
+            }),
         ...cancelRequests
             .filter((r) => isPendingRequestStatus(r.status))
             .map((r) => ({
@@ -822,7 +870,7 @@ export default function DoctorDashboardPage() {
             await clearSession();
         } catch {
             // We still want to send the user to /login even if SecureStore
-            // failed to delete a key ù the next API call will 401 anyway.
+            // failed to delete a key ? the next API call will 401 anyway.
         }
         router.replace("/login" as Href);
     };
@@ -932,10 +980,15 @@ export default function DoctorDashboardPage() {
                     <Text style={styles.heroKicker}>Doctor Workspace</Text>
                     <Text style={styles.heroTitle}>{me.name}</Text>
                     <Text style={styles.heroSubtitle}>
-                        {me.specialization ? `${me.specialization} ù ` : ""}
-                        {summary?.university ?? me.email}
-                        {me.specialization ? `${me.specialization} ù ` : ""}
-                        {me.university ?? summary?.university ?? me.email}
+                        {(() => {
+                            const parts = [
+                                me.specialization?.trim(),
+                                summary?.major?.trim(),
+                                me.university?.trim() || summary?.university?.trim(),
+                            ].filter((p): p is string => Boolean(p));
+                            const uniq = parts.filter((p, i) => parts.indexOf(p) === i);
+                            return uniq.length > 0 ? uniq.join(" | ") : me.email;
+                        })()}
                     </Text>
                 </View>
 
@@ -1027,7 +1080,7 @@ export default function DoctorDashboardPage() {
                                                 </View>
                                                 <Text style={styles.rowMeta}>
                                                     {s.major}
-                                                    {s.university ? ` ù ${s.university}` : ""}
+                                                    {s.university ? ` | ${s.university}` : ""}
                                                 </Text>
                                                 <Text style={styles.rowMeta} numberOfLines={2}>
                                                     Skills: {s.skills.join(", ") || "-"}
@@ -1062,6 +1115,13 @@ export default function DoctorDashboardPage() {
                                     {mergedRequests.map((row) => {
                                         const acceptKey = `${row.kind}-${row.requestId}-accept`;
                                         const rejectKey = `${row.kind}-${row.requestId}-reject`;
+                                        const abstract =
+                                            row.kind === "supervision" && row.projectAbstract?.trim()
+                                                ? truncateRequestAbstract(
+                                                      row.projectAbstract,
+                                                      REQUEST_ABSTRACT_PREVIEW,
+                                                  )
+                                                : "";
                                         return (
                                             <View key={`${row.kind}-${row.requestId}`} style={styles.rowCard}>
                                                 <Text style={styles.rowTag}>
@@ -1071,6 +1131,43 @@ export default function DoctorDashboardPage() {
                                                 </Text>
                                                 <Text style={styles.rowTitle}>{row.projectName || "-"}</Text>
                                                 <Text style={styles.rowMeta}>Student: {row.studentName || "-"}</Text>
+                                                {row.kind === "supervision" && abstract ? (
+                                                    <Text style={styles.rowMeta} numberOfLines={6}>
+                                                        Idea: {abstract}
+                                                    </Text>
+                                                ) : null}
+                                                {row.kind === "supervision" && row.requiredSkills.length > 0 ? (
+                                                    <Text style={styles.rowMeta} numberOfLines={3}>
+                                                        Skills: {row.requiredSkills.join(", ")}
+                                                    </Text>
+                                                ) : null}
+                                                {row.kind === "supervision" && row.teamMembers.length > 0 ? (
+                                                    <View style={{ marginTop: 6, marginBottom: 4 }}>
+                                                        <Text style={styles.rowMeta}>
+                                                            Team ({row.memberCount}
+                                                            {row.partnersCount > 0
+                                                                ? ` / up to ${row.partnersCount}`
+                                                                : ""}
+                                                            )
+                                                        </Text>
+                                                        {row.teamMembers.map((m) => (
+                                                            <Text
+                                                                key={`${m.studentId}-${m.role}`}
+                                                                style={[styles.rowMeta, { marginTop: 2 }]}
+                                                                numberOfLines={2}
+                                                            >
+                                                                {`${m.name || "?"} | ${formatTeamMemberRole(m.role)}${
+                                                                    m.major?.trim() ? ` | ${m.major.trim()}` : ""
+                                                                }`}
+                                                            </Text>
+                                                        ))}
+                                                    </View>
+                                                ) : null}
+                                                {row.kind === "supervision" &&
+                                                row.projectType &&
+                                                row.projectType !== "GP" ? (
+                                                    <Text style={styles.rowMeta}>Type: {row.projectType}</Text>
+                                                ) : null}
                                                 <Text style={styles.rowMeta}>Status: Pending</Text>
                                                 <View style={styles.actionRow}>
                                                     <Pressable
@@ -1146,7 +1243,7 @@ export default function DoctorDashboardPage() {
                                                     Description: {desc || "-"}
                                                 </Text>
                                                 <Text style={styles.rowMeta}>
-                                                    Members: {p.memberCount} ù Capacity: {p.partnersCount}
+                                                    Members: {p.memberCount} ? Capacity: {p.partnersCount}
                                                 </Text>
                                                 <Text style={styles.rowMeta}>
                                                     Owner: {p.owner?.name ?? "-"}

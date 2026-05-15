@@ -195,9 +195,13 @@ export interface GradProject {
   /**
    * Assigned supervisor info when a doctor has accepted supervision.
    * Null/undefined means no supervisor is currently attached.
+   *
+   * - doctorId: DoctorProfiles.Id (for API e.g. request-supervisor).
+   * - userId: AspNetUsers.Id (for GET /api/doctors/{userId} and /doctors/:id routes).
    */
   supervisor?: {
     doctorId: number
+    userId: number
     name: string
     specialization: string
     department?: string | null
@@ -377,7 +381,7 @@ export async function changeProjectLeader(
 
 // ─── AI / recommendations (graduation projects) ───────────────────────────────
 
-/** GET /api/graduation-projects/{projectId}/recommended-students — core row fields. */
+/** POST /api/ai/recommend-students — enriched row for graduation project teammate cards. */
 export interface GradProjectRecommendedStudent {
   studentId: number
   name: string
@@ -385,28 +389,56 @@ export interface GradProjectRecommendedStudent {
   university: string
   skills: string[]
   matchScore: number
+  reason?: string
 }
 
 /** GET /api/graduation-projects/{projectId}/recommended-supervisors */
 export interface GradProjectRecommendedSupervisor {
   doctorId: number
+  userId: number
   name: string
   specialization: string
   matchScore: number
 }
 
+function normalizeMatchScore(score: number): number {
+  if (!Number.isFinite(score)) return 0
+  if (score > 0 && score <= 1) return Math.round(score * 100)
+  return Math.round(Math.min(100, Math.max(0, score)))
+}
+
 /**
- * GET /api/graduation-projects/{projectId}/recommended-students
+ * POST /api/ai/recommend-students
  *
- * Project owner only; students ranked by skill match vs. required skills.
+ * OpenAI-ranked teammates with rule-based fallback; owner or team leader only.
  */
 export async function getRecommendedStudents(
   projectId: number,
 ): Promise<GradProjectRecommendedStudent[]> {
-  const { data } = await api.get<GradProjectRecommendedStudent[]>(
-    `/graduation-projects/${projectId}/recommended-students`,
-  )
-  return Array.isArray(data) ? data : []
+  const { data } = await api.post<
+    {
+      studentId: number
+      matchScore: number
+      reason?: string | null
+      name?: string
+      major?: string
+      university?: string
+      skills?: string[]
+    }[]
+  >('/ai/recommend-students', { projectId })
+
+  const rows = Array.isArray(data) ? data : []
+  return rows
+    .map((row) => ({
+      studentId: row.studentId,
+      name: row.name?.trim() || `Student #${row.studentId}`,
+      major: row.major?.trim() ?? '',
+      university: row.university?.trim() ?? '',
+      skills: Array.isArray(row.skills) ? row.skills : [],
+      matchScore: normalizeMatchScore(row.matchScore),
+      reason: row.reason?.trim() || undefined,
+    }))
+    .filter((row) => row.matchScore > 0)
 }
 
 /**
@@ -417,8 +449,15 @@ export async function getRecommendedStudents(
 export async function getRecommendedSupervisors(
   projectId: number,
 ): Promise<GradProjectRecommendedSupervisor[]> {
-  const { data } = await api.get<GradProjectRecommendedSupervisor[]>(
+  const { data } = await api.get<unknown[]>(
     `/graduation-projects/${projectId}/recommended-supervisors`,
   )
-  return Array.isArray(data) ? data : []
+  if (!Array.isArray(data)) return []
+  return data.map((raw: Record<string, unknown>) => ({
+    doctorId: Number(raw.doctorId ?? raw.DoctorId ?? 0),
+    userId: Number(raw.userId ?? raw.UserId ?? 0),
+    name: String(raw.name ?? raw.Name ?? ''),
+    specialization: String(raw.specialization ?? raw.Specialization ?? ''),
+    matchScore: Number(raw.matchScore ?? raw.MatchScore ?? 0),
+  }))
 }

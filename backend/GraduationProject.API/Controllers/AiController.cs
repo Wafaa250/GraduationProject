@@ -19,6 +19,8 @@ namespace GraduationProject.API.Controllers
     {
         private const int MaxCandidates = 20;
         private const int MaxSupervisorCandidates = 15;
+        /// <summary>Students at or below this score are omitted from teammate recommendations.</summary>
+        private const int MinTeammateMatchScore = 1;
 
         private readonly ApplicationDbContext _db;
         private readonly IAiStudentRecommendationService _aiService;
@@ -46,11 +48,24 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
+            var isOwner = project.OwnerId == caller.Id;
             var isLeader = await _db.StudentProjectMembers
                 .AnyAsync(m => m.ProjectId == request.ProjectId && m.StudentId == caller.Id && m.Role == "leader");
 
-            if (!isLeader)
-                return StatusCode(403, new { message = "Only project leader can request AI recommendations." });
+            if (!isOwner && !isLeader)
+                return StatusCode(403, new { message = "Only the project owner or team leader can request AI recommendations." });
+
+            var memberIds = await _db.StudentProjectMembers
+                .AsNoTracking()
+                .Where(m => m.ProjectId == request.ProjectId)
+                .Select(m => m.StudentId)
+                .ToListAsync();
+
+            var graduationProjectOwnerIds = await _db.StudentProjects
+                .AsNoTracking()
+                .Select(p => p.OwnerId)
+                .ToListAsync();
+            var gpOwnerSet = graduationProjectOwnerIds.ToHashSet();
 
             var projectOwner = await _db.StudentProfiles
                 .AsNoTracking()
@@ -67,7 +82,10 @@ namespace GraduationProject.API.Controllers
                 .Include(s => s.User)
                 .AsNoTracking()
                 .Where(s => s.Major != null && ownerMajor != null &&
-                            s.Major.ToLower() == ownerMajor.ToLower())
+                            s.Major.ToLower() == ownerMajor.ToLower() &&
+                            s.Id != project.OwnerId &&
+                            !memberIds.Contains(s.Id) &&
+                            !gpOwnerSet.Contains(s.Id))
                 .ToListAsync();
 
             var allSkillIds = students
@@ -103,6 +121,7 @@ namespace GraduationProject.API.Controllers
                         StudentId = s.Id,
                         Name = s.User?.Name ?? string.Empty,
                         Major = s.Major ?? string.Empty,
+                        University = s.University ?? string.Empty,
                         Bio = s.Bio ?? string.Empty,
                         Skills = skillNames,
                         CommonSkills = commonCount,
@@ -134,32 +153,35 @@ namespace GraduationProject.API.Controllers
                 Bio = c.Bio
             }).ToList();
 
+            var candidateMap = candidates.ToDictionary(c => c.StudentId);
+
             var aiResults = await _aiService.RankStudentsAsync(aiProject, aiStudents);
             if (aiResults != null && aiResults.Count > 0)
             {
-                var validIds = candidates.Select(c => c.StudentId).ToHashSet();
                 var sanitized = aiResults
-                    .Where(r => validIds.Contains(r.StudentId))
+                    .Where(r => candidateMap.ContainsKey(r.StudentId))
                     .Select(r => new
                     {
-                        studentId = r.StudentId,
-                        matchScore = Math.Clamp(r.MatchScore, 0, 100),
-                        reason = r.Reason ?? string.Empty
+                        Candidate = candidateMap[r.StudentId],
+                        Score = Math.Clamp(r.MatchScore, 0, 100),
+                        r.Reason
                     })
+                    .Where(x => QualifiesAsTeammateRecommendation(x.Score))
+                    .OrderByDescending(x => x.Score)
+                    .ThenBy(x => x.Candidate.StudentId)
+                    .Select(x => MapStudentRecommendation(x.Candidate, x.Score, x.Reason))
                     .ToList();
 
                 if (sanitized.Count > 0)
                     return Ok(sanitized);
             }
 
-            // Fallback to existing rule-based scoring style.
+            // Fallback to rule-based skill overlap when OpenAI is unavailable or returns no qualifying rows.
             var fallback = candidates
-                .Select(c => new
-                {
-                    studentId = c.StudentId,
-                    matchScore = c.FallbackScore,
-                    reason = (string?)null
-                })
+                .Where(c => QualifiesAsTeammateRecommendation(c.FallbackScore))
+                .OrderByDescending(c => c.FallbackScore)
+                .ThenBy(c => c.StudentId)
+                .Select(c => MapStudentRecommendation(c, c.FallbackScore, null))
                 .ToList();
 
             return Ok(fallback);
@@ -327,6 +349,26 @@ namespace GraduationProject.API.Controllers
                 .ToList();
         }
 
+        private static bool QualifiesAsTeammateRecommendation(int matchScore) =>
+            matchScore >= MinTeammateMatchScore;
+
+        private static object MapStudentRecommendation(
+            CandidateRow candidate,
+            int matchScore,
+            string? reason)
+        {
+            return new
+            {
+                studentId = candidate.StudentId,
+                matchScore,
+                reason = reason ?? string.Empty,
+                name = candidate.Name,
+                major = candidate.Major,
+                university = candidate.University,
+                skills = candidate.Skills
+            };
+        }
+
         public class RecommendStudentsRequest
         {
             public int ProjectId { get; set; }
@@ -342,6 +384,7 @@ namespace GraduationProject.API.Controllers
             public int StudentId { get; set; }
             public string Name { get; set; } = string.Empty;
             public string Major { get; set; } = string.Empty;
+            public string University { get; set; } = string.Empty;
             public string Bio { get; set; } = string.Empty;
             public List<string> Skills { get; set; } = new();
             public int CommonSkills { get; set; }

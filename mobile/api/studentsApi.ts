@@ -20,6 +20,8 @@ export interface StudentBrowseRow {
   hasPendingInvite: boolean;
   /** Set by GET /graduation-projects/{id}/available-students (server-computed invite eligibility). */
   canInvite?: boolean;
+  /** True when the student owns any graduation project (server: available-students). */
+  ownsGraduationProject?: boolean;
 }
 
 export type StudentListQuery = {
@@ -161,6 +163,7 @@ function mapProjectAvailableRow(s: Record<string, unknown>): StudentBrowseRow | 
 
   const pic = s.profilePicture ?? s.ProfilePicture;
   const canRaw = s.canInvite ?? s.CanInvite;
+  const ownsRaw = s.ownsGraduationProject ?? s.OwnsGraduationProject;
 
   return {
     userId,
@@ -175,6 +178,7 @@ function mapProjectAvailableRow(s: Record<string, unknown>): StudentBrowseRow | 
     isMember: Boolean(s.isMember ?? s.IsMember ?? false),
     hasPendingInvite: Boolean(s.hasPendingInvite ?? s.HasPendingInvite ?? false),
     canInvite: typeof canRaw === "boolean" ? canRaw : undefined,
+    ownsGraduationProject: typeof ownsRaw === "boolean" ? ownsRaw : undefined,
   };
 }
 

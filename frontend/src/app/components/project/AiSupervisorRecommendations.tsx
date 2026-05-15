@@ -1,6 +1,8 @@
 import type { CSSProperties, ReactElement } from "react";
-import { AlertCircle, Loader2, Sparkles, Star, Users } from "lucide-react";
+import { Loader2, Sparkles, Star } from "lucide-react";
 import ProfileLink from "../common/ProfileLink";
+import { AiRecommendationPanel } from "./AiRecommendationPanel";
+import { aiPanelStyles } from "./aiRecommendationPanelStyles";
 
 export type AiSupervisorRecommendUiState =
   | "idle"
@@ -10,8 +12,11 @@ export type AiSupervisorRecommendUiState =
   | "error";
 
 /** One row after merging AI results with GET recommended-supervisors (real names only). */
+/** POST /api/ai/recommend-supervisors returns doctorId = profile id; profile links need userId from GET recommended-supervisors. */
 export interface EnrichedAiSupervisorRow {
   doctorId: number;
+  /** AspNetUsers.Id for /doctors/:id and ProfileLink */
+  doctorUserId: number;
   matchScore: number;
   reason: string;
   name: string | null;
@@ -99,6 +104,8 @@ export interface AiSupervisorRecommendationsProps {
   /** Owner or leader can run AI and send requests (matches backend rules). */
   canTriggerRecommend: boolean;
   formatDoctorName: (raw: string) => string;
+  /** When true, omits outer margin — used inside the shared AI assist group. */
+  embedded?: boolean;
 }
 
 function normalizeMatchScore(score: number): number {
@@ -110,14 +117,24 @@ function normalizeMatchScore(score: number): number {
 /** Merge AI API rows with recommended-supervisor list for display names (no invented names). */
 export function enrichAiSupervisorsWithRecommended(
   aiRows: { doctorId: number; matchScore: number; reason: string }[],
-  recommended: { doctorId: number; name: string; specialization: string | null }[],
+  recommended: {
+    doctorId: number;
+    userId?: number;
+    name: string;
+    specialization: string | null;
+  }[],
 ): EnrichedAiSupervisorRow[] {
   const map = new Map(recommended.map((s) => [s.doctorId, s]));
   const sorted = [...aiRows].sort((a, b) => b.matchScore - a.matchScore);
   return sorted.map((row) => {
     const r = map.get(row.doctorId);
+    const uid =
+      typeof r?.userId === "number" && Number.isFinite(r.userId) && r.userId > 0
+        ? r.userId
+        : row.doctorId;
     return {
       doctorId: row.doctorId,
+      doctorUserId: uid,
       matchScore: normalizeMatchScore(row.matchScore),
       reason: row.reason ?? "",
       name: r?.name?.trim() ? r.name.trim() : null,
@@ -141,97 +158,29 @@ export function AiSupervisorRecommendations({
   supervisionPending,
   canTriggerRecommend,
   formatDoctorName,
+  embedded = false,
 }: AiSupervisorRecommendationsProps): ReactElement {
-  const isLoading = uiState === "loading";
-
   return (
-    <>
-      <div style={S.block}>
-        <header style={S.blockHeader}>
-          <div style={S.blockTitleRow}>
-            <span style={S.iconWrap} aria-hidden>
-              <Sparkles size={15} color="#7c3aed" strokeWidth={2} />
-            </span>
-            <div>
-              <p style={S.blockTitle}>AI supervisor recommendations</p>
-              <p style={S.blockSub}>
-                Ranked matches from your project context and required skills.
-              </p>
-            </div>
-          </div>
-        </header>
-
-        {!canTriggerRecommend ? (
-          <p style={S.hintMuted}>
-            Only the project owner or team leader can run AI recommendations and
-            send requests.
-          </p>
-        ) : (
-          <div style={S.primaryBtnWrap}>
-            <button
-              type="button"
-              onClick={onRecommend}
-              disabled={isLoading || supervisionPending}
-              style={{
-                ...S.primaryBtn,
-                ...(isLoading || supervisionPending ? S.primaryBtnDisabled : {}),
-              }}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={14} style={S.spinIcon} aria-hidden />
-                  Analyzing…
-                </>
-              ) : (
-                <>
-                  <Sparkles size={14} aria-hidden />
-                  Recommend Supervisors
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {isLoading && (
-          <div style={S.loadingBox} role="status" aria-live="polite">
-            <Loader2 size={22} color="#6366f1" style={S.spinIcon} aria-hidden />
-            <div>
-              <p style={S.loadingTitle}>Finding supervisors</p>
-              <p style={S.loadingSub}>This may take a few seconds.</p>
-            </div>
-          </div>
-        )}
-
-        {uiState === "error" && errorMessage && (
-          <div style={S.errorBox} role="alert">
-            <AlertCircle
-              size={18}
-              color="#dc2626"
-              style={{ flexShrink: 0, marginTop: 2 }}
-              aria-hidden
-            />
-            <div style={{ minWidth: 0 }}>
-              <p style={S.errorTitle}>Could not load recommendations</p>
-              <p style={S.errorBody}>{errorMessage}</p>
-            </div>
-          </div>
-        )}
-
-        {uiState === "empty" && (
-          <div style={S.emptyBox}>
-            <span style={S.emptyIconWrap} aria-hidden>
-              <Users size={22} color="#94a3b8" strokeWidth={1.75} />
-            </span>
-            <p style={S.emptyTitle}>No matches returned</p>
-            <p style={S.emptyDesc}>
-              Try running recommendations again in a few minutes, or adjust your
-              project skills and abstract for a better match.
-            </p>
-          </div>
-        )}
-
-        {uiState === "success" && items.length > 0 && (
-          <ul style={S.cardList}>
+    <AiRecommendationPanel
+      title="AI supervisor recommendations"
+      subtitle="Ranked matches from your project context and required skills."
+      icon={<Sparkles size={15} color="#7c3aed" strokeWidth={2} />}
+      actionLabel="Recommend Supervisors"
+      loadingTitle="Finding supervisors"
+      loadingSub="This may take a few seconds."
+      onAction={onRecommend}
+      uiState={uiState}
+      errorMessage={errorMessage}
+      emptyDescription="Try running recommendations again in a few minutes, or adjust your project skills and abstract for a better match."
+      canTrigger={canTriggerRecommend}
+      actionDisabled={supervisionPending}
+      resultCount={items.length}
+      resultNoun="supervisor"
+      sectionStyle={
+        embedded ? { ...aiPanelStyles.sectionDivider } : undefined
+      }
+    >
+      <ul style={S.cardList}>
             {items.map((row, index) => {
               const isBest = index === 0;
               const displayName = row.name
@@ -277,7 +226,7 @@ export function AiSupervisorRecommendations({
                       </div>
                       <div style={S.recMain}>
                         <p style={S.recName}>
-                          <ProfileLink userId={row.doctorId} role="doctor">{displayName}</ProfileLink>
+                          <ProfileLink userId={row.doctorUserId} role="doctor">{displayName}</ProfileLink>
                         </p>
                         {row.specialization && (
                           <p style={S.recSpec}>{row.specialization}</p>
@@ -376,13 +325,8 @@ export function AiSupervisorRecommendations({
                 </li>
               );
             })}
-          </ul>
-        )}
-      </div>
-      <style>{`
-        @keyframes aiSupSpin { to { transform: rotate(360deg); } }
-      `}</style>
-    </>
+      </ul>
+    </AiRecommendationPanel>
   );
 }
 
@@ -464,7 +408,7 @@ const S: Record<string, CSSProperties> = {
     boxShadow: "none",
   },
   spinIcon: {
-    animation: "aiSupSpin 0.8s linear infinite",
+    animation: "aiPanelSpin 0.8s linear infinite",
   },
   loadingBox: {
     marginTop: 14,

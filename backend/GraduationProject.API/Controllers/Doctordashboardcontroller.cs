@@ -58,6 +58,9 @@ namespace GraduationProject.API.Controllers
             var requests = await _db.SupervisorRequests
                 .Where(r => r.DoctorId == doctor.Id)
                 .Include(r => r.Project)
+                    .ThenInclude(p => p.Members)
+                        .ThenInclude(m => m.Student)
+                            .ThenInclude(s => s.User)
                 .Include(r => r.Sender).ThenInclude(s => s.User)
                 .OrderByDescending(r => r.CreatedAt)
                 .AsNoTracking()
@@ -77,6 +80,18 @@ namespace GraduationProject.API.Controllers
                     skills = new List<string>();
                 }
 
+                var members = (r.Project?.Members ?? Enumerable.Empty<Models.StudentProjectMember>())
+                    .OrderBy(m => m.Role == "leader" ? 0 : 1)
+                    .ThenBy(m => m.Student?.User?.Name ?? "")
+                    .Select(m => new
+                    {
+                        studentId = m.StudentId,
+                        name = m.Student?.User?.Name ?? "",
+                        role = m.Role,
+                        major = m.Student?.Major ?? ""
+                    })
+                    .ToList();
+
                 return new
                 {
                     requestId = r.Id,
@@ -85,7 +100,11 @@ namespace GraduationProject.API.Controllers
                         projectId = r.ProjectId,
                         name = r.Project?.Name ?? "",
                         description = r.Project?.Abstract,
-                        requiredSkills = skills
+                        requiredSkills = skills,
+                        projectType = r.Project?.ProjectType ?? "GP",
+                        partnersCount = r.Project?.PartnersCount ?? 0,
+                        memberCount = r.Project?.Members.Count ?? 0,
+                        members
                     },
                     sender = new
                     {

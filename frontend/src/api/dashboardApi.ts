@@ -43,6 +43,11 @@ export interface DashboardSummary {
     profileStrength: ProfileStrength
     suggestedTeammates: SuggestedTeammate[]
     myProject: DashboardProject | null
+    /** Hero stats (student dashboard); omitted for older API responses. */
+    suggestedTeammatesCount?: number
+    matchedGraduationProjectsCount?: number
+    bestTeammateMatchPercent?: number | null
+    pendingTeamInvitationsCount?: number
 }
 
 // ─── API Calls ────────────────────────────────────────────────────────────────

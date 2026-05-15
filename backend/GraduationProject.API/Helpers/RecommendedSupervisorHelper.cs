@@ -13,7 +13,7 @@ namespace GraduationProject.API.Helpers
         /// matchScore = round((matched / totalSkills) * 100); 0 when there are no usable skills.
         /// </summary>
         public static List<RecommendedSupervisorDto> Build(
-            IEnumerable<(int Id, string Name, string? Specialization)> doctors,
+            IEnumerable<(int Id, int UserId, string Name, string? Specialization)> doctors,
             string? requiredSkillsJson)
         {
             var skills = ParseNormalizedProjectSkills(requiredSkillsJson);
@@ -38,6 +38,7 @@ namespace GraduationProject.API.Helpers
                 results.Add(new RecommendedSupervisorDto
                 {
                     DoctorId = d.Id,
+                    UserId = d.UserId,
                     Name = d.Name ?? string.Empty,
                     Specialization = d.Specialization?.Trim() ?? string.Empty,
                     MatchScore = matchScore

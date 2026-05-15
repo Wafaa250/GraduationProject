@@ -240,6 +240,17 @@ export function GradProjectNotificationBell({
       if (!payload || typeof payload.id !== "number") return;
       if (payload.category && payload.category !== "graduation_project" && payload.category !== "course") return;
 
+      const evtNorm = String(payload.eventType ?? "")
+        .trim()
+        .toLowerCase();
+      if (
+        evtNorm === "supervision_request_accepted" ||
+        evtNorm === "supervisor_cancellation_accepted" ||
+        evtNorm === "supervision_cancelled_by_doctor"
+      ) {
+        window.dispatchEvent(new CustomEvent("gradProjectSupervisorChanged"));
+      }
+
       const isOpen = openRef.current;
       const nowIso = new Date().toISOString();
       const normalized = {

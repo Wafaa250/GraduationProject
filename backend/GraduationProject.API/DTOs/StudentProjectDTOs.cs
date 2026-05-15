@@ -66,7 +66,12 @@ namespace GraduationProject.API.DTOs
     // 🟢 NEW: Supervisor DTO
     public class SupervisorDto
     {
+        /// <summary>DoctorProfiles.Id — use for supervisor requests (POST .../request-supervisor/{doctorId}).</summary>
         public int DoctorId { get; set; }
+
+        /// <summary>AspNetUsers.Id — use for public profile URLs (GET /api/doctors/{userId}).</summary>
+        public int UserId { get; set; }
+
         public string Name { get; set; } = string.Empty;
         public string? Specialization { get; set; }
         public string? Department { get; set; }
@@ -75,7 +80,12 @@ namespace GraduationProject.API.DTOs
     /// <summary>Recommended supervisors ranked by skill match.</summary>
     public class RecommendedSupervisorDto
     {
+        /// <summary>DoctorProfiles.Id</summary>
         public int DoctorId { get; set; }
+
+        /// <summary>AspNetUsers.Id — for profile links.</summary>
+        public int UserId { get; set; }
+
         public string Name { get; set; } = string.Empty;
         public string Specialization { get; set; } = string.Empty;
         public int MatchScore { get; set; }
@@ -141,13 +151,19 @@ namespace GraduationProject.API.DTOs
         /// <summary>True when this student is the project owner.</summary>
         public bool IsOwner { get; set; }
 
+        /// <summary>
+        /// True when this student owns any graduation project (cannot be invited to another team).
+        /// </summary>
+        public bool OwnsGraduationProject { get; set; }
+
         /// <summary>True when the project has no remaining seats.</summary>
         public bool IsProjectFull { get; set; }
 
         /// <summary>
         /// Computed convenience flag.
         /// True when the caller can send an invite to this student:
-        /// not a member, no pending invite, not the owner, and project is not full.
+        /// not a member, no pending invite, not the owner, project is not full,
+        /// and the student does not already own their own graduation project.
         /// </summary>
         public bool CanInvite { get; set; }
     }

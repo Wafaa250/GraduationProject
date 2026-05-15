@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -49,6 +50,8 @@ namespace GraduationProject.API.Controllers
             var strength   = BuildStrength(profile);
             var teammates  = await GetTeammatesInternal(userId.Value, myIds);
             var project    = await GetMyProjectInternal(profile.Id);
+            var matchedGp  = await CountMatchedGraduationProjectsAsync(profile, myIds);
+            var pendingInv = await CountPendingTeamInvitationsAsync(profile);
 
             return Ok(new DashboardSummaryDto
             {
@@ -59,7 +62,11 @@ namespace GraduationProject.API.Controllers
                 TotalSkills        = myIds.Count,
                 ProfileStrength    = strength,
                 SuggestedTeammates = teammates,
-                MyProject          = project
+                MyProject          = project,
+                SuggestedTeammatesCount      = teammates.Count,
+                MatchedGraduationProjectsCount = matchedGp,
+                BestTeammateMatchPercent     = teammates.Count > 0 ? teammates[0].MatchScore : (int?)null,
+                PendingTeamInvitationsCount  = pendingInv,
             });
         }
 
@@ -153,7 +160,11 @@ namespace GraduationProject.API.Controllers
                 TotalSkills        = 0,
                 ProfileStrength    = EmptyProfileStrength(),
                 SuggestedTeammates = new List<SuggestedTeammateDto>(),
-                MyProject          = null
+                MyProject          = null,
+                SuggestedTeammatesCount        = 0,
+                MatchedGraduationProjectsCount = 0,
+                BestTeammateMatchPercent     = null,
+                PendingTeamInvitationsCount  = 0,
             };
         }
 
@@ -316,6 +327,114 @@ namespace GraduationProject.API.Controllers
                 .OrderByDescending(x => x.MatchScore)
                 .Take(6)
                 .ToList();
+        }
+
+        private static readonly Regex CourseInviteDedupRegex = new(
+            @"^course:invite:(\d+):(\d+):(\d+)$",
+            RegexOptions.Compiled);
+
+        /// <summary>Parses DedupKey format from CoursesController team-invitations flow.</summary>
+        private static (int projectId, int senderId, int receiverId)? ParseCourseInviteDedupKey(string dedupKey)
+        {
+            var m = CourseInviteDedupRegex.Match(dedupKey);
+            if (!m.Success) return null;
+            if (!int.TryParse(m.Groups[1].Value, out var projectId)) return null;
+            if (!int.TryParse(m.Groups[2].Value, out var senderId)) return null;
+            if (!int.TryParse(m.Groups[3].Value, out var receiverId)) return null;
+            return (projectId, senderId, receiverId);
+        }
+
+        /// <summary>
+        /// Graduation projects the student does not own / is not a member of, with available seats,
+        /// matching skills if the project lists required skills (Skill table names); otherwise counts as an open listing.
+        /// </summary>
+        private async Task<int> CountMatchedGraduationProjectsAsync(Models.StudentProfile profile, List<int> myIds)
+        {
+            var mySkillSet = myIds.ToHashSet();
+
+            var projects = await _db.StudentProjects
+                .AsNoTracking()
+                .Include(p => p.Members)
+                .ToListAsync();
+
+            var allNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in projects)
+            {
+                foreach (var n in SkillHelper.ParseStringList(p.RequiredSkills))
+                {
+                    var t = n.Trim();
+                    if (t.Length > 0) allNames.Add(t);
+                }
+            }
+
+            var skillRows = await _db.Skills
+                .AsNoTracking()
+                .Where(s => allNames.Contains(s.Name))
+                .Select(s => new { s.Id, s.Name })
+                .ToListAsync();
+
+            var nameToId = skillRows.ToDictionary(x => x.Name, x => x.Id, StringComparer.OrdinalIgnoreCase);
+
+            var count = 0;
+            foreach (var p in projects)
+            {
+                if (p.OwnerId == profile.Id) continue;
+                if (p.Members.Any(m => m.StudentId == profile.Id)) continue;
+                if (p.PartnersCount > 0 && p.Members.Count >= p.PartnersCount) continue;
+
+                var reqNames = SkillHelper.ParseStringList(p.RequiredSkills)
+                    .Select(n => n.Trim())
+                    .Where(n => n.Length > 0)
+                    .ToList();
+
+                if (reqNames.Count == 0)
+                {
+                    count++;
+                    continue;
+                }
+
+                var projSkillIds = reqNames
+                    .Select(n => nameToId.TryGetValue(n, out var id) ? id : 0)
+                    .Where(id => id > 0)
+                    .ToHashSet();
+
+                if (projSkillIds.Count == 0)
+                {
+                    count++;
+                    continue;
+                }
+
+                if (mySkillSet.Overlaps(projSkillIds))
+                    count++;
+            }
+
+            return count;
+        }
+
+        private async Task<int> CountPendingTeamInvitationsAsync(Models.StudentProfile profile)
+        {
+            var grad = await _db.ProjectInvitations
+                .AsNoTracking()
+                .CountAsync(i => i.ReceiverId == profile.Id && i.Status == "pending");
+
+            var notifDedupKeys = await _db.UserNotifications
+                .AsNoTracking()
+                .Where(n => n.UserId == profile.UserId
+                         && n.Category == "course"
+                         && n.EventType == "course_teammate_invitation_pending"
+                         && n.DedupKey != null)
+                .Select(n => n.DedupKey!)
+                .ToListAsync();
+
+            var course = 0;
+            foreach (var dk in notifDedupKeys)
+            {
+                var parsed = ParseCourseInviteDedupKey(dk);
+                if (parsed?.receiverId == profile.Id)
+                    course++;
+            }
+
+            return grad + course;
         }
     }
 }

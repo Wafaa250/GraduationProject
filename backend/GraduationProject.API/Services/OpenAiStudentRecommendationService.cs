@@ -63,6 +63,8 @@ namespace GraduationProject.API.Services
                     "Analyze the project title, abstract, and required skills together to understand " +
                     "the project domain and goals. Then rank each student by how well their skills, " +
                     "major, and bio align with the project needs. " +
+                    "Include ONLY students who are a meaningful fit (matchScore at least 1). " +
+                    "Omit students with no relevant skills entirely — do not return them with score 0. " +
                     "Return ONLY valid JSON in this exact structure: " +
                     "{\"rankedStudents\":[{\"studentId\":number,\"matchScore\":number,\"reason\":string}]}. " +
                     "Do not return text, explanation, or markdown. Only JSON.";
@@ -70,7 +72,8 @@ namespace GraduationProject.API.Services
                 var userMessage =
                     "Rank the following students from best to worst fit for this graduation project. " +
                     "Use the project abstract (if provided) together with the required skills to understand " +
-                    "what the project needs, then score each student 0-100 accordingly. " +
+                    "what the project needs, then score each included student 1-100 accordingly. " +
+                    "Skip any student who has no relevant skills for this project — do not list them. " +
                     "Return ONLY valid JSON in this exact structure: " +
                     "{\"rankedStudents\":[{\"studentId\":number,\"matchScore\":number,\"reason\":string}]}. " +
                     "Do not include markdown or extra text.\n\n" +

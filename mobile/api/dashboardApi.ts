@@ -43,6 +43,10 @@ export interface DashboardSummary {
     profileStrength: ProfileStrength
     suggestedTeammates: SuggestedTeammate[]
     myProject: DashboardProject | null
+    suggestedTeammatesCount?: number
+    matchedGraduationProjectsCount?: number
+    bestTeammateMatchPercent?: number | null
+    pendingTeamInvitationsCount?: number
 }
 
 // ─── API Calls ────────────────────────────────────────────────────────────────
