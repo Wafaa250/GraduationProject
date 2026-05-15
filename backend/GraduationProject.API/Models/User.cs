@@ -16,6 +16,6 @@ namespace GraduationProject.API.Models
         public StudentProfile? StudentProfile { get; set; }
         public DoctorProfile? DoctorProfile { get; set; }
         public CompanyProfile? CompanyProfile { get; set; }
-        public AssociationProfile? AssociationProfile { get; set; }
+        public StudentAssociationProfile? StudentAssociationProfile { get; set; }
     }
 }

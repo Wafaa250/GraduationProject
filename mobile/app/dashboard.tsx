@@ -5,6 +5,7 @@ import { router, type Href } from "expo-router";
 import { StudentDashboardScreen } from "@/components/student-dashboard/StudentDashboardScreen";
 import { spacing } from "@/constants/responsiveLayout";
 import { getItem } from "@/utils/authStorage";
+import { isAssociationRole } from "@/utils/organizationRole";
 
 /**
  * Student dashboard shell. The primary header (notifications, messages, settings, profile)
@@ -21,6 +22,11 @@ export default function DashboardScreen() {
       if (role === "doctor") {
         setGate("redirect");
         router.replace("/doctor-dashboard" as Href);
+        return;
+      }
+      if (isAssociationRole(role)) {
+        setGate("redirect");
+        router.replace("/organization/dashboard" as Href);
         return;
       }
       setGate("student");

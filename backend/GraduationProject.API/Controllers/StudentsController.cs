@@ -24,6 +24,43 @@ namespace GraduationProject.API.Controllers
             _db = db;
         }
 
+        // GET /api/students/followed-organizations
+        [HttpGet("followed-organizations")]
+        [Authorize(Roles = "student")]
+        public async Task<IActionResult> GetFollowedOrganizations()
+        {
+            var userId = AuthorizationHelper.GetUserId(User);
+            var studentProfileId = await _db.StudentProfiles
+                .AsNoTracking()
+                .Where(s => s.UserId == userId)
+                .Select(s => (int?)s.Id)
+                .FirstOrDefaultAsync();
+
+            if (!studentProfileId.HasValue)
+                return NotFound(new { message = "Student profile not found." });
+
+            var items = await _db.OrganizationFollows
+                .AsNoTracking()
+                .Where(f => f.StudentProfileId == studentProfileId.Value)
+                .Join(
+                    _db.StudentAssociationProfiles.AsNoTracking(),
+                    f => f.OrganizationProfileId,
+                    p => p.Id,
+                    (_, p) => new PublicOrganizationListItemDto
+                    {
+                        Id = p.Id,
+                        Name = p.AssociationName,
+                        Category = p.Category,
+                        Faculty = p.Faculty,
+                        LogoUrl = p.LogoUrl,
+                        IsVerified = p.IsVerified,
+                    })
+                .OrderBy(x => x.Name)
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
         // =====================================================
         // GET /api/students
         // يرجع قائمة الطلاب مع matchScore للطالب الحالي

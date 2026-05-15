@@ -477,7 +477,7 @@ export default function ProfilePage() {
                       ))}
                     </View>
                   ) : (
-                    <Text style={styles.allDoneHint}>You're on track — no urgent tasks.</Text>
+                    <Text style={styles.allDoneHint}>{"You're on track — no urgent tasks."}</Text>
                   )}
                 </View>
 

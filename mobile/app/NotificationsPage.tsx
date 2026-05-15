@@ -277,7 +277,7 @@ export default function NotificationsPage() {
             ListEmptyComponent={
               <View style={styles.empty}>
                 <Ionicons name="notifications-off-outline" size={40} color="#94a3b8" />
-                <Text style={styles.emptyTitle}>You're all caught up</Text>
+                <Text style={styles.emptyTitle}>{"You're all caught up"}</Text>
                 <Text style={styles.emptySub}>No notifications yet.</Text>
               </View>
             }

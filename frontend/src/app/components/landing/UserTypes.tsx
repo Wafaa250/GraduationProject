@@ -40,10 +40,10 @@ const userTypes = [
   },
   {
     image: assocImg,
-    role: "Associations",
+    role: "Student Organizations",
     icon: "🤝",
     want: "Recruit members with the right skills for their initiatives.",
-    aiHelp: "AI identifies students whose skills fit the association's open roles and project needs, enabling targeted and effective recruitment.",
+    aiHelp: "AI identifies students whose skills fit the organization's open roles and project needs, enabling targeted and effective recruitment.",
     gradient: "from-teal-600 to-teal-700",
     light: "bg-teal-50",
     accent: "text-teal-600",

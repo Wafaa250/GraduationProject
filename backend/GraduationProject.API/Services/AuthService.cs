@@ -18,7 +18,7 @@ namespace GraduationProject.API.Services
     {
         Task<(AuthResponseDto? result, string? error)> RegisterDoctorAsync(RegisterDoctorDto dto);
         Task<(AuthResponseDto? result, string? error)> RegisterCompanyAsync(RegisterCompanyDto dto);
-        Task<(AuthResponseDto? result, string? error)> RegisterAssociationAsync(RegisterAssociationDto dto);
+        Task<(AuthResponseDto? result, string? error)> RegisterStudentAssociationAsync(StudentAssociationRegisterDto dto);
         Task<(AuthResponseDto? result, string? error)> LoginAsync(LoginDto dto);
         Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto);
     }
@@ -95,24 +95,47 @@ namespace GraduationProject.API.Services
         }
 
         // ===========================
-        // REGISTER ASSOCIATION
+        // REGISTER STUDENT ASSOCIATION
         // ===========================
-        public async Task<(AuthResponseDto? result, string? error)> RegisterAssociationAsync(RegisterAssociationDto dto)
+        public async Task<(AuthResponseDto? result, string? error)> RegisterStudentAssociationAsync(StudentAssociationRegisterDto dto)
         {
+            if (dto.Password != dto.ConfirmPassword)
+                return (null, "Passwords do not match.");
+
+            if (!StudentAssociationCategories.All.Contains(dto.Category))
+                return (null, "Invalid category.");
+
             var check = await CheckEmailAsync(dto.Email);
             if (check != null) return (null, check);
 
-            var user = CreateUser(dto.Name, dto.Email, dto.Password, "association");
+            var username = dto.Username.Trim().ToLowerInvariant();
+            var usernameTaken = await _db.StudentAssociationProfiles
+                .AnyAsync(p => p.Username == username);
+            if (usernameTaken)
+                return (null, "This username is already taken.");
+
+            var user = CreateUser(dto.AssociationName.Trim(), dto.Email, dto.Password, "studentassociation");
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            var profile = new AssociationProfile
+            var email = dto.Email.ToLower().Trim();
+            var profile = new StudentAssociationProfile
             {
-                UserId          = user.Id,
-                AssociationName = dto.AssociationName,
-                Description     = dto.Description
+                UserId = user.Id,
+                AssociationName = dto.AssociationName.Trim(),
+                Username = username,
+                Email = email,
+                Description = dto.Description,
+                Faculty = dto.Faculty.Trim(),
+                Category = dto.Category,
+                LogoUrl = dto.LogoUrl,
+                InstagramUrl = dto.InstagramUrl,
+                FacebookUrl = dto.FacebookUrl,
+                LinkedInUrl = dto.LinkedInUrl,
+                IsVerified = false,
+                CreatedAt = DateTime.UtcNow,
             };
-            _db.AssociationProfiles.Add(profile);
+            _db.StudentAssociationProfiles.Add(profile);
             await _db.SaveChangesAsync();
 
             return (BuildResponse(user, profile.Id), null);
@@ -169,7 +192,8 @@ namespace GraduationProject.API.Services
                 "student"     => (await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == user.Id))?.Id ?? 0,
                 "doctor"      => (await _db.DoctorProfiles.FirstOrDefaultAsync(d => d.UserId == user.Id))?.Id ?? 0,
                 "company"     => (await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.UserId == user.Id))?.Id ?? 0,
-                "association" => (await _db.AssociationProfiles.FirstOrDefaultAsync(a => a.UserId == user.Id))?.Id ?? 0,
+                "studentassociation" or "association" =>
+                    (await _db.StudentAssociationProfiles.FirstOrDefaultAsync(a => a.UserId == user.Id))?.Id ?? 0,
                 _             => 0
             };
         }

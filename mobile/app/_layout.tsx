@@ -30,6 +30,8 @@ export default function RootLayout() {
           <Stack.Screen name="StudentTeamChoicePage" />
           <Stack.Screen name="CourseManualTeamPage" />
           <Stack.Screen name="courses" />
+          <Stack.Screen name="organization" />
+          <Stack.Screen name="public-organizations" />
           <Stack.Screen name="EditProfilePage" />
           <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal", headerShown: true }} />
         </Stack>

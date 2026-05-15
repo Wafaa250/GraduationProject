@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowRight, Mail, Lock } from 'lucide-react'
 import api from '../../../api/axiosInstance'
+import { isAssociationRole } from '../../../api/associationApi'
 
 export type LoginPageProps = {
   /** When true, successful login does not navigate — caller refreshes in-place (e.g. embedded doctor dashboard). */
@@ -47,6 +48,8 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
         navigate('/dashboard')
       } else if (role === 'company') {
         navigate('/company/dashboard')
+      } else if (isAssociationRole(role)) {
+        navigate('/association/dashboard')
       } else {
         navigate('/dashboard')
       }

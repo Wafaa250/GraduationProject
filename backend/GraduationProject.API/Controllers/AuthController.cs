@@ -75,15 +75,19 @@ namespace GraduationProject.API.Controllers
         // POST /api/auth/register/association
         // =====================================================
         [HttpPost("register/association")]
-        public async Task<IActionResult> RegisterAssociation([FromBody] RegisterAssociationDto dto)
+        public async Task<IActionResult> RegisterStudentAssociation([FromBody] StudentAssociationRegisterDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var (result, error) = await _authService.RegisterAssociationAsync(dto);
+            var (result, error) = await _authService.RegisterStudentAssociationAsync(dto);
 
             if (error != null)
-                return Conflict(new { message = error });
+            {
+                if (error.Contains("already registered") || error.Contains("already taken"))
+                    return Conflict(new { message = error });
+                return BadRequest(new { message = error });
+            }
 
             return StatusCode(201, result);
         }

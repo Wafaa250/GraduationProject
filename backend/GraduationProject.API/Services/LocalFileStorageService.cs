@@ -4,9 +4,12 @@
 // Swap this entire class for CloudinaryFileStorageService (or S3, Azure Blob, etc.)
 // without changing any controller or business logic.
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 
 namespace GraduationProject.API.Services
 {
@@ -66,5 +69,34 @@ namespace GraduationProject.API.Services
         // Returns a relative URL served by ASP.NET Core static files middleware.
         // Example: /uploads/projects/abc123.pdf
         public string GetUrl(string filePath) => "/" + filePath.Replace("\\", "/").TrimStart('/');
+
+        // ── SaveFormFileAsync ─────────────────────────────────────────────────
+        public async Task<string> SaveFormFileAsync(
+            IFormFile file,
+            string folder,
+            IReadOnlyCollection<string> allowedExtensions,
+            long maxBytes)
+        {
+            if (file == null || file.Length == 0)
+                throw new InvalidOperationException("No file was uploaded.");
+
+            if (file.Length > maxBytes)
+                throw new InvalidOperationException($"File exceeds the maximum size of {maxBytes / (1024 * 1024)}MB.");
+
+            var ext = Path.GetExtension(file.FileName);
+            if (string.IsNullOrWhiteSpace(ext) || !allowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+                throw new InvalidOperationException("File type is not allowed.");
+
+            var uniqueName = $"{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
+            var relativePath = Path.Combine(folder, uniqueName).Replace("\\", "/");
+            var fullPath = Path.Combine(_webRootPath, folder, uniqueName);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+
+            await using var stream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            await file.CopyToAsync(stream);
+
+            return relativePath;
+        }
     }
 }

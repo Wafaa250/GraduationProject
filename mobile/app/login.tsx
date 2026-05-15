@@ -16,6 +16,7 @@ import { router, type Href } from "expo-router";
 import api, { parseApiErrorMessage } from "@/api/axiosInstance";
 import { radius, spacing } from "@/constants/responsiveLayout";
 import { setItem as storageSetItem } from "@/utils/authStorage";
+import { isAssociationRole } from "@/utils/organizationRole";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type AuthLoginResponse = {
@@ -62,9 +63,10 @@ export default function LoginScreen() {
       const role = (result.role ?? "").toString().toLowerCase();
       if (role === "doctor") {
         router.replace("/doctor-dashboard" as Href);
+      } else if (isAssociationRole(role)) {
+        router.replace("/organization/dashboard" as Href);
       } else if (role === "student") {
         router.replace("/dashboard");
-   
       } else {
         router.replace("/dashboard");
       }

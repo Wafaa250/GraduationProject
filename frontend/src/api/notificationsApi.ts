@@ -13,6 +13,7 @@ export type GraduationNotificationDto = {
 
 const GRAD_CATEGORY = "graduation_project";
 const COURSE_CATEGORY = "course";
+export const ORGANIZATION_EVENT_CATEGORY = "organization_event";
 
 export async function fetchGraduationNotifications(take = 50): Promise<GraduationNotificationDto[]> {
   const { data } = await api.get<GraduationNotificationDto[]>("/notifications", {
@@ -63,6 +64,30 @@ export async function fetchUnreadCourseNotificationCount(): Promise<number> {
 export async function markAllCourseNotificationsRead(): Promise<void> {
   await api.post("/notifications/read-all", null, {
     params: { category: COURSE_CATEGORY },
+  });
+}
+
+export async function fetchOrganizationEventNotifications(take = 50): Promise<GraduationNotificationDto[]> {
+  const { data } = await api.get<GraduationNotificationDto[]>("/notifications", {
+    params: { take, category: ORGANIZATION_EVENT_CATEGORY },
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchUnreadOrganizationEventNotificationCount(): Promise<number> {
+  const { data } = await api.get<{ count: number }>("/notifications/unread-count", {
+    params: { _t: Date.now(), category: ORGANIZATION_EVENT_CATEGORY },
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
+  return typeof data?.count === "number" ? data.count : 0;
+}
+
+export async function markAllOrganizationEventNotificationsRead(): Promise<void> {
+  await api.post("/notifications/read-all", null, {
+    params: { category: ORGANIZATION_EVENT_CATEGORY },
   });
 }
 

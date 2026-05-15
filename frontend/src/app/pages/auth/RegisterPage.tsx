@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, GraduationCap, Stethoscope, Building2, Users } from 'lucide-react'
 import DoctorRegisterForm from '../forms/DoctorRegisterForm'
 
@@ -50,7 +50,7 @@ const ROLES = [
   {
     id: 'association' as UserRole,
     icon: Users,
-    title: 'Student Association',
+    title: 'Student Organization',
     desc: 'Connect with student communities',
     gradient: 'from-amber-500 to-orange-500',
     bg: 'bg-amber-50',
@@ -67,11 +67,16 @@ export default function RegisterPage() {
 
   const selectedRoleData = ROLES.find(r => r.id === selectedRole)
 
+  const navigate = useNavigate()
+
   const handleNext = () => {
-    if (selectedRole) {
-      sessionStorage.setItem('selectedRole', selectedRole) // ✅ حفظ الـ role
-      setStep(2)
+    if (!selectedRole) return
+    sessionStorage.setItem('selectedRole', selectedRole)
+    if (selectedRole === 'association') {
+      navigate('/register/association')
+      return
     }
+    setStep(2)
   }
 
   const handleBack = () => {
@@ -89,7 +94,7 @@ export default function RegisterPage() {
       case 'company':
         return <ComingSoon role="Company" onBack={handleBack} />
       case 'association':
-        return <ComingSoon role="Student Association" onBack={handleBack} />
+        return <ComingSoon role="Student Organization" onBack={handleBack} />
       default:
         return null
     }

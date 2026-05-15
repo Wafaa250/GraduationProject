@@ -22,36 +22,6 @@ namespace GraduationProject.API.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("GraduationProject.API.Models.AssociationProfile", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AssociationName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("association_name");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("association_profiles", (string)null);
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.CompanyProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -504,6 +474,37 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("messages", (string)null);
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.OrganizationFollow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("FollowedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("followed_at");
+
+                    b.Property<int>("OrganizationProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("organization_profile_id");
+
+                    b.Property<int>("StudentProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_profile_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StudentProfileId");
+
+                    b.HasIndex("OrganizationProfileId", "StudentProfileId")
+                        .IsUnique();
+
+                    b.ToTable("organization_follows", (string)null);
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.ProjectInvitation", b =>
                 {
                     b.Property<int>("Id")
@@ -637,6 +638,209 @@ namespace GraduationProject.API.Migrations
                         .IsUnique();
 
                     b.ToTable("skills", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentAssociationProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AssociationName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("association_name");
+
+                    b.Property<string>("Category")
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("email");
+
+                    b.Property<string>("FacebookUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("facebook_url");
+
+                    b.Property<string>("Faculty")
+                        .HasColumnType("text")
+                        .HasColumnName("faculty");
+
+                    b.Property<string>("InstagramUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("instagram_url");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_verified");
+
+                    b.Property<string>("LinkedInUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("linkedin_url");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("logo_url");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("student_association_profiles", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<string>("CoverImageUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("cover_image_url");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime>("EventDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("event_date");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("event_type");
+
+                    b.Property<bool>("IsOnline")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_online");
+
+                    b.Property<string>("Location")
+                        .HasColumnType("text")
+                        .HasColumnName("location");
+
+                    b.Property<int?>("MaxParticipants")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_participants");
+
+                    b.Property<int>("OrganizationProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("organization_profile_id");
+
+                    b.Property<DateTime?>("RegistrationDeadline")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registration_deadline");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationProfileId");
+
+                    b.ToTable("student_organization_events", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationTeamMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("full_name");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("image_url");
+
+                    b.Property<string>("LinkedInUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("linkedin_url");
+
+                    b.Property<string>("Major")
+                        .HasColumnType("text")
+                        .HasColumnName("major");
+
+                    b.Property<int>("OrganizationProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("organization_profile_id");
+
+                    b.Property<string>("RoleTitle")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role_title");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationProfileId");
+
+                    b.HasIndex("OrganizationProfileId", "DisplayOrder");
+
+                    b.ToTable("student_organization_team_members", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>
@@ -1064,17 +1268,6 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("user_notifications", (string)null);
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.AssociationProfile", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.User", "User")
-                        .WithOne("AssociationProfile")
-                        .HasForeignKey("GraduationProject.API.Models.AssociationProfile", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.CompanyProfile", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.User", "User")
@@ -1246,6 +1439,25 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.OrganizationFollow", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.StudentAssociationProfile", "OrganizationProfile")
+                        .WithMany("Followers")
+                        .HasForeignKey("OrganizationProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
+                        .WithMany("OrganizationFollows")
+                        .HasForeignKey("StudentProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrganizationProfile");
+
+                    b.Navigation("StudentProfile");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.ProjectInvitation", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.StudentProject", "Project")
@@ -1309,6 +1521,39 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Section");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentAssociationProfile", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithOne("StudentAssociationProfile")
+                        .HasForeignKey("GraduationProject.API.Models.StudentAssociationProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationEvent", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.StudentAssociationProfile", "OrganizationProfile")
+                        .WithMany("Events")
+                        .HasForeignKey("OrganizationProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrganizationProfile");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationTeamMember", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.StudentAssociationProfile", "OrganizationProfile")
+                        .WithMany("TeamMembers")
+                        .HasForeignKey("OrganizationProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrganizationProfile");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>
@@ -1465,8 +1710,19 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("StudentSkills");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.StudentAssociationProfile", b =>
+                {
+                    b.Navigation("Events");
+
+                    b.Navigation("Followers");
+
+                    b.Navigation("TeamMembers");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>
                 {
+                    b.Navigation("OrganizationFollows");
+
                     b.Navigation("StudentSkills");
                 });
 
@@ -1483,11 +1739,11 @@ namespace GraduationProject.API.Migrations
 
             modelBuilder.Entity("GraduationProject.API.Models.User", b =>
                 {
-                    b.Navigation("AssociationProfile");
-
                     b.Navigation("CompanyProfile");
 
                     b.Navigation("DoctorProfile");
+
+                    b.Navigation("StudentAssociationProfile");
 
                     b.Navigation("StudentProfile");
                 });

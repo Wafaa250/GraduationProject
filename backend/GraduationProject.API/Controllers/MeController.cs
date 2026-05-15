@@ -32,7 +32,7 @@ namespace GraduationProject.API.Controllers
             {
                 "student"     => await GetStudentInfo(userId),
                 "company"     => await GetCompanyInfo(userId),
-                "association" => await GetAssociationInfo(userId),
+                "studentassociation" or "association" => await GetStudentAssociationInfo(userId),
                 "admin"       => await GetAdminInfo(userId),
                 _             => Unauthorized(new { message = "Unknown role." })
             };
@@ -171,10 +171,10 @@ namespace GraduationProject.API.Controllers
             });
         }
 
-        // ── Association ──────────────────────────────────────────────────────
-        private async Task<IActionResult> GetAssociationInfo(int userId)
+        // ── Student Association ────────────────────────────────────────────────
+        private async Task<IActionResult> GetStudentAssociationInfo(int userId)
         {
-            var profile = await _db.AssociationProfiles
+            var profile = await _db.StudentAssociationProfiles
                 .Include(a => a.User)
                 .FirstOrDefaultAsync(a => a.UserId == userId);
 
@@ -183,13 +183,22 @@ namespace GraduationProject.API.Controllers
 
             return Ok(new
             {
-                role            = "association",
-                userId          = profile.UserId,
-                profileId       = profile.Id,
-                name            = profile.User.Name,
-                email           = profile.User.Email,
+                role = "studentassociation",
+                userId = profile.UserId,
+                profileId = profile.Id,
+                name = profile.User.Name,
+                email = profile.User.Email,
                 associationName = profile.AssociationName,
-                description     = profile.Description
+                username = profile.Username,
+                description = profile.Description,
+                faculty = profile.Faculty,
+                category = profile.Category,
+                logoUrl = profile.LogoUrl,
+                instagramUrl = profile.InstagramUrl,
+                facebookUrl = profile.FacebookUrl,
+                linkedInUrl = profile.LinkedInUrl,
+                isVerified = profile.IsVerified,
+                createdAt = profile.CreatedAt,
             });
         }
 

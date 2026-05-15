@@ -19,14 +19,17 @@ import { formatDistanceToNow } from "date-fns";
 import {
   fetchCourseNotifications,
   fetchGraduationNotifications,
+  fetchOrganizationEventNotifications,
   fetchUnreadCourseNotificationCount,
   fetchUnreadGraduationNotificationCount,
+  fetchUnreadOrganizationEventNotificationCount,
   markAllCourseNotificationsRead,
-  markGraduationNotificationRead,
   markAllGraduationNotificationsRead,
+  markAllOrganizationEventNotificationsRead,
+  markGraduationNotificationRead,
+  ORGANIZATION_EVENT_CATEGORY,
   type GraduationNotificationDto,
 } from "../../../api/notificationsApi";
-import { parseApiErrorMessage } from "../../../api/axiosInstance";
 import { useToast } from "../../../context/ToastContext";
 import { getNotificationsHubUrl } from "../../../utils/notificationsHubUrl";
 
@@ -126,6 +129,8 @@ function getEventAccent(eventType: string): {
       return { icon: UserMinus, tint: "#c2410c", bg: "rgba(249,115,22,0.12)" };
     case "course_section_enrollment_added":
       return { icon: GraduationCap, tint: "#5b21b6", bg: "rgba(109,40,217,0.14)" };
+    case "organization_event":
+      return { icon: BellRing, tint: "#b45309", bg: "rgba(245,158,11,0.18)" };
     case "course_teammate_invitation_pending":
       return { icon: UserPlus, tint: "#7c3aed", bg: "rgba(139,92,246,0.14)" };
     case "course_teammate_invitation_accepted":
@@ -176,20 +181,22 @@ export function GradProjectNotificationBell({
 
   const refreshUnread = useCallback(async () => {
     try {
-      const [gradUnread, courseUnread] = await Promise.all([
+      const [gradUnread, courseUnread, orgUnread] = await Promise.all([
         fetchUnreadGraduationNotificationCount(),
         fetchUnreadCourseNotificationCount(),
+        fetchUnreadOrganizationEventNotificationCount(),
       ]);
-      setUnread(gradUnread + courseUnread);
+      setUnread(gradUnread + courseUnread + orgUnread);
       return;
     } catch {
       // fallback: derive unread from latest list when count endpoint is stale/failing
       try {
-        const [gradList, courseList] = await Promise.all([
+        const [gradList, courseList, orgList] = await Promise.all([
           fetchGraduationNotifications(40),
           fetchCourseNotifications(40),
+          fetchOrganizationEventNotifications(40),
         ]);
-        const list = [...gradList, ...courseList];
+        const list = [...gradList, ...courseList, ...orgList];
         setItems((prev) => mergeNotifications(prev, list));
         setUnread(list.filter((n) => !n.readAt).length);
       } catch {
@@ -202,12 +209,17 @@ export function GradProjectNotificationBell({
     setLoading(true);
     setError(null);
     try {
-      const [gradList, courseList] = await Promise.all([
+      const [gradList, courseList, orgList] = await Promise.all([
         fetchGraduationNotifications(40),
         fetchCourseNotifications(40),
+        fetchOrganizationEventNotifications(40),
       ]);
-      const list = [...gradList, ...courseList];
-      await Promise.all([markAllGraduationNotificationsRead(), markAllCourseNotificationsRead()]);
+      const list = [...gradList, ...courseList, ...orgList];
+      await Promise.all([
+        markAllGraduationNotificationsRead(),
+        markAllCourseNotificationsRead(),
+        markAllOrganizationEventNotificationsRead(),
+      ]);
       const nowIso = new Date().toISOString();
       setItems((prev) => mergeNotifications(prev, list.map((n) => ({ ...n, readAt: n.readAt ?? nowIso }))));
       setUnread(0);
@@ -238,7 +250,13 @@ export function GradProjectNotificationBell({
 
     connection.on("NotificationCreated", (payload: GraduationNotificationDto) => {
       if (!payload || typeof payload.id !== "number") return;
-      if (payload.category && payload.category !== "graduation_project" && payload.category !== "course") return;
+      if (
+        payload.category &&
+        payload.category !== "graduation_project" &&
+        payload.category !== "course" &&
+        payload.category !== ORGANIZATION_EVENT_CATEGORY
+      )
+        return;
 
       const isOpen = openRef.current;
       const nowIso = new Date().toISOString();
@@ -309,6 +327,10 @@ export function GradProjectNotificationBell({
     setOpen(false);
     if (theme === "doctor") {
       navigate("/doctor-dashboard");
+      return;
+    }
+    if (n.category === ORGANIZATION_EVENT_CATEGORY && n.projectId != null) {
+      navigate(`/organizations/${n.projectId}`);
       return;
     }
     if (n.category === "course" && n.eventType === "course_teammate_invitation_pending") {

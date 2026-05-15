@@ -13,7 +13,10 @@ namespace GraduationProject.API.Data
         public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
         public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
         public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
-        public DbSet<AssociationProfile> AssociationProfiles => Set<AssociationProfile>();
+        public DbSet<StudentAssociationProfile> StudentAssociationProfiles => Set<StudentAssociationProfile>();
+        public DbSet<StudentOrganizationEvent> StudentOrganizationEvents => Set<StudentOrganizationEvent>();
+        public DbSet<OrganizationFollow> OrganizationFollows => Set<OrganizationFollow>();
+        public DbSet<StudentOrganizationTeamMember> StudentOrganizationTeamMembers => Set<StudentOrganizationTeamMember>();
         public DbSet<Skill> Skills => Set<Skill>();
         public DbSet<StudentSkill> StudentSkills => Set<StudentSkill>();
 
@@ -79,14 +82,50 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // ── ASSOCIATION PROFILE ──────────────────────────────────────────
-            modelBuilder.Entity<AssociationProfile>(e =>
+            // ── STUDENT ASSOCIATION PROFILE ────────────────────────────────────
+            modelBuilder.Entity<StudentAssociationProfile>(e =>
             {
-                e.ToTable("association_profiles");
+                e.ToTable("student_association_profiles");
+                e.HasIndex(a => a.Username).IsUnique();
                 e.HasOne(a => a.User)
-                 .WithOne(u => u.AssociationProfile)
-                 .HasForeignKey<AssociationProfile>(a => a.UserId)
+                 .WithOne(u => u.StudentAssociationProfile)
+                 .HasForeignKey<StudentAssociationProfile>(a => a.UserId)
                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StudentOrganizationEvent>(e =>
+            {
+                e.ToTable("student_organization_events");
+                e.HasOne(ev => ev.OrganizationProfile)
+                 .WithMany(p => p.Events)
+                 .HasForeignKey(ev => ev.OrganizationProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(ev => ev.OrganizationProfileId);
+            });
+
+            modelBuilder.Entity<StudentOrganizationTeamMember>(e =>
+            {
+                e.ToTable("student_organization_team_members");
+                e.HasOne(m => m.OrganizationProfile)
+                 .WithMany(p => p.TeamMembers)
+                 .HasForeignKey(m => m.OrganizationProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(m => m.OrganizationProfileId);
+                e.HasIndex(m => new { m.OrganizationProfileId, m.DisplayOrder });
+            });
+
+            modelBuilder.Entity<OrganizationFollow>(e =>
+            {
+                e.ToTable("organization_follows");
+                e.HasIndex(f => new { f.OrganizationProfileId, f.StudentProfileId }).IsUnique();
+                e.HasOne(f => f.OrganizationProfile)
+                    .WithMany(p => p.Followers)
+                    .HasForeignKey(f => f.OrganizationProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(f => f.StudentProfile)
+                    .WithMany(s => s.OrganizationFollows)
+                    .HasForeignKey(f => f.StudentProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ── SKILLS ───────────────────────────────────────────────────────

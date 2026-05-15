@@ -26,6 +26,7 @@ import {
 } from "@/constants/editProfilePools";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getApiBaseUrl } from "@/utils/apiBaseUrl";
+import { AssociationRegisterStep } from "@/components/organization/AssociationRegisterStep";
 
 type UserRole = "student" | "doctor" | "company" | "association" | null;
 type FlowStep = 1 | 2;
@@ -1480,6 +1481,10 @@ export default function RegisterScreen() {
     return <StudentRegisterFullScreen onBackToRoles={() => setFlowStep(1)} />;
   }
 
+  if (flowStep === 2 && selectedRole === "association") {
+    return <AssociationRegisterStep onBack={() => setFlowStep(1)} />;
+  }
+
   const handleNext = () => {
     if (!selectedRole) return;
     setFlowStep(2);
@@ -1611,14 +1616,6 @@ export default function RegisterScreen() {
                     {selectedRole === "company" ? (
                       <>
                         <Text style={roleStyles.stepTwoText}>Company registration coming soon</Text>
-                        <Pressable style={roleStyles.backButton} onPress={handleBack}>
-                          <Text style={roleStyles.backButtonText}>Back</Text>
-                        </Pressable>
-                      </>
-                    ) : null}
-                    {selectedRole === "association" ? (
-                      <>
-                        <Text style={roleStyles.stepTwoText}>Student Association registration coming soon</Text>
                         <Pressable style={roleStyles.backButton} onPress={handleBack}>
                           <Text style={roleStyles.backButtonText}>Back</Text>
                         </Pressable>

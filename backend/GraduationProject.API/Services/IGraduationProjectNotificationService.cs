@@ -250,6 +250,13 @@ namespace GraduationProject.API.Services
             int userId,
             string scope,
             CancellationToken ct = default);
+
+        Task NotifyOrganizationFollowersNewEventAsync(
+            int organizationProfileId,
+            string organizationName,
+            int eventId,
+            string eventTitle,
+            CancellationToken ct = default);
     }
 }
 

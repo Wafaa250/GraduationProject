@@ -26,7 +26,7 @@ export function ProblemSolution() {
               {[
                 "Students form teams based on friendships, not skills — resulting in unbalanced groups with critical gaps.",
                 "Finding a supervisor whose expertise matches the project topic is left to chance.",
-                "There is no structured way for companies and associations to connect with student teams for real projects.",
+                "There is no structured way for companies and student organizations to connect with student teams for real projects.",
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className="w-5 h-5 rounded-full bg-blue-800 text-blue-200 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
@@ -50,7 +50,7 @@ export function ProblemSolution() {
               {[
                 "AI matches students into teams based on skills and project requirements — not personal connections.",
                 "AI suggests supervisors whose expertise aligns with the project topic and scope.",
-                "Companies and associations post real project requests; AI connects them with qualified student teams.",
+                "Companies and student organizations post real project requests; AI connects them with qualified student teams.",
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

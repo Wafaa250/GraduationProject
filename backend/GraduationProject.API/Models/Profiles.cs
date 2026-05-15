@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
 
@@ -34,6 +35,7 @@ namespace GraduationProject.API.Models
 
         public User User { get; set; } = null!;
         public ICollection<StudentSkill> StudentSkills { get; set; } = new List<StudentSkill>();
+        public ICollection<OrganizationFollow> OrganizationFollows { get; set; } = new List<OrganizationFollow>();
     }
 
     // ===========================
@@ -88,17 +90,30 @@ namespace GraduationProject.API.Models
     }
 
     // ===========================
-    // ASSOCIATION PROFILE
+    // STUDENT ASSOCIATION PROFILE
     // ===========================
-    [Table("association_profiles")]
-    public class AssociationProfile
+    [Table("student_association_profiles")]
+    public class StudentAssociationProfile
     {
-        [Column("id")]               public int Id { get; set; }
-        [Column("user_id")]          public int UserId { get; set; }
-        [Column("association_name")] public string AssociationName { get; set; } = string.Empty;
-        [Column("description")]      public string? Description { get; set; }
+        [Column("id")]                public int Id { get; set; }
+        [Column("user_id")]           public int UserId { get; set; }
+        [Column("association_name")]  public string AssociationName { get; set; } = string.Empty;
+        [Column("username")]          public string Username { get; set; } = string.Empty;
+        [Column("email")]              public string Email { get; set; } = string.Empty;
+        [Column("description")]       public string? Description { get; set; }
+        [Column("faculty")]           public string? Faculty { get; set; }
+        [Column("category")]          public string? Category { get; set; }
+        [Column("logo_url")]          public string? LogoUrl { get; set; }
+        [Column("instagram_url")]     public string? InstagramUrl { get; set; }
+        [Column("facebook_url")]      public string? FacebookUrl { get; set; }
+        [Column("linkedin_url")]      public string? LinkedInUrl { get; set; }
+        [Column("is_verified")]       public bool IsVerified { get; set; }
+        [Column("created_at")]        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public User User { get; set; } = null!;
+        public ICollection<StudentOrganizationEvent> Events { get; set; } = new List<StudentOrganizationEvent>();
+        public ICollection<OrganizationFollow> Followers { get; set; } = new List<OrganizationFollow>();
+        public ICollection<StudentOrganizationTeamMember> TeamMembers { get; set; } = new List<StudentOrganizationTeamMember>();
     }
 
     // ===========================

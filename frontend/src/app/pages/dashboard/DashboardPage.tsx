@@ -22,6 +22,7 @@ import {
   Sparkles,
   X,
   Trash2,
+  Heart,
 } from "lucide-react";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
 import {
@@ -1916,6 +1917,21 @@ export default function DashboardPage() {
             )}
           </div>
           <div style={S.navActions}>
+            <Link
+              to="/student/following"
+              style={{
+                ...S.navBtn,
+                width: "auto",
+                padding: "0 12px",
+                gap: 8,
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+              title="Student Organizations you follow"
+            >
+              <Heart size={16} />
+              Following
+            </Link>
             <GradProjectNotificationBell bellButtonStyle={S.navBtn} theme="student" />
             <MessagesNotificationBell buttonStyle={S.navBtn} />
             <button style={S.navBtn} onClick={openEditInfo}>

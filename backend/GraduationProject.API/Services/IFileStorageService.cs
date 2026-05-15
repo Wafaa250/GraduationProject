@@ -1,4 +1,6 @@
 // Services/IFileStorageService.cs
+using Microsoft.AspNetCore.Http;
+
 namespace GraduationProject.API.Services
 {
     /// <summary>
@@ -27,5 +29,14 @@ namespace GraduationProject.API.Services
         /// For local storage this is a relative URL; for cloud it's the CDN URL.
         /// </summary>
         string GetUrl(string filePath);
+
+        /// <summary>
+        /// Save a multipart upload to disk and return the relative stored path.
+        /// </summary>
+        Task<string> SaveFormFileAsync(
+            IFormFile file,
+            string folder,
+            IReadOnlyCollection<string> allowedExtensions,
+            long maxBytes);
     }
 }

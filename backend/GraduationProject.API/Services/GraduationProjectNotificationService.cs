@@ -17,6 +17,7 @@ namespace GraduationProject.API.Services
         public const string Category = "graduation_project";
         public const string ChatCategory = "chat";
         public const string CourseCategory = "course";
+        public const string OrganizationEventCategory = "organization_event";
 
         private readonly ApplicationDbContext _db;
         private readonly IHubContext<NotificationsHub> _hubContext;
@@ -845,6 +846,40 @@ namespace GraduationProject.API.Services
                 "Added to section",
                 $"You were added to section \"{sectionName}\" in course \"{courseName}\".",
                 ct);
+        }
+
+        public async Task NotifyOrganizationFollowersNewEventAsync(
+            int organizationProfileId,
+            string organizationName,
+            int eventId,
+            string eventTitle,
+            CancellationToken ct = default)
+        {
+            var userIds = await _db.OrganizationFollows
+                .AsNoTracking()
+                .Where(f => f.OrganizationProfileId == organizationProfileId)
+                .Join(_db.StudentProfiles.AsNoTracking(), f => f.StudentProfileId, s => s.Id, (_, s) => s.UserId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            if (userIds.Count == 0)
+                return;
+
+            var title = "New event from a Student Organization";
+            var body = $"{organizationName} posted a new event: {eventTitle}";
+
+            foreach (var userId in userIds)
+            {
+                await TryAddGenericAsync(
+                    userId,
+                    OrganizationEventCategory,
+                    "organization_event",
+                    organizationProfileId,
+                    title,
+                    body,
+                    $"organization_event:{eventId}:{userId}",
+                    ct);
+            }
         }
 
         public async Task MarkChatScopeReadAsync(int userId, string scope, CancellationToken ct = default)

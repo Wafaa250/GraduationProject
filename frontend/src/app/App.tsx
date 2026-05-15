@@ -16,8 +16,9 @@ import DoctorProfilePage from "./pages/doctor/DoctorProfilePage";
 import EditDoctorProfilePage from "./pages/doctor/EditDoctorProfilePage";
 import ChannelPageWrapper from "./pages/doctor/ChannelPageWrapper";
 
-import StudentsPage from "./pages/students/StudentsPage";
+import StudentFollowingOrganizationsPage from "./pages/students/StudentFollowingOrganizationsPage";
 import StudentProfilePage from "./pages/students/StudentProfilePage";
+import StudentsPage from "./pages/students/StudentsPage";
 import ProjectWorkspacePage from "./pages/doctor/ProjectWorkspacePage";
 import CreateCoursePage from "./pages/courses/CreateCoursePage";
 import CourseWorkspacePage from "./pages/courses/CourseWorkspacePage";
@@ -33,6 +34,17 @@ import StudentTeamPage from "./pages/team/StudentTeamPage";
 import StudentAiTeamPage from "./pages/projects/StudentAiTeamPage";
 import DoctorsPage from "./pages/doctors/DoctorsPage";
 import ChatPage from "./pages/messages/ChatPage";
+import StudentAssociationRegisterPage from "./pages/auth/StudentAssociationRegisterPage";
+import AssociationDashboardPage from "./pages/association/AssociationDashboardPage";
+import AssociationProfilePage from "./pages/association/AssociationProfilePage";
+import OrganizationEventsListPage from "./pages/association/events/OrganizationEventsListPage";
+import OrganizationEventCreatePage from "./pages/association/events/OrganizationEventCreatePage";
+import OrganizationEventDetailsPage from "./pages/association/events/OrganizationEventDetailsPage";
+import OrganizationEventEditPage from "./pages/association/events/OrganizationEventEditPage";
+import OrganizationTeamMembersPage from "./pages/association/OrganizationTeamMembersPage";
+import PublicOrganizationProfilePage from "./pages/organizations/PublicOrganizationProfilePage";
+import PublicOrganizationEventPage from "./pages/organizations/PublicOrganizationEventPage";
+import { isAssociationRole } from "../api/associationApi";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token')
@@ -40,11 +52,44 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     return <>{children}</>
 }
 
+function StudentFollowingOrganizationsRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentFollowingOrganizationsPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 /** Student dashboard — doctors and unknown roles are redirected to avoid wrong UI. */
 function StudentDashboardRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
     if (role === "student") return <DashboardPage />;
+    return <Navigate to="/" replace />;
+}
+
+function AssociationDashboardRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (isAssociationRole(role)) return <AssociationDashboardPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function AssociationProfileRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (isAssociationRole(role)) return <AssociationProfilePage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function OrganizationEventsRoute({ children }: { children: ReactNode }) {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (isAssociationRole(role)) return <>{children}</>;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
     return <Navigate to="/" replace />;
 }
 
@@ -52,6 +97,7 @@ function StudentDashboardRoute() {
 function DoctorDashboardRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "student") return <Navigate to="/dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
     if (role === "doctor") return <DoctorDashboardPage />;
     return <Navigate to="/" replace />;
 }
@@ -195,6 +241,7 @@ export default function App() {
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/register/association" element={<StudentAssociationRegisterPage />} />
                     <Route path="/students/:studentId" element={<ProfilePage />} />
                     <Route path="/doctors/:doctorId" element={<DoctorProfilePage />} />
 
@@ -226,6 +273,25 @@ export default function App() {
                         element={<ProtectedRoute><StudentAiTeamRoute /></ProtectedRoute>}
                     />
                     <Route path="/messages" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+
+                    {/* Public organization profiles (authenticated, view-only) */}
+                    <Route
+                        path="/organizations/:organizationId"
+                        element={<ProtectedRoute><PublicOrganizationProfilePage /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/organizations/:organizationId/events/:eventId"
+                        element={<ProtectedRoute><PublicOrganizationEventPage /></ProtectedRoute>}
+                    />
+
+                    {/* Protected – Student Organization */}
+                    <Route path="/association/dashboard" element={<ProtectedRoute><AssociationDashboardRoute /></ProtectedRoute>} />
+                    <Route path="/association/profile" element={<ProtectedRoute><AssociationProfileRoute /></ProtectedRoute>} />
+                    <Route path="/organization/events" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationEventsListPage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/events/create" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationEventCreatePage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/events/:eventId" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationEventDetailsPage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/events/:eventId/edit" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationEventEditPage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/team-members" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationTeamMembersPage /></OrganizationEventsRoute></ProtectedRoute>} />
 
                     {/* Protected – Doctor */}
                     <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardRoute /></ProtectedRoute>} />
@@ -259,6 +325,7 @@ export default function App() {
 
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
+                    <Route path="/student/following" element={<ProtectedRoute><StudentFollowingOrganizationsRoute /></ProtectedRoute>} />
                     <Route
                         path="/students/profile/:userId"
                         element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>}

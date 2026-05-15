@@ -582,7 +582,7 @@ export default function StudentProfilePage() {
                 {allSkills.length === 0 && !profile.bio ? (
                   <View style={styles.emptyCard}>
                     <Text style={styles.emptyEmoji}>📋</Text>
-                    <Text style={styles.emptyText}>This student hasn't filled in their skills yet.</Text>
+                    <Text style={styles.emptyText}>{"This student hasn't filled in their skills yet."}</Text>
                   </View>
                 ) : null}
               </View>

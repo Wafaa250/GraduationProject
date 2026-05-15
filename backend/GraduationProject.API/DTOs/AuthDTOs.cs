@@ -126,19 +126,6 @@ namespace GraduationProject.API.DTOs
     }
 
     // ===========================
-    // REGISTER - ASSOCIATION
-    // ===========================
-    public class RegisterAssociationDto
-    {
-        [Required] public string Name        { get; set; } = string.Empty;
-        [Required, EmailAddress] public string Email { get; set; } = string.Empty;
-        [Required, MinLength(6)] public string Password { get; set; } = string.Empty;
-
-        [Required] public string AssociationName { get; set; } = string.Empty;
-        public string? Description { get; set; }
-    }
-
-    // ===========================
     // AUTH RESPONSE
     // ===========================
     public class AuthResponseDto
