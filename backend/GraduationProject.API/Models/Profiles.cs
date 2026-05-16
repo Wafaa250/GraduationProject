@@ -114,6 +114,8 @@ namespace GraduationProject.API.Models
         public ICollection<StudentOrganizationEvent> Events { get; set; } = new List<StudentOrganizationEvent>();
         public ICollection<OrganizationFollow> Followers { get; set; } = new List<OrganizationFollow>();
         public ICollection<StudentOrganizationTeamMember> TeamMembers { get; set; } = new List<StudentOrganizationTeamMember>();
+        public ICollection<StudentOrganizationRecruitmentCampaign> RecruitmentCampaigns { get; set; } =
+            new List<StudentOrganizationRecruitmentCampaign>();
     }
 
     // ===========================

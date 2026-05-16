@@ -133,6 +133,12 @@ export default function OrganizationDashboardScreen() {
                 onPress={() => router.push("/organization/team-members" as Href)}
               />
               <QuickAction
+                icon="megaphone-outline"
+                title="Recruitment campaigns"
+                desc="Publish open positions with custom role titles"
+                onPress={() => router.push("/organization/recruitment-campaigns" as Href)}
+              />
+              <QuickAction
                 icon="sparkles-outline"
                 title="Discovery"
                 desc="Discover students based on skills and interests"

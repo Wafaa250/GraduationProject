@@ -12,7 +12,12 @@ import {
   type PublicStudentOrganizationProfile,
 } from "@/api/publicOrganizationsApi";
 import { OrgEventCard } from "@/components/organization/OrgEventCard";
+import { PublicRecruitmentCampaignCard } from "@/components/organization/PublicRecruitmentCampaignCard";
 import { LeadershipMemberPublicCard } from "@/components/organization/LeadershipMemberPublicCard";
+import {
+  listPublicRecruitmentCampaigns,
+  type PublicRecruitmentCampaignSummary,
+} from "@/api/organizationRecruitmentCampaignsApi";
 import { OrgScreenHeader } from "@/components/organization/OrgScreenHeader";
 import { SocialLinksRow } from "@/components/organization/SocialLinksRow";
 import { assocColors } from "@/constants/associationTheme";
@@ -52,6 +57,10 @@ export default function PublicOrganizationProfileScreen() {
   const orgId = Number(organizationId);
   const [profile, setProfile] = useState<PublicStudentOrganizationProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recruitmentCampaigns, setRecruitmentCampaigns] = useState<PublicRecruitmentCampaignSummary[]>(
+    [],
+  );
+  const [recruitmentLoading, setRecruitmentLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!Number.isFinite(orgId)) {
@@ -73,6 +82,25 @@ export default function PublicOrganizationProfileScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!Number.isFinite(orgId) || !profile) return;
+    let cancelled = false;
+    void (async () => {
+      setRecruitmentLoading(true);
+      try {
+        const data = await listPublicRecruitmentCampaigns(orgId);
+        if (!cancelled) setRecruitmentCampaigns(data);
+      } catch {
+        if (!cancelled) setRecruitmentCampaigns([]);
+      } finally {
+        if (!cancelled) setRecruitmentLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId, profile]);
 
   const leadershipTeam: PublicLeadershipTeamMember[] = profile?.leadershipTeam ?? [];
   const logo = profile ? resolveApiFileUrl(profile.logoUrl ?? undefined) : null;
@@ -170,7 +198,26 @@ export default function PublicOrganizationProfileScreen() {
             </View>
           ) : null}
 
-          <Text style={styles.sectionH}>Upcoming events</Text>
+          <Text style={styles.sectionH}>Open recruitment</Text>
+          {recruitmentLoading ? (
+            <ActivityIndicator color={assocColors.accent} style={{ marginBottom: spacing.lg }} />
+          ) : recruitmentCampaigns.length === 0 ? (
+            <Text style={styles.muted}>No open recruitment campaigns right now.</Text>
+          ) : (
+            recruitmentCampaigns.map((c) => (
+              <PublicRecruitmentCampaignCard
+                key={c.id}
+                campaign={c}
+                onPress={() =>
+                  router.push(
+                    `/public-organizations/${orgId}/recruitment-campaigns/${c.id}` as Href,
+                  )
+                }
+              />
+            ))
+          )}
+
+          <Text style={[styles.sectionH, { marginTop: spacing.xl }]}>Upcoming events</Text>
           {profile.upcomingEvents.length === 0 ? (
             <Text style={styles.muted}>No upcoming events published.</Text>
           ) : (

@@ -41,9 +41,16 @@ import OrganizationEventsListPage from "./pages/association/events/OrganizationE
 import OrganizationEventCreatePage from "./pages/association/events/OrganizationEventCreatePage";
 import OrganizationEventDetailsPage from "./pages/association/events/OrganizationEventDetailsPage";
 import OrganizationEventEditPage from "./pages/association/events/OrganizationEventEditPage";
+import OrganizationEventRegistrationFormPage from "./pages/association/events/OrganizationEventRegistrationFormPage";
 import OrganizationTeamMembersPage from "./pages/association/OrganizationTeamMembersPage";
+import OrganizationRecruitmentCampaignsListPage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignsListPage";
+import OrganizationRecruitmentCampaignCreatePage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignCreatePage";
+import OrganizationRecruitmentCampaignDetailsPage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignDetailsPage";
+import OrganizationRecruitmentCampaignEditPage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignEditPage";
+import OrganizationRecruitmentPositionFormPage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentPositionFormPage";
 import PublicOrganizationProfilePage from "./pages/organizations/PublicOrganizationProfilePage";
 import PublicOrganizationEventPage from "./pages/organizations/PublicOrganizationEventPage";
+import PublicRecruitmentCampaignPage from "./pages/organizations/PublicRecruitmentCampaignPage";
 import { isAssociationRole } from "../api/associationApi";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -283,6 +290,10 @@ export default function App() {
                         path="/organizations/:organizationId/events/:eventId"
                         element={<ProtectedRoute><PublicOrganizationEventPage /></ProtectedRoute>}
                     />
+                    <Route
+                        path="/organizations/:organizationId/recruitment-campaigns/:campaignId"
+                        element={<ProtectedRoute><PublicRecruitmentCampaignPage /></ProtectedRoute>}
+                    />
 
                     {/* Protected – Student Organization */}
                     <Route path="/association/dashboard" element={<ProtectedRoute><AssociationDashboardRoute /></ProtectedRoute>} />
@@ -291,7 +302,13 @@ export default function App() {
                     <Route path="/organization/events/create" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationEventCreatePage /></OrganizationEventsRoute></ProtectedRoute>} />
                     <Route path="/organization/events/:eventId" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationEventDetailsPage /></OrganizationEventsRoute></ProtectedRoute>} />
                     <Route path="/organization/events/:eventId/edit" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationEventEditPage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/events/:eventId/registration-form" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationEventRegistrationFormPage /></OrganizationEventsRoute></ProtectedRoute>} />
                     <Route path="/organization/team-members" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationTeamMembersPage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/recruitment-campaigns" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentCampaignsListPage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/recruitment-campaigns/create" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentCampaignCreatePage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/recruitment-campaigns/:campaignId" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentCampaignDetailsPage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/recruitment-campaigns/:campaignId/edit" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentCampaignEditPage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/recruitment-campaigns/:campaignId/positions/:positionId/form" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentPositionFormPage /></OrganizationEventsRoute></ProtectedRoute>} />
 
                     {/* Protected – Doctor */}
                     <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardRoute /></ProtectedRoute>} />

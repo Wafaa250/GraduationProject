@@ -9,6 +9,7 @@ export default function OrganizationLayout() {
         <Stack.Screen name="dashboard" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="events" />
+        <Stack.Screen name="recruitment-campaigns" />
         <Stack.Screen name="team-members" />
       </Stack>
     </OrganizationGate>

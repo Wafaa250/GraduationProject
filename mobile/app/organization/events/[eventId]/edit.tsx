@@ -9,6 +9,7 @@ import {
   updateOrganizationEvent,
   type StudentOrganizationEvent,
 } from "@/api/organizationEventsApi";
+import { EventRegistrationFormSection } from "@/components/organization/EventRegistrationFormSection";
 import { OrganizationEventForm } from "@/components/organization/OrganizationEventForm";
 import { OrgScreenHeader } from "@/components/organization/OrgScreenHeader";
 import { assocColors } from "@/constants/associationTheme";
@@ -62,6 +63,13 @@ export default function OrganizationEventEditScreen() {
             submitLabel="Save changes"
             saving={saving}
             onCancel={() => router.back()}
+            extraContent={
+              <EventRegistrationFormSection
+                eventId={event.id}
+                eventTitle={event.title}
+                disabled={saving}
+              />
+            }
             onSubmit={async (payload) => {
               setSaving(true);
               try {

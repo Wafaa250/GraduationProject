@@ -51,6 +51,29 @@ export type PublicOrganizationListItem = {
   isVerified: boolean
 }
 
+export type EventRegistrationFieldPublic = {
+  id: number
+  formId: number
+  label: string
+  fieldType: string
+  placeholder?: string | null
+  helpText?: string | null
+  isRequired: boolean
+  options?: string[] | null
+  displayOrder: number
+  createdAt: string
+}
+
+export type EventRegistrationFormPublic = {
+  id: number
+  eventId: number
+  title: string
+  description?: string | null
+  createdAt: string
+  updatedAt?: string | null
+  fields: EventRegistrationFieldPublic[]
+}
+
 export type PublicOrganizationEventDetail = {
   id: number
   organizationId: number
@@ -65,6 +88,7 @@ export type PublicOrganizationEventDetail = {
   isOnline: boolean
   organizationName: string
   organizationLogoUrl?: string | null
+  registrationForm?: EventRegistrationFormPublic | null
 }
 
 export async function listPublicOrganizations(): Promise<PublicOrganizationListItem[]> {

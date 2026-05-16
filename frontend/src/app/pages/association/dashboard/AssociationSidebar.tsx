@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutDashboard, User, UsersRound } from 'lucide-react'
+import { CalendarDays, LayoutDashboard, Megaphone, User, UsersRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { AssociationAvatar } from '../../../components/association/associationBrand'
 import { assocDash } from './associationDashTokens'
@@ -6,6 +6,12 @@ import { assocDash } from './associationDashTokens'
 const NAV = [
   { to: '/association/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/organization/events', label: 'Events', icon: CalendarDays, matchPrefix: true },
+  {
+    to: '/organization/recruitment-campaigns',
+    label: 'Recruitment',
+    icon: Megaphone,
+    matchPrefix: true,
+  },
   { to: '/organization/team-members', label: 'Leadership Team', icon: UsersRound, matchPrefix: true },
   { to: '/association/profile', label: 'Profile', icon: User },
 ] as const

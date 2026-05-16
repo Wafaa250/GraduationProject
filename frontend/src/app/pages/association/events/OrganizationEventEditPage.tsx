@@ -9,6 +9,7 @@ import {
 } from '../../../../api/organizationEventsApi'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
 import { assocDash } from '../dashboard/associationDashTokens'
+import { EventRegistrationFormSection } from '../../../components/association/EventRegistrationFormSection'
 import { OrganizationEventForm, eventToFormValues } from './OrganizationEventForm'
 import { useAssociationShell } from './useAssociationShell'
 
@@ -75,14 +76,15 @@ export default function OrganizationEventEditPage() {
       {loading || shell.loading ? (
         <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading event…</p>
       ) : event ? (
-        <OrganizationEventForm
-          key={event.id}
-          mode="edit"
-          initialValues={eventToFormValues(event)}
-          submitLabel="Save changes"
-          cancelTo={`/organization/events/${id}`}
-          saving={saving}
-          onSubmit={async (payload) => {
+        <>
+          <OrganizationEventForm
+            key={event.id}
+            mode="edit"
+            initialValues={eventToFormValues(event)}
+            submitLabel="Save changes"
+            cancelTo={`/organization/events/${id}`}
+            saving={saving}
+            onSubmit={async (payload) => {
             setSaving(true)
             try {
               await updateOrganizationEvent(id, payload)
@@ -95,7 +97,13 @@ export default function OrganizationEventEditPage() {
               setSaving(false)
             }
           }}
-        />
+          />
+          <EventRegistrationFormSection
+            eventId={id}
+            eventTitle={event.title}
+            disabled={saving}
+          />
+        </>
       ) : null}
     </AssociationDashboardLayout>
   )

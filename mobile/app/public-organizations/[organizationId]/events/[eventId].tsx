@@ -14,7 +14,9 @@ import { OrgScreenHeader } from "@/components/organization/OrgScreenHeader";
 import { AssociationAvatar } from "@/components/organization/AssociationAvatar";
 import { assocColors } from "@/constants/associationTheme";
 import { radius, spacing } from "@/constants/responsiveLayout";
+import { ApplicationFormPreview } from "@/components/organization/ApplicationFormPreview";
 import { formatEventDate } from "@/utils/eventFormUtils";
+import { eventFieldsToPreviewFields } from "@/utils/eventRegistrationFormFields";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 export default function PublicOrganizationEventScreen() {
@@ -120,6 +122,19 @@ export default function PublicOrganizationEventScreen() {
               <Text style={styles.section}>About</Text>
               <Text style={styles.body}>{event.description}</Text>
 
+              {event.registrationForm ? (
+                <>
+                  <Text style={styles.section}>Registration form preview</Text>
+                  <Text style={styles.previewHint}>
+                    Read-only preview until registration opens.
+                  </Text>
+                  <ApplicationFormPreview
+                    fields={eventFieldsToPreviewFields(event.registrationForm.fields)}
+                    title={event.registrationForm.title}
+                  />
+                </>
+              ) : null}
+
               <Text style={styles.section}>Hosted by</Text>
               <View style={styles.host}>
                 <AssociationAvatar
@@ -193,6 +208,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: assocColors.text,
     fontWeight: "500",
+  },
+  previewHint: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+    fontSize: 13,
+    color: assocColors.muted,
+    lineHeight: 18,
   },
   host: {
     marginTop: spacing.md,

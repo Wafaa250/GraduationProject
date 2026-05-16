@@ -15,8 +15,18 @@ namespace GraduationProject.API.Data
         public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
         public DbSet<StudentAssociationProfile> StudentAssociationProfiles => Set<StudentAssociationProfile>();
         public DbSet<StudentOrganizationEvent> StudentOrganizationEvents => Set<StudentOrganizationEvent>();
+        public DbSet<StudentOrganizationEventRegistrationForm> StudentOrganizationEventRegistrationForms =>
+            Set<StudentOrganizationEventRegistrationForm>();
+        public DbSet<StudentOrganizationEventRegistrationField> StudentOrganizationEventRegistrationFields =>
+            Set<StudentOrganizationEventRegistrationField>();
         public DbSet<OrganizationFollow> OrganizationFollows => Set<OrganizationFollow>();
         public DbSet<StudentOrganizationTeamMember> StudentOrganizationTeamMembers => Set<StudentOrganizationTeamMember>();
+        public DbSet<StudentOrganizationRecruitmentCampaign> StudentOrganizationRecruitmentCampaigns =>
+            Set<StudentOrganizationRecruitmentCampaign>();
+        public DbSet<StudentOrganizationRecruitmentPosition> StudentOrganizationRecruitmentPositions =>
+            Set<StudentOrganizationRecruitmentPosition>();
+        public DbSet<StudentOrganizationRecruitmentQuestion> StudentOrganizationRecruitmentQuestions =>
+            Set<StudentOrganizationRecruitmentQuestion>();
         public DbSet<Skill> Skills => Set<Skill>();
         public DbSet<StudentSkill> StudentSkills => Set<StudentSkill>();
 
@@ -103,6 +113,27 @@ namespace GraduationProject.API.Data
                 e.HasIndex(ev => ev.OrganizationProfileId);
             });
 
+            modelBuilder.Entity<StudentOrganizationEventRegistrationForm>(e =>
+            {
+                e.ToTable("student_organization_event_registration_forms");
+                e.HasOne(f => f.Event)
+                 .WithOne(ev => ev.RegistrationForm)
+                 .HasForeignKey<StudentOrganizationEventRegistrationForm>(f => f.EventId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(f => f.EventId).IsUnique();
+            });
+
+            modelBuilder.Entity<StudentOrganizationEventRegistrationField>(e =>
+            {
+                e.ToTable("student_organization_event_registration_fields");
+                e.HasOne(f => f.Form)
+                 .WithMany(form => form.Fields)
+                 .HasForeignKey(f => f.FormId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(f => f.FormId);
+                e.HasIndex(f => new { f.FormId, f.DisplayOrder });
+            });
+
             modelBuilder.Entity<StudentOrganizationTeamMember>(e =>
             {
                 e.ToTable("student_organization_team_members");
@@ -112,6 +143,45 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Cascade);
                 e.HasIndex(m => m.OrganizationProfileId);
                 e.HasIndex(m => new { m.OrganizationProfileId, m.DisplayOrder });
+            });
+
+            modelBuilder.Entity<StudentOrganizationRecruitmentCampaign>(e =>
+            {
+                e.ToTable("student_organization_recruitment_campaigns");
+                e.HasOne(c => c.OrganizationProfile)
+                 .WithMany(p => p.RecruitmentCampaigns)
+                 .HasForeignKey(c => c.OrganizationProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(c => c.OrganizationProfileId);
+                e.HasIndex(c => new { c.OrganizationProfileId, c.IsPublished });
+            });
+
+            modelBuilder.Entity<StudentOrganizationRecruitmentPosition>(e =>
+            {
+                e.ToTable("student_organization_recruitment_positions");
+                e.HasOne(p => p.Campaign)
+                 .WithMany(c => c.Positions)
+                 .HasForeignKey(p => p.CampaignId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(p => p.CampaignId);
+                e.HasIndex(p => new { p.CampaignId, p.DisplayOrder });
+            });
+
+            modelBuilder.Entity<StudentOrganizationRecruitmentQuestion>(e =>
+            {
+                e.ToTable("student_organization_recruitment_questions");
+                e.HasOne(q => q.Campaign)
+                 .WithMany(c => c.Questions)
+                 .HasForeignKey(q => q.CampaignId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(q => q.Position)
+                 .WithMany(p => p.Questions)
+                 .HasForeignKey(q => q.PositionId)
+                 .OnDelete(DeleteBehavior.SetNull);
+                e.HasIndex(q => q.CampaignId);
+                e.HasIndex(q => q.PositionId);
+                e.HasIndex(q => new { q.CampaignId, q.DisplayOrder });
+                e.HasIndex(q => new { q.CampaignId, q.PositionId, q.DisplayOrder });
             });
 
             modelBuilder.Entity<OrganizationFollow>(e =>

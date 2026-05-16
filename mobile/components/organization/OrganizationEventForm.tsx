@@ -75,6 +75,7 @@ type Props = {
   saving: boolean;
   onSubmit: (payload: CreateOrganizationEventPayload) => Promise<void>;
   onCancel: () => void;
+  extraContent?: ReactNode;
 };
 
 export function OrganizationEventForm({
@@ -83,6 +84,7 @@ export function OrganizationEventForm({
   saving,
   onSubmit,
   onCancel,
+  extraContent,
 }: Props) {
   const [form, setForm] = useState<FormValues>(() =>
     initialEvent ? eventToValues(initialEvent) : emptyValues(),
@@ -285,6 +287,8 @@ export function OrganizationEventForm({
           {coverBusy ? <ActivityIndicator style={styles.coverSpin} color={assocColors.accent} /> : null}
         </Pressable>
         {coverErr ? <Text style={styles.err}>{coverErr}</Text> : null}
+
+        {extraContent}
 
         <View style={styles.actions}>
           <Pressable onPress={onCancel} style={styles.btnSecondary} disabled={saving}>

@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, Heart, Loader2, Linkedin } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Heart, Loader2, Linkedin, Megaphone } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { resolveApiFileUrl } from '../../../api/axiosInstance'
 import {
@@ -13,6 +13,11 @@ import {
   type PublicStudentOrganizationProfile,
 } from '../../../api/organizationsApi'
 import { PublicOrganizationEventCard } from '../../components/association/PublicOrganizationEventCard'
+import { PublicRecruitmentCampaignCard } from '../../components/association/PublicRecruitmentCampaignCard'
+import {
+  listPublicRecruitmentCampaigns,
+  type PublicRecruitmentCampaignSummary,
+} from '../../../api/recruitmentCampaignsApi'
 import { AssociationAvatar, CategoryBadge, VerifiedBadge } from '../../components/association/associationBrand'
 import { SocialLinksList } from '../../components/association/SocialLinksList'
 import { assocDash } from '../association/dashboard/associationDashTokens'
@@ -29,6 +34,8 @@ export default function PublicOrganizationProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false)
   const [followStatusLoading, setFollowStatusLoading] = useState(false)
   const [followBusy, setFollowBusy] = useState(false)
+  const [recruitmentCampaigns, setRecruitmentCampaigns] = useState<PublicRecruitmentCampaignSummary[]>([])
+  const [recruitmentLoading, setRecruitmentLoading] = useState(false)
 
   const orgId = Number(organizationId)
   const isStudent = isStudentRole()
@@ -77,6 +84,25 @@ export default function PublicOrganizationProfilePage() {
       cancelled = true
     }
   }, [isStudent, orgId, profile])
+
+  useEffect(() => {
+    if (!Number.isFinite(orgId) || !profile) return
+    let cancelled = false
+    ;(async () => {
+      setRecruitmentLoading(true)
+      try {
+        const data = await listPublicRecruitmentCampaigns(orgId)
+        if (!cancelled) setRecruitmentCampaigns(data)
+      } catch {
+        if (!cancelled) setRecruitmentCampaigns([])
+      } finally {
+        if (!cancelled) setRecruitmentLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [orgId, profile])
 
   const joinedLabel = profile ? formatJoinedDate(profile.createdAt) : ''
   const about = profile?.description?.trim()
@@ -311,6 +337,61 @@ export default function PublicOrganizationProfilePage() {
                 </div>
               </section>
             )}
+
+            <section style={{ ...publicOrgPage.card, padding: 28, marginBottom: 24 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Megaphone size={22} color={assocDash.accent} />
+                  <h2 style={{ ...publicOrgPage.sectionTitle, margin: 0 }}>Open recruitment</h2>
+                </div>
+              </div>
+
+              {recruitmentLoading ? (
+                <p style={{ margin: 0, fontSize: 14, color: assocDash.muted }}>Loading campaigns…</p>
+              ) : recruitmentCampaigns.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '28px 20px',
+                    borderRadius: assocDash.radiusMd,
+                    background: assocDash.accentMuted,
+                    border: `1px dashed ${assocDash.accentBorder}`,
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: assocDash.text }}>
+                    No open recruitment campaigns right now.
+                  </p>
+                  <p style={{ margin: '8px 0 0', fontSize: 13, color: assocDash.muted }}>
+                    Check back later for published roles and deadlines.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: 18,
+                  }}
+                >
+                  {recruitmentCampaigns.map((campaign) => (
+                    <PublicRecruitmentCampaignCard
+                      key={campaign.id}
+                      organizationId={orgId}
+                      campaign={campaign}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
 
             <section style={{ ...publicOrgPage.card, padding: 28 }}>
               <div

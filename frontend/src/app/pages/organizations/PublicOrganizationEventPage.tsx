@@ -8,7 +8,9 @@ import {
   parseApiErrorMessage,
   type PublicOrganizationEventDetail,
 } from '../../../api/organizationsApi'
+import { ApplicationFormPreview } from '../../components/association/ApplicationFormPreview'
 import { AssociationAvatar } from '../../components/association/associationBrand'
+import { eventFieldsToPreviewFields } from '../../../utils/eventRegistrationFormFields'
 import { assocDash } from '../association/dashboard/associationDashTokens'
 import { formatEventDate } from '../association/events/eventFormUtils'
 import { publicOrgPage } from './publicOrgPageStyles'
@@ -187,6 +189,32 @@ export default function PublicOrganizationEventPage() {
                 {event.description}
               </p>
             </section>
+
+            {event.registrationForm ? (
+              <section style={{ ...publicOrgPage.card, padding: 28 }}>
+                <h2 style={publicOrgPage.sectionTitle}>Registration form preview</h2>
+                <p style={{ margin: '0 0 20px', fontSize: 13, color: assocDash.muted, lineHeight: 1.5 }}>
+                  This is the form you will complete when registering (read-only until registration opens).
+                </p>
+                {event.registrationForm.description?.trim() ? (
+                  <p
+                    style={{
+                      margin: '0 0 16px',
+                      fontSize: 14,
+                      color: assocDash.text,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {event.registrationForm.description.trim()}
+                  </p>
+                ) : null}
+                <ApplicationFormPreview
+                  fields={eventFieldsToPreviewFields(event.registrationForm.fields)}
+                  title={event.registrationForm.title}
+                  inline
+                />
+              </section>
+            ) : null}
           </>
         ) : null}
       </div>

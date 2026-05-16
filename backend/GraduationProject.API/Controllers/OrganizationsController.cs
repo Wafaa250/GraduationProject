@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -176,6 +177,90 @@ namespace GraduationProject.API.Controllers
             return Ok(new { message = "Unfollowed.", isFollowing = false });
         }
 
+        // GET /api/organizations/{organizationId}/recruitment-campaigns
+        [HttpGet("{organizationId:int}/recruitment-campaigns")]
+        public async Task<IActionResult> ListRecruitmentCampaigns(int organizationId)
+        {
+            var exists = await _db.StudentAssociationProfiles.AnyAsync(p => p.Id == organizationId);
+            if (!exists)
+                return NotFound(new { message = "Organization not found." });
+
+            var now = DateTime.UtcNow;
+            var items = await _db.StudentOrganizationRecruitmentCampaigns
+                .AsNoTracking()
+                .Where(c =>
+                    c.OrganizationProfileId == organizationId &&
+                    c.IsPublished &&
+                    c.ApplicationDeadline >= now)
+                .OrderBy(c => c.ApplicationDeadline)
+                .Select(c => new PublicRecruitmentCampaignSummaryDto
+                {
+                    Id = c.Id,
+                    Title = c.Title,
+                    CoverImageUrl = c.CoverImageUrl,
+                    ApplicationDeadline = c.ApplicationDeadline,
+                    OpenPositionsCount = c.Positions.Count,
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
+        // GET /api/organizations/{organizationId}/recruitment-campaigns/{campaignId}
+        [HttpGet("{organizationId:int}/recruitment-campaigns/{campaignId:int}")]
+        public async Task<IActionResult> GetRecruitmentCampaign(int organizationId, int campaignId)
+        {
+            var profile = await _db.StudentAssociationProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == organizationId);
+
+            if (profile == null)
+                return NotFound(new { message = "Organization not found." });
+
+            var now = DateTime.UtcNow;
+            var campaign = await _db.StudentOrganizationRecruitmentCampaigns
+                .AsNoTracking()
+                .Include(c => c.Positions)
+                .Include(c => c.Questions)
+                    .ThenInclude(q => q.Position)
+                .FirstOrDefaultAsync(c =>
+                    c.Id == campaignId &&
+                    c.OrganizationProfileId == organizationId &&
+                    c.IsPublished &&
+                    c.ApplicationDeadline >= now);
+
+            if (campaign == null)
+                return NotFound(new { message = "Recruitment campaign not found." });
+
+            return Ok(new PublicRecruitmentCampaignDetailDto
+            {
+                Id = campaign.Id,
+                OrganizationId = organizationId,
+                Title = campaign.Title,
+                Description = campaign.Description,
+                ApplicationDeadline = campaign.ApplicationDeadline,
+                CoverImageUrl = campaign.CoverImageUrl,
+                OrganizationName = profile.AssociationName,
+                OrganizationLogoUrl = profile.LogoUrl,
+                Positions = campaign.Positions
+                    .OrderBy(p => p.DisplayOrder)
+                    .ThenBy(p => p.Id)
+                    .Select(p => new RecruitmentPositionResponseDto
+                    {
+                        Id = p.Id,
+                        CampaignId = p.CampaignId,
+                        RoleTitle = p.RoleTitle,
+                        NeededCount = p.NeededCount,
+                        Description = p.Description,
+                        Requirements = p.Requirements,
+                        RequiredSkills = p.RequiredSkills,
+                        DisplayOrder = p.DisplayOrder,
+                    })
+                    .ToList(),
+                Questions = MapPublicQuestions(campaign.Questions),
+            });
+        }
+
         // GET /api/organizations/{organizationId}/events/{eventId}
         [HttpGet("{organizationId:int}/events/{eventId:int}")]
         public async Task<IActionResult> GetEvent(int organizationId, int eventId)
@@ -193,6 +278,11 @@ namespace GraduationProject.API.Controllers
             if (entity == null)
                 return NotFound(new { message = "Event not found." });
 
+            var registrationForm = await _db.StudentOrganizationEventRegistrationForms
+                .AsNoTracking()
+                .Include(f => f.Fields)
+                .FirstOrDefaultAsync(f => f.EventId == eventId);
+
             return Ok(new PublicOrganizationEventDetailDto
             {
                 Id = entity.Id,
@@ -208,6 +298,9 @@ namespace GraduationProject.API.Controllers
                 IsOnline = entity.IsOnline,
                 OrganizationName = profile.AssociationName,
                 OrganizationLogoUrl = profile.LogoUrl,
+                RegistrationForm = registrationForm == null
+                    ? null
+                    : MapPublicRegistrationForm(registrationForm),
             });
         }
 
@@ -251,5 +344,87 @@ namespace GraduationProject.API.Controllers
             FollowersCount = followersCount,
             LeadershipTeam = leadershipTeam,
         };
+
+        private static readonly JsonSerializerOptions QuestionJsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        };
+
+        private static List<RecruitmentQuestionResponseDto> MapPublicQuestions(
+            IEnumerable<StudentOrganizationRecruitmentQuestion> questions) =>
+            questions
+                .OrderBy(q => q.DisplayOrder)
+                .ThenBy(q => q.Id)
+                .Select(q => new RecruitmentQuestionResponseDto
+                {
+                    Id = q.Id,
+                    CampaignId = q.CampaignId,
+                    QuestionTitle = q.QuestionTitle,
+                    QuestionType = q.QuestionType,
+                    Placeholder = q.Placeholder,
+                    HelpText = q.HelpText,
+                    IsRequired = q.IsRequired,
+                    Options = DeserializeQuestionOptions(q.Options),
+                    DisplayOrder = q.DisplayOrder,
+                    CreatedAt = q.CreatedAt,
+                    PositionId = q.PositionId,
+                    PositionRoleTitle = q.Position != null ? q.Position.RoleTitle : null,
+                })
+                .ToList();
+
+        private static EventRegistrationFormResponseDto MapPublicRegistrationForm(
+            StudentOrganizationEventRegistrationForm form) =>
+            new()
+            {
+                Id = form.Id,
+                EventId = form.EventId,
+                Title = form.Title,
+                Description = form.Description,
+                CreatedAt = form.CreatedAt,
+                UpdatedAt = form.UpdatedAt,
+                Fields = form.Fields
+                    .OrderBy(f => f.DisplayOrder)
+                    .ThenBy(f => f.Id)
+                    .Select(f => new EventRegistrationFieldResponseDto
+                    {
+                        Id = f.Id,
+                        FormId = f.FormId,
+                        Label = f.Label,
+                        FieldType = f.FieldType,
+                        Placeholder = f.Placeholder,
+                        HelpText = f.HelpText,
+                        IsRequired = f.IsRequired,
+                        Options = DeserializeFieldOptions(f.Options),
+                        DisplayOrder = f.DisplayOrder,
+                        CreatedAt = f.CreatedAt,
+                    })
+                    .ToList(),
+            };
+
+        private static List<string>? DeserializeFieldOptions(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(json, QuestionJsonOptions);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static List<string>? DeserializeQuestionOptions(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(json, QuestionJsonOptions);
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }

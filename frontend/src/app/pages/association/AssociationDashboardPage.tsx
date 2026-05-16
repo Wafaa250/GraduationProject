@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CalendarPlus, CalendarDays, Pencil, UsersRound, Sparkles } from 'lucide-react'
+import { CalendarPlus, CalendarDays, Megaphone, Pencil, UsersRound, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
   AssociationAvatar,
@@ -234,6 +234,13 @@ function QuickActionsCard({ navigate }: { navigate: (path: string) => void }) {
       desc: 'Showcase coordinators and representatives on your public profile',
       disabled: false,
       onClick: () => navigate('/organization/team-members'),
+    },
+    {
+      icon: Megaphone,
+      title: 'Recruitment campaigns',
+      desc: 'Publish open positions with custom role titles',
+      disabled: false,
+      onClick: () => navigate('/organization/recruitment-campaigns'),
     },
     {
       icon: Sparkles,

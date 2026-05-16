@@ -64,6 +64,7 @@ namespace GraduationProject.API.DTOs
         public bool IsOnline { get; set; }
         public string OrganizationName { get; set; } = string.Empty;
         public string? OrganizationLogoUrl { get; set; }
+        public EventRegistrationFormResponseDto? RegistrationForm { get; set; }
     }
 
     public class PublicOrganizationListItemDto
