@@ -30,7 +30,6 @@ import {
   createGraduationProject,
   getGraduationProjectById,
   getRecommendedStudents,
-  getRecommendedSupervisors as fetchGraduationRecommendedSupervisors,
   isEngineeringOrITFaculty,
   projectTypeForApi,
   removeProjectMember,
@@ -38,7 +37,6 @@ import {
   type GradProject,
   type GradProjectMember,
   type GradProjectRecommendedStudent,
-  type GradProjectRecommendedSupervisor,
   type GraduationProjectType,
 } from "@/api/gradProjectApi";
 import { acceptInvitation, getReceivedInvitations, rejectInvitation, sendInvitation } from "@/api/invitationsApi";
@@ -65,10 +63,13 @@ import {
 import { clearSession, getItem } from "@/utils/authStorage";
 import { getCourseId } from "@/utils/getCourseId";
 
+import { AiSupervisorRecommendationsPanel } from "@/components/project/AiSupervisorRecommendationsPanel";
+import { AiTeammateRecommendations } from "@/components/project/AiTeammateRecommendations";
+import { aiPanelStyles } from "@/components/project/aiRecommendationPanelStyles";
+import type { AiRecommendationPanelUiState } from "@/components/project/AiRecommendationPanel";
 import { CourseTeamsModal } from "./CourseTeamsModal";
 import {
   enrichAiSupervisorsWithRecommended,
-  mergeAiSupervisorCardRequestState,
   type AiSupervisionSnapshot,
   type AiSupervisorCardRequestState,
   type AiSupervisorRecommendUiState,
@@ -128,12 +129,6 @@ interface RecommendedProject {
   formationMode: "students" | "doctor";
 }
 
-interface Application {
-  id: number;
-  project: string;
-  status: string;
-}
-
 /**
  * Pending team-invitation row for the student dashboard card.
  *
@@ -190,6 +185,18 @@ function invitationHubShouldRefreshTeamInvites(payload: unknown): boolean {
   return cat === "graduation_project" || cat === "course";
 }
 
+/** When supervision is accepted or removed, refresh GET /graduation-projects/my so supervisor name appears. */
+function hubShouldRefreshGradProject(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const p = payload as { eventType?: unknown };
+  const evt = String(p.eventType ?? "").trim().toLowerCase();
+  return (
+    evt === "supervision_request_accepted" ||
+    evt === "supervisor_cancellation_accepted" ||
+    evt === "supervision_cancelled_by_doctor"
+  );
+}
+
 function formatInvitationTimestamp(iso: string | null | undefined): string | null {
   if (iso == null || typeof iso !== "string" || iso.trim() === "") return null;
   const d = new Date(iso.trim());
@@ -225,7 +232,13 @@ export function StudentDashboardScreen() {
   const [invitationsHasFetched, setInvitationsHasFetched] = useState(false);
   const [dashboardPullRefreshing, setDashboardPullRefreshing] = useState(false);
   const [recommendedProjects, setRecommendedProjects] = useState<RecommendedProject[]>([]);
-  const [applications] = useState<Application[]>([]);
+  /** Hero strip — filled from GET /dashboard/summary (matched GP count, etc.). */
+  const [dashHeroStats, setDashHeroStats] = useState<{
+    suggestedTeammatesCount?: number;
+    matchedGraduationProjectsCount?: number;
+    bestTeammateMatchPercent?: number | null;
+    pendingTeamInvitationsCount?: number;
+  } | null>(null);
   const [inviteLoading, setInviteLoading] = useState<number | null>(null);
   const [inviteMsg, setInviteMsg] = useState<{ id: number; msg: string; ok: boolean } | null>(null);
 
@@ -258,15 +271,14 @@ export function StudentDashboardScreen() {
   const [removingId, setRemovingId] = useState<number | null>(null);
 
   const [aiStudents, setAiStudents] = useState<GradProjectRecommendedStudent[]>([]);
-  const [aiSupervisors, setAiSupervisors] = useState<GradProjectRecommendedSupervisor[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [loadingSupervisors, setLoadingSupervisors] = useState(false);
+  const [aiStudentsUiState, setAiStudentsUiState] =
+    useState<AiRecommendationPanelUiState>("idle");
   const [aiStudentsError, setAiStudentsError] = useState<string | null>(null);
-  const [aiSupervisorsError, setAiSupervisorsError] = useState<string | null>(null);
 
   const [myRole, setMyRole] = useState<"owner" | "leader" | "member" | null>(null);
   const myUserIdRef = useRef<number | null>(null);
   const fetchInvitationsRef = useRef<(() => Promise<void>) | null>(null);
+  const refetchGradProjectRef = useRef<((opts?: { silent?: boolean }) => Promise<void>) | null>(null);
   const invitationsFetchGenRef = useRef(0);
   const [myStudentId, setMyStudentId] = useState<number | null>(null);
   const [teamMembers, setTeamMembers] = useState<GradProjectMember[]>([]);
@@ -281,7 +293,6 @@ export function StudentDashboardScreen() {
   >({});
 
   const [aiCardInviteLoadingId, setAiCardInviteLoadingId] = useState<number | null>(null);
-  const [aiCardSupervisorLoadingId, setAiCardSupervisorLoadingId] = useState<number | null>(null);
 
   const [totalNotifUnread, setTotalNotifUnread] = useState(0);
   const [chatNotifCount, setChatNotifCount] = useState(0);
@@ -311,6 +322,9 @@ export function StudentDashboardScreen() {
     setAiRecommendItems([]);
     setAiRecommendError(null);
     setAiSupervisorCardRequests({});
+    setAiStudents([]);
+    setAiStudentsUiState("idle");
+    setAiStudentsError(null);
   }, [gradProject?.id]);
 
   const aiSupervisionSnapshot = useMemo((): AiSupervisionSnapshot => {
@@ -616,6 +630,7 @@ export function StudentDashboardScreen() {
     },
     [],
   );
+  refetchGradProjectRef.current = refetchGradProject;
 
   const refreshGradProjectAfterSupervisorRequest = useCallback(async () => {
     await refetchGradProject({ silent: true });
@@ -675,8 +690,15 @@ export function StudentDashboardScreen() {
           setTeammates(
             dashData.suggestedTeammates?.length > 0 ? dashData.suggestedTeammates : [],
           );
+          setDashHeroStats({
+            suggestedTeammatesCount: dashData.suggestedTeammatesCount,
+            matchedGraduationProjectsCount: dashData.matchedGraduationProjectsCount,
+            bestTeammateMatchPercent: dashData.bestTeammateMatchPercent,
+            pendingTeamInvitationsCount: dashData.pendingTeamInvitationsCount,
+          });
         } catch {
           setTeammates([]);
+          setDashHeroStats(null);
         }
         await refetchGradProject();
       } catch {
@@ -688,6 +710,7 @@ export function StudentDashboardScreen() {
           majorSkills: [],
         });
         setTeammates([]);
+        setDashHeroStats(null);
       } finally {
         // CRITICAL: fetchInvitations() must run regardless of whether any
         // earlier dashboard request (profile, dashboard summary, grad project)
@@ -771,6 +794,22 @@ export function StudentDashboardScreen() {
         refreshCourseTeamsDashCardCounts(),
         refetchGradProject({ silent: true }),
         notifTickRef.current(),
+        (async () => {
+          try {
+            const dashData = await getDashboardSummary();
+            setTeammates(
+              dashData.suggestedTeammates?.length > 0 ? dashData.suggestedTeammates : [],
+            );
+            setDashHeroStats({
+              suggestedTeammatesCount: dashData.suggestedTeammatesCount,
+              matchedGraduationProjectsCount: dashData.matchedGraduationProjectsCount,
+              bestTeammateMatchPercent: dashData.bestTeammateMatchPercent,
+              pendingTeamInvitationsCount: dashData.pendingTeamInvitationsCount,
+            });
+          } catch {
+            /* keep previous hero stats */
+          }
+        })(),
       ]);
     } finally {
       setDashboardPullRefreshing(false);
@@ -808,6 +847,9 @@ export function StudentDashboardScreen() {
           payload,
         );
         void fetchInvitationsRef.current?.();
+      }
+      if (hubShouldRefreshGradProject(payload)) {
+        void refetchGradProjectRef.current?.({ silent: true });
       }
     });
 
@@ -1034,35 +1076,18 @@ export function StudentDashboardScreen() {
 
   const handleAiRecommendedStudents = useCallback(async () => {
     if (!gradProject) return;
-    setLoadingStudents(true);
+    setAiStudentsUiState("loading");
     setAiStudentsError(null);
     try {
       const result = await getRecommendedStudents(gradProject.id);
       setAiStudents(result);
+      setAiStudentsUiState(result.length > 0 ? "success" : "empty");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Request failed.";
       setAiStudentsError(msg);
       setAiStudents([]);
-    } finally {
-      setLoadingStudents(false);
-    }
-  }, [gradProject]);
-
-  const handleAiRecommendedSupervisorsJson = useCallback(async () => {
-    if (!gradProject) return;
-    setLoadingSupervisors(true);
-    setAiSupervisorsError(null);
-    try {
-      const result = await fetchGraduationRecommendedSupervisors(gradProject.id);
-      setAiSupervisors(result);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Request failed.";
-      setAiSupervisorsError(msg);
-      setAiSupervisors([]);
-    } finally {
-      setLoadingSupervisors(false);
+      setAiStudentsUiState("error");
     }
   }, [gradProject]);
 
@@ -1081,23 +1106,6 @@ export function StudentDashboardScreen() {
       }
     },
     [gradProject?.id, fetchInvitations, showToast],
-  );
-
-  const handleAiCardRequestSupervisor = useCallback(
-    async (doctorId: number) => {
-      if (!gradProject) return;
-      setAiCardSupervisorLoadingId(doctorId);
-      try {
-        await requestSupervisor(gradProject.id, doctorId);
-        await refreshGradProjectAfterSupervisorRequest();
-        showToast("Request sent", "success");
-      } catch (err: unknown) {
-        showToast(parseApiErrorMessage(err), "error");
-      } finally {
-        setAiCardSupervisorLoadingId(null);
-      }
-    },
-    [gradProject, refreshGradProjectAfterSupervisorRequest, showToast],
   );
 
   const handleRecommendSupervisors = useCallback(async () => {
@@ -1179,6 +1187,15 @@ export function StudentDashboardScreen() {
   );
 
   const canManageGradTeam = myRole === "owner" || myRole === "leader";
+
+  const heroTeammateCount = dashHeroStats?.suggestedTeammatesCount ?? teammates.length;
+  const heroMatchedGp =
+    typeof dashHeroStats?.matchedGraduationProjectsCount === "number"
+      ? dashHeroStats.matchedGraduationProjectsCount
+      : recommendedProjects.length;
+  const heroBestMatch = dashHeroStats?.bestTeammateMatchPercent ?? teammates[0]?.matchScore ?? null;
+  const heroInviteCount =
+    invitations.length > 0 ? invitations.length : (dashHeroStats?.pendingTeamInvitationsCount ?? 0);
 
   const contentMax = Math.min(maxDashboardWidth, innerWidth);
 
@@ -1398,28 +1415,29 @@ export function StudentDashboardScreen() {
           {/* Stats */}
           <View style={[styles.statsGrid, isCompact && styles.statsGridStack]}>
             {[
-              { label: "Suggested Teammates", value: teammates.length > 0 ? String(teammates.length) : "—" },
-              { label: "Matched Projects", value: recommendedProjects.length > 0 ? String(recommendedProjects.length) : "—" },
-              { label: "Best Match", value: teammates.length > 0 ? `${teammates[0].matchScore}%` : "—" },
-              { label: "Team Invitations", value: invitations.length > 0 ? String(invitations.length) : "—" },
+              {
+                label: "Suggested Teammates",
+                value: heroTeammateCount > 0 ? String(heroTeammateCount) : "—",
+              },
+              {
+                label: "Matched Projects",
+                value: heroMatchedGp > 0 ? String(heroMatchedGp) : "—",
+              },
+              {
+                label: "Best Match",
+                value:
+                  heroBestMatch != null && heroBestMatch > 0 ? `${heroBestMatch}%` : "—",
+              },
+              {
+                label: "Team Invitations",
+                value: String(heroInviteCount),
+              },
             ].map((stat) => (
               <View key={stat.label} style={[styles.statCard, isCompact && styles.statCardFull]}>
                 <Text style={styles.statValue}>{stat.value}</Text>
                 <Text style={styles.statLabel}>{stat.label}</Text>
               </View>
             ))}
-          </View>
-
-          {/* Applications */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>📋 My Applications</Text>
-            </View>
-            {applications.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>No applications yet</Text>
-              </View>
-            ) : null}
           </View>
 
           {/* Invitations — graduation project invites (GET /invitations/received) */}
@@ -1547,16 +1565,6 @@ export function StudentDashboardScreen() {
             )}
           </View>
 
-          {/* Recent activity */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>📊 Recent Activity</Text>
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No activity yet</Text>
-              <Text style={styles.muted}>Your recent actions will appear here</Text>
-            </View>
-          </View>
-
-          {/* Graduation project */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>🎓 My Graduation Project</Text>
@@ -1606,6 +1614,32 @@ export function StudentDashboardScreen() {
                   <Text style={styles.gradAbstract}>{(gradProject.abstract ?? "").trim()}</Text>
                 ) : null}
                 <Text style={styles.mutedSmall}>by {gradProject.ownerName ?? "—"}</Text>
+                {gradProject.supervisor ? (
+                  <View style={styles.supervisorAssignedBox}>
+                    <Text style={styles.supervisorAssignedLabel}>Supervisor</Text>
+                    <Pressable
+                      onPress={() => {
+                        const s = gradProject.supervisor!;
+                        const href =
+                          s.userId > 0
+                            ? (`/DoctorPublicProfilePage?doctorId=${s.userId}` as Href)
+                            : (`/DoctorPublicProfilePage?profileId=${s.doctorId}` as Href);
+                        router.push(href);
+                      }}
+                    >
+                      <Text style={styles.supervisorAssignedName}>
+                        {formatSupervisorDoctorName(
+                          gradProject.supervisor.name?.trim() || "—",
+                        )}
+                      </Text>
+                    </Pressable>
+                    {(gradProject.supervisor.specialization ?? "").trim() ? (
+                      <Text style={styles.supervisorAssignedSpec}>
+                        {(gradProject.supervisor.specialization ?? "").trim()}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
                 {(gradProject.requiredSkills ?? []).length > 0 ? (
                   <View style={styles.skillRow}>
                     {(gradProject.requiredSkills ?? []).map((sk) => (
@@ -1615,151 +1649,6 @@ export function StudentDashboardScreen() {
                     ))}
                   </View>
                 ) : null}
-
-                <Pressable style={styles.outlineBtn} onPress={() => void handleAiRecommendedStudents()} disabled={loadingStudents}>
-                  <Text style={styles.outlineBtnText}>
-                    {loadingStudents ? "Loading…" : "Find Best Teammates (AI)"}
-                  </Text>
-                </Pressable>
-                {aiStudentsError ? <Text style={styles.errText}>{aiStudentsError}</Text> : null}
-                {aiStudents.map((s) => (
-                  <View key={s.studentId} style={styles.aiCard}>
-                    <View style={styles.aiCardTop}>
-                      <Text style={styles.aiName}>{s.name}</Text>
-                      <Text style={styles.aiScore}>{s.matchScore}%</Text>
-                    </View>
-                    <Text style={styles.muted}>{s.major}</Text>
-                    <Text style={styles.mutedSmall}>{s.university}</Text>
-                    <View style={styles.skillRow}>
-                      {(s.skills ?? []).slice(0, 6).map((sk) => (
-                        <View key={`${s.studentId}-${sk}`} style={styles.skillChipSm}>
-                          <Text style={styles.skillChipSmText}>{sk}</Text>
-                        </View>
-                      ))}
-                    </View>
-                    {gradProject.isOwner ? (
-                      <Pressable
-                        disabled={isFull || aiCardInviteLoadingId === s.studentId}
-                        onPress={() => void handleAiCardInviteStudent(s.studentId)}
-                        style={[styles.outlineBtn, (isFull || aiCardInviteLoadingId === s.studentId) && styles.disabled]}
-                      >
-                        <Text style={styles.outlineBtnText}>
-                          {aiCardInviteLoadingId === s.studentId ? "Sending…" : "Invite"}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    <Pressable
-                      style={[styles.outlineBtn, { marginTop: spacing.sm }]}
-                      onPress={() =>
-                        router.push(`/StudentPublicProfilePage?profileId=${s.studentId}` as Href)
-                      }
-                    >
-                      <Text style={styles.outlineBtnText}>View profile</Text>
-                    </Pressable>
-                  </View>
-                ))}
-
-                <Pressable
-                  style={[styles.outlineBtn, { marginTop: spacing.md }]}
-                  onPress={() => void handleAiRecommendedSupervisorsJson()}
-                  disabled={loadingSupervisors}
-                >
-                  <Text style={styles.outlineBtnText}>
-                    {loadingSupervisors ? "Loading…" : "Recommend Supervisors (AI)"}
-                  </Text>
-                </Pressable>
-                {aiSupervisorsError ? <Text style={styles.errText}>{aiSupervisorsError}</Text> : null}
-                {aiSupervisors.map((sup) => (
-                  <View key={sup.doctorId} style={styles.aiCard}>
-                    <View style={styles.aiCardTop}>
-                      <Text style={styles.aiName}>{sup.name}</Text>
-                      <Text style={styles.aiScore}>{sup.matchScore}%</Text>
-                    </View>
-                    <Text style={styles.muted}>{sup.specialization}</Text>
-                    <Pressable
-                      style={[styles.outlineBtn, { marginTop: spacing.sm }]}
-                      onPress={() =>
-                        router.push(`/DoctorPublicProfilePage?profileId=${sup.doctorId}` as Href)
-                      }
-                    >
-                      <Text style={styles.outlineBtnText}>View profile</Text>
-                    </Pressable>
-                    {myRole === "owner" || myRole === "leader" ? (
-                      <View style={{ marginTop: spacing.sm }}>
-                        {gradProject.supervisor ? null : normApiStatus(gradProject.supervisorRequestStatus) === "pending" &&
-                          gradProject.pendingSupervisor != null &&
-                          gradProject.pendingSupervisor.doctorId === sup.doctorId ? (
-                          <Text style={styles.okText}>Request pending</Text>
-                        ) : normApiStatus(gradProject.supervisorRequestStatus) === "pending" &&
-                          gradProject.pendingSupervisor != null &&
-                          gradProject.pendingSupervisor.doctorId !== sup.doctorId ? (
-                          <Text style={styles.muted}>Another request is pending</Text>
-                        ) : (
-                          <Pressable
-                            disabled={aiCardSupervisorLoadingId === sup.doctorId}
-                            onPress={() => void handleAiCardRequestSupervisor(sup.doctorId)}
-                            style={[styles.outlineBtn, aiCardSupervisorLoadingId === sup.doctorId && styles.disabled]}
-                          >
-                            <Text style={styles.outlineBtnText}>
-                              {aiCardSupervisorLoadingId === sup.doctorId ? "Sending…" : "Request"}
-                            </Text>
-                          </Pressable>
-                        )}
-                      </View>
-                    ) : null}
-                  </View>
-                ))}
-
-                {/* AI merged supervisor list */}
-                <View style={{ marginTop: spacing.lg }}>
-                  <Text style={styles.blockTitle}>AI supervisor recommendations</Text>
-                  <Text style={styles.mutedSmall}>Ranked matches from your project context and required skills.</Text>
-                  {!canManageGradTeam ? (
-                    <Text style={styles.muted}>
-                      Only the project owner or team leader can run AI recommendations and send requests.
-                    </Text>
-                  ) : (
-                    <Pressable
-                      onPress={() => void handleRecommendSupervisors()}
-                      disabled={aiRecommendUiState === "loading" || supervisionUi.mode === "pending"}
-                      style={[styles.ctaBtn, (aiRecommendUiState === "loading" || supervisionUi.mode === "pending") && styles.disabled]}
-                    >
-                      <Text style={styles.ctaBtnText}>
-                        {aiRecommendUiState === "loading" ? "Analyzing…" : "✨ Run AI match"}
-                      </Text>
-                    </Pressable>
-                  )}
-                  {aiRecommendError ? <Text style={styles.errText}>{aiRecommendError}</Text> : null}
-                  {aiRecommendItems.map((row) => {
-                    const merged = mergeAiSupervisorCardRequestState(row.doctorId, aiSupervisionSnapshot, aiSupervisorCardRequests[row.doctorId]);
-                    const displayName = row.name?.trim() ? formatSupervisorDoctorName(row.name) : "—";
-                    return (
-                      <View key={row.doctorId} style={styles.aiCard}>
-                        <Text style={styles.aiName}>{displayName}</Text>
-                        <Text style={styles.muted}>{row.specialization ?? row.reason}</Text>
-                        <Text style={styles.mutedSmall}>{row.matchScore}% match</Text>
-                        <Pressable
-                          style={[styles.outlineBtn, { marginTop: spacing.sm }]}
-                          onPress={() =>
-                            router.push(`/DoctorPublicProfilePage?profileId=${row.doctorId}` as Href)
-                          }
-                        >
-                          <Text style={styles.outlineBtnText}>View profile</Text>
-                        </Pressable>
-                        {canManageGradTeam && merged.phase === "idle" ? (
-                          <Pressable
-                            style={styles.outlineBtn}
-                            onPress={() => void handleAiRecommendRequestSupervisor(row.doctorId)}
-                          >
-                            <Text style={styles.outlineBtnText}>Request supervisor</Text>
-                          </Pressable>
-                        ) : (
-                          <Text style={styles.mutedSmall}>{merged.detail ?? merged.phase}</Text>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
 
                 {/* Team */}
                 <View style={styles.teamBlock}>
@@ -1820,6 +1709,43 @@ export function StudentDashboardScreen() {
                       <Text style={styles.outlineBtnText}>👤 Find teammates</Text>
                     </Pressable>
                   ) : null}
+                </View>
+
+                <View style={aiPanelStyles.groupShell}>
+                  {!isFull ? (
+                    <AiTeammateRecommendations
+                      uiState={aiStudentsUiState}
+                      students={aiStudents}
+                      errorMessage={aiStudentsError}
+                      onRecommend={() => void handleAiRecommendedStudents()}
+                      onInvite={(id) => void handleAiCardInviteStudent(id)}
+                      inviteLoadingId={aiCardInviteLoadingId}
+                      canTrigger={canManageGradTeam}
+                      canInvite={!!gradProject.isOwner}
+                      teamFull={isFull}
+                      onViewProfile={(id) =>
+                        router.push(`/StudentPublicProfilePage?profileId=${id}` as Href)
+                      }
+                      skillChipStyle={styles.skillChipSm}
+                      skillChipTextStyle={styles.skillChipSmText}
+                    />
+                  ) : null}
+                  <AiSupervisorRecommendationsPanel
+                    embedded={!isFull}
+                    uiState={aiRecommendUiState}
+                    items={aiRecommendItems}
+                    errorMessage={aiRecommendError}
+                    onRecommend={() => void handleRecommendSupervisors()}
+                    onRequestSupervisor={(id) => void handleAiRecommendRequestSupervisor(id)}
+                    onViewProfile={(doctorUserId) =>
+                      router.push(`/DoctorPublicProfilePage?doctorId=${doctorUserId}` as Href)
+                    }
+                    cardRequestByDoctor={aiSupervisorCardRequests}
+                    supervisionSnapshot={aiSupervisionSnapshot}
+                    supervisionPending={supervisionUi.mode === "pending"}
+                    canTriggerRecommend={canManageGradTeam}
+                    formatDoctorName={formatSupervisorDoctorName}
+                  />
                 </View>
               </View>
             )}
@@ -2441,6 +2367,24 @@ const styles = StyleSheet.create({
   dangerLink: { fontSize: 12, fontWeight: "700", color: "#ef4444" },
   mutedLink: { fontSize: 12, color: "#94a3b8" },
   gradAbstract: { fontSize: 13, color: "#64748b", lineHeight: 20, marginTop: spacing.sm },
+  supervisorAssignedBox: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "rgba(91,33,182,0.35)",
+    backgroundColor: "rgba(91,33,182,0.06)",
+  },
+  supervisorAssignedLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#5b21b6",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  supervisorAssignedName: { fontSize: 14, fontWeight: "800", color: "#5b21b6" },
+  supervisorAssignedSpec: { marginTop: 4, fontSize: 12, color: "#64748b", fontWeight: "500" },
   outlineBtn: {
     marginTop: spacing.sm,
     alignSelf: "flex-start",

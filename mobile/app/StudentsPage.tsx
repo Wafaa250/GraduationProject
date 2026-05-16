@@ -601,8 +601,9 @@ function getInviteKind(
   return "invite";
 }
 
-function disabledInviteLabel(isTeamFull: boolean): string {
-  return isTeamFull ? "Team Full" : "Unavailable";
+function disabledInviteLabel(student: StudentBrowseRow, isTeamFull: boolean): string {
+  if (student.ownsGraduationProject) return "Own project";
+  return isTeamFull ? "Team full" : "Unavailable";
 }
 
 function InviteActions({
@@ -647,7 +648,7 @@ function InviteActions({
   if (kind === "disabled") {
     return (
       <View style={[...addBase, styles.addBtnMuted]}>
-        <Text style={styles.addBtnTextDisabled}>{disabledInviteLabel(isTeamFull)}</Text>
+        <Text style={styles.addBtnTextDisabled}>{disabledInviteLabel(student, isTeamFull)}</Text>
       </View>
     );
   }

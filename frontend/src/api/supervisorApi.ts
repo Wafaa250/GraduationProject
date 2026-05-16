@@ -1,5 +1,13 @@
 import { apiClient } from "./client";
 
+/** Team member on a graduation project (leader | member). */
+export interface SupervisorRequestTeamMember {
+  studentId: number;
+  name: string;
+  role: string;
+  major: string;
+}
+
 /** GET /api/doctors/me/requests — supervision requests for the logged-in doctor. */
 export interface SupervisorRequest {
   requestId: number;
@@ -8,6 +16,10 @@ export interface SupervisorRequest {
     name: string;
     description?: string | null;
     requiredSkills: string[];
+    projectType?: string;
+    partnersCount?: number;
+    memberCount?: number;
+    members?: SupervisorRequestTeamMember[];
   };
   sender: {
     studentId: number;
@@ -68,6 +80,7 @@ export async function rejectSupervisorCancelRequest(id: number): Promise<void> {
 /** GET /api/graduation-projects/{projectId}/recommended-supervisors */
 export type Supervisor = {
   doctorId: number;
+  userId: number;
   name: string;
   specialization: string;
   matchScore: number;

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { LogOut, Menu, Settings } from "lucide-react";
+import { LogOut, Menu, MessageCircle, Settings } from "lucide-react";
 import { dash } from "./doctorDashTokens";
 import { GradProjectNotificationBell } from "../../../components/notifications/GradProjectNotificationBell";
 
@@ -91,6 +91,23 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
             cursor: "pointer",
           }}
         />
+        <Link
+          to="/messages"
+          title="Messages"
+          style={{
+            width: 40,
+            height: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 10,
+            color: dash.muted,
+            transition: "background 0.15s ease",
+          }}
+          className="dd-header-icon-link"
+        >
+          <MessageCircle size={18} />
+        </Link>
         <Link
           to="/settings"
           title="Settings"

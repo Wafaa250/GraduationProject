@@ -4,6 +4,7 @@ export type AiSupervisorRecommendUiState = "idle" | "loading" | "success" | "emp
 
 export interface EnrichedAiSupervisorRow {
   doctorId: number;
+  doctorUserId: number;
   matchScore: number;
   reason: string;
   name: string | null;
@@ -74,14 +75,24 @@ function normalizeMatchScore(score: number): number {
 
 export function enrichAiSupervisorsWithRecommended(
   aiRows: { doctorId: number; matchScore: number; reason: string }[],
-  recommended: { doctorId: number; name: string; specialization: string | null }[],
+  recommended: {
+    doctorId: number;
+    userId?: number;
+    name: string;
+    specialization: string | null;
+  }[],
 ): EnrichedAiSupervisorRow[] {
   const map = new Map(recommended.map((s) => [s.doctorId, s]));
   const sorted = [...aiRows].sort((a, b) => b.matchScore - a.matchScore);
   return sorted.map((row) => {
     const r = map.get(row.doctorId);
+    const uid =
+      typeof r?.userId === "number" && Number.isFinite(r.userId) && r.userId > 0
+        ? r.userId
+        : row.doctorId;
     return {
       doctorId: row.doctorId,
+      doctorUserId: uid,
       matchScore: normalizeMatchScore(row.matchScore),
       reason: row.reason ?? "",
       name: r?.name?.trim() ? r.name.trim() : null,

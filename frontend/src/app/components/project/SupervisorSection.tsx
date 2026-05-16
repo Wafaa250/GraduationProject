@@ -9,6 +9,8 @@ const GENERIC_ERROR = 'Something went wrong. Please try again.'
 
 export interface ProjectSupervisor {
   doctorId: number
+  /** AspNetUsers.Id — for /doctors/:id profile links */
+  userId?: number
   name: string
   major: string
 }
@@ -161,7 +163,14 @@ export function SupervisorSection({
       {supervisor ? (
         <div style={styles.supervisorCard}>
           <p style={styles.supervisorName}>
-            <ProfileLink userId={supervisor.doctorId} role="doctor">{supervisor.name}</ProfileLink>
+            <ProfileLink
+              userId={
+                supervisor.userId != null && supervisor.userId > 0
+                  ? supervisor.userId
+                  : supervisor.doctorId
+              }
+              role="doctor"
+            >
           </p>
           <p style={styles.supervisorMeta}>{supervisor.major}</p>
         </div>

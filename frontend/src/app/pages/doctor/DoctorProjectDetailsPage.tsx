@@ -195,7 +195,14 @@ function DoctorProjectDetailsInner() {
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: dash.text, lineHeight: 1.6 }}>
                   <li>
                     <strong style={{ color: dash.muted }}>Name:</strong>{" "}
-                    <ProfileLink userId={data.supervisor.doctorId} role="doctor">
+                    <ProfileLink
+                      userId={
+                        data.supervisor.userId > 0
+                          ? data.supervisor.userId
+                          : data.supervisor.doctorId
+                      }
+                      role="doctor"
+                    >
                       {data.supervisor.name}
                     </ProfileLink>
                   </li>

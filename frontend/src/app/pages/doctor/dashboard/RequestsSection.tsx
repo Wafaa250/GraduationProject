@@ -4,6 +4,21 @@ import { isPendingRequestStatus, supervisionRequestLabel } from "../doctorReques
 import { SectionSpinner } from "./SectionSpinner";
 import { dash, card } from "./doctorDashTokens";
 
+const ABSTRACT_PREVIEW_CHARS = 320;
+
+function truncateText(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max).trim()}…`;
+}
+
+function formatMemberRole(role: string): string {
+  const r = role?.toLowerCase();
+  if (r === "leader") return "Leader";
+  if (r === "member") return "Member";
+  return role || "Member";
+}
+
 type Props = {
   rows: RequestRow[];
   loading: boolean;
@@ -81,6 +96,14 @@ export function RequestsSection({
               const prefix = row.kind === "supervision" ? "sup" : "can";
               const projectName = row.projectName?.trim() || "—";
               const studentName = row.studentName?.trim() || "—";
+              const sup =
+                row.kind === "supervision"
+                  ? row
+                  : null;
+              const abstractPreview =
+                sup?.projectAbstract?.trim()
+                  ? truncateText(sup.projectAbstract, ABSTRACT_PREVIEW_CHARS)
+                  : "";
               const acceptKey = `${prefix}-${row.requestId}-accept`;
               const rejectKey = `${prefix}-${row.requestId}-reject`;
               const acceptLoading = actionKey === acceptKey;
@@ -139,6 +162,113 @@ export function RequestsSection({
                       <p style={{ margin: "0 0 10px", fontSize: 13, color: dash.muted }}>
                         {studentName}
                       </p>
+                      {sup ? (
+                        <>
+                          {abstractPreview ? (
+                            <div style={{ marginBottom: 12 }}>
+                              <p
+                                style={{
+                                  margin: "0 0 4px",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: dash.subtle,
+                                  letterSpacing: "0.04em",
+                                }}
+                              >
+                                Project idea
+                              </p>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 13,
+                                  color: dash.muted,
+                                  lineHeight: 1.45,
+                                }}
+                              >
+                                {abstractPreview}
+                              </p>
+                            </div>
+                          ) : null}
+                          {sup.requiredSkills.length > 0 ? (
+                            <div style={{ marginBottom: 12 }}>
+                              <p
+                                style={{
+                                  margin: "0 0 6px",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: dash.subtle,
+                                  letterSpacing: "0.04em",
+                                }}
+                              >
+                                Skills
+                              </p>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                {sup.requiredSkills.map((s) => (
+                                  <span
+                                    key={s}
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      padding: "3px 8px",
+                                      borderRadius: 8,
+                                      background: dash.bg,
+                                      color: dash.muted,
+                                      border: `1px solid ${dash.border}`,
+                                    }}
+                                  >
+                                    {s}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                          {sup.teamMembers.length > 0 ? (
+                            <div style={{ marginBottom: 10 }}>
+                              <p
+                                style={{
+                                  margin: "0 0 6px",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: dash.subtle,
+                                  letterSpacing: "0.04em",
+                                }}
+                              >
+                                Team ({sup.memberCount}
+                                {sup.partnersCount > 0
+                                  ? ` / up to ${sup.partnersCount}`
+                                  : ""}
+                                )
+                              </p>
+                              <ul
+                                style={{
+                                  margin: 0,
+                                  paddingLeft: 18,
+                                  fontSize: 13,
+                                  color: dash.muted,
+                                  lineHeight: 1.5,
+                                }}
+                              >
+                                {sup.teamMembers.map((m) => (
+                                  <li key={`${m.studentId}-${m.role}`} style={{ marginBottom: 2 }}>
+                                    <strong style={{ color: dash.text, fontWeight: 700 }}>
+                                      {m.name?.trim() || "—"}
+                                    </strong>{" "}
+                                    <span style={{ fontSize: 12, color: dash.subtle }}>
+                                      · {formatMemberRole(m.role)}
+                                      {m.major?.trim() ? ` · ${m.major.trim()}` : ""}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {sup.projectType && sup.projectType !== "GP" ? (
+                            <p style={{ margin: "0 0 10px", fontSize: 12, color: dash.subtle }}>
+                              Type: {sup.projectType}
+                            </p>
+                          ) : null}
+                        </>
+                      ) : null}
                       <span
                         style={{
                           fontSize: 10,

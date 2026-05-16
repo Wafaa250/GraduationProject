@@ -1,10 +1,12 @@
 import type { CSSProperties } from "react";
+import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   Briefcase,
   ClipboardList,
   LayoutDashboard,
+  MessageCircle,
   Trash2,
   X,
 } from "lucide-react";
@@ -59,6 +61,9 @@ export function Sidebar({
   mobileOpen,
   onCloseMobile,
 }: Props) {
+  const location = useLocation();
+  const messagesActive = location.pathname.startsWith("/messages");
+
   const nav = (
     <nav
       style={{
@@ -108,6 +113,19 @@ export function Sidebar({
           </button>
         );
       })}
+      <Link
+        to="/messages"
+        onClick={onCloseMobile}
+        style={{
+          ...sidebarNavItemStyle(messagesActive),
+          textDecoration: "none",
+          boxSizing: "border-box",
+        }}
+        className="dd-sidebar-nav-btn"
+      >
+        <MessageCircle size={18} strokeWidth={messagesActive ? 2.25 : 2} />
+        Messages
+      </Link>
     </nav>
   );
 

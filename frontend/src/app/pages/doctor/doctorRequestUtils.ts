@@ -25,13 +25,29 @@ export function mergeDoctorRequestRows(
   return [
     ...supervisionRequests
       .filter((r) => isPendingRequestStatus(r.status))
-      .map((r) => ({
-        kind: "supervision" as const,
-        requestId: r.requestId,
-        projectName: r.project?.name ?? "",
-        studentName: r.sender?.name ?? "",
-        status: r.status,
-      })),
+      .map((r) => {
+        const p = r.project;
+        const teamMembers = (p?.members ?? []).map((m) => ({
+          studentId: m.studentId,
+          name: m.name ?? "",
+          role: m.role ?? "member",
+          major: m.major ?? "",
+        }));
+        return {
+          kind: "supervision" as const,
+          requestId: r.requestId,
+          projectId: p?.projectId ?? 0,
+          projectName: p?.name ?? "",
+          studentName: r.sender?.name ?? "",
+          status: r.status,
+          projectAbstract: p?.description ?? null,
+          requiredSkills: Array.isArray(p?.requiredSkills) ? p.requiredSkills : [],
+          projectType: p?.projectType ?? "GP",
+          partnersCount: typeof p?.partnersCount === "number" ? p.partnersCount : 0,
+          memberCount: typeof p?.memberCount === "number" ? p.memberCount : teamMembers.length,
+          teamMembers,
+        };
+      }),
     ...cancelRequests
       .filter((r) => isPendingRequestStatus(r.status))
       .map((r) => ({

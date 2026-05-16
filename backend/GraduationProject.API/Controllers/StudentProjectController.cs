@@ -267,6 +267,8 @@ namespace GraduationProject.API.Controllers
                 .Select(i => i.ReceiverId)
                 .ToListAsync();
 
+            var graduationProjectOwnerIds = await GetGraduationProjectOwnerStudentIdsAsync();
+
             var memberIds = project.Members.Select(m => m.StudentId).ToHashSet();
             var isProjectFull = project.Members.Count >= project.PartnersCount;
 
@@ -302,7 +304,8 @@ namespace GraduationProject.API.Controllers
                     .Select(sk => sk.Name)
                     .ToListAsync();
 
-                var canInvite = !isMember && !hasPendingInvite && !isOwnerStudent && !isProjectFull;
+                var canInvite = !isMember && !hasPendingInvite && !isOwnerStudent && !isProjectFull
+                    && !graduationProjectOwnerIds.Contains(s.Id);
 
                 result.Add(new ProjectAvailableStudentDto
                 {
@@ -318,6 +321,7 @@ namespace GraduationProject.API.Controllers
                     IsMember = isMember,
                     HasPendingInvite = hasPendingInvite,
                     IsOwner = isOwnerStudent,
+                    OwnsGraduationProject = graduationProjectOwnerIds.Contains(s.Id),
                     IsProjectFull = isProjectFull,
                     CanInvite = canInvite,
                 });
@@ -366,6 +370,8 @@ namespace GraduationProject.API.Controllers
                 .Select(i => i.ReceiverId)
                 .ToListAsync();
 
+            var graduationProjectOwnerIds = await GetGraduationProjectOwnerStudentIdsAsync();
+
             var memberIds = project.Members.Select(m => m.StudentId).ToHashSet();
             var isProjectFull = project.Members.Count >= project.PartnersCount;
 
@@ -408,7 +414,8 @@ namespace GraduationProject.API.Controllers
                     .Select(id => skillNameMap[id])
                     .ToList();
 
-                var canInvite = !isMember && !hasPendingInvite && !isOwnerStudent && !isProjectFull;
+                var canInvite = !isMember && !hasPendingInvite && !isOwnerStudent && !isProjectFull
+                    && !graduationProjectOwnerIds.Contains(s.Id);
 
                 result.Add(new ProjectAvailableStudentDto
                 {
@@ -424,6 +431,7 @@ namespace GraduationProject.API.Controllers
                     IsMember = isMember,
                     HasPendingInvite = hasPendingInvite,
                     IsOwner = isOwnerStudent,
+                    OwnsGraduationProject = graduationProjectOwnerIds.Contains(s.Id),
                     IsProjectFull = isProjectFull,
                     CanInvite = canInvite,
                 });
@@ -908,7 +916,7 @@ namespace GraduationProject.API.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            var rows = doctors.Select(d => (d.Id, d.User?.Name ?? string.Empty, d.Specialization)).ToList();
+            var rows = doctors.Select(d => (d.Id, d.UserId, d.User?.Name ?? string.Empty, d.Specialization)).ToList();
             var result = RecommendedSupervisorHelper.Build(rows, project.RequiredSkills);
 
             return Ok(result);
@@ -1174,6 +1182,9 @@ namespace GraduationProject.API.Controllers
             if (receiverId == senderProfile.Id)
                 return BadRequest(new { message = "You cannot invite yourself." });
 
+            if (await _db.StudentProjects.AnyAsync(p => p.OwnerId == receiverId))
+                return BadRequest(new { message = "This student already owns a graduation project." });
+
             if (project.Members.Count >= project.PartnersCount)
                 return BadRequest(new { message = "Project is full." });
 
@@ -1267,6 +1278,12 @@ namespace GraduationProject.API.Controllers
             return null;
         }
 
+        private async Task<HashSet<int>> GetGraduationProjectOwnerStudentIdsAsync()
+        {
+            var ids = await _db.StudentProjects.AsNoTracking().Select(p => p.OwnerId).ToListAsync();
+            return ids.ToHashSet();
+        }
+
         /// <summary>
         /// Converts a JSON array of skill-name strings into a list of skill IDs.
         /// </summary>
@@ -1318,6 +1335,7 @@ namespace GraduationProject.API.Controllers
                 Supervisor = p.Supervisor != null ? new SupervisorDto
                 {
                     DoctorId = p.Supervisor.Id,
+                    UserId = p.Supervisor.UserId,
                     Name = p.Supervisor.User?.Name ?? "",
                     Specialization = p.Supervisor.Specialization ?? "",
                     Department = p.Supervisor.Department

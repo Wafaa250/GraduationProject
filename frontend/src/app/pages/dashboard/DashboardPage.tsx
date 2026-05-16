@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   Circle,
   Briefcase,
-  Activity,
   LogOut,
   UserPlus,
   Trophy,
@@ -36,7 +35,6 @@ import type {
   GradProjectMember,
   GraduationProjectType,
   GradProjectRecommendedStudent,
-  GradProjectRecommendedSupervisor,
 } from "../../../api/gradProjectApi";
 import {
   removeProjectMember,
@@ -47,7 +45,6 @@ import {
   abstractForApi,
   projectTypeForApi,
   getRecommendedStudents,
-  getRecommendedSupervisors as fetchGraduationRecommendedSupervisors,
 } from "../../../api/gradProjectApi";
 import {
   getRecommendedSupervisors,
@@ -65,6 +62,9 @@ import {
   type AiSupervisorRecommendUiState,
   type EnrichedAiSupervisorRow,
 } from "../../components/project/AiSupervisorRecommendations";
+import { AiTeammateRecommendations } from "../../components/project/AiTeammateRecommendations";
+import type { AiRecommendationPanelUiState } from "../../components/project/AiRecommendationPanel";
+import { aiPanelStyles } from "../../components/project/aiRecommendationPanelStyles";
 import ProfileLink, { getProfileUrl } from "../../components/common/ProfileLink";
 import { useToast } from "../../../context/ToastContext";
 import { GradProjectNotificationBell } from "../../components/notifications/GradProjectNotificationBell";
@@ -156,12 +156,6 @@ interface RecommendedProject {
   maxTeamSize: number | null;
   dueDate: string | null;
   formationMode: "students" | "doctor";
-}
-
-interface Application {
-  id: number;
-  project: string;
-  status: string;
 }
 
 /**
@@ -322,7 +316,13 @@ export default function DashboardPage() {
   const [recommendedProjects, setRecommendedProjects] = useState<
     RecommendedProject[]
   >([]);
-  const [applications, setApplications] = useState<Application[]>([]);
+  /** GET /dashboard/summary hero strip (matched graduation projects, etc.). */
+  const [dashHeroStats, setDashHeroStats] = useState<{
+    suggestedTeammatesCount?: number;
+    matchedGraduationProjectsCount?: number;
+    bestTeammateMatchPercent?: number | null;
+    pendingTeamInvitationsCount?: number;
+  } | null>(null);
   const [inviteLoading, setInviteLoading] = useState<number | null>(null);
   const [inviteMsg, setInviteMsg] = useState<{
     id: number;
@@ -553,15 +553,9 @@ export default function DashboardPage() {
   const [aiStudents, setAiStudents] = useState<GradProjectRecommendedStudent[]>(
     [],
   );
-  const [aiSupervisors, setAiSupervisors] = useState<
-    GradProjectRecommendedSupervisor[]
-  >([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [loadingSupervisors, setLoadingSupervisors] = useState(false);
+  const [aiStudentsUiState, setAiStudentsUiState] =
+    useState<AiRecommendationPanelUiState>("idle");
   const [aiStudentsError, setAiStudentsError] = useState<string | null>(null);
-  const [aiSupervisorsError, setAiSupervisorsError] = useState<string | null>(
-    null,
-  );
 
   // Role the current user holds in their project — comes from GET /my envelope.
   // Kept separately from gradProject so it survives the same optimistic-update
@@ -600,11 +594,6 @@ export default function DashboardPage() {
     number | null
   >(null);
 
-  /** Inline AI supervisor JSON cards — request action */
-  const [aiCardSupervisorLoadingId, setAiCardSupervisorLoadingId] = useState<
-    number | null
-  >(null);
-
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -629,6 +618,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setAiRecommendUiState("idle");
+    setAiStudents([]);
+    setAiStudentsUiState("idle");
+    setAiStudentsError(null);
     setAiRecommendItems([]);
     setAiRecommendError(null);
     setAiSupervisorCardRequests({});
@@ -1175,6 +1167,14 @@ export default function DashboardPage() {
     [navigate],
   ); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const handler = () => {
+      void refetchGradProject({ silent: true });
+    };
+    window.addEventListener("gradProjectSupervisorChanged", handler);
+    return () => window.removeEventListener("gradProjectSupervisorChanged", handler);
+  }, [refetchGradProject]);
+
   /**
    * After supervisor request mutations: re-fetch GET /graduation-projects/my without
    * toggling gradLoading (keeps the project card visible), clear optimistic AI card
@@ -1222,8 +1222,15 @@ export default function DashboardPage() {
               ? dashData.suggestedTeammates
               : [],
           );
+          setDashHeroStats({
+            suggestedTeammatesCount: dashData.suggestedTeammatesCount,
+            matchedGraduationProjectsCount: dashData.matchedGraduationProjectsCount,
+            bestTeammateMatchPercent: dashData.bestTeammateMatchPercent,
+            pendingTeamInvitationsCount: dashData.pendingTeamInvitationsCount,
+          });
         } catch {
           setTeammates([]);
+          setDashHeroStats(null);
         }
 
         // Fetch graduation project — GET /api/graduation-projects/my
@@ -1240,6 +1247,7 @@ export default function DashboardPage() {
           majorSkills: [],
         });
         setTeammates([]);
+        setDashHeroStats(null);
       } finally {
         setLoading(false);
       }
@@ -1406,37 +1414,19 @@ export default function DashboardPage() {
 
   const handleAiRecommendedStudents = useCallback(async () => {
     if (!gradProject) return;
-    setLoadingStudents(true);
+    setAiStudentsUiState("loading");
     setAiStudentsError(null);
     try {
       const result = await getRecommendedStudents(gradProject.id);
       setAiStudents(result);
+      setAiStudentsUiState(result.length > 0 ? "success" : "empty");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message ?? "Request failed.";
       setAiStudentsError(msg);
       setAiStudents([]);
-    } finally {
-      setLoadingStudents(false);
-    }
-  }, [gradProject]);
-
-  const handleAiRecommendedSupervisorsJson = useCallback(async () => {
-    if (!gradProject) return;
-    setLoadingSupervisors(true);
-    setAiSupervisorsError(null);
-    try {
-      const result = await fetchGraduationRecommendedSupervisors(gradProject.id);
-      setAiSupervisors(result);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? "Request failed.";
-      setAiSupervisorsError(msg);
-      setAiSupervisors([]);
-    } finally {
-      setLoadingSupervisors(false);
+      setAiStudentsUiState("error");
     }
   }, [gradProject]);
 
@@ -1458,26 +1448,6 @@ export default function DashboardPage() {
       }
     },
     [gradProject?.id, fetchInvitations, showToast],
-  );
-
-  const handleAiCardRequestSupervisor = useCallback(
-    async (doctorId: number) => {
-      if (!gradProject) return;
-      setAiCardSupervisorLoadingId(doctorId);
-      try {
-        await requestSupervisor(gradProject.id, doctorId);
-        await refreshGradProjectAfterSupervisorRequest();
-        showToast("Request sent", "success");
-      } catch (err: unknown) {
-        const msg =
-          (err as { response?: { data?: { message?: string } } })?.response
-            ?.data?.message ?? "Request failed.";
-        showToast(msg, "error");
-      } finally {
-        setAiCardSupervisorLoadingId(null);
-      }
-    },
-    [gradProject, refreshGradProjectAfterSupervisorRequest, showToast],
   );
 
   const handleDeleteProject = async () => {
@@ -1771,6 +1741,19 @@ export default function DashboardPage() {
     },
   ];
 
+  const heroTeammateCount =
+    dashHeroStats?.suggestedTeammatesCount ?? teammates.length;
+  const heroMatchedGp =
+    typeof dashHeroStats?.matchedGraduationProjectsCount === "number"
+      ? dashHeroStats.matchedGraduationProjectsCount
+      : recommendedProjects.length;
+  const heroBestMatch =
+    dashHeroStats?.bestTeammateMatchPercent ?? teammates[0]?.matchScore ?? null;
+  const heroInviteCount =
+    invitations.length > 0
+      ? invitations.length
+      : (dashHeroStats?.pendingTeamInvitationsCount ?? 0);
+
   const isNarrowLayout =
     typeof window !== "undefined" ? window.innerWidth < 1024 : false;
 
@@ -2041,26 +2024,25 @@ export default function DashboardPage() {
               {
                 icon: <Users size={18} />,
                 label: "Suggested Teammates",
-                value: teammates.length > 0 ? `${teammates.length}` : "—",
+                value: heroTeammateCount > 0 ? `${heroTeammateCount}` : "—",
               },
               {
                 icon: <Briefcase size={18} />,
                 label: "Matched Projects",
-                value:
-                  recommendedProjects.length > 0
-                    ? `${recommendedProjects.length}`
-                    : "—",
+                value: heroMatchedGp > 0 ? `${heroMatchedGp}` : "—",
               },
               {
                 icon: <Trophy size={18} />,
                 label: "Best Match",
                 value:
-                  teammates.length > 0 ? `${teammates[0].matchScore}%` : "—",
+                  heroBestMatch != null && heroBestMatch > 0
+                    ? `${heroBestMatch}%`
+                    : "—",
               },
               {
                 icon: <UserPlus size={18} />,
                 label: "Team Invitations",
-                value: invitations.length > 0 ? `${invitations.length}` : "—",
+                value: String(heroInviteCount),
               },
             ].map((stat) => (
               <div key={stat.label} style={S.statCard}>
@@ -2083,71 +2065,6 @@ export default function DashboardPage() {
               ...(isNarrowLayout ? S.leftColNarrow : {}),
             }}
           >
-            {/* My Applications */}
-            <div style={S.card}>
-              <div style={S.cardHeader}>
-                <h3 style={S.cardTitle}>
-                  <Briefcase size={15} color="#6366f1" /> My Applications
-                </h3>
-                <Link to="/projects" style={S.cardAction}>
-                  See all <ChevronRight size={12} />
-                </Link>
-              </div>
-              {applications.length === 0 ? (
-                <div style={S.emptyState}>
-                  <span style={{ fontSize: 24 }}>📋</span>
-                  <p style={S.emptyDesc}>No applications yet</p>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column" as const,
-                    gap: 10,
-                  }}
-                >
-                  {applications.map((app) => (
-                    <div
-                      key={app.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "10px 12px",
-                        background: "#f8fafc",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "#334155",
-                        }}
-                      >
-                        {app.project}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          padding: "3px 10px",
-                          borderRadius: 20,
-                          background:
-                            app.status === "Accepted" ? "#dcfce7" : "#fef9c3",
-                          color:
-                            app.status === "Accepted" ? "#16a34a" : "#a16207",
-                        }}
-                      >
-                        {app.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Team Invitations */}
             <div style={S.card}>
               <div style={S.cardHeader}>
@@ -2726,19 +2643,6 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Recent Activity */}
-            <div style={S.card}>
-              <div style={S.cardHeader}>
-                <h3 style={S.cardTitle}>
-                  <Activity size={15} color="#6366f1" /> Recent Activity
-                </h3>
-              </div>
-              <div style={S.emptyState}>
-                <span style={{ fontSize: 28 }}>📭</span>
-                <p style={S.emptyTitle}>No activity yet</p>
-                <p style={S.emptyDesc}>Your recent actions will appear here</p>
-              </div>
-            </div>
           </div>
 
           {/* RIGHT COL */}
@@ -2964,6 +2868,66 @@ export default function DashboardPage() {
                     by {gradProject?.ownerName ?? "—"}
                   </p>
 
+                  {gradProject?.supervisor ? (
+                    <div
+                      style={{
+                        margin: "0 0 10px",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        background:
+                          "linear-gradient(135deg, rgba(91,33,182,0.08) 0%, rgba(99,102,241,0.06) 100%)",
+                        border: "1px solid rgba(91,33,182,0.2)",
+                      }}
+                    >
+                      <p
+                        style={{
+                          margin: "0 0 4px",
+                          fontSize: 10,
+                          fontWeight: 800,
+                          color: "#5b21b6",
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase" as const,
+                        }}
+                      >
+                        Supervisor
+                      </p>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 14,
+                          fontWeight: 800,
+                          color: "#0f172a",
+                        }}
+                      >
+                        <ProfileLink
+                          userId={
+                            gradProject.supervisor.userId > 0
+                              ? gradProject.supervisor.userId
+                              : gradProject.supervisor.doctorId
+                          }
+                          role="doctor"
+                          style={{ color: "#5b21b6", fontWeight: 800 }}
+                        >
+                          {formatSupervisorDoctorName(
+                            gradProject.supervisor.name?.trim() || "—",
+                          )}
+                        </ProfileLink>
+                      </p>
+                      {(gradProject.supervisor.specialization ?? "").trim() ? (
+                        <p
+                          style={{
+                            margin: "4px 0 0",
+                            fontSize: 12,
+                            color: "#64748b",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {(gradProject.supervisor.specialization ?? "").trim()}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {/* Required skills */}
                   {(gradProject.requiredSkills ?? []).length > 0 && (
                     <div
@@ -2981,330 +2945,6 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   )}
-
-                  {/* AI recommendations */}
-                  <div style={{ marginTop: 12, marginBottom: 10 }}>
-                    <button
-                      type="button"
-                      onClick={handleAiRecommendedStudents}
-                      disabled={loadingStudents}
-                      style={{
-                        padding: "6px 10px",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        borderRadius: 8,
-                        border: "1px solid #c7d2fe",
-                        background: "#fff",
-                        color: "#6366f1",
-                        cursor: loadingStudents ? "not-allowed" : "pointer",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      Find Best Teammates (AI)
-                    </button>
-                    {loadingStudents ? (
-                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
-                        Loading AI recommendations...
-                      </p>
-                    ) : null}
-                    {aiStudentsError ? (
-                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#ef4444" }}>
-                        {aiStudentsError}
-                      </p>
-                    ) : null}
-                    {!loadingStudents && !aiStudentsError && aiStudents.length > 0 ? (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns:
-                            "repeat(auto-fill, minmax(220px, 1fr))",
-                          gap: 10,
-                          marginTop: 10,
-                        }}
-                      >
-                        {aiStudents.map((s) => (
-                          <div
-                            key={s.studentId}
-                            style={{
-                              border: "1px solid #e2e8f0",
-                              borderRadius: 10,
-                              padding: 12,
-                              background: "#fff",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "flex-start",
-                                gap: 8,
-                                marginBottom: 8,
-                              }}
-                            >
-                              <p
-                                style={{
-                                  margin: 0,
-                                  fontSize: 14,
-                                  fontWeight: 700,
-                                  color: "#0f172a",
-                                  lineHeight: 1.3,
-                                }}
-                              >
-                                {s.name}
-                              </p>
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  padding: "3px 8px",
-                                  borderRadius: 8,
-                                  background: "#eef2ff",
-                                  color: "#6366f1",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {s.matchScore}%
-                              </span>
-                            </div>
-                            <p
-                              style={{
-                                margin: "0 0 4px",
-                                fontSize: 12,
-                                color: "#64748b",
-                              }}
-                            >
-                              {s.major}
-                            </p>
-                            <p
-                              style={{
-                                margin: "0 0 8px",
-                                fontSize: 11,
-                                color: "#94a3b8",
-                              }}
-                            >
-                              {s.university}
-                            </p>
-                            <div
-                              style={{
-                                display: "flex",
-                                flexWrap: "wrap" as const,
-                                gap: 4,
-                              }}
-                            >
-                              {(s.skills ?? []).map((sk) => (
-                                <span key={`${s.studentId}-${sk}`} style={S.skillChipSm}>
-                                  {sk}
-                                </span>
-                              ))}
-                            </div>
-                            {gradProject?.isOwner ? (
-                              <div style={{ marginTop: 10 }}>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void handleAiCardInviteStudent(s.studentId)
-                                  }
-                                  disabled={
-                                    isFull ||
-                                    aiCardInviteLoadingId === s.studentId
-                                  }
-                                  style={{
-                                    padding: "6px 12px",
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    borderRadius: 8,
-                                    border: "1px solid #c7d2fe",
-                                    background: "#fff",
-                                    color: "#6366f1",
-                                    cursor:
-                                      isFull ||
-                                      aiCardInviteLoadingId === s.studentId
-                                        ? "not-allowed"
-                                        : "pointer",
-                                    fontFamily: "inherit",
-                                    opacity: isFull ? 0.55 : 1,
-                                  }}
-                                >
-                                  {aiCardInviteLoadingId === s.studentId
-                                    ? "Sending…"
-                                    : "Invite"}
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      onClick={handleAiRecommendedSupervisorsJson}
-                      disabled={loadingSupervisors}
-                      style={{
-                        marginTop: 10,
-                        padding: "6px 10px",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        borderRadius: 8,
-                        border: "1px solid #c7d2fe",
-                        background: "#fff",
-                        color: "#6366f1",
-                        cursor: loadingSupervisors ? "not-allowed" : "pointer",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      Recommend Supervisors (AI)
-                    </button>
-                    {loadingSupervisors ? (
-                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
-                        Loading AI recommendations...
-                      </p>
-                    ) : null}
-                    {aiSupervisorsError ? (
-                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "#ef4444" }}>
-                        {aiSupervisorsError}
-                      </p>
-                    ) : null}
-                    {!loadingSupervisors && !aiSupervisorsError && aiSupervisors.length > 0 ? (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns:
-                            "repeat(auto-fill, minmax(200px, 1fr))",
-                          gap: 10,
-                          marginTop: 10,
-                        }}
-                      >
-                        {aiSupervisors.map((sup) => (
-                          <div
-                            key={sup.doctorId}
-                            style={{
-                              border: "1px solid #e2e8f0",
-                              borderRadius: 10,
-                              padding: 12,
-                              background: "#fff",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "flex-start",
-                                gap: 8,
-                                marginBottom: 6,
-                              }}
-                            >
-                              <p
-                                style={{
-                                  margin: 0,
-                                  fontSize: 14,
-                                  fontWeight: 700,
-                                  color: "#0f172a",
-                                  lineHeight: 1.3,
-                                }}
-                              >
-                                <ProfileLink userId={sup.doctorId} role="doctor">{sup.name}</ProfileLink>
-                              </p>
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  padding: "3px 8px",
-                                  borderRadius: 8,
-                                  background: "#eef2ff",
-                                  color: "#6366f1",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {sup.matchScore}%
-                              </span>
-                            </div>
-                            <p
-                              style={{
-                                margin: 0,
-                                fontSize: 12,
-                                color: "#64748b",
-                                lineHeight: 1.45,
-                              }}
-                            >
-                              {sup.specialization}
-                            </p>
-                            {myRole === "owner" || myRole === "leader" ? (
-                              <div style={{ marginTop: 10 }}>
-                                {gradProject.supervisor ? null : normApiStatus(
-                                    gradProject.supervisorRequestStatus,
-                                  ) === "pending" &&
-                                  gradProject.pendingSupervisor != null &&
-                                  gradProject.pendingSupervisor.doctorId ===
-                                    sup.doctorId ? (
-                                  <p
-                                    style={{
-                                      margin: 0,
-                                      fontSize: 11,
-                                      fontWeight: 700,
-                                      color: "#15803d",
-                                    }}
-                                  >
-                                    Request pending
-                                  </p>
-                                ) : normApiStatus(
-                                    gradProject.supervisorRequestStatus,
-                                  ) === "pending" &&
-                                  gradProject.pendingSupervisor != null &&
-                                  gradProject.pendingSupervisor.doctorId !==
-                                    sup.doctorId ? (
-                                  <p
-                                    style={{
-                                      margin: 0,
-                                      fontSize: 11,
-                                      color: "#94a3b8",
-                                    }}
-                                  >
-                                    Another request is pending
-                                  </p>
-                                ) : (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        void handleAiCardRequestSupervisor(
-                                          sup.doctorId,
-                                        )
-                                      }
-                                      disabled={
-                                        aiCardSupervisorLoadingId ===
-                                        sup.doctorId
-                                      }
-                                      style={{
-                                        padding: "6px 12px",
-                                        fontSize: 11,
-                                        fontWeight: 700,
-                                        borderRadius: 8,
-                                        border: "1px solid #c7d2fe",
-                                        background: "#fff",
-                                        color: "#6366f1",
-                                        cursor:
-                                          aiCardSupervisorLoadingId ===
-                                          sup.doctorId
-                                            ? "not-allowed"
-                                            : "pointer",
-                                        fontFamily: "inherit",
-                                      }}
-                                    >
-                                      {aiCardSupervisorLoadingId ===
-                                      sup.doctorId
-                                        ? "Sending…"
-                                        : "Request"}
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
 
                   {/* ── Team Members ── */}
                   <div
@@ -3525,22 +3165,41 @@ export default function DashboardPage() {
                   </div>
                   {/* end team section */}
 
-                  <AiSupervisorRecommendations
-                    uiState={aiRecommendUiState}
-                    items={aiRecommendItems}
-                    errorMessage={aiRecommendError}
-                    onRecommend={handleRecommendSupervisors}
-                    onRequestSupervisor={handleAiRecommendRequestSupervisor}
-                    cardRequestByDoctor={aiSupervisorCardRequests}
-                    supervisionSnapshot={aiSupervisionSnapshot}
-                    supervisionPending={
-                      supervisionUi.mode === "pending"
-                    }
-                    canTriggerRecommend={
-                      myRole === "owner" || myRole === "leader"
-                    }
-                    formatDoctorName={formatSupervisorDoctorName}
-                  />
+                  <div style={aiPanelStyles.groupShell}>
+                    {!isFull && (
+                      <AiTeammateRecommendations
+                        uiState={aiStudentsUiState}
+                        students={aiStudents}
+                        errorMessage={aiStudentsError}
+                        onRecommend={() => void handleAiRecommendedStudents()}
+                        onInvite={handleAiCardInviteStudent}
+                        inviteLoadingId={aiCardInviteLoadingId}
+                        canTrigger={
+                          myRole === "owner" || myRole === "leader"
+                        }
+                        canInvite={!!gradProject?.isOwner}
+                        teamFull={isFull}
+                        skillChipStyle={S.skillChipSm}
+                      />
+                    )}
+                    <AiSupervisorRecommendations
+                      embedded={!isFull}
+                      uiState={aiRecommendUiState}
+                      items={aiRecommendItems}
+                      errorMessage={aiRecommendError}
+                      onRecommend={handleRecommendSupervisors}
+                      onRequestSupervisor={handleAiRecommendRequestSupervisor}
+                      cardRequestByDoctor={aiSupervisorCardRequests}
+                      supervisionSnapshot={aiSupervisionSnapshot}
+                      supervisionPending={
+                        supervisionUi.mode === "pending"
+                      }
+                      canTriggerRecommend={
+                        myRole === "owner" || myRole === "leader"
+                      }
+                      formatDoctorName={formatSupervisorDoctorName}
+                    />
+                  </div>
                 </div>
               )}
             </div>

@@ -7,10 +7,13 @@ import { sendInvitation } from '../../../api/invitationsApi'
 import ProfileLink, { getProfileUrl } from '../../components/common/ProfileLink'
 
 interface Student {
-  userId: number; profileId: number; name: string; university: string
-  major: string; academicYear: string; skills: string[]
-  matchScore: number; profilePicture: string | null
-  isMember: boolean; hasPendingInvite: boolean
+    userId: number; profileId: number; name: string; university: string
+    major: string; academicYear: string; skills: string[]
+    matchScore: number; profilePicture: string | null
+    isMember: boolean; hasPendingInvite: boolean
+    /** From server; false when e.g. student already owns a graduation project */
+    canInvite: boolean
+    ownsGraduationProject: boolean
 }
 interface Filters { universities: string[]; majors: string[]; skills: string[] }
 
@@ -60,7 +63,7 @@ export default function StudentsPage() {
   // ── Invite handler ───────────────────────────────────────────────────────
   const handleInvite = async (student: Student) => {
     if (!projectId) return
-    if (isTeamFull || student.isMember || student.hasPendingInvite) return
+    if (isTeamFull || student.isMember || student.hasPendingInvite || !student.canInvite) return
     setInvitingId(student.profileId)
     try {
       await sendInvitation(projectId, student.profileId)
@@ -109,6 +112,8 @@ export default function StudentsPage() {
           profilePicture:   s.profilePicture,
           isMember:         s.isMember,
           hasPendingInvite: s.hasPendingInvite,
+          canInvite:        typeof s.canInvite === 'boolean' ? s.canInvite : true,
+          ownsGraduationProject: Boolean(s.ownsGraduationProject),
         })))
       } else {
         // Generic browse — no project context
@@ -118,7 +123,22 @@ export default function StudentsPage() {
         if (major)      params.set('major',      major)
         if (skill)      params.set('skill',      skill)
         const res = await api.get(`/students?${params.toString()}`)
-        setStudents(res.data)
+        const raw = Array.isArray(res.data) ? res.data : []
+        setStudents(raw.map((s: any) => ({
+          userId: s.userId,
+          profileId: s.profileId,
+          name: s.name ?? '',
+          university: s.university ?? '',
+          major: s.major ?? '',
+          academicYear: s.academicYear ?? '',
+          skills: Array.isArray(s.skills) ? s.skills : [],
+          matchScore: typeof s.matchScore === 'number' ? s.matchScore : 0,
+          profilePicture: s.profilePicture ?? null,
+          isMember: Boolean(s.isMember),
+          hasPendingInvite: Boolean(s.hasPendingInvite),
+          canInvite: true,
+          ownsGraduationProject: false,
+        })))
       }
     } catch { setStudents([]) }
     finally  { setLoading(false) }
@@ -412,6 +432,10 @@ function StudentCard({
             ? <button disabled style={{ ...S.addBtn, background: '#e2e8f0', color: '#94a3b8', cursor: 'default' }}>⏳ Pending</button>
             : isTeamFull
             ? <button disabled style={{ ...S.addBtn, background: '#e2e8f0', color: '#94a3b8', cursor: 'default' }}>🚫 Team Full</button>
+            : !student.canInvite
+            ? <button disabled style={{ ...S.addBtn, background: '#e2e8f0', color: '#94a3b8', cursor: 'default' }} title="This student cannot join as a teammate (e.g. already leads their own graduation project)">
+                {student.ownsGraduationProject ? '🏠 Own project' : 'Unavailable'}
+              </button>
             : <button onClick={onInvite} style={S.addBtn}>+ Invite</button>
         )}
       </div>
