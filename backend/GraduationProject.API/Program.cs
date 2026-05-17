@@ -57,9 +57,16 @@ builder.Services.AddSignalR();
 // SERVICES
 // ===========================
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICompanyTalentMatchService, CompanyTalentMatchService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
+builder.Services.AddHttpClient<ICompanyAnalysisService, OpenAiCompanyAnalysisService>();
+builder.Services.AddHttpClient("CompanyWebFetch", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("SkillSwap-Bot/1.0 (+https://skillswap.local)");
+});
 
 // ── Courses ──────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();

@@ -129,6 +129,102 @@ namespace GraduationProject.API.Services
             }
         }
 
+        public async Task<List<AiRankedStudentResult>?> RankStudentsForCompanyTalentAsync(
+            AiCompanyTalentInput need,
+            IReadOnlyList<AiStudentInput> students)
+        {
+            try
+            {
+                var apiKey = _configuration["OpenAI:ApiKey"];
+                var model = _configuration["OpenAI:Model"] ?? "gpt-4o-mini";
+
+                if (string.IsNullOrWhiteSpace(apiKey) || students.Count == 0)
+                    return null;
+
+                var requestPayload = new
+                {
+                    talentNeed = new
+                    {
+                        title = need.Title,
+                        description = need.Description,
+                        requiredSkills = need.RequiredSkills,
+                        preferredMajor = need.PreferredMajor,
+                        engagementType = need.EngagementType,
+                        duration = need.Duration,
+                    },
+                    students = students.Select(s => new
+                    {
+                        studentId = s.StudentId,
+                        name = s.Name,
+                        skills = s.Skills,
+                        major = s.Major,
+                        bio = s.Bio,
+                    }).ToList(),
+                };
+
+                var systemMessage =
+                    "You are an expert university talent-matching AI for companies seeking student collaborators. " +
+                    "Analyze the company's talent need (role, description, skills, engagement type) and rank students " +
+                    "who would be strong fits. For each included student, write a professional reason (2-3 sentences) " +
+                    "and 2-4 short highlight bullets (specific skills, major fit, or experience signals). " +
+                    "Include ONLY students with meaningful relevance (matchScore at least 40). " +
+                    "Omit poor fits entirely. Return ONLY valid JSON: " +
+                    "{\"rankedStudents\":[{\"studentId\":number,\"matchScore\":number,\"reason\":string,\"highlights\":[string]}]}. " +
+                    "No markdown.";
+
+                var userMessage =
+                    "Rank students for this company talent search. Score 1-100. " +
+                    "Return ONLY valid JSON with rankedStudents array.\n\n" +
+                    JsonSerializer.Serialize(requestPayload);
+
+                var requestBody = new
+                {
+                    model,
+                    input = new object[]
+                    {
+                        new { role = "system", content = systemMessage },
+                        new { role = "user", content = userMessage },
+                    },
+                };
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/responses");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(requestBody),
+                    Encoding.UTF8,
+                    "application/json");
+
+                using var response = await _httpClient.SendAsync(request);
+                var raw = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OpenAI company talent ranking failed ({Code}): {Body}", (int)response.StatusCode, raw);
+                    return null;
+                }
+
+                var content = ExtractOutputText(raw);
+                if (string.IsNullOrWhiteSpace(content)) return null;
+
+                var parsed = TryParseRankedStudents(content);
+                if (parsed == null || parsed.Count == 0) return null;
+
+                foreach (var row in parsed)
+                {
+                    if (row.MatchScore < 0) row.MatchScore = 0;
+                    if (row.MatchScore > 100) row.MatchScore = 100;
+                    row.Reason = row.Reason?.Trim() ?? string.Empty;
+                    row.Highlights ??= new List<string>();
+                }
+
+                return parsed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "OpenAI company talent ranking threw");
+                return null;
+            }
+        }
+
         public async Task<List<AiRankedDoctorResult>?> RankSupervisorsAsync(
             AiProjectInput project,
             IReadOnlyList<AiDoctorInput> doctors)

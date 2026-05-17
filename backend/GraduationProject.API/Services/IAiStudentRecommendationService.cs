@@ -12,6 +12,20 @@ namespace GraduationProject.API.Services
         Task<List<AiRankedDoctorResult>?> RankSupervisorsAsync(
             AiProjectInput project,
             IReadOnlyList<AiDoctorInput> doctors);
+
+        Task<List<AiRankedStudentResult>?> RankStudentsForCompanyTalentAsync(
+            AiCompanyTalentInput need,
+            IReadOnlyList<AiStudentInput> students);
+    }
+
+    public class AiCompanyTalentInput
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public List<string> RequiredSkills { get; set; } = new();
+        public string? PreferredMajor { get; set; }
+        public string? EngagementType { get; set; }
+        public string? Duration { get; set; }
     }
 
     public class AiProjectInput
@@ -41,6 +55,7 @@ namespace GraduationProject.API.Services
         public int StudentId { get; set; }
         public int MatchScore { get; set; }
         public string Reason { get; set; } = string.Empty;
+        public List<string> Highlights { get; set; } = new();
     }
 
     public class AiDoctorInput

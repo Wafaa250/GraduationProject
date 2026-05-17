@@ -74,24 +74,48 @@ namespace GraduationProject.API.Services
         // ===========================
         public async Task<(AuthResponseDto? result, string? error)> RegisterCompanyAsync(RegisterCompanyDto dto)
         {
+            if (dto.Password != dto.ConfirmPassword)
+                return (null, "Passwords do not match.");
+
+            var website = NormalizeCompanyUrl(dto.WebsiteUrl);
+            var linkedIn = NormalizeCompanyUrl(dto.LinkedInUrl);
+            if (string.IsNullOrWhiteSpace(website) && string.IsNullOrWhiteSpace(linkedIn))
+                return (null, "Provide at least a company website URL or a LinkedIn URL.");
+
             var check = await CheckEmailAsync(dto.Email);
             if (check != null) return (null, check);
 
-            var user = CreateUser(dto.Name, dto.Email, dto.Password, "company");
+            var user = CreateUser(dto.ContactName.Trim(), dto.Email, dto.Password, "company");
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
             var profile = new CompanyProfile
             {
-                UserId      = user.Id,
-                CompanyName = dto.CompanyName,
-                Industry    = dto.Industry,
-                Description = dto.Description
+                UserId       = user.Id,
+                CompanyName  = dto.CompanyName.Trim(),
+                Industry     = string.IsNullOrWhiteSpace(dto.Industry) ? null : dto.Industry.Trim(),
+                Description  = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+                Location     = string.IsNullOrWhiteSpace(dto.Location) ? null : dto.Location.Trim(),
+                WebsiteUrl   = website,
+                LinkedInUrl  = linkedIn,
             };
             _db.CompanyProfiles.Add(profile);
             await _db.SaveChangesAsync();
 
             return (BuildResponse(user, profile.Id), null);
+        }
+
+        private static string? NormalizeCompanyUrl(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return null;
+            var trimmed = url.Trim();
+            if (!trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                trimmed = "https://" + trimmed;
+            }
+
+            return Uri.TryCreate(trimmed, UriKind.Absolute, out _) ? trimmed : null;
         }
 
         // ===========================

@@ -85,6 +85,9 @@ namespace GraduationProject.API.Models
         [Column("company_name")] public string CompanyName { get; set; } = string.Empty;
         [Column("industry")]     public string? Industry { get; set; }
         [Column("description")]  public string? Description { get; set; }
+        [Column("location")]     public string? Location { get; set; }
+        [Column("website_url")]  public string? WebsiteUrl { get; set; }
+        [Column("linkedin_url")] public string? LinkedInUrl { get; set; }
 
         public User User { get; set; } = null!;
     }

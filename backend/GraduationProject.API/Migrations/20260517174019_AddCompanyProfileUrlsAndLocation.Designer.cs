@@ -3,6 +3,7 @@ using System;
 using GraduationProject.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260517174019_AddCompanyProfileUrlsAndLocation")]
+    partial class AddCompanyProfileUrlsAndLocation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -66,56 +69,6 @@ namespace GraduationProject.API.Migrations
                         .IsUnique();
 
                     b.ToTable("company_profiles", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyTalentRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CompanyProfileId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_profile_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Duration")
-                        .HasColumnType("text")
-                        .HasColumnName("duration");
-
-                    b.Property<string>("EngagementType")
-                        .HasColumnType("text")
-                        .HasColumnName("engagement_type");
-
-                    b.Property<string>("PreferredMajor")
-                        .HasColumnType("text")
-                        .HasColumnName("preferred_major");
-
-                    b.Property<string>("RequiredSkills")
-                        .HasColumnType("text")
-                        .HasColumnName("required_skills");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("title");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyProfileId");
-
-                    b.ToTable("company_talent_requests", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.Conversation", b =>
@@ -1597,17 +1550,6 @@ namespace GraduationProject.API.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyTalentRequest", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
-                        .WithMany()
-                        .HasForeignKey("CompanyProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CompanyProfile");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.Conversation", b =>
