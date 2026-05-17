@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
+using GraduationProject.API.Models;
 
 namespace GraduationProject.API.Controllers
 {
@@ -29,7 +30,70 @@ namespace GraduationProject.API.Controllers
         [Authorize(Roles = "student")]
         public async Task<IActionResult> GetFollowedOrganizations()
         {
+            try
+            {
+                var userId = AuthorizationHelper.GetUserId(User);
+                if (userId <= 0)
+                    return Ok(new List<PublicOrganizationListItemDto>());
+
+                var studentProfileId = await _db.StudentProfiles
+                    .AsNoTracking()
+                    .Where(s => s.UserId == userId)
+                    .Select(s => (int?)s.Id)
+                    .FirstOrDefaultAsync();
+
+                if (!studentProfileId.HasValue)
+                    return Ok(new List<PublicOrganizationListItemDto>());
+
+                var items = await _db.OrganizationFollows
+                    .AsNoTracking()
+                    .Where(f => f.StudentProfileId == studentProfileId.Value)
+                    .Join(
+                        _db.StudentAssociationProfiles.AsNoTracking(),
+                        f => f.OrganizationProfileId,
+                        p => p.Id,
+                        (_, p) => new PublicOrganizationListItemDto
+                        {
+                            Id = p.Id,
+                            Name = p.AssociationName ?? "Organization",
+                            Category = p.Category,
+                            Faculty = p.Faculty,
+                            LogoUrl = p.LogoUrl,
+                            IsVerified = p.IsVerified,
+                        })
+                    .OrderBy(x => x.Name)
+                    .ToListAsync();
+
+                return Ok(items);
+            }
+            catch
+            {
+                return Ok(new List<PublicOrganizationListItemDto>());
+            }
+        }
+
+        // GET /api/students/following-organizations
+        [HttpGet("following-organizations")]
+        [Authorize(Roles = "student")]
+        public async Task<IActionResult> GetFollowingOrganizations()
+        {
+            try
+            {
+                var items = await GetFollowingOrganizationsInternalAsync();
+                return Ok(items ?? new List<PublicOrganizationDiscoveryDto>());
+            }
+            catch
+            {
+                return Ok(new List<PublicOrganizationDiscoveryDto>());
+            }
+        }
+
+        private async Task<List<PublicOrganizationDiscoveryDto>?> GetFollowingOrganizationsInternalAsync()
+        {
             var userId = AuthorizationHelper.GetUserId(User);
+            if (userId <= 0)
+                return new List<PublicOrganizationDiscoveryDto>();
+
             var studentProfileId = await _db.StudentProfiles
                 .AsNoTracking()
                 .Where(s => s.UserId == userId)
@@ -37,28 +101,39 @@ namespace GraduationProject.API.Controllers
                 .FirstOrDefaultAsync();
 
             if (!studentProfileId.HasValue)
-                return NotFound(new { message = "Student profile not found." });
+                return new List<PublicOrganizationDiscoveryDto>();
 
-            var items = await _db.OrganizationFollows
-                .AsNoTracking()
-                .Where(f => f.StudentProfileId == studentProfileId.Value)
-                .Join(
-                    _db.StudentAssociationProfiles.AsNoTracking(),
-                    f => f.OrganizationProfileId,
-                    p => p.Id,
-                    (_, p) => new PublicOrganizationListItemDto
-                    {
-                        Id = p.Id,
-                        Name = p.AssociationName,
-                        Category = p.Category,
-                        Faculty = p.Faculty,
-                        LogoUrl = p.LogoUrl,
-                        IsVerified = p.IsVerified,
-                    })
-                .OrderBy(x => x.Name)
-                .ToListAsync();
+            List<StudentAssociationProfile> profiles;
+            try
+            {
+                profiles = await _db.OrganizationFollows
+                    .AsNoTracking()
+                    .Where(f => f.StudentProfileId == studentProfileId.Value)
+                    .Join(
+                        _db.StudentAssociationProfiles.AsNoTracking(),
+                        f => f.OrganizationProfileId,
+                        p => p.Id,
+                        (_, p) => p)
+                    .OrderBy(p => p.AssociationName)
+                    .ToListAsync();
+            }
+            catch
+            {
+                return new List<PublicOrganizationDiscoveryDto>();
+            }
 
-            return Ok(items);
+            if (profiles.Count == 0)
+                return new List<PublicOrganizationDiscoveryDto>();
+
+            var orgIds = profiles.Select(p => p.Id).ToList();
+            var followerCounts = await OrganizationDiscoveryHelper.GetFollowerCountsAsync(_db, orgIds);
+
+            return profiles
+                .Select(p => OrganizationDiscoveryHelper.MapProfile(
+                    p,
+                    OrganizationDiscoveryHelper.GetFollowerCount(followerCounts, p.Id),
+                    isFollowing: true))
+                .ToList();
         }
 
         // =====================================================

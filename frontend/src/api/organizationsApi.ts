@@ -51,6 +51,18 @@ export type PublicOrganizationListItem = {
   isVerified: boolean
 }
 
+export type PublicOrganizationDiscovery = {
+  id: number
+  organizationName: string
+  username: string
+  logoUrl?: string | null
+  coverUrl?: string | null
+  shortDescription?: string | null
+  category?: string | null
+  followersCount: number
+  isFollowing: boolean
+}
+
 export type EventRegistrationFieldPublic = {
   id: number
   formId: number
@@ -94,6 +106,24 @@ export type PublicOrganizationEventDetail = {
 export async function listPublicOrganizations(): Promise<PublicOrganizationListItem[]> {
   const { data } = await api.get<PublicOrganizationListItem[]>('/organizations')
   return data
+}
+
+export async function listPublicOrganizationsForDiscovery(): Promise<PublicOrganizationDiscovery[]> {
+  try {
+    const { data } = await api.get<PublicOrganizationDiscovery[]>('/organizations/public')
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
+export async function getFollowingOrganizations(): Promise<PublicOrganizationDiscovery[]> {
+  try {
+    const { data } = await api.get<PublicOrganizationDiscovery[]>('/students/following-organizations')
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
 }
 
 export async function getPublicOrganization(

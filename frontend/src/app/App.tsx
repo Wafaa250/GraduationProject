@@ -48,9 +48,14 @@ import OrganizationRecruitmentCampaignCreatePage from "./pages/association/recru
 import OrganizationRecruitmentCampaignDetailsPage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignDetailsPage";
 import OrganizationRecruitmentCampaignEditPage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignEditPage";
 import OrganizationRecruitmentPositionFormPage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentPositionFormPage";
+import OrganizationRecruitmentApplicationDetailPage from "./pages/association/recruitment-campaigns/OrganizationRecruitmentApplicationDetailPage";
+import StudentOrganizationsPage from "./pages/organizations/StudentOrganizationsPage";
 import PublicOrganizationProfilePage from "./pages/organizations/PublicOrganizationProfilePage";
 import PublicOrganizationEventPage from "./pages/organizations/PublicOrganizationEventPage";
 import PublicRecruitmentCampaignPage from "./pages/organizations/PublicRecruitmentCampaignPage";
+import CommunitiesHubPage from "./pages/communities/CommunitiesHubPage";
+import CommunityEventsPage from "./pages/communities/CommunityEventsPage";
+import CommunityRecruitmentPage from "./pages/communities/CommunityRecruitmentPage";
 import { isAssociationRole } from "../api/associationApi";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -62,6 +67,38 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function StudentFollowingOrganizationsRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "student") return <StudentFollowingOrganizationsPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function StudentCommunitiesHubRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <CommunitiesHubPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function StudentOrganizationsRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentOrganizationsPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function StudentCommunityEventsRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <CommunityEventsPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function StudentCommunityRecruitmentRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <CommunityRecruitmentPage />;
     if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
     if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
     return <Navigate to="/" replace />;
@@ -281,6 +318,29 @@ export default function App() {
                     />
                     <Route path="/messages" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
 
+                    {/* Student communities hub */}
+                    <Route
+                        path="/communities"
+                        element={<ProtectedRoute><StudentCommunitiesHubRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/organizations"
+                        element={<ProtectedRoute><StudentOrganizationsRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/following"
+                        element={<ProtectedRoute><StudentFollowingOrganizationsRoute /></ProtectedRoute>}
+                    />
+                    <Route path="/student/following" element={<Navigate to="/following" replace />} />
+                    <Route
+                        path="/community-events"
+                        element={<ProtectedRoute><StudentCommunityEventsRoute /></ProtectedRoute>}
+                    />
+                    <Route
+                        path="/community-recruitment"
+                        element={<ProtectedRoute><StudentCommunityRecruitmentRoute /></ProtectedRoute>}
+                    />
+
                     {/* Public organization profiles (authenticated, view-only) */}
                     <Route
                         path="/organizations/:organizationId"
@@ -306,6 +366,7 @@ export default function App() {
                     <Route path="/organization/team-members" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationTeamMembersPage /></OrganizationEventsRoute></ProtectedRoute>} />
                     <Route path="/organization/recruitment-campaigns" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentCampaignsListPage /></OrganizationEventsRoute></ProtectedRoute>} />
                     <Route path="/organization/recruitment-campaigns/create" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentCampaignCreatePage /></OrganizationEventsRoute></ProtectedRoute>} />
+                    <Route path="/organization/recruitment-campaigns/:campaignId/applications/:applicationId" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentApplicationDetailPage /></OrganizationEventsRoute></ProtectedRoute>} />
                     <Route path="/organization/recruitment-campaigns/:campaignId" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentCampaignDetailsPage /></OrganizationEventsRoute></ProtectedRoute>} />
                     <Route path="/organization/recruitment-campaigns/:campaignId/edit" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentCampaignEditPage /></OrganizationEventsRoute></ProtectedRoute>} />
                     <Route path="/organization/recruitment-campaigns/:campaignId/positions/:positionId/form" element={<ProtectedRoute><OrganizationEventsRoute><OrganizationRecruitmentPositionFormPage /></OrganizationEventsRoute></ProtectedRoute>} />
@@ -342,7 +403,6 @@ export default function App() {
 
                     {/* ✅ التعديل تبعك */}
                     <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
-                    <Route path="/student/following" element={<ProtectedRoute><StudentFollowingOrganizationsRoute /></ProtectedRoute>} />
                     <Route
                         path="/students/profile/:userId"
                         element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>}

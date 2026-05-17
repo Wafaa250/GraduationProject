@@ -5,18 +5,23 @@ import {
   type RecruitmentPosition,
   type RecruitmentQuestion,
 } from '../../../api/recruitmentCampaignsApi'
-import { getApplicationFormForPosition } from '../../../utils/recruitmentFormFields'
-import { ApplicationFormPreview } from './ApplicationFormPreview'
+import { RecruitmentPositionApplyPanel } from './RecruitmentPositionApplyPanel'
 import { assocDash } from '../../pages/association/dashboard/associationDashTokens'
 
 type Props = {
+  organizationId: number
+  campaignId: number
   position: RecruitmentPosition
   questions?: RecruitmentQuestion[]
 }
 
-export function PublicRecruitmentPositionCard({ position, questions = [] }: Props) {
+export function PublicRecruitmentPositionCard({
+  organizationId,
+  campaignId,
+  position,
+  questions = [],
+}: Props) {
   const skills = parseSkillsList(position.requiredSkills)
-  const formFields = getApplicationFormForPosition(questions, position.id)
 
   return (
     <article style={cardStyle}>
@@ -51,19 +56,12 @@ export function PublicRecruitmentPositionCard({ position, questions = [] }: Prop
         </div>
       ) : null}
 
-      <div
-        style={{
-          marginTop: 20,
-          paddingTop: 18,
-          borderTop: `1px solid ${assocDash.border}`,
-        }}
-      >
-        <p style={formPreviewLabel}>Application form preview</p>
-        <p style={formPreviewHint}>
-          Questions for this role (read-only until applications open).
-        </p>
-        <ApplicationFormPreview fields={formFields} inline />
-      </div>
+      <RecruitmentPositionApplyPanel
+        organizationId={organizationId}
+        campaignId={campaignId}
+        position={position}
+        questions={questions}
+      />
     </article>
   )
 }
@@ -115,18 +113,4 @@ const skillChip: CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
   color: assocDash.accentDark,
-}
-
-const formPreviewLabel: CSSProperties = {
-  margin: '0 0 6px',
-  fontSize: 13,
-  fontWeight: 800,
-  color: assocDash.text,
-}
-
-const formPreviewHint: CSSProperties = {
-  margin: '0 0 12px',
-  fontSize: 12,
-  color: assocDash.muted,
-  lineHeight: 1.45,
 }

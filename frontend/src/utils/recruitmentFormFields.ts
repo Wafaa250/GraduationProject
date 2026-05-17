@@ -175,6 +175,67 @@ export function getApplicationFormForPosition(
   return filterQuestionsForPosition(questions, positionId)
 }
 
+/** Campaign-wide + position-specific questions for student applications. */
+export function getStudentApplicationQuestions(
+  questions: RecruitmentQuestion[],
+  positionId: number,
+): RecruitmentQuestion[] {
+  return [...questions]
+    .filter((q) => q.positionId == null || q.positionId === positionId)
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.id - b.id)
+}
+
+export function estimateApplicationMinutes(questionCount: number): number {
+  if (questionCount <= 0) return 0
+  return Math.max(2, Math.ceil(questionCount * 0.75))
+}
+
+export type ApplicationAnswerDraft = {
+  questionId: number
+  value: string
+  values: string[]
+}
+
+export function buildEmptyAnswerDrafts(questions: RecruitmentQuestion[]): Record<number, ApplicationAnswerDraft> {
+  const map: Record<number, ApplicationAnswerDraft> = {}
+  for (const q of questions) {
+    map[q.id] = { questionId: q.id, value: '', values: [] }
+  }
+  return map
+}
+
+export function validateApplicationAnswers(
+  questions: RecruitmentQuestion[],
+  drafts: Record<number, ApplicationAnswerDraft>,
+): string | null {
+  for (const q of questions) {
+    const d = drafts[q.id]
+    const type = normalizeFieldType(q.questionType)
+    if (!q.isRequired) continue
+    if (type === 'CheckboxList') {
+      const selected = d?.values?.filter((v) => v.trim()) ?? []
+      if (selected.length === 0) return `"${q.questionTitle}" is required.`
+    } else if (!d?.value?.trim()) {
+      return `"${q.questionTitle}" is required.`
+    }
+  }
+  return null
+}
+
+export function draftsToSubmissionPayload(
+  questions: RecruitmentQuestion[],
+  drafts: Record<number, ApplicationAnswerDraft>,
+) {
+  return questions.map((q) => {
+    const d = drafts[q.id]
+    const type = normalizeFieldType(q.questionType)
+    if (type === 'CheckboxList') {
+      return { questionId: q.id, values: d?.values?.filter((v) => v.trim()) ?? [] }
+    }
+    return { questionId: q.id, value: d?.value?.trim() || null }
+  })
+}
+
 export function countQuestionsForPosition(
   questions: RecruitmentQuestion[],
   positionId: number,

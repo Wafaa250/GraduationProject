@@ -55,6 +55,7 @@ import {
   type TeamInvitationItem,
 } from "@/api/studentCoursesApi";
 import { radius, spacing } from "@/constants/responsiveLayout";
+import { CommunitiesNavLink } from "@/components/navigation/CommunitiesNavLink";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   subscribeHubReconnected,
@@ -1250,6 +1251,7 @@ export function StudentDashboardScreen() {
               </Text>
             </View>
             <View style={styles.navActions}>
+              <CommunitiesNavLink />
               <Pressable
                 onPress={() => router.push("/NotificationsPage" as Href)}
                 style={styles.navIconBtn}
@@ -1772,6 +1774,12 @@ export function StudentDashboardScreen() {
             </Text>
             <Pressable style={styles.ctaBtn} onPress={() => router.push("/courses" as Href)}>
               <Text style={styles.ctaBtnText}>👥 Manage My Courses</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.ctaBtn, { marginTop: 10, backgroundColor: "#fffbeb", borderWidth: 1, borderColor: "#fde68a" }]}
+              onPress={() => router.push("/communities" as Href)}
+            >
+              <Text style={[styles.ctaBtnText, { color: "#b45309" }]}>🏛️ Campus Communities</Text>
             </Pressable>
           </View>
         </View>

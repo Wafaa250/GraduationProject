@@ -27,6 +27,10 @@ namespace GraduationProject.API.Data
             Set<StudentOrganizationRecruitmentPosition>();
         public DbSet<StudentOrganizationRecruitmentQuestion> StudentOrganizationRecruitmentQuestions =>
             Set<StudentOrganizationRecruitmentQuestion>();
+        public DbSet<StudentOrganizationRecruitmentApplication> StudentOrganizationRecruitmentApplications =>
+            Set<StudentOrganizationRecruitmentApplication>();
+        public DbSet<StudentOrganizationRecruitmentApplicationAnswer> StudentOrganizationRecruitmentApplicationAnswers =>
+            Set<StudentOrganizationRecruitmentApplicationAnswer>();
         public DbSet<Skill> Skills => Set<Skill>();
         public DbSet<StudentSkill> StudentSkills => Set<StudentSkill>();
 
@@ -182,6 +186,44 @@ namespace GraduationProject.API.Data
                 e.HasIndex(q => q.PositionId);
                 e.HasIndex(q => new { q.CampaignId, q.DisplayOrder });
                 e.HasIndex(q => new { q.CampaignId, q.PositionId, q.DisplayOrder });
+            });
+
+            modelBuilder.Entity<StudentOrganizationRecruitmentApplication>(e =>
+            {
+                e.ToTable("student_organization_recruitment_applications");
+                e.HasIndex(a => new { a.StudentProfileId, a.PositionId }).IsUnique();
+                e.HasIndex(a => a.CampaignId);
+                e.HasIndex(a => new { a.OrganizationProfileId, a.CampaignId, a.Status });
+                e.HasOne(a => a.StudentProfile)
+                    .WithMany()
+                    .HasForeignKey(a => a.StudentProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(a => a.OrganizationProfile)
+                    .WithMany()
+                    .HasForeignKey(a => a.OrganizationProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(a => a.Campaign)
+                    .WithMany()
+                    .HasForeignKey(a => a.CampaignId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(a => a.Position)
+                    .WithMany()
+                    .HasForeignKey(a => a.PositionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StudentOrganizationRecruitmentApplicationAnswer>(e =>
+            {
+                e.ToTable("student_organization_recruitment_application_answers");
+                e.HasIndex(a => new { a.ApplicationId, a.QuestionId }).IsUnique();
+                e.HasOne(a => a.Application)
+                    .WithMany(app => app.Answers)
+                    .HasForeignKey(a => a.ApplicationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(a => a.Question)
+                    .WithMany()
+                    .HasForeignKey(a => a.QuestionId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<OrganizationFollow>(e =>

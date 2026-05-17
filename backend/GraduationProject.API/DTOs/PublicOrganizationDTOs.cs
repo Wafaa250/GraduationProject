@@ -76,4 +76,17 @@ namespace GraduationProject.API.DTOs
         public string? LogoUrl { get; set; }
         public bool IsVerified { get; set; }
     }
+
+    public class PublicOrganizationDiscoveryDto
+    {
+        public int Id { get; set; }
+        public string OrganizationName { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string? LogoUrl { get; set; }
+        public string? CoverUrl { get; set; }
+        public string? ShortDescription { get; set; }
+        public string? Category { get; set; }
+        public int FollowersCount { get; set; }
+        public bool IsFollowing { get; set; }
+    }
 }

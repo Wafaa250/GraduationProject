@@ -28,6 +28,45 @@ namespace GraduationProject.API.Controllers
             _db = db;
         }
 
+        // GET /api/organizations/public
+        [HttpGet("public")]
+        public async Task<IActionResult> ListPublic()
+        {
+            try
+            {
+                var studentProfileId = await GetCurrentStudentProfileIdAsync();
+                var role = AuthorizationHelper.GetRole(User)?.ToLowerInvariant() ?? string.Empty;
+                var isStudent = role == "student" && studentProfileId.HasValue;
+
+                var profiles = await _db.StudentAssociationProfiles
+                    .AsNoTracking()
+                    .OrderBy(p => p.AssociationName)
+                    .ToListAsync();
+
+                if (profiles.Count == 0)
+                    return Ok(new List<PublicOrganizationDiscoveryDto>());
+
+                var orgIds = profiles.Select(p => p.Id).ToList();
+                var followerCounts = await OrganizationDiscoveryHelper.GetFollowerCountsAsync(_db, orgIds);
+                var followingIds = isStudent
+                    ? await OrganizationDiscoveryHelper.GetFollowingOrganizationIdsAsync(_db, studentProfileId!.Value)
+                    : new HashSet<int>();
+
+                var items = profiles
+                    .Select(p => OrganizationDiscoveryHelper.MapProfile(
+                        p,
+                        OrganizationDiscoveryHelper.GetFollowerCount(followerCounts, p.Id),
+                        isStudent && followingIds.Contains(p.Id)))
+                    .ToList();
+
+                return Ok(items);
+            }
+            catch
+            {
+                return Ok(new List<PublicOrganizationDiscoveryDto>());
+            }
+        }
+
         // GET /api/organizations
         [HttpGet]
         public async Task<IActionResult> List()

@@ -152,6 +152,8 @@ export default function PublicRecruitmentCampaignPage() {
                     {positions.map((position) => (
                       <PublicRecruitmentPositionCard
                         key={position.id}
+                        organizationId={orgId}
+                        campaignId={campId}
                         position={position}
                         questions={campaign.questions}
                       />

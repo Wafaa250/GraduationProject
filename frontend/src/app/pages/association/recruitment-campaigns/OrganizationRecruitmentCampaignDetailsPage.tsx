@@ -12,6 +12,7 @@ import {
   type RecruitmentQuestion,
 } from '../../../../api/recruitmentCampaignsApi'
 import { countQuestionsForPosition } from '../../../../utils/recruitmentFormFields'
+import { OrganizationCampaignApplicationsSection } from '../../../components/association/OrganizationCampaignApplicationsSection'
 import { positionApplicationFormPath } from '../../../components/association/PositionApplicationFormEditor'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
 import { assocCard, assocDash } from '../dashboard/associationDashTokens'
@@ -198,6 +199,8 @@ export default function OrganizationRecruitmentCampaignDetailsPage() {
               })}
             </div>
           </section>
+
+          <OrganizationCampaignApplicationsSection campaignId={campaign.id} positions={positions} />
         </>
       ) : null}
     </AssociationDashboardLayout>
