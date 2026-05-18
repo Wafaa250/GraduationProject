@@ -1,26 +1,14 @@
 import { useEffect, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import {
-  Loader2,
-  Sparkles,
-  User,
-  GraduationCap,
-  CheckCircle2,
-  ChevronRight,
-} from 'lucide-react'
-import {
-  getCompanyProfile,
-  searchCompanyTalent,
-  parseApiErrorMessage,
-  type CompanyTalentCandidate,
-  type CompanyTalentSearchResult,
-} from '../../../api/companyApi'
+import { Loader2, Sparkles } from 'lucide-react'
+import { getCompanyProfile, searchCompanyTalent, parseApiErrorMessage } from '../../../api/companyApi'
 import { CompanyDashboardLayout } from './dashboard/CompanyDashboardLayout'
 import { coCard, coDash } from './dashboard/companyDashTokens'
 import {
   clearTalentSearchState,
   getInitialTalentSearchState,
+  loadTalentSearchState,
   saveTalentSearchState,
 } from './companyTalentSearchStorage'
 
@@ -56,7 +44,6 @@ export default function CompanyTalentSearchPage() {
   const [engagementType, setEngagementType] = useState(initial.engagementType)
   const [duration, setDuration] = useState(initial.duration)
   const [searching, setSearching] = useState(false)
-  const [result, setResult] = useState<CompanyTalentSearchResult | null>(initial.result)
 
   useEffect(() => {
     getCompanyProfile()
@@ -65,6 +52,7 @@ export default function CompanyTalentSearchPage() {
   }, [])
 
   useEffect(() => {
+    const prev = loadTalentSearchState()
     saveTalentSearchState({
       title,
       description,
@@ -72,9 +60,9 @@ export default function CompanyTalentSearchPage() {
       preferredMajor,
       engagementType,
       duration,
-      result,
+      result: prev?.result ?? null,
     })
-  }, [title, description, skills, preferredMajor, engagementType, duration, result])
+  }, [title, description, skills, preferredMajor, engagementType, duration])
 
   const addSkill = (raw: string) => {
     const t = raw.trim()
@@ -112,9 +100,18 @@ export default function CompanyTalentSearchPage() {
         duration: duration.trim() || undefined,
         saveRequest: true,
       })
-      setResult(data)
+      saveTalentSearchState({
+        title: title.trim(),
+        description: description.trim(),
+        skills,
+        preferredMajor,
+        engagementType,
+        duration,
+        result: data,
+      })
       if (data.candidates.length === 0) toast('No strong matches yet — try broadening skills or major filter.')
-      else toast.success(data.usedAi ? 'AI recommendations ready' : 'Matches ready (review suggested)')
+      else toast.success(data.usedAi ? 'Opening your recommendations…' : 'Opening matches…')
+      navigate('/company/talent-search/results')
     } catch (err) {
       toast.error(parseApiErrorMessage(err))
     } finally {
@@ -134,7 +131,7 @@ export default function CompanyTalentSearchPage() {
         navigate('/login')
       }}
     >
-      <div style={{ marginBottom: 24 }}>
+      <div className="co-talent-page" style={{ marginBottom: 24 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: coDash.accent }}>AI Talent Search</p>
         <h1 style={{ margin: '6px 0 8px', fontSize: 26, fontWeight: 800, fontFamily: coDash.fontDisplay }}>
           Find the right student
@@ -145,17 +142,11 @@ export default function CompanyTalentSearchPage() {
         </p>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(300px, 400px) 1fr',
-          gap: 24,
-          alignItems: 'start',
-        }}
-        className="co-talent-grid"
-      >
-        <form onSubmit={submit} style={{ ...coCard, padding: '28px 28px' }}>
-          <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 800 }}>Talent need</h2>
+      <div style={{ maxWidth: 480 }} className="co-talent-form-wrap">
+        <form onSubmit={submit} className="co-talent-form" style={{ ...coCard, padding: '28px 28px' }}>
+          <h2 className="co-talent-heading" style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 800 }}>
+            Talent need
+          </h2>
 
           <label style={labelStyle}>Role title *</label>
           <input
@@ -178,7 +169,7 @@ export default function CompanyTalentSearchPage() {
           <label style={labelStyle}>Required skills *</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
             {skills.map((s) => (
-              <span key={s} style={chipStyle}>
+              <span key={s} className="co-talent-chip" style={chipStyle}>
                 {s}
                 <button
                   type="button"
@@ -230,6 +221,7 @@ export default function CompanyTalentSearchPage() {
 
           <button
             type="submit"
+            className="co-talent-submit"
             disabled={searching}
             style={{
               width: '100%',
@@ -263,228 +255,8 @@ export default function CompanyTalentSearchPage() {
             )}
           </button>
         </form>
-
-        <div style={{ minWidth: 0 }}>
-          {!result && !searching && (
-            <div
-              style={{
-                ...coCard,
-                padding: 48,
-                textAlign: 'center',
-                borderStyle: 'dashed',
-              }}
-            >
-              <Sparkles size={40} color={coDash.ai} style={{ marginBottom: 16, opacity: 0.7 }} />
-              <p style={{ margin: 0, fontWeight: 700, color: coDash.text }}>Recommendations appear here</p>
-              <p style={{ margin: '8px 0 0', fontSize: 14, color: coDash.muted }}>
-                Fill the form and run AI search to see ranked students with match scores and reasons.
-              </p>
-            </div>
-          )}
-
-          {searching && (
-            <div style={{ ...coCard, padding: 32 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                <Loader2 size={22} className="animate-spin" color={coDash.accent} />
-                <span style={{ fontWeight: 600 }}>AI is matching students to your need…</span>
-              </div>
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    height: 100,
-                    background: '#f1f5f9',
-                    borderRadius: 12,
-                    marginBottom: 12,
-                    animation: 'pulse 1.2s ease-in-out infinite',
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {result && !searching && (
-            <div>
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  marginBottom: 16,
-                }}
-              >
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
-                    {result.candidates.length} recommended candidate
-                    {result.candidates.length !== 1 ? 's' : ''}
-                  </h2>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: coDash.muted }}>
-                    {result.usedAi ? 'Ranked by SkillSwap AI' : 'Ranked by skill overlap'} · {result.title}
-                  </p>
-                </div>
-              </div>
-
-              {result.candidates.length === 0 ? (
-                <div style={{ ...coCard, padding: 32, textAlign: 'center' }}>
-                  <p style={{ margin: 0, color: coDash.muted }}>
-                    No students met the minimum match threshold. Try fewer required skills or remove the major
-                    filter.
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {result.candidates.map((c, idx) => (
-                    <CandidateCard key={c.studentProfileId} candidate={c} rank={idx + 1} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
       </div>
-
-      <style>{`
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        @media (max-width: 960px) {
-          .co-talent-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </CompanyDashboardLayout>
-  )
-}
-
-function CandidateCard({ candidate, rank }: { candidate: CompanyTalentCandidate; rank: number }) {
-  const navigate = useNavigate()
-  const scoreColor =
-    candidate.matchScore >= 75 ? '#059669' : candidate.matchScore >= 55 ? '#d97706' : '#64748b'
-  const scoreBg =
-    candidate.matchScore >= 75 ? '#ecfdf5' : candidate.matchScore >= 55 ? '#fffbeb' : '#f8fafc'
-
-  return (
-    <article
-      style={{
-        ...coCard,
-        padding: '22px 24px',
-        border: candidate.matchScore >= 75 ? `1.5px solid ${coDash.accentBorder}` : undefined,
-      }}
-    >
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-        <div
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            background: coDash.gradient,
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: 16,
-            flexShrink: 0,
-          }}
-        >
-          #{rank}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{candidate.name}</h3>
-            <span
-              style={{
-                padding: '4px 10px',
-                borderRadius: 20,
-                fontSize: 12,
-                fontWeight: 800,
-                background: scoreBg,
-                color: scoreColor,
-                border: `1px solid ${scoreColor}33`,
-              }}
-            >
-              {candidate.matchScore}% match
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13, color: coDash.muted, marginBottom: 12 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <GraduationCap size={14} />
-              {candidate.major || 'Major not set'}
-            </span>
-            <span>{candidate.university}</span>
-            {candidate.academicYear && <span>Year {candidate.academicYear}</span>}
-          </div>
-          {candidate.skills.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-              {candidate.skills.slice(0, 8).map((sk) => (
-                <span
-                  key={sk}
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    padding: '4px 10px',
-                    borderRadius: 8,
-                    background: coDash.accentMuted,
-                    color: coDash.accentDark,
-                  }}
-                >
-                  {sk}
-                </span>
-              ))}
-            </div>
-          )}
-          <div
-            style={{
-              background: '#f8fafc',
-              borderRadius: 12,
-              padding: '14px 16px',
-              marginBottom: candidate.highlights.length > 0 ? 12 : 0,
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: coDash.text, marginBottom: 6 }}>
-              Why this student?
-            </p>
-            <p style={{ margin: 0, fontSize: 14, color: coDash.muted, lineHeight: 1.6 }}>{candidate.reason}</p>
-          </div>
-          {candidate.highlights.length > 0 && (
-            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, color: coDash.text, lineHeight: 1.7 }}>
-              {candidate.highlights.map((h) => (
-                <li key={h} style={{ marginBottom: 4 }}>
-                  <CheckCircle2
-                    size={14}
-                    style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6, color: coDash.accent }}
-                  />
-                  {h}
-                </li>
-              ))}
-            </ul>
-          )}
-          <button
-            type="button"
-            onClick={() => navigate(`/students/profile/${candidate.userId}`)}
-            style={{
-              marginTop: 16,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '10px 16px',
-              borderRadius: 10,
-              border: `1px solid ${coDash.border}`,
-              background: 'white',
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              color: coDash.accentDark,
-            }}
-          >
-            <User size={16} />
-            View full profile
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-    </article>
   )
 }
 

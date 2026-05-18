@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -39,13 +40,17 @@ namespace GraduationProject.API.Services
             if (string.IsNullOrWhiteSpace(website) && string.IsNullOrWhiteSpace(linkedIn))
                 return (null, "Provide at least a company website URL or a LinkedIn URL.");
 
-            var websiteText = await FetchPageTextAsync(website);
-            var linkedInText = await FetchPageTextAsync(linkedIn);
+            var (websiteHtml, websiteText) = await FetchPageHtmlAndPlainAsync(website);
+            var (linkedInHtml, linkedInText) = await FetchPageHtmlAndPlainAsync(linkedIn);
+            var locationHint = TryExtractLocationFromHtml(websiteHtml)
+                ?? InferLocationFromPlainText(websiteText)
+                ?? TryExtractLocationFromHtml(linkedInHtml)
+                ?? InferLocationFromPlainText(linkedInText);
 
             var apiKey = _configuration["OpenAI:ApiKey"];
             if (string.IsNullOrWhiteSpace(apiKey))
             {
-                var fallback = BuildFallbackFromUrls(website, linkedIn, websiteText, linkedInText);
+                var fallback = BuildFallbackFromUrls(website, linkedIn, websiteText, linkedInText, locationHint);
                 fallback.UsedAi = false;
                 fallback.Message = "AI is not configured. Please review and complete the company details.";
                 return (fallback, null);
@@ -53,7 +58,7 @@ namespace GraduationProject.API.Services
 
             try
             {
-                var analyzed = await CallOpenAiAsync(website, linkedIn, websiteText, linkedInText);
+                var analyzed = await CallOpenAiAsync(website, linkedIn, websiteText, linkedInText, locationHint);
                 if (analyzed != null)
                 {
                     analyzed.UsedAi = true;
@@ -65,7 +70,7 @@ namespace GraduationProject.API.Services
                 _logger.LogWarning(ex, "OpenAI company analysis failed");
             }
 
-            var manualFallback = BuildFallbackFromUrls(website, linkedIn, websiteText, linkedInText);
+            var manualFallback = BuildFallbackFromUrls(website, linkedIn, websiteText, linkedInText, locationHint);
             manualFallback.UsedAi = false;
             manualFallback.Message = "Could not fully analyze the company automatically. Please review and edit the details.";
             return (manualFallback, null);
@@ -75,7 +80,8 @@ namespace GraduationProject.API.Services
             string? website,
             string? linkedIn,
             string? websiteText,
-            string? linkedInText)
+            string? linkedInText,
+            string? locationHintFromPage)
         {
             var model = _configuration["OpenAI:Model"] ?? "gpt-4o-mini";
 
@@ -85,6 +91,7 @@ namespace GraduationProject.API.Services
                 linkedInUrl = linkedIn,
                 websiteContent = Truncate(websiteText, 12000),
                 linkedInContent = Truncate(linkedInText, 8000),
+                suggestedLocationFromStructuredData = locationHintFromPage,
             };
 
             var systemMessage =
@@ -94,6 +101,9 @@ namespace GraduationProject.API.Services
                 "Return ONLY valid JSON with this exact shape: " +
                 "{\"companyName\":string,\"industry\":string|null,\"description\":string|null,\"location\":string|null}. " +
                 "companyName is required. description should be 2-4 sentences about what the company does. " +
+                "The location field must be the company's primary city and country or region when inferable " +
+                "(e.g. \"Nablus, Palestine\" or \"Berlin, Germany\"). Use suggestedLocationFromStructuredData when it matches the company. " +
+                "If only a country or region is known, return that. Use null only when there is truly no geographic signal. " +
                 "Do not include markdown or extra text.";
 
             var userMessage =
@@ -129,26 +139,32 @@ namespace GraduationProject.API.Services
             var content = ExtractOutputText(raw);
             if (string.IsNullOrWhiteSpace(content)) return null;
 
-            return TryParseCompanyAnalysis(content);
+            var parsed = TryParseCompanyAnalysis(content);
+            if (parsed == null) return null;
+
+            if (string.IsNullOrWhiteSpace(parsed.Location) && !string.IsNullOrWhiteSpace(locationHintFromPage))
+                parsed.Location = locationHintFromPage.Trim();
+
+            return parsed;
         }
 
-        private async Task<string?> FetchPageTextAsync(string? url)
+        private async Task<(string? html, string plainText)> FetchPageHtmlAndPlainAsync(string? url)
         {
-            if (string.IsNullOrWhiteSpace(url)) return null;
+            if (string.IsNullOrWhiteSpace(url)) return (null, string.Empty);
 
             try
             {
                 var client = _httpClientFactory.CreateClient("CompanyWebFetch");
                 using var response = await client.GetAsync(url);
-                if (!response.IsSuccessStatusCode) return null;
+                if (!response.IsSuccessStatusCode) return (null, string.Empty);
 
                 var html = await response.Content.ReadAsStringAsync();
-                return HtmlToPlainText(html);
+                return (html, HtmlToPlainText(html));
             }
             catch (Exception ex)
             {
                 _logger.LogDebug(ex, "Failed to fetch page content from {Url}", url);
-                return null;
+                return (null, string.Empty);
             }
         }
 
@@ -156,7 +172,8 @@ namespace GraduationProject.API.Services
             string? website,
             string? linkedIn,
             string? websiteText,
-            string? linkedInText)
+            string? linkedInText,
+            string? locationHint)
         {
             var name = GuessCompanyName(website, linkedIn, websiteText, linkedInText);
             var description = !string.IsNullOrWhiteSpace(websiteText)
@@ -170,7 +187,7 @@ namespace GraduationProject.API.Services
                 CompanyName = name,
                 Description = description,
                 Industry = null,
-                Location = null,
+                Location = string.IsNullOrWhiteSpace(locationHint) ? null : locationHint.Trim(),
             };
         }
 
@@ -243,14 +260,197 @@ namespace GraduationProject.API.Services
             return null;
         }
 
-        private static CompanyAnalysisResultDto Map(CompanyAnalysisJson json) =>
-            new()
+        private static CompanyAnalysisResultDto Map(CompanyAnalysisJson json)
+        {
+            var location = FirstNonEmpty(
+                json.Location,
+                json.Headquarters,
+                json.Hq,
+                json.HeadOffice,
+                json.OfficeLocation,
+                json.Address);
+
+            return new CompanyAnalysisResultDto
             {
                 CompanyName = json.CompanyName!.Trim(),
                 Industry = string.IsNullOrWhiteSpace(json.Industry) ? null : json.Industry.Trim(),
                 Description = string.IsNullOrWhiteSpace(json.Description) ? null : json.Description.Trim(),
-                Location = string.IsNullOrWhiteSpace(json.Location) ? null : json.Location.Trim(),
+                Location = string.IsNullOrWhiteSpace(location) ? null : location.Trim(),
             };
+        }
+
+        private static string? FirstNonEmpty(params string?[] values)
+        {
+            foreach (var v in values)
+            {
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+            }
+
+            return null;
+        }
+
+        private static string? TryExtractLocationFromHtml(string? html)
+        {
+            if (string.IsNullOrWhiteSpace(html)) return null;
+
+            foreach (Match match in Regex.Matches(
+                         html,
+                         @"<script[^>]*type\s*=\s*[""']application/ld\+json[""'][^>]*>([\s\S]*?)</script>",
+                         RegexOptions.IgnoreCase))
+            {
+                var json = match.Groups[1].Value.Trim();
+                var loc = TryParseLocationFromLdJson(json);
+                if (!string.IsNullOrWhiteSpace(loc)) return loc;
+            }
+
+            var metaCity = Regex.Match(
+                html,
+                @"property\s*=\s*[""']og:locality[""'][^>]*content\s*=\s*[""']([^""']{2,100})[""']",
+                RegexOptions.IgnoreCase);
+            var metaCountry = Regex.Match(
+                html,
+                @"property\s*=\s*[""']og:country-name[""'][^>]*content\s*=\s*[""']([^""']{2,100})[""']",
+                RegexOptions.IgnoreCase);
+            if (metaCity.Success)
+            {
+                var city = metaCity.Groups[1].Value.Trim();
+                var country = metaCountry.Success ? metaCountry.Groups[1].Value.Trim() : null;
+                return string.IsNullOrWhiteSpace(country) ? city : $"{city}, {country}";
+            }
+
+            return null;
+        }
+
+        private static string? TryParseLocationFromLdJson(string json)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                return FindLocationInJsonElement(doc.RootElement, 0);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private const int MaxJsonLocationDepth = 24;
+
+        private static string? FindLocationInJsonElement(JsonElement el, int depth)
+        {
+            if (depth > MaxJsonLocationDepth) return null;
+
+            switch (el.ValueKind)
+            {
+                case JsonValueKind.Array:
+                    foreach (var item in el.EnumerateArray())
+                    {
+                        var r = FindLocationInJsonElement(item, depth + 1);
+                        if (!string.IsNullOrWhiteSpace(r)) return r;
+                    }
+
+                    return null;
+                case JsonValueKind.Object:
+                    if (el.TryGetProperty("@graph", out var graph))
+                    {
+                        var g = FindLocationInJsonElement(graph, depth + 1);
+                        if (!string.IsNullOrWhiteSpace(g)) return g;
+                    }
+
+                    if (el.TryGetProperty("location", out var locProp))
+                    {
+                        if (locProp.ValueKind == JsonValueKind.String)
+                        {
+                            var ls = locProp.GetString();
+                            if (!string.IsNullOrWhiteSpace(ls)) return ls.Trim();
+                        }
+                        else
+                        {
+                            var lf = FormatAddressFromJson(locProp);
+                            if (!string.IsNullOrWhiteSpace(lf)) return lf;
+                        }
+                    }
+
+                    if (el.TryGetProperty("address", out var addr))
+                    {
+                        var f = FormatAddressFromJson(addr);
+                        if (!string.IsNullOrWhiteSpace(f)) return f;
+                    }
+
+                    foreach (var p in el.EnumerateObject())
+                    {
+                        if (p.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                        {
+                            var inner = FindLocationInJsonElement(p.Value, depth + 1);
+                            if (!string.IsNullOrWhiteSpace(inner)) return inner;
+                        }
+                    }
+
+                    return null;
+                default:
+                    return null;
+            }
+        }
+
+        private static string? FormatAddressFromJson(JsonElement addr)
+        {
+            if (addr.ValueKind == JsonValueKind.String)
+            {
+                var s = addr.GetString();
+                return string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+            }
+
+            if (addr.ValueKind != JsonValueKind.Object) return null;
+
+            string? locality = null;
+            string? region = null;
+            string? country = null;
+
+            foreach (var p in addr.EnumerateObject())
+            {
+                var n = p.Name;
+                if (string.Equals(n, "addressLocality", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(n, "locality", StringComparison.OrdinalIgnoreCase))
+                    locality = ReadJsonString(p.Value);
+
+                if (string.Equals(n, "addressRegion", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(n, "region", StringComparison.OrdinalIgnoreCase))
+                    region = ReadJsonString(p.Value);
+
+                if (string.Equals(n, "addressCountry", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(n, "country", StringComparison.OrdinalIgnoreCase))
+                    country = ReadJsonString(p.Value);
+            }
+
+            var parts = new[] { locality, region, country }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            return parts.Count == 0 ? null : string.Join(", ", parts);
+        }
+
+        private static string? ReadJsonString(JsonElement el)
+        {
+            return el.ValueKind == JsonValueKind.String ? el.GetString()?.Trim() : null;
+        }
+
+        private static string? InferLocationFromPlainText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
+            var m = Regex.Match(
+                text,
+                @"(?:headquartered|headquarters|based|located)\s+(?:in|at)\s+([^.\n]{3,100})",
+                RegexOptions.IgnoreCase);
+            if (m.Success) return CleanupLocationFragment(m.Groups[1].Value);
+
+            m = Regex.Match(
+                text,
+                @"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),\s*(Palestine|Jordan|Egypt|UAE|Lebanon|Saudi Arabia|Qatar|Kuwait|Bahrain|Oman|Iraq|Syria|Morocco|Tunisia|Algeria|Turkey|Israel|USA|United States|United Kingdom|Germany|France|Spain|Italy|India|Canada|Australia|Netherlands|Sweden|Norway|Poland)\b");
+            if (m.Success) return $"{m.Groups[1].Value.Trim()}, {m.Groups[2].Value.Trim()}";
+
+            return null;
+        }
+
+        private static string CleanupLocationFragment(string raw) =>
+            Regex.Replace(raw.Trim(), @"\s+", " ").Trim().Trim(',', '·', '|', ' ');
 
         private static string StripMarkdownFence(string content)
         {
@@ -359,6 +559,21 @@ namespace GraduationProject.API.Services
 
             [JsonPropertyName("location")]
             public string? Location { get; set; }
+
+            [JsonPropertyName("headquarters")]
+            public string? Headquarters { get; set; }
+
+            [JsonPropertyName("hq")]
+            public string? Hq { get; set; }
+
+            [JsonPropertyName("head_office")]
+            public string? HeadOffice { get; set; }
+
+            [JsonPropertyName("officeLocation")]
+            public string? OfficeLocation { get; set; }
+
+            [JsonPropertyName("address")]
+            public string? Address { get; set; }
         }
     }
 }

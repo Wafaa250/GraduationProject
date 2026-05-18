@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Sparkles, Loader2 } from 'lucide-react'
+import './company-register-mobile.css'
 import {
   analyzeCompany,
   registerCompany,
@@ -37,6 +38,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
   const [analysisNote, setAnalysisNote] = useState<string | null>(null)
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [skippedAi, setSkippedAi] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const [form, setForm] = useState<FormState>({
@@ -69,8 +71,13 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
       else if (form.password.length < 8) e.password = 'Min. 8 characters'
       if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match'
     }
-    if (step === 1 && !hasLink()) e.websiteUrl = 'Add your website or LinkedIn URL'
-    if (step === 2 && !form.companyName.trim()) e.companyName = 'Company name is required'
+    if (step === 2) {
+      if (!form.companyName.trim()) e.companyName = 'Company name is required'
+      if (!hasLink() && form.description.trim().length < 40) {
+        e.description =
+          'Add a website or LinkedIn on the previous step, or write at least 40 characters about your company here.'
+      }
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -81,7 +88,18 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
 
   const back = () => {
     if (step === 0 && onBack) onBack()
-    else setStep((s) => Math.max(0, s - 1))
+    else {
+      if (step === 2) setSkippedAi(false)
+      setStep((s) => Math.max(0, s - 1))
+    }
+  }
+
+  /** Go to profile step without requiring website/LinkedIn (manual entry). */
+  const skipAiAndGoManual = () => {
+    setErrors((e) => ({ ...e, websiteUrl: '' }))
+    setAnalysisNote(null)
+    setSkippedAi(true)
+    setStep(2)
   }
 
   const runAnalysis = async () => {
@@ -106,6 +124,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
       }))
       if (result.message) setAnalysisNote(result.message)
       toast.success(result.usedAi ? 'Company profile analyzed with AI' : 'Profile draft ready — please review')
+      setSkippedAi(false)
       setStep(2)
     } catch (err) {
       const msg = parseApiErrorMessage(err)
@@ -153,9 +172,9 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
 
   if (submitted) {
     return (
-      <div style={S.page}>
+      <div className="co-company-register" style={S.page}>
           <Blobs />
-          <div style={S.successWrap}>
+          <div style={S.successWrap} className="co-success-card">
             <div style={S.successIcon}>✓</div>
             <h2 style={S.successH2}>Welcome, {form.companyName}!</h2>
             <p style={S.successP}>Your company account is ready on SkillSwap.</p>
@@ -168,9 +187,9 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
   }
 
   return (
-    <div style={S.page}>
+    <div className="co-company-register" style={S.page}>
       <Blobs />
-      <div style={S.wrap}>
+      <div className="co-reg-inner" style={S.wrap}>
         <div style={S.logoRow}>
           <div style={S.logoIcon}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -199,7 +218,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
         )}
         <span style={S.roleBadge}>Company</span>
 
-        <div style={S.stepper}>
+        <div style={S.stepper} className="co-reg-stepper">
           {STEPS.map((s, i) => (
               <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -242,7 +261,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
           ))}
         </div>
 
-        <div style={S.card}>
+        <div style={S.card} className="co-reg-card">
           {apiError && <div style={S.apiError}>{apiError}</div>}
 
           {step === 0 && (
@@ -306,6 +325,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
               <p style={S.hint}>Provide at least one link. If you only have LinkedIn, that works too.</p>
               <button
                 type="button"
+                className="co-reg-analyze"
                 style={{
                   ...S.btnAnalyze,
                   opacity: isAnalyzing ? 0.7 : 1,
@@ -332,8 +352,18 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
           {step === 2 && (
             <Section
               title="Company profile"
-              sub="Review and edit what AI suggested before creating your account"
+              sub={
+                skippedAi
+                  ? 'Enter your company details manually. Add a website or LinkedIn on the previous step anytime if you have one.'
+                  : 'Review and edit what AI suggested before creating your account'
+              }
             >
+            {skippedAi && (
+              <p style={{ ...S.hint, marginTop: -8, marginBottom: 16 }}>
+                No website yet? Describe your company clearly below (at least 40 characters), or go back and add a
+                link.
+              </p>
+            )}
               {analysisNote && <p style={S.analysisNote}>{analysisNote}</p>}
               <Field
                 label="Company name"
@@ -354,12 +384,13 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
                 onChange={(v) => set('location', v)}
                 placeholder="e.g. Nablus, Palestine"
               />
-              <Field
+            <Field
                 label="About the company"
                 value={form.description}
                 onChange={(v) => set('description', v)}
                 multiline
                 placeholder="What does your company do?"
+                error={errors.description}
               />
               <div style={S.linkSummary}>
                 {form.websiteUrl && <span>🌐 {form.websiteUrl}</span>}
@@ -368,13 +399,13 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
             </Section>
           )}
 
-          <div style={S.navRow}>
+          <div style={S.navRow} className="co-reg-nav">
             <button type="button" style={S.btnBack} onClick={back}>
               ← Back
             </button>
             {step < 2 ? (
               step === 1 ? (
-                <button type="button" style={S.btnOutline} onClick={next} disabled={!hasLink()}>
+                <button type="button" style={S.btnOutline} onClick={skipAiAndGoManual}>
                   Skip AI — fill manually →
                 </button>
               ) : (

@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import { useEffect } from 'react'
 import { Menu, LogOut } from 'lucide-react'
 import { CompanySidebar } from './CompanySidebar'
 import { coDash } from './companyDashTokens'
+import './company-dashboard-mobile.css'
 
 type Props = {
   companyName: string
@@ -20,8 +22,18 @@ export function CompanyDashboardLayout({
   onLogout,
   children,
 }: Props) {
+  useEffect(() => {
+    if (!sidebarMobileOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [sidebarMobileOpen])
+
   return (
     <div
+      className="co-dash-shell"
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -32,13 +44,15 @@ export function CompanyDashboardLayout({
       }}
     >
       <header
+        className="co-dash-header"
         style={{
-          height: 60,
+          minHeight: 56,
           flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0 16px 0 20px',
+          paddingTop: 'max(0px, env(safe-area-inset-top, 0px))',
           background: coDash.surface,
           borderBottom: `1px solid ${coDash.border}`,
         }}
@@ -60,6 +74,7 @@ export function CompanyDashboardLayout({
         <button
           type="button"
           onClick={onLogout}
+          className="co-logout-btn"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -86,27 +101,36 @@ export function CompanyDashboardLayout({
             type="button"
             aria-label="Close menu"
             onClick={onSidebarClose}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(15,23,42,0.4)',
-              zIndex: 40,
-              border: 'none',
-              cursor: 'pointer',
-            }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15,23,42,0.4)',
+          zIndex: 40,
+          border: 'none',
+          cursor: 'pointer',
+        }}
           />
         )}
         <div
           className={`co-sidebar-wrap${sidebarMobileOpen ? ' co-sidebar-open' : ''}`}
           style={
             sidebarMobileOpen
-              ? { position: 'fixed', zIndex: 50, left: 0, top: 60, bottom: 0 }
+              ? {
+                  position: 'fixed',
+                  zIndex: 50,
+                  left: 0,
+                  top: 'calc(56px + env(safe-area-inset-top, 0px))',
+                  bottom: 0,
+                }
               : undefined
           }
         >
           <CompanySidebar companyName={companyName} onNavigate={onSidebarClose} />
         </div>
-        <main style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '24px 20px 40px' }}>
+        <main
+          className="co-dash-main"
+          style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '24px 20px 40px' }}
+        >
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>{children}</div>
         </main>
       </div>

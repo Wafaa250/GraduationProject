@@ -37,6 +37,7 @@ import ChatPage from "./pages/messages/ChatPage";
 import StudentAssociationRegisterPage from "./pages/auth/StudentAssociationRegisterPage";
 import CompanyDashboardPage from "./pages/company/CompanyDashboardPage";
 import CompanyTalentSearchPage from "./pages/company/CompanyTalentSearchPage";
+import CompanyTalentSearchResultsPage from "./pages/company/CompanyTalentSearchResultsPage";
 import AssociationDashboardPage from "./pages/association/AssociationDashboardPage";
 import AssociationProfilePage from "./pages/association/AssociationProfilePage";
 import OrganizationEventsListPage from "./pages/association/events/OrganizationEventsListPage";
@@ -98,6 +99,15 @@ function CompanyDashboardRoute() {
 function CompanyTalentSearchRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "company") return <CompanyTalentSearchPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    if (role === "student") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function CompanyTalentSearchResultsRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "company") return <CompanyTalentSearchResultsPage />;
     if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
     if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
     if (role === "student") return <Navigate to="/dashboard" replace />;
@@ -318,6 +328,7 @@ export default function App() {
                     {/* Protected – Company */}
                     <Route path="/company/dashboard" element={<ProtectedRoute><CompanyDashboardRoute /></ProtectedRoute>} />
                     <Route path="/company/talent-search" element={<ProtectedRoute><CompanyTalentSearchRoute /></ProtectedRoute>} />
+                    <Route path="/company/talent-search/results" element={<ProtectedRoute><CompanyTalentSearchResultsRoute /></ProtectedRoute>} />
 
                     {/* Protected – Student Organization */}
                     <Route path="/association/dashboard" element={<ProtectedRoute><AssociationDashboardRoute /></ProtectedRoute>} />

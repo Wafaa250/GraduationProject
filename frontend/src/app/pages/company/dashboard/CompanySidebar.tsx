@@ -17,6 +17,7 @@ export function CompanySidebar({ companyName, onNavigate }: Props) {
 
   return (
     <aside
+      className="co-company-sidebar"
       style={{
         width: 260,
         flexShrink: 0,
@@ -72,7 +73,7 @@ export function CompanySidebar({ companyName, onNavigate }: Props) {
         </div>
       </div>
 
-      <nav style={{ padding: '16px 12px', flex: 1 }}>
+      <nav className="co-sidebar-nav" style={{ padding: '16px 12px', flex: 1 }}>
         {NAV.map(({ to, label, icon: Icon }) => {
           const active =
             pathname === to || (to !== '/company/dashboard' && pathname.startsWith(to))

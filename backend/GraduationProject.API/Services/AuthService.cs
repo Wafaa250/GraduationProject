@@ -79,8 +79,12 @@ namespace GraduationProject.API.Services
 
             var website = NormalizeCompanyUrl(dto.WebsiteUrl);
             var linkedIn = NormalizeCompanyUrl(dto.LinkedInUrl);
+            var description = (dto.Description ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(website) && string.IsNullOrWhiteSpace(linkedIn))
-                return (null, "Provide at least a company website URL or a LinkedIn URL.");
+            {
+                if (description.Length < 40)
+                    return (null, "Add your company website or LinkedIn URL, or provide a company description of at least 40 characters.");
+            }
 
             var check = await CheckEmailAsync(dto.Email);
             if (check != null) return (null, check);

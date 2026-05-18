@@ -63,6 +63,7 @@ export default function CompanyDashboardPage() {
       ) : (
         <>
           <section
+            className="co-dash-hero"
             style={{
               ...coCard,
               padding: '32px 36px',
@@ -87,6 +88,7 @@ export default function CompanyDashboardPage() {
               university and recommends the best matches with clear explanations.
             </p>
             <Link
+              className="co-dash-cta"
               to="/company/talent-search"
               style={{
                 display: 'inline-flex',
@@ -108,12 +110,12 @@ export default function CompanyDashboardPage() {
             </Link>
           </section>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 28 }}>
+          <div className="co-dash-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 28 }}>
             <StatCard icon={<Building2 size={20} />} label="Industry" value={profile?.industry ?? '—'} />
             <StatCard icon={<Sparkles size={20} />} label="Recent searches" value={String(requests.length)} />
           </div>
 
-          <section style={{ ...coCard, padding: '24px 28px' }}>
+          <section className="co-dash-requests" style={{ ...coCard, padding: '24px 28px' }}>
             <h2 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>Recent talent searches</h2>
             {requests.length === 0 ? (
               <p style={{ color: coDash.muted, margin: 0 }}>No searches yet. Create your first AI talent search.</p>
@@ -122,6 +124,7 @@ export default function CompanyDashboardPage() {
                 {requests.map((r) => (
                   <li
                     key={r.id}
+                    className="co-dash-request-row"
                     style={{
                       padding: '14px 0',
                       borderBottom: `1px solid ${coDash.border}`,
