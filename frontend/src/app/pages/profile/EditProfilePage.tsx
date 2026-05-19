@@ -1,13 +1,19 @@
-import { useState, useRef, ChangeEvent, useEffect, type CSSProperties, type ReactNode } from 'react'
+import { useState, useRef, ChangeEvent, useEffect, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Camera, Github, Linkedin, Globe, CheckCircle2 } from 'lucide-react'
+import { Save, Github, Linkedin, Globe, CheckCircle2, Sparkles } from 'lucide-react'
 import { useUser, normalizeSkillStringList } from "../../../context/UserContext"
 import api from '../../../api/axiosInstance'
+import { StudentDashboardShell } from '../dashboard/components/StudentDashboardShell'
+import {
+  EditProfileFormShell,
+  type EditProfileSectionId,
+} from './components/EditProfileFormShell'
+import { Button } from '../../components/ui/button'
 import {
   CUSTOM_SKILL_MAX_LENGTH,
   customSelections,
+  getSkillsPack,
   normalizeCustomSkill,
-  poolsForStudent,
 } from '../../../constants/studentSkillPools'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,13 +69,21 @@ export default function EditProfilePage() {
   const [saved,         setSaved]         = useState(false)
   const [isSaving,      setIsSaving]      = useState(false)
   const [saveError,     setSaveError]     = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState<string>('basic')
+  const [activeSection, setActiveSection] = useState<EditProfileSectionId>('basic')
   const [customDraft, setCustomDraft] = useState({ roles: '', technicalSkills: '', tools: '' })
+  const [searchQuery, setSearchQuery] = useState('')
+  const globalSearchWrapRef = useRef<HTMLDivElement>(null)
+  const [academic, setAcademic] = useState({
+    faculty: profile.faculty || '',
+    major: profile.major || '',
+    university: profile.university || '',
+    academicYear: profile.academicYear || '',
+  })
 
-  // ── Skill pools from faculty + major (e.g. Computer Engineering → tech, not civil/mechanical) ──
-  const faculty = (profile as any).faculty as string | undefined
-  const major = (profile as any).major as string | undefined
-  const { rolesPool, techPool, toolsPool } = poolsForStudent(faculty, major)
+  const skillsData = useMemo(
+    () => getSkillsPack(academic.faculty || undefined, academic.major || undefined),
+    [academic.faculty, academic.major],
+  )
 
   // ── Fetch profile on mount ─────────────────────────────────────────────────
   useEffect(() => {
@@ -77,6 +91,12 @@ export default function EditProfilePage() {
       try {
         const res = await api.get('/me')
         const d   = res.data
+        setAcademic({
+          faculty: d.faculty || '',
+          major: d.major || '',
+          university: d.university || '',
+          academicYear: d.academicYear || '',
+        })
         setForm({
           fullName:          d.name || d.fullName   || '',
           bio:               d.bio                  || '',
@@ -96,6 +116,48 @@ export default function EditProfilePage() {
     }
     fetch()
   }, [])
+
+  useEffect(() => {
+    if (!profile.faculty && !profile.major) return
+    setAcademic({
+      faculty: profile.faculty || '',
+      major: profile.major || '',
+      university: profile.university || '',
+      academicYear: profile.academicYear || '',
+    })
+  }, [profile.faculty, profile.major, profile.university, profile.academicYear])
+
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '')
+    if (hash === 'basic' || hash === 'work' || hash === 'skills' || hash === 'links') {
+      setActiveSection(hash)
+    }
+  }, [])
+
+  const completeness = useMemo(() => {
+    const skillCount =
+      form.roles.length + form.technicalSkills.length + form.tools.length
+    return Math.min(
+      20 +
+        (form.fullName.trim() ? 10 : 0) +
+        (form.bio.trim() ? 15 : 0) +
+        (skillCount > 0 ? 25 : 0) +
+        (form.availability ? 10 : 0) +
+        (form.lookingFor ? 10 : 0) +
+        (form.profilePicPreview ? 10 : 0),
+      100,
+    )
+  }, [form])
+
+  const completenessHint =
+    completeness >= 80
+      ? 'Strong profile — you are ready for better AI teammate matches.'
+      : 'Complete your about, skills, and work style to unlock stronger AI recommendations.'
+
+  const handleLogout = () => {
+    localStorage.clear()
+    navigate('/login')
+  }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const set = <K extends keyof EditFormState>(key: K, value: EditFormState[K]) => {
@@ -163,72 +225,89 @@ export default function EditProfilePage() {
     } finally { setIsSaving(false) }
   }
 
-  const sections = [
-    { id: 'basic',  label: '👤 Basic Info'  },
-    { id: 'work',   label: '💼 Work Style'  },
-    { id: 'skills', label: '⚡ Skills'      },
-    { id: 'links',  label: '🔗 Links'       },
-  ]
-
   const initials = form.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
-  if (pageLoading) return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans, sans-serif' }}>
-      <div style={{ textAlign: 'center' as const }}>
-        <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' }}>
-          <Save size={18} color="white" />
+  if (pageLoading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-gradient-surface">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-primary text-primary-foreground shadow-glow">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">Loading your profile…</p>
         </div>
-        <p style={{ fontSize: 14, color: '#94a3b8', fontWeight: 600 }}>Loading your profile...</p>
       </div>
+    )
+  }
+
+  const saveFooter = (
+    <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-5">
+      {saveError ? (
+        <p className="mr-auto text-sm font-medium text-destructive">{saveError}</p>
+      ) : null}
+      <Button variant="outline" asChild>
+        <Link to="/profile">Cancel</Link>
+      </Button>
+      <Button variant="gradient" disabled={isSaving} onClick={() => void handleSave()}>
+        {isSaving ? (
+          'Saving…'
+        ) : saved ? (
+          <>
+            <CheckCircle2 className="h-4 w-4" />
+            Profile saved
+          </>
+        ) : (
+          <>
+            <Save className="h-4 w-4" />
+            Save changes
+          </>
+        )}
+      </Button>
     </div>
   )
 
   return (
-    <div style={S.page}>
-      <BgDecor />
-
-      {/* ══ NAV ══ */}
-      <nav style={S.nav}>
-        <div style={S.navInner}>
-          <Link to="/profile" style={S.backBtn}><ArrowLeft size={14} /> Back to Profile</Link>
-          <div style={S.navTitle}><span style={{ color: '#6EE7B7' }}>⟡</span> Edit Profile</div>
-          <div style={{ width: 120 }} />
-        </div>
-      </nav>
-
-      <div style={S.layout}>
-
-        {/* ── SIDEBAR ── */}
-        <aside style={S.aside}>
-          <div style={S.asideCard}>
-            <div style={S.avatarSection}>
-              <div style={S.avatarWrap} onClick={() => fileRef.current?.click()}>
-                {form.profilePicPreview
-                  ? <img src={form.profilePicPreview} style={S.avatarImg} alt="profile" />
-                  : <div style={S.avatarFallback}>{initials}</div>
-                }
-                <div style={S.cameraOverlay}><Camera size={18} style={{ color: '#fff' }} /></div>
-              </div>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePic} />
-              <button style={S.changePicBtn} onClick={() => fileRef.current?.click()}>Change Photo</button>
-            </div>
-            <div style={S.asideDivider} />
-            <nav style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-              {sections.map(s => (
-                <button key={s.id}
-                  style={{ ...S.sectionBtn, ...(activeSection === s.id ? S.sectionBtnActive : {}) }}
-                  onClick={() => setActiveSection(s.id)}>
-                  {s.label}
-                  {activeSection === s.id && <div style={S.sectionBtnDot} />}
-                </button>
-              ))}
-            </nav>
-          </div>
-        </aside>
-
-        {/* ── MAIN ── */}
-        <main style={S.main}>
-
+    <StudentDashboardShell
+      userName={form.fullName}
+      profilePic={form.profilePicPreview}
+      gradProjectId={null}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchWrapRef={globalSearchWrapRef}
+      globalSearchResults={null}
+      globalSearchLoading={false}
+      onSelectStudent={(id) => navigate(`/students/${id}`)}
+      onSelectDoctor={(id) => navigate(`/doctors/${id}`)}
+      onOpenSettings={() => {}}
+      onLogout={handleLogout}
+      onCreateProject={() => navigate('/create-project')}
+    >
+      <EditProfileFormShell
+        activeSection={activeSection}
+        onSectionChange={(id) => {
+          setActiveSection(id)
+          window.location.hash = id
+        }}
+        fullName={form.fullName}
+        major={academic.major || undefined}
+        academicYear={academic.academicYear || undefined}
+        university={academic.university || undefined}
+        profilePicPreview={form.profilePicPreview}
+        initials={initials}
+        fileRef={fileRef}
+        onPhotoClick={() => fileRef.current?.click()}
+        onPhotoChange={handlePic}
+        availability={form.availability}
+        completeness={completeness}
+        completenessHint={completenessHint}
+        profileTasks={[
+          { label: "Skills added", done: form.roles.length + form.technicalSkills.length + form.tools.length > 0 },
+          { label: "Bio written", done: Boolean(form.bio.trim()) },
+          { label: "Availability set", done: Boolean(form.availability) },
+          { label: "Looking for set", done: Boolean(form.lookingFor) },
+        ]}
+        footer={saveFooter}
+      >
           {/* ── BASIC INFO ── */}
           {activeSection === 'basic' && (
             <FormSection title="Basic Information" sub="Your name and personal summary">
@@ -289,20 +368,24 @@ export default function EditProfilePage() {
 
           {/* ── SKILLS ── */}
           {activeSection === 'skills' && (
-            <FormSection title="Your Skills" sub="Select all that apply to you">
-
-              {/* Team roles (generalSkills) */}
+            <FormSection title="Your Skills" sub="Help the AI find the best team matches for you">
+              {!skillsData ? (
+                <p style={S.skillsWarning}>
+                  We could not match skills to your program. Add your faculty and major during registration, or contact support if your major is already shown above but skills still do not appear.
+                </p>
+              ) : (
+              <>
               <Field label={`Team roles · ${form.roles.length} selected`}>
-                <p style={S.hint}>What role best describes you?</p>
+                <p style={S.hint}>How you usually contribute on projects (separate from your major)</p>
                 <div style={S.chipRow}>
-                  {rolesPool.map(r => (
+                  {skillsData.roles.map(r => (
                     <button key={r}
                       style={{ ...S.chip, ...(form.roles.includes(r) ? S.chipActiveIndigo : {}) }}
                       onClick={() => toggleArr('roles', r)}>
                       {form.roles.includes(r) && <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span>} {r}
                     </button>
                   ))}
-                  {customSelections(form.roles, rolesPool).map(r => (
+                  {customSelections(form.roles, skillsData.roles).map(r => (
                     <button key={`extra-${r}`}
                       type="button"
                       style={{ ...S.chip, ...S.chipActiveIndigo }}
@@ -323,14 +406,14 @@ export default function EditProfilePage() {
               <Field label={`Technical Skills · ${form.technicalSkills.length} selected`}>
                 <p style={S.hint}>Skills you're comfortable with</p>
                 <div style={S.chipRow}>
-                  {techPool.map(s => (
+                  {skillsData.technicalSkills.map(s => (
                     <button key={s}
                       style={{ ...S.chip, ...(form.technicalSkills.includes(s) ? S.chipActivePurple : {}) }}
                       onClick={() => toggleArr('technicalSkills', s)}>
                       {form.technicalSkills.includes(s) && <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span>} {s}
                     </button>
                   ))}
-                  {customSelections(form.technicalSkills, techPool).map(s => (
+                  {customSelections(form.technicalSkills, skillsData.technicalSkills).map(s => (
                     <button key={`extra-${s}`}
                       type="button"
                       style={{ ...S.chip, ...S.chipActivePurple }}
@@ -351,14 +434,14 @@ export default function EditProfilePage() {
               <Field label={`Technologies & Tools · ${form.tools.length} selected`}>
                 <p style={S.hint}>Languages, frameworks, and tools you use</p>
                 <div style={S.chipRow}>
-                  {toolsPool.map(t => (
+                  {skillsData.tools.map(t => (
                     <button key={t}
                       style={{ ...S.chip, ...(form.tools.includes(t) ? S.chipActiveTeal : {}) }}
                       onClick={() => toggleArr('tools', t)}>
                       {form.tools.includes(t) && <span style={{ fontSize: 10, fontWeight: 900 }}>✓</span>} {t}
                     </button>
                   ))}
-                  {customSelections(form.tools, toolsPool).map(t => (
+                  {customSelections(form.tools, skillsData.tools).map(t => (
                     <button key={`extra-${t}`}
                       type="button"
                       style={{ ...S.chip, ...S.chipActiveTeal }}
@@ -374,6 +457,8 @@ export default function EditProfilePage() {
                   maxLen={CUSTOM_SKILL_MAX_LENGTH}
                 />
               </Field>
+              </>
+              )}
 
             </FormSection>
           )}
@@ -402,39 +487,22 @@ export default function EditProfilePage() {
             </FormSection>
           )}
 
-          {/* ══ BOTTOM BAR ══ */}
-          <div style={S.bottomBar}>
-            {saveError && <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600, flex: 1 }}>❌ {saveError}</span>}
-            <Link to="/profile" style={S.cancelBtn}>Cancel</Link>
-            <button
-              style={{ ...S.saveBtn, ...(saved ? S.saveBtnDone : {}), ...(isSaving ? { opacity: 0.7, cursor: 'not-allowed' } : {}) }}
-              onClick={handleSave} disabled={isSaving}>
-              {isSaving ? '⏳ Saving...' : saved ? <><CheckCircle2 size={16} /> Profile Saved!</> : <><Save size={16} /> Save Changes</>}
-            </button>
-          </div>
 
-        </main>
-      </div>
-
-      <style>{`
-        input::placeholder, textarea::placeholder { color: #94a3b8; }
-        input:focus, textarea:focus { outline: none; border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-        button:hover { opacity: 0.88; }
-        a { text-decoration: none; }
-      `}</style>
-    </div>
+      </EditProfileFormShell>
+    </StudentDashboardShell>
   )
+
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function FormSection({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
   return (
-    <div style={S.formSection}>
-      <div style={S.formSectionHeader}>
-        <h2 style={S.formSectionTitle}>{title}</h2>
-        <p style={S.formSectionSub}>{sub}</p>
+    <div className="space-y-6">
+      <div className="border-b border-border pb-4">
+        <h2 className="font-display text-xl font-bold tracking-tight">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{sub}</p>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 24 }}>{children}</div>
+      <div className="flex flex-col gap-6">{children}</div>
     </div>
   )
 }
@@ -487,15 +555,6 @@ function Field({ label, required = false, children }: { label: string; required?
   )
 }
 
-function BgDecor() {
-  return (
-    <>
-      <div style={{ position: 'fixed' as const, top: -150, right: -150, width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle,rgba(99,102,241,0.08) 0%,transparent 70%)', pointerEvents: 'none' as const, zIndex: 0 }} />
-      <div style={{ position: 'fixed' as const, bottom: -120, left: -120, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle,rgba(168,85,247,0.06) 0%,transparent 70%)', pointerEvents: 'none' as const, zIndex: 0 }} />
-    </>
-  )
-}
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const S: Record<string, CSSProperties> = {
   page:              { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', paddingBottom: 80 },
@@ -523,6 +582,7 @@ const S: Record<string, CSSProperties> = {
   formSectionSub:    { fontSize: 13, color: '#94a3b8', margin: 0 },
   fieldLabel:        { fontSize: 13, fontWeight: 600, color: '#475569' },
   hint:              { fontSize: 12, color: '#94a3b8', margin: '0 0 8px' },
+  skillsWarning:     { padding: 16, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, color: '#92400e', fontSize: 13, margin: 0, lineHeight: 1.5 },
   input:             { width: '100%', padding: '11px 14px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 10, color: '#0f172a', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'none', transition: 'border-color 0.2s' },
   textarea:          { resize: 'vertical', minHeight: 110 },
   charCount:         { fontSize: 11, color: '#94a3b8', alignSelf: 'flex-end', marginTop: -4 },

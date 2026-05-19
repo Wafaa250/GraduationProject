@@ -321,7 +321,21 @@ export const ENGINEERING_MAJOR_PACKS: Record<string, SkillPack> = {
   },
 }
 
+const IT_MAJORS = new Set([
+  'Computer Science',
+  'Information Technology',
+  'Software Engineering',
+  'Artificial Intelligence',
+  'Data Science',
+  'Cyber Security',
+  'Network Systems',
+])
+
 export function getSkillsPack(faculty: string | undefined, major: string | undefined): SkillPack | null {
+  // Profiles often have major without faculty (legacy rows); registration always has both.
+  if (major && ENGINEERING_MAJOR_PACKS[major]) return ENGINEERING_MAJOR_PACKS[major]
+  if (major && IT_MAJORS.has(major)) return SKILLS_DATA.tech
+
   if (!faculty) return null
 
   if (faculty === 'Engineering and Information Technology') {

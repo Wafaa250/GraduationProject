@@ -32,6 +32,7 @@ import StudentManualTeamPage from "./pages/courses/StudentManualTeamPage";
 import StudentTeamInvitationsPage from "./pages/courses/StudentTeamInvitationsPage";
 import StudentTeamPage from "./pages/team/StudentTeamPage";
 import StudentAiTeamPage from "./pages/projects/StudentAiTeamPage";
+import CreateGraduationProjectPage from "./pages/projects/CreateGraduationProjectPage";
 import DoctorsPage from "./pages/doctors/DoctorsPage";
 import ChatPage from "./pages/messages/ChatPage";
 import StudentAssociationRegisterPage from "./pages/auth/StudentAssociationRegisterPage";
@@ -192,6 +193,14 @@ function EditProfileRoute() {
     return <Navigate to="/" replace />;
 }
 
+function CreateGraduationProjectRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <CreateGraduationProjectPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 /** Doctor-only profile route. */
 function DoctorProfileRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
@@ -323,6 +332,7 @@ export default function App() {
                     <Route path="/dashboard" element={<ProtectedRoute><StudentDashboardRoute /></ProtectedRoute>} />
                     <Route path="/profile" element={<ProtectedRoute><ProfileRoute /></ProtectedRoute>} />
                     <Route path="/edit-profile" element={<ProtectedRoute><EditProfileRoute /></ProtectedRoute>} />
+                    <Route path="/create-project" element={<ProtectedRoute><CreateGraduationProjectRoute /></ProtectedRoute>} />
                     <Route path="/student/courses" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
                     <Route path="/student/courses/:courseId" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
                     <Route

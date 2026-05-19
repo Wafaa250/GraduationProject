@@ -9,7 +9,8 @@ export type DashboardCardProps = {
   icon: LucideIcon;
   title: string;
   description: string;
-  to: string;
+  to?: string;
+  onClick?: () => void;
   accent?: DashboardCardAccent;
   badge?: string;
   className?: string;
@@ -22,23 +23,21 @@ const accentClasses: Record<DashboardCardAccent, string> = {
 };
 
 /** Lovable-style dashboard shortcut card; uses real `to` routes only. */
+const cardClass =
+  "group relative flex w-full flex-col gap-3 rounded-2xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-pop";
+
 export function DashboardCard({
   icon: Icon,
   title,
   description,
   to,
+  onClick,
   accent = "primary",
   badge,
   className,
 }: DashboardCardProps) {
-  return (
-    <Link
-      to={to}
-      className={cn(
-        "group relative flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-pop",
-        className,
-      )}
-    >
+  const inner = (
+    <>
       <div className="flex items-start justify-between">
         <div
           className={cn(
@@ -59,6 +58,20 @@ export function DashboardCard({
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
       <ArrowUpRight className="absolute bottom-4 right-4 h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cn(cardClass, className)}>
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <Link to={to ?? "/dashboard"} className={cn(cardClass, className)}>
+      {inner}
     </Link>
   );
 }

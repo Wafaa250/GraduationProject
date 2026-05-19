@@ -109,8 +109,8 @@ namespace GraduationProject.API.Controllers
             {
                 OrganizationMemberId = m.Id,
                 OrganizationId = m.OrganizationProfileId,
-                OrganizationName = m.OrganizationProfile.AssociationName,
-                OrganizationLogoUrl = m.OrganizationProfile.LogoUrl,
+                OrganizationName = m.OrganizationProfile?.AssociationName ?? "Organization",
+                OrganizationLogoUrl = m.OrganizationProfile?.LogoUrl,
                 RoleTitle = m.RoleTitle ?? string.Empty,
                 MembershipKind = string.IsNullOrWhiteSpace(m.MembershipKind)
                     ? OrganizationMembershipKinds.Member
@@ -118,7 +118,7 @@ namespace GraduationProject.API.Controllers
                 JoinedAt = m.AcceptedAt,
                 SourceApplicationId = m.SourceApplicationId,
                 CampaignId = m.SourceApplication?.CampaignId,
-                CampaignTitle = m.SourceApplication?.Campaign.Title,
+                CampaignTitle = m.SourceApplication?.Campaign?.Title,
                 JoinedViaRecruitment = m.SourceApplicationId.HasValue,
             }).ToList());
         }
