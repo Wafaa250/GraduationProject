@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, GraduationCap, Stethoscope, Building2, Users } from 'lucide-react'
 import DoctorRegisterForm from '../forms/DoctorRegisterForm'
+import CompanyRegisterForm from '../forms/CompanyRegisterForm'
 
 // ── Import each role's registration form ──────────────────────────────────────
 import StudentRegisterForm from '../forms/StudentRegisterForm'
-// import DoctorRegisterForm   from './forms/DoctorRegisterForm'
-// import CompanyRegisterForm  from './forms/CompanyRegisterForm'
 // import AssocRegisterForm    from './forms/AssocRegisterForm'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,7 +91,7 @@ export default function RegisterPage() {
       case 'doctor': return <DoctorRegisterForm onBack={handleBack} />
 
       case 'company':
-        return <ComingSoon role="Company" onBack={handleBack} />
+        return <CompanyRegisterForm onBack={handleBack} />
       case 'association':
         return <ComingSoon role="Student Organization" onBack={handleBack} />
       default:

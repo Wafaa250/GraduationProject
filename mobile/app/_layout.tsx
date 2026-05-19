@@ -36,6 +36,7 @@ export default function RootLayout() {
           <Stack.Screen name="following" />
           <Stack.Screen name="community-events" />
           <Stack.Screen name="community-recruitment" />
+          <Stack.Screen name="company" />
           <Stack.Screen name="public-organizations" />
           <Stack.Screen name="EditProfilePage" />
           <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal", headerShown: true }} />

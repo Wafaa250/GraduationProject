@@ -13,6 +13,7 @@ namespace GraduationProject.API.Data
         public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
         public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
         public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+        public DbSet<CompanyTalentRequest> CompanyTalentRequests => Set<CompanyTalentRequest>();
         public DbSet<StudentAssociationProfile> StudentAssociationProfiles => Set<StudentAssociationProfile>();
         public DbSet<StudentOrganizationEvent> StudentOrganizationEvents => Set<StudentOrganizationEvent>();
         public DbSet<StudentOrganizationEventRegistrationForm> StudentOrganizationEventRegistrationForms =>
@@ -96,6 +97,16 @@ namespace GraduationProject.API.Data
                 e.HasOne(c => c.User)
                  .WithOne(u => u.CompanyProfile)
                  .HasForeignKey<CompanyProfile>(c => c.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyTalentRequest>(e =>
+            {
+                e.ToTable("company_talent_requests");
+                e.HasIndex(r => r.CompanyProfileId);
+                e.HasOne(r => r.CompanyProfile)
+                 .WithMany()
+                 .HasForeignKey(r => r.CompanyProfileId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 

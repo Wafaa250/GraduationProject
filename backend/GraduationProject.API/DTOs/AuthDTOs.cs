@@ -116,13 +116,25 @@ namespace GraduationProject.API.DTOs
     // ===========================
     public class RegisterCompanyDto
     {
-        [Required] public string Name        { get; set; } = string.Empty;
-        [Required, EmailAddress] public string Email { get; set; } = string.Empty;
-        [Required, MinLength(6)] public string Password { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Contact name is required")]
+        public string ContactName { get; set; } = string.Empty;
 
-        [Required] public string CompanyName { get; set; } = string.Empty;
+        [Required, EmailAddress] public string Email { get; set; } = string.Empty;
+
+        [Required, MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your password")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Company name is required")]
+        public string CompanyName { get; set; } = string.Empty;
+
         public string? Industry    { get; set; }
         public string? Description { get; set; }
+        public string? Location    { get; set; }
+        public string? WebsiteUrl  { get; set; }
+        public string? LinkedInUrl { get; set; }
     }
 
     // ===========================

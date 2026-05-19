@@ -67,6 +67,8 @@ export default function LoginScreen() {
         router.replace("/organization/dashboard" as Href);
       } else if (role === "student") {
         router.replace("/dashboard");
+      } else if (role === "company") {
+        router.replace("/company/dashboard" as Href);
       } else {
         router.replace("/dashboard");
       }

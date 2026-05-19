@@ -27,6 +27,7 @@ import {
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 import { AssociationRegisterStep } from "@/components/organization/AssociationRegisterStep";
+import { CompanyRegisterStep } from "@/components/company/CompanyRegisterStep";
 
 type UserRole = "student" | "doctor" | "company" | "association" | null;
 type FlowStep = 1 | 2;
@@ -1485,6 +1486,10 @@ export default function RegisterScreen() {
     return <AssociationRegisterStep onBack={() => setFlowStep(1)} />;
   }
 
+  if (flowStep === 2 && selectedRole === "company") {
+    return <CompanyRegisterStep onBack={() => setFlowStep(1)} />;
+  }
+
   const handleNext = () => {
     if (!selectedRole) return;
     setFlowStep(2);
@@ -1613,14 +1618,6 @@ export default function RegisterScreen() {
                 ) : (
                   <View style={roleStyles.stepTwoWrap}>
                     {selectedRole === "doctor" ? <DoctorRegisterStep onBack={handleBack} /> : null}
-                    {selectedRole === "company" ? (
-                      <>
-                        <Text style={roleStyles.stepTwoText}>Company registration coming soon</Text>
-                        <Pressable style={roleStyles.backButton} onPress={handleBack}>
-                          <Text style={roleStyles.backButtonText}>Back</Text>
-                        </Pressable>
-                      </>
-                    ) : null}
                   </View>
                 )}
               </View>

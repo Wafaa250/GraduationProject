@@ -11,11 +11,16 @@ namespace GraduationProject.API.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IStudentRegisterService _studentService;
+        private readonly ICompanyAnalysisService _companyAnalysisService;
 
-        public AuthController(IAuthService authService, IStudentRegisterService studentService)
+        public AuthController(
+            IAuthService authService,
+            IStudentRegisterService studentService,
+            ICompanyAnalysisService companyAnalysisService)
         {
             _authService = authService;
             _studentService = studentService;
+            _companyAnalysisService = companyAnalysisService;
         }
 
         // =====================================================
@@ -55,6 +60,20 @@ namespace GraduationProject.API.Controllers
         }
 
         // =====================================================
+        // POST /api/auth/company/analyze
+        // =====================================================
+        [HttpPost("company/analyze")]
+        public async Task<IActionResult> AnalyzeCompany([FromBody] AnalyzeCompanyDto dto)
+        {
+            var (result, error) = await _companyAnalysisService.AnalyzeAsync(dto);
+
+            if (error != null)
+                return BadRequest(new { message = error });
+
+            return Ok(result);
+        }
+
+        // =====================================================
         // POST /api/auth/register/company
         // =====================================================
         [HttpPost("register/company")]
@@ -66,7 +85,11 @@ namespace GraduationProject.API.Controllers
             var (result, error) = await _authService.RegisterCompanyAsync(dto);
 
             if (error != null)
-                return Conflict(new { message = error });
+            {
+                if (error.Contains("already registered"))
+                    return Conflict(new { message = error });
+                return BadRequest(new { message = error });
+            }
 
             return StatusCode(201, result);
         }
