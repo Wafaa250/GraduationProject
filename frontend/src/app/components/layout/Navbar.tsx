@@ -1,51 +1,45 @@
 import { Link } from "react-router-dom";
-import React from "react";
+import { ArrowRight, Sparkles } from "lucide-react";
+
+import { Button } from "../ui/button";
+
+const NAV_LINKS = [
+  { href: "#how-it-works", label: "How it works" },
+  { href: "#for-who", label: "Roles" },
+  { href: "#features", label: "Features" },
+] as const;
 
 export function Navbar() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-white">
-              <path
-                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground shadow-glow">
+            <Sparkles className="h-4 w-4" />
           </div>
-          <span className="text-xl font-bold text-slate-800">
-            Skill<span className="text-blue-600">Swap</span>
-          </span>
+          <span className="font-display text-lg font-bold text-foreground">SkillSwap</span>
         </Link>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3">
-          <a
-            href="#how-it-works"
-            className="hidden md:block text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
-          >
-            How It Works
-          </a>
+        <nav className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
+          {NAV_LINKS.map((link) => (
+            <a key={link.href} href={link.href} className="transition-colors hover:text-foreground">
+              {link.label}
+            </a>
+          ))}
+        </nav>
 
-          <Link
-            to="/login"
-            className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors px-4 py-2"
-          >
-            Sign In
-          </Link>
-          <Link
-            to="/register"
-            className="text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-blue-200"
-          >
-            Register
-          </Link>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Link to="/login">Sign In</Link>
+          </Button>
+          <Button asChild size="sm" className="bg-gradient-primary shadow-glow hover:opacity-95">
+            <Link to="/register">
+              Get Started
+              <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Link>
+          </Button>
         </div>
       </div>
-    </nav>
+    </header>
   );
 }

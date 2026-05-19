@@ -1,63 +1,88 @@
-import heroImage from "../../../assets/images/hero.jpg";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+
+import { Button } from "../ui/button";
+
+/** Illustrative match preview — visual only, not live API data. */
+const MATCH_PREVIEW = [
+  { score: 96, name: "Layla Hassan", role: "Frontend", reason: "Covers UI/UX gap" },
+  { score: 92, name: "Omar Khalid", role: "NLP Engineer", reason: "Published NLP paper" },
+  { score: 88, name: "Dr. Reem Al-Saadi", role: "Supervisor", reason: "EdTech research overlap" },
+] as const;
 
 export function Hero() {
   return (
-    <section className="relative min-h-screen pt-24 pb-16 overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/40 to-purple-50/30">
-      {/* Background decorations */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl pointer-events-none" />
+    <section className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-surface" />
+      <div className="absolute inset-0 surface-grid opacity-30" />
 
-      <div className="relative max-w-7xl mx-auto px-6 pt-12">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="relative mx-auto max-w-7xl px-6 py-20 sm:py-28">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-ai/30 bg-ai-soft px-3 py-1 text-xs font-semibold text-ai">
+            <Sparkles className="h-3 w-3" />
+            AI matching for university collaboration
+          </span>
 
-          {/* Left Content */}
-          <div className="space-y-8">
+          <h1 className="mt-6 font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            Put the <span className="gradient-text">right person</span> in the right{" "}
+            <span className="gradient-text-ai">project</span>.
+          </h1>
 
-            {/* AI Badge */}
-            <span className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 text-sm font-semibold px-4 py-1.5 rounded-full">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"/>
-              </svg>
-              AI-Powered Matching
-            </span>
+          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
+            SkillSwap is an AI-powered matching platform for university projects, teams, supervisors,
+            companies and student associations — built on skills, not friendships.
+          </p>
 
-            {/* Title */}
-            <h1 className="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight">
-              Find the right team, supervisor, and opportunity{" "}
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                using AI
-              </span>
-            </h1>
-
-            {/* Subtitle */}
-            <p className="text-lg text-slate-600 leading-relaxed max-w-lg">
-              SkillSwap uses AI to match students with teammates, supervisors, and projects —
-              based on skills and project needs, not personal connections.
-            </p>
-
-            {/* Single CTA */}
-            <Link
-              to="/register"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold transition-all shadow-lg hover:shadow-blue-200 hover:-translate-y-0.5"
-            >
-              Get Started
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </Link>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button asChild size="lg" className="bg-gradient-primary shadow-glow hover:opacity-95">
+              <Link to="/register">
+                Get Started
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <a href="#features">Explore matches</a>
+            </Button>
           </div>
 
-          {/* Right: Hero Image */}
-          <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-            <img
-              src={heroImage}
-              alt="Students collaborating on academic projects"
-              className="w-full h-[420px] object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-blue-900/40 to-transparent" />
-          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Not an LMS · Not attendance · Not grading — a collaboration &amp; matching layer for
+            campus.
+          </p>
+        </div>
 
+        <div className="mx-auto mt-16 max-w-4xl">
+          <div className="relative rounded-3xl border border-border bg-card p-1 shadow-pop">
+            <div className="rounded-[1.4rem] bg-gradient-to-br from-card to-background p-6 sm:p-8">
+              <div className="grid gap-4 sm:grid-cols-3">
+                {MATCH_PREVIEW.map((m) => (
+                  <article
+                    key={m.name}
+                    className="rounded-2xl border border-border bg-card p-4 shadow-soft"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground">
+                        {m.name
+                          .split(" ")
+                          .map((p) => p[0])
+                          .join("")
+                          .slice(0, 2)}
+                      </span>
+                      <span className="rounded-full bg-ai-soft px-2 py-0.5 text-[11px] font-bold text-ai">
+                        {m.score}%
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold">{m.name}</p>
+                    <p className="text-xs text-muted-foreground">{m.role}</p>
+                    <p className="mt-2 border-t border-border pt-2 text-[11px] text-ai">
+                      <Sparkles className="mr-1 inline h-3 w-3" />
+                      {m.reason}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

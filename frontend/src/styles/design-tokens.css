@@ -1,0 +1,42 @@
+/* Lovable design tokens: gradients, shadows, and extended palette (visual only). */
+
+:root {
+  --primary-glow: hsl(250 85% 68%);
+  --accent-soft: hsl(175 65% 94%);
+  --ai: hsl(270 75% 60%);
+  --ai-foreground: hsl(0 0% 100%);
+  --ai-soft: hsl(270 80% 96%);
+  --success: hsl(150 65% 42%);
+  --success-foreground: hsl(0 0% 100%);
+  --warning: hsl(35 92% 55%);
+  --warning-foreground: hsl(30 60% 15%);
+
+  --gradient-primary: linear-gradient(135deg, hsl(245 65% 38%), hsl(265 75% 55%));
+  --gradient-ai: linear-gradient(135deg, hsl(270 75% 60%), hsl(195 85% 55%));
+  --gradient-hero: linear-gradient(
+    135deg,
+    hsl(245 65% 38%) 0%,
+    hsl(265 70% 50%) 40%,
+    hsl(195 80% 55%) 100%
+  );
+  --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(240 30% 98%) 100%);
+  --gradient-surface:
+    radial-gradient(1200px 600px at 0% 0%, hsl(245 80% 96%) 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, hsl(195 80% 96%) 0%, transparent 55%);
+
+  --shadow-sm: 0 1px 2px hsl(240 30% 20% / 0.04);
+  --shadow-md: 0 4px 12px -2px hsl(240 30% 20% / 0.06), 0 2px 6px -2px hsl(240 30% 20% / 0.04);
+  --shadow-lg: 0 20px 40px -12px hsl(245 50% 30% / 0.12), 0 8px 16px -8px hsl(245 50% 30% / 0.08);
+  --shadow-glow: 0 0 0 1px hsl(245 65% 38% / 0.08), 0 20px 50px -20px hsl(245 65% 38% / 0.35);
+  --shadow-ai: 0 20px 50px -15px hsl(270 75% 60% / 0.4);
+}
+
+.dark {
+  --accent-soft: hsl(175 40% 18%);
+  --ai: hsl(270 80% 70%);
+  --ai-foreground: hsl(240 25% 8%);
+  --ai-soft: hsl(270 35% 18%);
+  --success: hsl(150 55% 48%);
+  --warning: hsl(35 85% 58%);
+  --warning-foreground: hsl(30 60% 10%);
+}

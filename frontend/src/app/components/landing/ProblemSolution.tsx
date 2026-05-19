@@ -1,66 +1,67 @@
+import { CheckCircle2, AlertTriangle } from "lucide-react";
+
+const problems = [
+  "Teams built on friendships, not skills — gaps show up when the project gets hard.",
+  "Supervisor fit is luck, not signal.",
+  "Companies and associations have no fast path to the right student talent.",
+];
+
+const solutions = [
+  "AI builds teams from complementary skills — every match explained in plain language.",
+  "Supervisors ranked by research overlap, capacity, and fit.",
+  "Post a need; AI shortlists students and teams ready to deliver.",
+];
+
 export function ProblemSolution() {
   return (
-    <section className="py-24 bg-white" id="problem-solution">
-      <div className="max-w-5xl mx-auto px-6">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <span className="inline-block bg-blue-50 text-blue-600 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
-            Problem & Solution
-          </span>
-          <h2 className="text-4xl font-bold text-slate-900 mb-4">Why SkillSwap Exists</h2>
-          <p className="text-slate-500 max-w-xl mx-auto">
-            University project teams are still formed the wrong way. SkillSwap fixes that with AI.
+    <section className="py-20" id="problem-solution">
+      <div className="mx-auto max-w-5xl px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-xs font-bold uppercase tracking-widest text-primary">The old way vs. SkillSwap</p>
+          <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">
+            Campus collaboration, without friendship politics.
+          </h2>
+          <p className="mt-3 text-muted-foreground">
+            Matching should run on skills and project signals — not who you already know.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Problem */}
-          <div className="bg-blue-950 border border-blue-900 rounded-3xl p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-blue-900 flex items-center justify-center text-2xl">
-                ⚠️
+        <div className="mt-12 grid gap-4 md:grid-cols-2">
+          <article className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
               </div>
-              <h3 className="text-xl font-bold text-white">The Problem</h3>
+              <h3 className="font-display text-xl font-semibold">How it works today</h3>
             </div>
             <ul className="space-y-4">
-              {[
-                "Students form teams based on friendships, not skills — resulting in unbalanced groups with critical gaps.",
-                "Finding a supervisor whose expertise matches the project topic is left to chance.",
-                "There is no structured way for companies and student organizations to connect with student teams for real projects.",
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span className="w-5 h-5 rounded-full bg-blue-800 text-blue-200 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+              {problems.map((item, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm leading-relaxed text-muted-foreground">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">
                     {i + 1}
                   </span>
-                  <span className="text-sm text-blue-100 leading-relaxed">{item}</span>
+                  {item}
                 </li>
               ))}
             </ul>
-          </div>
+          </article>
 
-          {/* Solution */}
-          <div className="bg-blue-50 border border-blue-100 rounded-3xl p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-2xl">
-                💡
+          <article className="rounded-2xl border border-primary/20 bg-gradient-to-br from-card to-accent-soft/30 p-6 shadow-soft">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                <CheckCircle2 className="h-5 w-5" />
               </div>
-              <h3 className="text-xl font-bold text-blue-700">The Solution</h3>
+              <h3 className="font-display text-xl font-semibold">How SkillSwap fixes it</h3>
             </div>
             <ul className="space-y-4">
-              {[
-                "AI matches students into teams based on skills and project requirements — not personal connections.",
-                "AI suggests supervisors whose expertise aligns with the project topic and scope.",
-                "Companies and student organizations post real project requests; AI connects them with qualified student teams.",
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  <span className="text-sm text-blue-800 leading-relaxed">{item}</span>
+              {solutions.map((item, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm leading-relaxed text-muted-foreground">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                  {item}
                 </li>
               ))}
             </ul>
-          </div>
+          </article>
         </div>
       </div>
     </section>

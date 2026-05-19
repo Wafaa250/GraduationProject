@@ -1,0 +1,108 @@
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    font-feature-settings: 'ss01', 'cv11';
+    @apply antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    @apply tracking-tight;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-hero);
+  }
+
+  .gradient-text-ai {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-ai);
+  }
+
+  .surface-grid {
+    background-image:
+      linear-gradient(hsl(240 15% 90% / 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(240 15% 90% / 0.4) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .dark .surface-grid {
+    background-image:
+      linear-gradient(hsl(240 20% 18% / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(240 20% 18% / 0.5) 1px, transparent 1px);
+  }
+
+  .ai-ring {
+    box-shadow:
+      0 0 0 1px hsl(270 75% 60% / 0.25),
+      0 0 0 6px hsl(270 75% 60% / 0.08);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  .bg-gradient-primary {
+    background-image: var(--gradient-primary);
+  }
+
+  .bg-gradient-ai {
+    background-image: var(--gradient-ai);
+  }
+
+  .bg-gradient-hero {
+    background-image: var(--gradient-hero);
+  }
+
+  .bg-gradient-surface {
+    background-image: var(--gradient-surface);
+  }
+
+  .bg-accent-soft {
+    background-color: var(--accent-soft);
+  }
+
+  .bg-ai-soft {
+    background-color: var(--ai-soft);
+  }
+
+  .text-ai {
+    color: var(--ai);
+  }
+
+  .text-success {
+    color: var(--success);
+  }
+
+  .text-warning {
+    color: var(--warning);
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-pop {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .shadow-ai {
+    box-shadow: var(--shadow-ai);
+  }
+}

@@ -1,20 +1,24 @@
-import { Navbar } from "../components/layout/Navbar";
-import { Hero } from "../components/landing/Hero";
-import { ProblemSolution } from "../components/landing/ProblemSolution";
-import { HowItWorks } from "../components/landing/HowItWorks";
-import { Features } from "../components/landing/Features";
-import { UserTypes } from "../components/landing/UserTypes";
 import { Footer } from "../components/layout/Footer";
+import { Navbar } from "../components/layout/Navbar";
+import { Features } from "../components/landing/Features";
+import { Hero } from "../components/landing/Hero";
+import { HowItWorks } from "../components/landing/HowItWorks";
+import { LandingCta } from "../components/landing/LandingCta";
+import { ProblemSolution } from "../components/landing/ProblemSolution";
+import { UserTypes } from "../components/landing/UserTypes";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <Hero />
-      <ProblemSolution />
-      <HowItWorks />
-      <Features />
-      <UserTypes />
+      <main>
+        <Hero />
+        <ProblemSolution />
+        <HowItWorks />
+        <UserTypes />
+        <Features />
+        <LandingCta />
+      </main>
       <Footer />
     </div>
   );
