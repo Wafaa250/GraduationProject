@@ -18,6 +18,7 @@ import {
 import { apiClient } from "../../../api/client"
 import { parseApiErrorMessage } from "../../../api/axiosInstance"
 import { navigateHome } from "../../../utils/homeNavigation"
+import { StudentOrganizationMembershipsSection } from "../../components/student/StudentOrganizationMembershipsSection"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
@@ -353,6 +354,11 @@ export default function ProfilePage() {
         <div className="profile-main-grid">
           <div style={S.col}>
             <AcademicInfoSection user={user} />
+            <StudentOrganizationMembershipsSection
+              cardStyle={S.card}
+              titleStyle={S.sectionTitle}
+              mutedStyle={{ margin: 0, fontSize: 13, color: "#64748b", lineHeight: 1.5 }}
+            />
             <SkillsSection
               mode={mode}
               allSkills={allSkills}

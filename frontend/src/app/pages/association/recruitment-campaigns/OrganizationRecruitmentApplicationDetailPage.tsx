@@ -3,8 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
+  acceptRecruitmentApplication,
   getOrganizationRecruitmentApplication,
   parseApiErrorMessage,
+  rejectRecruitmentApplication,
   updateRecruitmentApplicationStatus,
   type RecruitmentApplicationDetail,
   type RecruitmentApplicationStatus,
@@ -15,7 +17,7 @@ import { assocCard, assocDash } from '../dashboard/associationDashTokens'
 import { formatEventDate } from '../events/eventFormUtils'
 import { useAssociationShell } from '../events/useAssociationShell'
 
-const STATUSES: RecruitmentApplicationStatus[] = ['Pending', 'Accepted', 'Rejected']
+const STATUSES: RecruitmentApplicationStatus[] = ['Pending', 'AiSuggested', 'Accepted', 'Rejected']
 
 export default function OrganizationRecruitmentApplicationDetailPage() {
   const { campaignId, applicationId } = useParams<{ campaignId: string; applicationId: string }>()
@@ -50,9 +52,23 @@ export default function OrganizationRecruitmentApplicationDetailPage() {
     if (!app) return
     setStatusBusy(true)
     try {
-      const updated = await updateRecruitmentApplicationStatus(campId, app.id, status)
-      setApp(updated)
-      toast.success(`Marked as ${status}`)
+      if (status === 'Accepted') {
+        const res = await acceptRecruitmentApplication(app.id)
+        setApp(res.application)
+        toast.success(
+          res.membershipKind === 'Leadership'
+            ? 'Accepted and added to leadership team.'
+            : 'Accepted and added to organization members.',
+        )
+      } else if (status === 'Rejected') {
+        const res = await rejectRecruitmentApplication(app.id)
+        setApp(res.application)
+        toast.success('Application rejected.')
+      } else {
+        const updated = await updateRecruitmentApplicationStatus(campId, app.id, status)
+        setApp(updated)
+        toast.success(`Marked as ${status}`)
+      }
     } catch (err) {
       toast.error(parseApiErrorMessage(err))
     } finally {

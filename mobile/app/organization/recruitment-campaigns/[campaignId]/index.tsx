@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,11 @@ import { router, useLocalSearchParams, type Href } from "expo-router";
 
 import { parseApiErrorMessage, resolveApiFileUrl } from "@/api/axiosInstance";
 import {
+  analyzeRecruitmentApplicants,
+  type RecruitmentApplicantAnalysisResponse,
+  type RecruitmentApplicantAnalysisResult,
+} from "@/api/recruitmentApplicationsApi";
+import {
   deleteOrganizationRecruitmentCampaign,
   getOrganizationRecruitmentCampaign,
   parseSkillsList,
@@ -26,12 +33,20 @@ import { radius, spacing } from "@/constants/responsiveLayout";
 import { formatEventDate } from "@/utils/eventFormUtils";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
+function aiCardKey(positionId: number, applicationId: number) {
+  return `${positionId}-${applicationId}`;
+}
+
 export default function OrganizationRecruitmentCampaignDetailsScreen() {
   const { campaignId } = useLocalSearchParams<{ campaignId: string }>();
   const layout = useResponsiveLayout();
   const id = Number(campaignId);
   const [campaign, setCampaign] = useState<RecruitmentCampaign | null>(null);
   const [loading, setLoading] = useState(true);
+  const [aiByPosition, setAiByPosition] = useState<Record<number, RecruitmentApplicantAnalysisResponse | undefined>>({});
+  const [aiAnalyzingPositionId, setAiAnalyzingPositionId] = useState<number | null>(null);
+  const [expandedAiKey, setExpandedAiKey] = useState<string | null>(null);
+  const pulse = useRef(new Animated.Value(0.35)).current;
 
   const load = useCallback(async () => {
     if (!Number.isFinite(id)) {
@@ -54,6 +69,31 @@ export default function OrganizationRecruitmentCampaignDetailsScreen() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (aiAnalyzingPositionId == null) {
+      pulse.setValue(0.35);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.35,
+          duration: 700,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [aiAnalyzingPositionId, pulse]);
+
   const cover = campaign?.coverImageUrl ? resolveApiFileUrl(campaign.coverImageUrl) : null;
   const positions = [...(campaign?.positions ?? [])].sort((a, b) => a.displayOrder - b.displayOrder);
 
@@ -73,6 +113,24 @@ export default function OrganizationRecruitmentCampaignDetailsScreen() {
     } catch (e) {
       Alert.alert("Error", parseApiErrorMessage(e));
     }
+  };
+
+  const runAiAnalyze = async (positionId: number) => {
+    if (!campaign || !Number.isFinite(id)) return;
+    setAiAnalyzingPositionId(positionId);
+    try {
+      const data = await analyzeRecruitmentApplicants(campaign.id, positionId);
+      setAiByPosition((prev) => ({ ...prev, [positionId]: data }));
+    } catch (e) {
+      Alert.alert("Analysis failed", parseApiErrorMessage(e));
+    } finally {
+      setAiAnalyzingPositionId(null);
+    }
+  };
+
+  const toggleExpand = (positionId: number, r: RecruitmentApplicantAnalysisResult) => {
+    const key = aiCardKey(positionId, r.applicationId);
+    setExpandedAiKey((prev) => (prev === key ? null : key));
   };
 
   return (
@@ -118,6 +176,9 @@ export default function OrganizationRecruitmentCampaignDetailsScreen() {
           <Text style={styles.section}>Required positions ({positions.length})</Text>
           {positions.map((p) => {
             const skills = parseSkillsList(p.requiredSkills);
+            const analysis = aiByPosition[p.id];
+            const expandedFor = (r: RecruitmentApplicantAnalysisResult) =>
+              expandedAiKey === aiCardKey(p.id, r.applicationId);
             return (
               <View key={p.id} style={styles.posCard}>
                 <View style={styles.posHead}>
@@ -145,6 +206,118 @@ export default function OrganizationRecruitmentCampaignDetailsScreen() {
                       ))}
                     </View>
                   </>
+                ) : null}
+
+                <Pressable
+                  style={[styles.aiBtn, aiAnalyzingPositionId === p.id && styles.aiBtnBusy]}
+                  onPress={() => void runAiAnalyze(p.id)}
+                  disabled={aiAnalyzingPositionId === p.id}
+                >
+                  {aiAnalyzingPositionId === p.id ? (
+                    <ActivityIndicator color={assocColors.accentDark} size="small" />
+                  ) : (
+                    <Ionicons name="sparkles" size={18} color={assocColors.accentDark} />
+                  )}
+                  <Text style={styles.aiBtnTxt}>
+                    {aiAnalyzingPositionId === p.id ? "Analyzing applicants…" : "Analyze applicants with AI"}
+                  </Text>
+                </Pressable>
+                {aiAnalyzingPositionId === p.id ? (
+                  <Animated.View style={[styles.aiPulseBar, { opacity: pulse }]} />
+                ) : null}
+
+                {analysis ? (
+                  <View style={styles.aiResults}>
+                    <Text style={styles.aiResultsTitle}>AI matches</Text>
+                    {analysis.results.length === 0 ? (
+                      <Text style={styles.aiEmpty}>No submitted applications for this position yet.</Text>
+                    ) : (
+                      analysis.results.map((r, idx) => {
+                        const open = expandedFor(r);
+                        return (
+                          <View key={aiCardKey(p.id, r.applicationId)} style={styles.aiMatchCard}>
+                            <Pressable onPress={() => toggleExpand(p.id, r)} style={styles.aiMatchHead}>
+                              <View style={{ flex: 1, minWidth: 0 }}>
+                                <View style={styles.rankRow}>
+                                  {idx === 0 ? (
+                                    <View style={styles.topPick}>
+                                      <Text style={styles.topPickTxt}>Top pick</Text>
+                                    </View>
+                                  ) : null}
+                                </View>
+                                <Text style={styles.aiName}>{r.studentName}</Text>
+                                <Text style={styles.aiSub} numberOfLines={open ? undefined : 1}>
+                                  {[r.faculty, r.major].filter(Boolean).join(" · ") || "—"}
+                                </Text>
+                              </View>
+                              <View style={styles.scoreWrap}>
+                                <Text style={styles.scoreVal}>{r.matchScore}%</Text>
+                                <Text style={styles.scoreLbl}>match</Text>
+                                <Ionicons
+                                  name={open ? "chevron-up" : "chevron-down"}
+                                  size={18}
+                                  color={assocColors.muted}
+                                />
+                              </View>
+                            </Pressable>
+                            {open ? (
+                              <View style={styles.aiExpand}>
+                                {r.strengths.length > 0 ? (
+                                  <>
+                                    <Text style={styles.expandLbl}>Strengths</Text>
+                                    {r.strengths.map((s) => (
+                                      <Text key={s} style={styles.expandLi}>
+                                        • {s}
+                                      </Text>
+                                    ))}
+                                  </>
+                                ) : null}
+                                {r.concerns.length > 0 ? (
+                                  <>
+                                    <Text style={[styles.expandLbl, { marginTop: spacing.sm }]}>Concerns</Text>
+                                    {r.concerns.map((c) => (
+                                      <Text key={c} style={styles.expandConcern}>
+                                        • {c}
+                                      </Text>
+                                    ))}
+                                  </>
+                                ) : null}
+                                <Text style={styles.expandReason}>{r.reason}</Text>
+                                <View style={styles.aiActions}>
+                                  <Pressable
+                                    style={styles.aiGhost}
+                                    onPress={() =>
+                                      router.push(
+                                        `/organization/recruitment-campaigns/${campaign.id}/applications/${r.applicationId}` as Href,
+                                      )
+                                    }
+                                  >
+                                    <Ionicons name="document-text-outline" size={16} color={assocColors.accentDark} />
+                                    <Text style={styles.aiGhostTxt}>Full application</Text>
+                                  </Pressable>
+                                  <Pressable
+                                    style={styles.aiPrimary}
+                                    onPress={() =>
+                                      router.push(
+                                        `/StudentPublicProfilePage?userId=${encodeURIComponent(String(r.studentUserId))}` as Href,
+                                      )
+                                    }
+                                  >
+                                    <Ionicons name="person-outline" size={16} color="#fff" />
+                                    <Text style={styles.aiPrimaryTxt}>Profile</Text>
+                                  </Pressable>
+                                </View>
+                              </View>
+                            ) : (
+                              <Text style={styles.tapHint} numberOfLines={2}>
+                                Tap for AI explanation and actions
+                              </Text>
+                            )}
+                          </View>
+                        );
+                      })
+                    )}
+                  </View>
                 ) : null}
               </View>
             );
@@ -216,6 +389,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: assocColors.border,
     backgroundColor: assocColors.surface,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
   posHead: {
     flexDirection: "row",
@@ -254,6 +432,98 @@ const styles = StyleSheet.create({
     borderColor: assocColors.accentBorder,
   },
   chipTxt: { fontSize: 12, fontWeight: "700", color: assocColors.accentDark },
+  aiBtn: {
+    marginTop: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: "#c2410c22",
+    backgroundColor: "#fff7ed",
+  },
+  aiBtnBusy: { opacity: 0.9 },
+  aiBtnTxt: { fontSize: 14, fontWeight: "900", color: assocColors.accentDark },
+  aiPulseBar: {
+    marginTop: spacing.sm,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: "#ea580c",
+  },
+  aiResults: { marginTop: spacing.lg },
+  aiResultsTitle: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: assocColors.subtle,
+    textTransform: "uppercase",
+    marginBottom: spacing.sm,
+  },
+  aiEmpty: { fontSize: 13, color: assocColors.muted, fontWeight: "600" },
+  aiMatchCard: {
+    marginBottom: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: assocColors.border,
+    backgroundColor: "#fffefb",
+    overflow: "hidden",
+  },
+  aiMatchHead: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  rankRow: { flexDirection: "row", marginBottom: 4 },
+  topPick: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "#0f172a",
+  },
+  topPickTxt: { fontSize: 10, fontWeight: "900", color: "#fff", textTransform: "uppercase" },
+  aiName: { fontSize: 16, fontWeight: "900", color: assocColors.text },
+  aiSub: { marginTop: 4, fontSize: 13, color: assocColors.muted, fontWeight: "600" },
+  scoreWrap: { alignItems: "flex-end", gap: 2 },
+  scoreVal: { fontSize: 20, fontWeight: "900", color: "#c2410c" },
+  scoreLbl: { fontSize: 10, fontWeight: "800", color: assocColors.muted, textTransform: "uppercase" },
+  aiExpand: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  expandLbl: { fontSize: 11, fontWeight: "900", color: assocColors.subtle, textTransform: "uppercase" },
+  expandLi: { marginTop: 4, fontSize: 13, color: assocColors.text, fontWeight: "600", lineHeight: 18 },
+  expandConcern: { marginTop: 4, fontSize: 13, color: "#b45309", fontWeight: "600", lineHeight: 18 },
+  expandReason: {
+    marginTop: spacing.md,
+    fontSize: 14,
+    lineHeight: 21,
+    color: assocColors.text,
+    fontWeight: "600",
+    fontStyle: "italic",
+  },
+  tapHint: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, fontSize: 12, color: assocColors.muted },
+  aiActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
+  aiGhost: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: assocColors.accentBorder,
+    backgroundColor: assocColors.surface,
+  },
+  aiGhostTxt: { fontWeight: "800", color: assocColors.accentDark, fontSize: 13 },
+  aiPrimary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radius.md,
+    backgroundColor: "#ea580c",
+  },
+  aiPrimaryTxt: { fontWeight: "900", color: "#fff", fontSize: 13 },
   actions: {
     flexDirection: "row",
     flexWrap: "wrap",

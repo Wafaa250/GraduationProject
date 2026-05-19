@@ -36,6 +36,15 @@ namespace GraduationProject.API.DTOs
         public int? ApplicationId { get; set; }
         public string? Status { get; set; }
         public DateTime? SubmittedAt { get; set; }
+        public DateTime? AcceptedAt { get; set; }
+        public int OrganizationId { get; set; }
+        public string OrganizationName { get; set; } = string.Empty;
+        public int CampaignId { get; set; }
+        public string CampaignTitle { get; set; } = string.Empty;
+        public int PositionId { get; set; }
+        public string PositionRoleTitle { get; set; } = string.Empty;
+        public string? MembershipKind { get; set; }
+        public bool IsOrganizationMember { get; set; }
     }
 
     public class RecruitmentApplicationAnswerResponseDto
@@ -77,6 +86,9 @@ namespace GraduationProject.API.DTOs
         public string Status { get; set; } = string.Empty;
         public DateTime SubmittedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        public DateTime? AcceptedAt { get; set; }
+
         public List<RecruitmentApplicationAnswerResponseDto> Answers { get; set; } = new();
     }
 

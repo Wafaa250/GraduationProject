@@ -11,8 +11,16 @@ export type PublicOrganizationEventSummary = {
   isOnline: boolean
 }
 
+export type PublicOrganizationMember = {
+  studentUserId: number
+  studentName: string
+  roleTitle: string
+  major?: string | null
+}
+
 export type PublicLeadershipTeamMember = {
   id: number
+  studentUserId?: number | null
   fullName: string
   roleTitle: string
   major?: string | null
@@ -36,6 +44,7 @@ export type PublicStudentOrganizationProfile = {
   upcomingEvents: PublicOrganizationEventSummary[]
   followersCount: number
   leadershipTeam?: PublicLeadershipTeamMember[]
+  members?: PublicOrganizationMember[]
 }
 
 export type OrganizationFollowStatus = {

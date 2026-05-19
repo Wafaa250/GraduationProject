@@ -12,6 +12,13 @@ namespace GraduationProject.API.Models
         [Column("organization_profile_id")]
         public int OrganizationProfileId { get; set; }
 
+        /// <summary>When set, this showcase row is linked to a real student account (e.g. recruitment accept).</summary>
+        [Column("student_profile_id")]
+        public int? StudentProfileId { get; set; }
+
+        [Column("source_application_id")]
+        public int? SourceApplicationId { get; set; }
+
         [Column("full_name")]
         public string FullName { get; set; } = string.Empty;
 
@@ -37,5 +44,7 @@ namespace GraduationProject.API.Models
         public DateTime? UpdatedAt { get; set; }
 
         public StudentAssociationProfile OrganizationProfile { get; set; } = null!;
+        public StudentProfile? StudentProfile { get; set; }
+        public StudentOrganizationRecruitmentApplication? SourceApplication { get; set; }
     }
 }

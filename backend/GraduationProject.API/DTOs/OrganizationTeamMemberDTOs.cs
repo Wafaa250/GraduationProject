@@ -51,6 +51,9 @@ namespace GraduationProject.API.DTOs
     {
         public int Id { get; set; }
         public int OrganizationProfileId { get; set; }
+        public int? StudentProfileId { get; set; }
+        public int? StudentUserId { get; set; }
+        public int? SourceApplicationId { get; set; }
         public string FullName { get; set; } = string.Empty;
         public string RoleTitle { get; set; } = string.Empty;
         public string? Major { get; set; }
@@ -59,6 +62,8 @@ namespace GraduationProject.API.DTOs
         public int DisplayOrder { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public bool IsLinkedStudent { get; set; }
+        public bool JoinedViaRecruitment { get; set; }
     }
 
     public class TeamMemberImageUploadResponseDto

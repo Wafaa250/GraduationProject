@@ -19,11 +19,13 @@ namespace GraduationProject.API.DTOs
         public List<PublicOrganizationEventSummaryDto> UpcomingEvents { get; set; } = new();
         public int FollowersCount { get; set; }
         public List<PublicLeadershipTeamMemberDto> LeadershipTeam { get; set; } = new();
+        public List<PublicOrganizationMemberDto> Members { get; set; } = new();
     }
 
     public class PublicLeadershipTeamMemberDto
     {
         public int Id { get; set; }
+        public int? StudentUserId { get; set; }
         public string FullName { get; set; } = string.Empty;
         public string RoleTitle { get; set; } = string.Empty;
         public string? Major { get; set; }

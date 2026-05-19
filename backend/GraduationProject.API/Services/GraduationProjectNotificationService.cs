@@ -18,6 +18,7 @@ namespace GraduationProject.API.Services
         public const string ChatCategory = "chat";
         public const string CourseCategory = "course";
         public const string OrganizationEventCategory = "organization_event";
+        public const string OrganizationRecruitmentCategory = "organization_recruitment";
 
         private readonly ApplicationDbContext _db;
         private readonly IHubContext<NotificationsHub> _hubContext;
@@ -845,6 +846,62 @@ namespace GraduationProject.API.Services
                 courseId,
                 "Added to section",
                 $"You were added to section \"{sectionName}\" in course \"{courseName}\".",
+                ct);
+        }
+
+        public async Task NotifyRecruitmentApplicationAcceptedAsync(
+            int applicationId,
+            int studentProfileId,
+            string organizationName,
+            string campaignTitle,
+            string positionRoleTitle,
+            string membershipKind,
+            CancellationToken ct = default)
+        {
+            var userId = await GetStudentUserIdAsync(studentProfileId, ct);
+            if (!userId.HasValue)
+                return;
+
+            var title = "Recruitment acceptance";
+            var body =
+                $"You have been accepted into {campaignTitle}. You joined {organizationName} as {positionRoleTitle}.";
+            if (string.Equals(membershipKind, OrganizationMembershipKinds.Leadership, StringComparison.Ordinal))
+            {
+                body =
+                    $"You have been accepted into {campaignTitle}. You are now a leadership member of {organizationName} as {positionRoleTitle}.";
+            }
+
+            await TryAddGenericAsync(
+                userId.Value,
+                OrganizationRecruitmentCategory,
+                "recruitment_application_accepted",
+                applicationId,
+                title,
+                body,
+                $"recruitment:accepted:{applicationId}:{userId}",
+                ct);
+        }
+
+        public async Task NotifyRecruitmentApplicationRejectedAsync(
+            int applicationId,
+            int studentProfileId,
+            string positionRoleTitle,
+            CancellationToken ct = default)
+        {
+            var userId = await GetStudentUserIdAsync(studentProfileId, ct);
+            if (!userId.HasValue)
+                return;
+
+            var title = "Application update";
+            var body = $"Your application for {positionRoleTitle} was not selected.";
+            await TryAddGenericAsync(
+                userId.Value,
+                OrganizationRecruitmentCategory,
+                "recruitment_application_rejected",
+                applicationId,
+                title,
+                body,
+                $"recruitment:rejected:{applicationId}:{userId}",
                 ct);
         }
 

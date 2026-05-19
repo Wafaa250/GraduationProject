@@ -120,12 +120,14 @@ namespace GraduationProject.API.Controllers
 
             var leadershipTeam = await _db.StudentOrganizationTeamMembers
                 .AsNoTracking()
+                .Include(m => m.StudentProfile)
                 .Where(m => m.OrganizationProfileId == organizationId)
                 .OrderBy(m => m.DisplayOrder)
                 .ThenBy(m => m.CreatedAt)
                 .Select(m => new PublicLeadershipTeamMemberDto
                 {
                     Id = m.Id,
+                    StudentUserId = m.StudentProfile != null ? m.StudentProfile.UserId : null,
                     FullName = m.FullName,
                     RoleTitle = m.RoleTitle,
                     Major = m.Major,
@@ -135,7 +137,23 @@ namespace GraduationProject.API.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(MapProfile(profile, upcoming, followersCount, leadershipTeam));
+            var generalMembers = await _db.StudentOrganizationMembers
+                .AsNoTracking()
+                .Include(m => m.StudentProfile).ThenInclude(s => s.User)
+                .Where(m =>
+                    m.OrganizationProfileId == organizationId &&
+                    m.MembershipKind == OrganizationMembershipKinds.Member)
+                .OrderByDescending(m => m.AcceptedAt)
+                .Select(m => new PublicOrganizationMemberDto
+                {
+                    StudentUserId = m.StudentProfile.UserId,
+                    StudentName = m.StudentProfile.User!.Name ?? "Student",
+                    RoleTitle = m.RoleTitle ?? string.Empty,
+                    Major = m.StudentProfile.Major,
+                })
+                .ToListAsync();
+
+            return Ok(MapProfile(profile, upcoming, followersCount, leadershipTeam, generalMembers));
         }
 
         // GET /api/organizations/{organizationId}/follow-status
@@ -366,7 +384,8 @@ namespace GraduationProject.API.Controllers
             StudentAssociationProfile profile,
             List<PublicOrganizationEventSummaryDto> upcoming,
             int followersCount,
-            List<PublicLeadershipTeamMemberDto> leadershipTeam) => new()
+            List<PublicLeadershipTeamMemberDto> leadershipTeam,
+            List<PublicOrganizationMemberDto> members) => new()
         {
             OrganizationId = profile.Id,
             OrganizationName = profile.AssociationName,
@@ -382,6 +401,7 @@ namespace GraduationProject.API.Controllers
             UpcomingEvents = upcoming,
             FollowersCount = followersCount,
             LeadershipTeam = leadershipTeam,
+            Members = members,
         };
 
         private static readonly JsonSerializerOptions QuestionJsonOptions = new()

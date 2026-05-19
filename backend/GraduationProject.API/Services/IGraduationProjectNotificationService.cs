@@ -257,6 +257,21 @@ namespace GraduationProject.API.Services
             int eventId,
             string eventTitle,
             CancellationToken ct = default);
+
+        Task NotifyRecruitmentApplicationAcceptedAsync(
+            int applicationId,
+            int studentProfileId,
+            string organizationName,
+            string campaignTitle,
+            string positionRoleTitle,
+            string membershipKind,
+            CancellationToken ct = default);
+
+        Task NotifyRecruitmentApplicationRejectedAsync(
+            int applicationId,
+            int studentProfileId,
+            string positionRoleTitle,
+            CancellationToken ct = default);
     }
 }
 

@@ -82,6 +82,7 @@ namespace GraduationProject.API.Controllers
 
             var rows = await _db.StudentOrganizationTeamMembers
                 .AsNoTracking()
+                .Include(m => m.StudentProfile)
                 .Where(m => m.OrganizationProfileId == profile.Id)
                 .OrderBy(m => m.DisplayOrder)
                 .ThenBy(m => m.CreatedAt)
@@ -236,6 +237,9 @@ namespace GraduationProject.API.Controllers
         {
             Id = m.Id,
             OrganizationProfileId = m.OrganizationProfileId,
+            StudentProfileId = m.StudentProfileId,
+            StudentUserId = m.StudentProfile?.UserId,
+            SourceApplicationId = m.SourceApplicationId,
             FullName = m.FullName,
             RoleTitle = m.RoleTitle,
             Major = m.Major,
@@ -244,6 +248,8 @@ namespace GraduationProject.API.Controllers
             DisplayOrder = m.DisplayOrder,
             CreatedAt = m.CreatedAt,
             UpdatedAt = m.UpdatedAt,
+            IsLinkedStudent = m.StudentProfileId.HasValue,
+            JoinedViaRecruitment = m.SourceApplicationId.HasValue,
         };
     }
 }

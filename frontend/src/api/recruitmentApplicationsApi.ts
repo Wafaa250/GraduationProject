@@ -1,12 +1,21 @@
 import api, { parseApiErrorMessage } from './axiosInstance'
 
-export type RecruitmentApplicationStatus = 'Pending' | 'Accepted' | 'Rejected'
+export type RecruitmentApplicationStatus = 'Pending' | 'AiSuggested' | 'Accepted' | 'Rejected'
 
 export type StudentApplicationStatus = {
   hasSubmitted: boolean
   applicationId?: number | null
   status?: RecruitmentApplicationStatus | null
   submittedAt?: string | null
+  acceptedAt?: string | null
+  organizationId?: number
+  organizationName?: string
+  campaignId?: number
+  campaignTitle?: string
+  positionId?: number
+  positionRoleTitle?: string
+  membershipKind?: string | null
+  isOrganizationMember?: boolean
 }
 
 export type RecruitmentApplicationAnswerInput = {
@@ -58,7 +67,42 @@ export type RecruitmentApplicationDetail = {
   status: RecruitmentApplicationStatus
   submittedAt: string
   updatedAt?: string | null
+  acceptedAt?: string | null
   answers: RecruitmentApplicationAnswerDetail[]
+}
+
+export type RecruitmentApplicationDecisionResponse = {
+  application: RecruitmentApplicationDetail
+  addedToOrganization: boolean
+  memberAcceptedAt?: string | null
+}
+
+export type RecruitmentAiRegenerateRequest = {
+  excludeStudentIds?: number[]
+  preferSkills?: string[]
+  preferMajors?: string[]
+  minMatch?: number
+  excludeRejectedApplicants?: boolean
+}
+
+export type RecruitmentApplicantAnalysisResult = {
+  status?: RecruitmentApplicationStatus
+  /** Student profile id */
+  studentId: number
+  studentUserId: number
+  applicationId: number
+  matchScore: number
+  strengths: string[]
+  concerns: string[]
+  reason: string
+  studentName: string
+  faculty?: string | null
+  major?: string | null
+}
+
+export type RecruitmentApplicantAnalysisResponse = {
+  results: RecruitmentApplicantAnalysisResult[]
+  analyzedAt: string
 }
 
 export async function getMyRecruitmentApplication(
@@ -129,6 +173,56 @@ export async function updateRecruitmentApplicationStatus(
   const { data } = await api.patch<RecruitmentApplicationDetail>(
     `/organization/recruitment-campaigns/${campaignId}/applications/${applicationId}/status`,
     { status },
+  )
+  return data
+}
+
+export async function analyzeRecruitmentApplicants(
+  campaignId: number,
+  positionId: number,
+): Promise<RecruitmentApplicantAnalysisResponse> {
+  const { data } = await api.post<RecruitmentApplicantAnalysisResponse>(
+    `/organization/recruitment-campaigns/${campaignId}/positions/${positionId}/analyze-applicants`,
+  )
+  return data
+}
+
+export async function regenerateRecruitmentApplicants(
+  campaignId: number,
+  positionId: number,
+  body: RecruitmentAiRegenerateRequest,
+): Promise<RecruitmentApplicantAnalysisResponse> {
+  const { data } = await api.post<RecruitmentApplicantAnalysisResponse>(
+    `/organization/recruitment-campaigns/${campaignId}/positions/${positionId}/ai-regenerate`,
+    body,
+  )
+  return data
+}
+
+export type RecruitmentApplicationDecisionResponse = {
+  application: RecruitmentApplicationDetail
+  addedToOrganization: boolean
+  memberAcceptedAt?: string | null
+  organizationMemberId?: number | null
+  membershipKind?: string | null
+  teamMemberId?: number | null
+  addedToLeadershipShowcase?: boolean
+}
+
+export async function acceptRecruitmentApplication(
+  applicationId: number,
+): Promise<RecruitmentApplicationDecisionResponse> {
+  const { data } = await api.post<RecruitmentApplicationDecisionResponse>(
+    `/organization/recruitment-applications/${applicationId}/accept`,
+  )
+  return data
+}
+
+export async function rejectRecruitmentApplication(
+  applicationId: number,
+): Promise<RecruitmentApplicationDecisionResponse> {
+  const { data } = await api.post<RecruitmentApplicationDecisionResponse>(
+    `/organization/recruitment-applications/${applicationId}/reject`,
   )
   return data
 }

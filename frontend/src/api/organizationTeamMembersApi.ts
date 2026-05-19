@@ -3,6 +3,9 @@ import api, { parseApiErrorMessage } from './axiosInstance'
 export type OrganizationTeamMember = {
   id: number
   organizationProfileId: number
+  studentProfileId?: number | null
+  studentUserId?: number | null
+  sourceApplicationId?: number | null
   fullName: string
   roleTitle: string
   major?: string | null
@@ -11,6 +14,8 @@ export type OrganizationTeamMember = {
   displayOrder: number
   createdAt: string
   updatedAt?: string | null
+  isLinkedStudent?: boolean
+  joinedViaRecruitment?: boolean
 }
 
 export type CreateOrganizationTeamMemberPayload = {

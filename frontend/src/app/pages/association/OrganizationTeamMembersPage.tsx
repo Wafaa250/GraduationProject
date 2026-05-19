@@ -5,6 +5,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react'
+import { Link } from 'react-router-dom'
 import { Pencil, Plus, Trash2, UserRound } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { resolveApiFileUrl } from '../../../api/axiosInstance'
@@ -17,6 +18,10 @@ import {
   uploadOrganizationTeamMemberImage,
   type OrganizationTeamMember,
 } from '../../../api/organizationTeamMembersApi'
+import {
+  listOrganizationMembers,
+  type OrganizationMemberListItem,
+} from '../../../api/organizationMembersApi'
 import { TeamMemberPortraitUpload } from '../../components/association/TeamMemberPortraitUpload'
 import { AssociationDashboardLayout } from './dashboard/AssociationDashboardLayout'
 import { assocCard, assocDash } from './dashboard/associationDashTokens'
@@ -56,6 +61,7 @@ function draftFromMember(m: OrganizationTeamMember): Draft {
 export default function OrganizationTeamMembersPage() {
   const shell = useAssociationShell()
   const [members, setMembers] = useState<OrganizationTeamMember[]>([])
+  const [orgMembers, setOrgMembers] = useState<OrganizationMemberListItem[]>([])
   const [listLoading, setListLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -66,8 +72,12 @@ export default function OrganizationTeamMembersPage() {
   const loadMembers = async () => {
     setListLoading(true)
     try {
-      const data = await listOrganizationTeamMembers()
-      setMembers(data)
+      const [showcase, roster] = await Promise.all([
+        listOrganizationTeamMembers(),
+        listOrganizationMembers(),
+      ])
+      setMembers(showcase)
+      setOrgMembers(roster)
     } catch (err) {
       toast.error(parseApiErrorMessage(err))
     } finally {
@@ -140,7 +150,9 @@ export default function OrganizationTeamMembersPage() {
   const handleDelete = async (m: OrganizationTeamMember) => {
     if (
       !window.confirm(
-        `Remove ${m.fullName} from the public leadership showcase? This does not affect any SkillSwap accounts.`,
+        m.joinedViaRecruitment
+          ? `Remove ${m.fullName} from the public leadership showcase? Their organization membership record is kept for history.`
+          : `Remove ${m.fullName} from the public leadership showcase? This does not affect any SkillSwap accounts.`,
       )
     )
       return
@@ -191,8 +203,8 @@ export default function OrganizationTeamMembersPage() {
               Leadership team
             </h1>
             <p style={{ margin: '8px 0 0', fontSize: 14, color: assocDash.muted, maxWidth: 560, lineHeight: 1.55 }}>
-              Showcase the current student leaders and coordinators behind your organization. These entries are public
-              only—people listed here are not given app access or admin permissions.
+              Leadership roles appear here on your public profile. When you accept recruitment for a leadership position,
+              the student is added automatically with their real account linked.
             </p>
           </div>
           <button type="button" onClick={startCreate} style={{ ...createBtnStyle, border: 'none', cursor: 'pointer' }}>
@@ -345,8 +357,17 @@ export default function OrganizationTeamMembersPage() {
                 <PortraitThumb url={m.imageUrl} name={m.fullName} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: assocDash.text, lineHeight: 1.3 }}>
-                    {m.fullName}
+                    {m.studentUserId ? (
+                      <Link to={`/students/${m.studentUserId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                        {m.fullName}
+                      </Link>
+                    ) : (
+                      m.fullName
+                    )}
                   </p>
+                  {m.joinedViaRecruitment ? (
+                    <span style={recruitmentBadge}>Joined via recruitment</span>
+                  ) : null}
                   <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 600, color: assocDash.accent }}>
                     {m.roleTitle}
                   </p>
@@ -381,6 +402,61 @@ export default function OrganizationTeamMembersPage() {
           ))}
         </div>
       )}
+
+      <section style={{ marginTop: 36 }}>
+        <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, fontFamily: assocDash.fontDisplay }}>
+          Organization members
+        </h2>
+        <p style={{ margin: '0 0 16px', fontSize: 14, color: assocDash.muted, maxWidth: 560, lineHeight: 1.55 }}>
+          All students accepted through recruitment (persisted memberships). Leadership roles also appear in the
+          showcase above.
+        </p>
+        {listLoading ? (
+          <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading members…</p>
+        ) : orgMembers.length === 0 ? (
+          <div style={{ ...assocCard, padding: 24 }}>
+            <p style={{ margin: 0, fontSize: 14, color: assocDash.muted }}>
+              No general members yet. Accept applicants from recruitment campaigns to add them here.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 12 }}>
+            {orgMembers.map((m) => (
+              <div
+                key={m.id}
+                style={{
+                  ...assocCard,
+                  padding: '16px 18px',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+                    <Link to={`/students/${m.studentUserId}`} style={{ color: assocDash.text, textDecoration: 'none' }}>
+                      {m.studentName}
+                    </Link>
+                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: assocDash.accent, fontWeight: 600 }}>{m.roleTitle}</p>
+                  {m.major ? (
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: assocDash.muted }}>{m.major}</p>
+                  ) : null}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  <span style={recruitmentBadge}>{m.membershipKind}</span>
+                  {m.joinedViaRecruitment ? <span style={recruitmentBadge}>Recruitment</span> : null}
+                  <span style={{ fontSize: 12, color: assocDash.subtle }}>
+                    Joined {new Date(m.acceptedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </AssociationDashboardLayout>
   )
 }
@@ -453,6 +529,20 @@ function Field({
       {children}
     </label>
   )
+}
+
+const recruitmentBadge: CSSProperties = {
+  display: 'inline-block',
+  marginTop: 6,
+  padding: '3px 8px',
+  borderRadius: 6,
+  fontSize: 10,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: 0.04,
+  background: '#fff7ed',
+  color: '#c2410c',
+  border: '1px solid #fed7aa',
 }
 
 const inputStyle: CSSProperties = {

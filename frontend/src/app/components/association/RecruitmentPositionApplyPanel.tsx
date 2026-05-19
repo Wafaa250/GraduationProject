@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, Clock, Loader2, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { CheckCircle2, Clock, Loader2, X, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { RecruitmentPosition, RecruitmentQuestion } from '../../../api/recruitmentCampaignsApi'
 import {
@@ -128,13 +128,64 @@ export function RecruitmentPositionApplyPanel({ organizationId, campaignId, posi
   }
 
   if (submitted || status?.hasSubmitted) {
+    const appStatus = status?.status ?? 'Pending'
+    const orgName = status?.organizationName?.trim() || 'this organization'
+    const roleTitle = status?.positionRoleTitle?.trim() || position.roleTitle
+
+    if (appStatus === 'Accepted') {
+      return (
+        <div style={acceptedWrap}>
+          <CheckCircle2 size={22} color="#047857" style={{ flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#047857' }}>
+              Accepted as {roleTitle}
+            </p>
+            <p style={{ margin: '6px 0 0', fontSize: 13, color: '#065f46', lineHeight: 1.5 }}>
+              You are now an official member of {orgName}.
+              {status?.campaignTitle ? ` (${status.campaignTitle})` : ''}
+            </p>
+            {status?.isOrganizationMember ? (
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: assocDash.muted }}>
+                {status.membershipKind === 'Leadership' ? 'Leadership team' : 'Organization member'}
+                {status.acceptedAt
+                  ? ` · ${new Date(status.acceptedAt).toLocaleDateString()}`
+                  : ''}
+              </p>
+            ) : null}
+            {status?.organizationId ? (
+              <Link
+                to={`/organizations/${status.organizationId}`}
+                style={{ display: 'inline-block', marginTop: 10, fontSize: 13, fontWeight: 700, color: assocDash.accent }}
+              >
+                View organization →
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      )
+    }
+
+    if (appStatus === 'Rejected') {
+      return (
+        <div style={rejectedWrap}>
+          <XCircle size={22} color="#b91c1c" style={{ flexShrink: 0 }} />
+          <div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#b91c1c' }}>Application not selected</p>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: assocDash.muted }}>
+              Your application for {roleTitle} was not accepted this time.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
     return (
-      <div style={successWrap}>
-        <CheckCircle2 size={22} color="#047857" />
+      <div style={pendingWrap}>
+        <Clock size={22} color="#0369a1" style={{ flexShrink: 0 }} />
         <div>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#047857' }}>Application submitted</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#0369a1' }}>Application submitted</p>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: assocDash.muted }}>
-            Status: {status?.status ?? 'Pending'}
+            Status: {appStatus === 'AiSuggested' ? 'Under review' : appStatus}
             {status?.submittedAt
               ? ` · ${new Date(status.submittedAt).toLocaleString()}`
               : ''}
@@ -244,13 +295,29 @@ const panelWrap: React.CSSProperties = {
   background: `linear-gradient(135deg, ${assocDash.accentMuted} 0%, #fff 100%)`,
 }
 
-const successWrap: React.CSSProperties = {
+const statusCardBase: React.CSSProperties = {
   ...panelWrap,
   display: 'flex',
   alignItems: 'flex-start',
   gap: 12,
+}
+
+const acceptedWrap: React.CSSProperties = {
+  ...statusCardBase,
   borderColor: '#a7f3d0',
   background: '#ecfdf5',
+}
+
+const rejectedWrap: React.CSSProperties = {
+  ...statusCardBase,
+  borderColor: '#fecaca',
+  background: '#fef2f2',
+}
+
+const pendingWrap: React.CSSProperties = {
+  ...statusCardBase,
+  borderColor: '#bae6fd',
+  background: '#f0f9ff',
 }
 
 const metaChip: React.CSSProperties = {

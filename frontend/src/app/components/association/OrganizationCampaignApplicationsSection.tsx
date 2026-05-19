@@ -12,7 +12,13 @@ import {
 import { assocCard, assocDash } from '../../pages/association/dashboard/associationDashTokens'
 import { formatEventDate } from '../../pages/association/events/eventFormUtils'
 
-const STATUS_OPTIONS: Array<RecruitmentApplicationStatus | ''> = ['', 'Pending', 'Accepted', 'Rejected']
+const STATUS_OPTIONS: Array<RecruitmentApplicationStatus | ''> = [
+  '',
+  'Pending',
+  'AiSuggested',
+  'Accepted',
+  'Rejected',
+]
 
 type Props = {
   campaignId: number
@@ -162,7 +168,9 @@ function StatusBadge({ status }: { status: RecruitmentApplicationStatus }) {
       ? { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' }
       : status === 'Rejected'
         ? { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }
-        : { bg: '#fffbeb', color: '#b45309', border: '#fde68a' }
+        : status === 'AiSuggested'
+          ? { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' }
+          : { bg: '#fffbeb', color: '#b45309', border: '#fde68a' }
   return (
     <span
       style={{

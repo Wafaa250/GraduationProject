@@ -107,6 +107,7 @@ export default function PublicOrganizationProfilePage() {
   const joinedLabel = profile ? formatJoinedDate(profile.createdAt) : ''
   const about = profile?.description?.trim()
   const leadershipTeam = profile?.leadershipTeam ?? []
+  const orgMembers = profile?.members ?? []
   const hasSocial =
     !!profile?.instagramUrl?.trim() ||
     !!profile?.facebookUrl?.trim() ||
@@ -316,6 +317,30 @@ export default function PublicOrganizationProfilePage() {
                 </section>
               )}
             </div>
+
+            {orgMembers.length > 0 && (
+              <section style={{ ...publicOrgPage.card, padding: 28, marginBottom: 20 }}>
+                <h2 style={publicOrgPage.sectionTitle}>Members</h2>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
+                  {orgMembers.map((m) => (
+                    <li
+                      key={`${m.studentUserId}-${m.roleTitle}`}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 12,
+                        border: `1px solid ${assocDash.border}`,
+                        background: '#f8fafc',
+                      }}
+                    >
+                      <ProfileLink userId={m.studentUserId} role="student" style={{ fontWeight: 700, color: assocDash.text }}>
+                        {m.studentName}
+                      </ProfileLink>
+                      <span style={{ marginLeft: 8, fontSize: 13, color: assocDash.muted }}>· {m.roleTitle}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {leadershipTeam.length > 0 && (
               <section style={{ ...publicOrgPage.card, padding: 28, marginBottom: 20 }}>

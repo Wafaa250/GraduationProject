@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
@@ -21,10 +23,20 @@ namespace GraduationProject.API.Controllers
     public class OrganizationRecruitmentApplicationsController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
+        private readonly IRecruitmentApplicationWorkflowService _workflow;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<OrganizationRecruitmentApplicationsController> _logger;
 
-        public OrganizationRecruitmentApplicationsController(ApplicationDbContext db)
+        public OrganizationRecruitmentApplicationsController(
+            ApplicationDbContext db,
+            IRecruitmentApplicationWorkflowService workflow,
+            IConfiguration configuration,
+            ILogger<OrganizationRecruitmentApplicationsController> logger)
         {
             _db = db;
+            _workflow = workflow;
+            _configuration = configuration;
+            _logger = logger;
         }
 
         [HttpGet("{campaignId:int}/applications")]
@@ -89,6 +101,72 @@ namespace GraduationProject.API.Controllers
             return Ok(items);
         }
 
+        /// <summary>AI ranking of applicants for a single position (top neededCount only).</summary>
+        [HttpPost("{campaignId:int}/positions/{positionId:int}/analyze-applicants")]
+        public async Task<IActionResult> AnalyzeApplicants(int campaignId, int positionId)
+        {
+            return await RunAiRankingAsync(campaignId, positionId, isRegenerate: false, body: null);
+        }
+
+        [HttpPost("{campaignId:int}/positions/{positionId:int}/ai-regenerate")]
+        public async Task<IActionResult> AiRegenerate(
+            int campaignId,
+            int positionId,
+            [FromBody] RecruitmentAiRegenerateRequestDto? body)
+        {
+            return await RunAiRankingAsync(campaignId, positionId, isRegenerate: true, body: body);
+        }
+
+        private async Task<IActionResult> RunAiRankingAsync(
+            int campaignId,
+            int positionId,
+            bool isRegenerate,
+            RecruitmentAiRegenerateRequestDto? body)
+        {
+            var profile = await GetCurrentProfileAsync();
+            if (profile == null)
+                return NotFound(new { message = "Organization profile not found." });
+
+            var campaign = await _db.StudentOrganizationRecruitmentCampaigns
+                .AsNoTracking()
+                .Include(c => c.Questions)
+                .Include(c => c.Positions)
+                .FirstOrDefaultAsync(c =>
+                    c.Id == campaignId && c.OrganizationProfileId == profile.Id);
+
+            if (campaign == null)
+                return NotFound(new { message = "Campaign not found." });
+
+            var position = campaign.Positions.FirstOrDefault(p => p.Id == positionId);
+            if (position == null)
+                return NotFound(new { message = "Position not found." });
+
+            if (position.NeededCount < 1)
+                return BadRequest(new { message = "Position needed count must be at least 1 to run analysis." });
+
+            if (string.IsNullOrWhiteSpace(_configuration["OpenAI:ApiKey"]))
+                return StatusCode(503, new { message = "AI ranking is not configured (missing OpenAI API key)." });
+
+            var response = await _workflow.RunAiRankingAsync(
+                profile,
+                campaign,
+                position,
+                body,
+                isRegenerate,
+                HttpContext.RequestAborted);
+
+            if (response == null)
+            {
+                return StatusCode(502, new
+                {
+                    message = "AI analysis did not return usable results.",
+                    code = "AI_RECRUITMENT_ANALYSIS_FAILED",
+                });
+            }
+
+            return Ok(response);
+        }
+
         [HttpGet("{campaignId:int}/applications/{applicationId:int}")]
         public async Task<IActionResult> Get(int campaignId, int applicationId)
         {
@@ -116,6 +194,22 @@ namespace GraduationProject.API.Controllers
             var normalized = dto.Status.Trim();
             if (!RecruitmentApplicationStatuses.All.Contains(normalized))
                 return BadRequest(new { message = "Invalid status." });
+
+            if (normalized == RecruitmentApplicationStatuses.Accepted)
+            {
+                var acceptResult = await _workflow.AcceptAsync(applicationId, profile.Id, HttpContext.RequestAborted);
+                if (acceptResult == null)
+                    return NotFound(new { message = "Application not found." });
+                return Ok(acceptResult.Application);
+            }
+
+            if (normalized == RecruitmentApplicationStatuses.Rejected)
+            {
+                var rejectResult = await _workflow.RejectAsync(applicationId, profile.Id, HttpContext.RequestAborted);
+                if (rejectResult == null)
+                    return NotFound(new { message = "Application not found." });
+                return Ok(rejectResult.Application);
+            }
 
             var entity = await _db.StudentOrganizationRecruitmentApplications
                 .FirstOrDefaultAsync(a =>
@@ -168,6 +262,7 @@ namespace GraduationProject.API.Controllers
                 Status = a.Status,
                 SubmittedAt = a.SubmittedAt,
                 UpdatedAt = a.UpdatedAt,
+                AcceptedAt = a.AcceptedAt,
                 Answers = a.Answers
                     .OrderBy(ans => ans.Question.DisplayOrder)
                     .ThenBy(ans => ans.QuestionId)
@@ -217,6 +312,9 @@ namespace GraduationProject.API.Controllers
 
             var existing = await _db.StudentOrganizationRecruitmentApplications
                 .AsNoTracking()
+                .Include(a => a.OrganizationProfile)
+                .Include(a => a.Campaign)
+                .Include(a => a.Position)
                 .FirstOrDefaultAsync(a =>
                     a.StudentProfileId == studentId.Value &&
                     a.OrganizationProfileId == organizationId &&
@@ -226,14 +324,43 @@ namespace GraduationProject.API.Controllers
             if (existing == null)
                 return Ok(new StudentRecruitmentApplicationStatusDto { HasSubmitted = false });
 
-            return Ok(new StudentRecruitmentApplicationStatusDto
+            var orgMember = await _db.StudentOrganizationMembers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m =>
+                    m.OrganizationProfileId == organizationId &&
+                    m.StudentProfileId == studentId.Value);
+
+            var membershipKind = orgMember?.MembershipKind;
+            if (string.IsNullOrWhiteSpace(membershipKind) &&
+                existing.Status == RecruitmentApplicationStatuses.Accepted)
+            {
+                membershipKind = OrganizationMembershipHelper.ClassifyMembershipKind(
+                    existing.Position.RoleTitle);
+            }
+
+            return Ok(MapStudentApplicationStatus(existing, orgMember != null, membershipKind));
+        }
+
+        private static StudentRecruitmentApplicationStatusDto MapStudentApplicationStatus(
+            StudentOrganizationRecruitmentApplication application,
+            bool isOrganizationMember,
+            string? membershipKind) =>
+            new()
             {
                 HasSubmitted = true,
-                ApplicationId = existing.Id,
-                Status = existing.Status,
-                SubmittedAt = existing.SubmittedAt,
-            });
-        }
+                ApplicationId = application.Id,
+                Status = application.Status,
+                SubmittedAt = application.SubmittedAt,
+                AcceptedAt = application.AcceptedAt,
+                OrganizationId = application.OrganizationProfileId,
+                OrganizationName = application.OrganizationProfile.AssociationName,
+                CampaignId = application.CampaignId,
+                CampaignTitle = application.Campaign.Title,
+                PositionId = application.PositionId,
+                PositionRoleTitle = application.Position.RoleTitle,
+                MembershipKind = membershipKind,
+                IsOrganizationMember = isOrganizationMember,
+            };
 
         [HttpPost("positions/{positionId:int}/applications")]
         [Authorize(Roles = "student")]

@@ -881,6 +881,104 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("student_organization_event_registration_forms", (string)null);
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<string>("MembershipKind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("membership_kind");
+
+                    b.Property<int>("OrganizationProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("organization_profile_id");
+
+                    b.Property<string>("RoleTitle")
+                        .HasColumnType("text")
+                        .HasColumnName("role_title");
+
+                    b.Property<int?>("SourceApplicationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_application_id");
+
+                    b.Property<int>("StudentProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_profile_id");
+
+                    b.Property<int?>("TeamMemberId")
+                        .HasColumnType("integer")
+                        .HasColumnName("team_member_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceApplicationId");
+
+                    b.HasIndex("StudentProfileId");
+
+                    b.HasIndex("TeamMemberId");
+
+                    b.HasIndex("OrganizationProfileId", "MembershipKind");
+
+                    b.HasIndex("OrganizationProfileId", "StudentProfileId")
+                        .IsUnique();
+
+                    b.ToTable("student_organization_members", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationRecruitmentApplicantAnalysis", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("integer")
+                        .HasColumnName("campaign_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("OrganizationProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("organization_profile_id");
+
+                    b.Property<int>("PositionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("position_id");
+
+                    b.Property<string>("ResultsJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("results_json");
+
+                    b.Property<int>("TopK")
+                        .HasColumnType("integer")
+                        .HasColumnName("top_k");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PositionId");
+
+                    b.HasIndex("PositionId", "CreatedAtUtc")
+                        .HasDatabaseName("IX_student_organization_recruitment_applicant_analyses_positi~1");
+
+                    b.ToTable("student_organization_recruitment_applicant_analyses", (string)null);
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationRecruitmentApplication", b =>
                 {
                     b.Property<int>("Id")
@@ -889,6 +987,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
 
                     b.Property<int>("CampaignId")
                         .HasColumnType("integer")
@@ -1172,6 +1274,14 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("role_title");
 
+                    b.Property<int?>("SourceApplicationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_application_id");
+
+                    b.Property<int?>("StudentProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_profile_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -1180,7 +1290,15 @@ namespace GraduationProject.API.Migrations
 
                     b.HasIndex("OrganizationProfileId");
 
+                    b.HasIndex("SourceApplicationId");
+
+                    b.HasIndex("StudentProfileId");
+
                     b.HasIndex("OrganizationProfileId", "DisplayOrder");
+
+                    b.HasIndex("OrganizationProfileId", "StudentProfileId")
+                        .IsUnique()
+                        .HasFilter("student_profile_id IS NOT NULL");
 
                     b.ToTable("student_organization_team_members", (string)null);
                 });
@@ -1909,6 +2027,50 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationMember", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.StudentAssociationProfile", "OrganizationProfile")
+                        .WithMany()
+                        .HasForeignKey("OrganizationProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentOrganizationRecruitmentApplication", "SourceApplication")
+                        .WithMany()
+                        .HasForeignKey("SourceApplicationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
+                        .WithMany()
+                        .HasForeignKey("StudentProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentOrganizationTeamMember", "TeamMember")
+                        .WithMany()
+                        .HasForeignKey("TeamMemberId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("OrganizationProfile");
+
+                    b.Navigation("SourceApplication");
+
+                    b.Navigation("StudentProfile");
+
+                    b.Navigation("TeamMember");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationRecruitmentApplicantAnalysis", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.StudentOrganizationRecruitmentPosition", "Position")
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Position");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.StudentOrganizationRecruitmentApplication", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.StudentOrganizationRecruitmentCampaign", "Campaign")
@@ -2014,7 +2176,21 @@ namespace GraduationProject.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GraduationProject.API.Models.StudentOrganizationRecruitmentApplication", "SourceApplication")
+                        .WithMany()
+                        .HasForeignKey("SourceApplicationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
+                        .WithMany()
+                        .HasForeignKey("StudentProfileId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("OrganizationProfile");
+
+                    b.Navigation("SourceApplication");
+
+                    b.Navigation("StudentProfile");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>

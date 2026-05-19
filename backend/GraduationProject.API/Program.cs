@@ -13,6 +13,9 @@ using GraduationProject.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// OpenAI: environment variable overrides appsettings / user secrets (highest priority).
+ApplyOpenAiApiKeyFromEnvironment(builder.Configuration);
+
 // ===========================
 // DATABASE - PostgreSQL
 // ===========================
@@ -60,6 +63,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
+builder.Services.AddHttpClient<IRecruitmentApplicantAnalysisService, OpenAiRecruitmentApplicantAnalysisService>();
+builder.Services.AddScoped<IRecruitmentApplicationWorkflowService, RecruitmentApplicationWorkflowService>();
+builder.Services.AddScoped<IOrganizationMembershipService, OrganizationMembershipService>();
 
 // ── Courses ──────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
@@ -129,10 +135,37 @@ builder.Services.AddSwaggerGen(c =>
 // ===========================
 var app = builder.Build();
 
-if (string.IsNullOrWhiteSpace(app.Configuration["OpenAI:ApiKey"]))
+LogOpenAiConfigurationAtStartup(app);
+
+static void ApplyOpenAiApiKeyFromEnvironment(IConfigurationBuilder configurationBuilder)
+{
+    var envKey = Environment.GetEnvironmentVariable("OpenAI__ApiKey");
+    if (string.IsNullOrWhiteSpace(envKey))
+        return;
+
+    configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["OpenAI:ApiKey"] = envKey.Trim(),
+    }!);
+}
+
+static void LogOpenAiConfigurationAtStartup(WebApplication app)
 {
     var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("OpenAI");
-    log.LogWarning("OpenAI:ApiKey is not configured. AI ranking will use fallback logic.");
+    var fromEnv = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OpenAI__ApiKey"));
+
+    if (fromEnv)
+    {
+        log.LogInformation("OpenAI key loaded from environment variables");
+    }
+    else if (!string.IsNullOrWhiteSpace(app.Configuration["OpenAI:ApiKey"]))
+    {
+        log.LogInformation("OpenAI key loaded from configuration files");
+    }
+    else
+    {
+        log.LogWarning("OpenAI:ApiKey is not configured. AI features will be unavailable.");
+    }
 }
 
 app.UseCors("AllowFrontend");

@@ -7,12 +7,18 @@ namespace GraduationProject.API.Models
     public static class RecruitmentApplicationStatuses
     {
         public const string Pending = "Pending";
+        public const string AiSuggested = "AiSuggested";
         public const string Accepted = "Accepted";
         public const string Rejected = "Rejected";
 
         public static readonly HashSet<string> All = new(StringComparer.Ordinal)
         {
-            Pending, Accepted, Rejected,
+            Pending, AiSuggested, Accepted, Rejected,
+        };
+
+        public static readonly HashSet<string> OpenForAiRanking = new(StringComparer.Ordinal)
+        {
+            Pending, AiSuggested,
         };
     }
 
@@ -42,6 +48,9 @@ namespace GraduationProject.API.Models
 
         [Column("updated_at")]
         public DateTime? UpdatedAt { get; set; }
+
+        [Column("accepted_at")]
+        public DateTime? AcceptedAt { get; set; }
 
         public StudentProfile StudentProfile { get; set; } = null!;
         public StudentAssociationProfile OrganizationProfile { get; set; } = null!;
