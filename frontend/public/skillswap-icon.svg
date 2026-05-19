@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="SkillSwap">
+  <defs>
+    <linearGradient id="bg" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3d2fa8" />
+      <stop offset="1" stop-color="#6b4fd4" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#bg)" />
+  <path
+    d="M13.25 18.667a2.667 2.667 0 0 0-1.916-1.917L7.5 15.333a.667.667 0 0 1 0-1.288l3.834-.984A2.667 2.667 0 0 0 13.25 11.333l.984-3.834a.667.667 0 0 1 1.282 0l.984 3.834a2.667 2.667 0 0 0 1.916 1.917l3.834.984a.667.667 0 0 1 0 1.288l-3.834.984a2.667 2.667 0 0 0-1.916 1.917l-.984 3.834a.667.667 0 0 1-1.282 0l-.984-3.834z"
+    fill="#fff"
+  />
+  <path d="M22.667 6.667v2.666M24 8h-2.666M6.667 22.667v1.333M7.333 23.333H5.333" stroke="#fff" stroke-width="1.5" stroke-linecap="round" />
+</svg>

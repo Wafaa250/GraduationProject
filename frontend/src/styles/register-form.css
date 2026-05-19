@@ -1,0 +1,103 @@
+/* Shared register multi-step form polish — works with existing inline field components */
+
+.register-form-card h3 {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.register-form-card input:not([type="file"]),
+.register-form-card select,
+.register-form-card textarea {
+  border-radius: 0.75rem !important;
+  border-color: hsl(var(--border)) !important;
+  background-color: hsl(var(--background)) !important;
+  font-size: 0.9375rem !important;
+  min-height: 2.75rem;
+}
+
+.register-form-card input:focus,
+.register-form-card select:focus,
+.register-form-card textarea:focus {
+  outline: none !important;
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.25) !important;
+}
+
+.register-form-card label {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.register-form-card .register-section-sub {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  margin: 0;
+}
+
+.register-form-card .register-nav-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid hsl(var(--border));
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.register-form-card .register-btn-back {
+  padding: 0.625rem 1.25rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.register-form-card .register-btn-back:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.register-form-card .register-btn-primary {
+  padding: 0.6875rem 1.5rem;
+  background: var(--gradient-primary);
+  color: hsl(var(--primary-foreground));
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow-glow);
+  transition: opacity 0.15s;
+}
+
+.register-form-card .register-btn-primary:hover:not(:disabled) {
+  opacity: 0.95;
+}
+
+.register-form-card .register-btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.register-form-card .register-api-error {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--destructive) / 0.3);
+  background: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+  font-size: 0.875rem;
+  font-weight: 500;
+}

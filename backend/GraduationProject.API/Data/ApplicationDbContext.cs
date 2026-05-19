@@ -10,6 +10,7 @@ namespace GraduationProject.API.Data
 
         // ── Core Entities ────────────────────────────────────────────────────
         public DbSet<User> Users => Set<User>();
+        public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
         public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
         public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
         public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
@@ -68,6 +69,18 @@ namespace GraduationProject.API.Data
                 e.ToTable("users");
                 e.HasKey(u => u.Id);
                 e.HasIndex(u => u.Email).IsUnique();
+            });
+
+            modelBuilder.Entity<PasswordResetToken>(e =>
+            {
+                e.ToTable("password_reset_tokens");
+                e.HasKey(t => t.Id);
+                e.HasIndex(t => t.TokenHash).IsUnique();
+                e.HasIndex(t => new { t.UserId, t.UsedAt, t.ExpiresAt });
+                e.HasOne(t => t.User)
+                    .WithMany()
+                    .HasForeignKey(t => t.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ── STUDENT PROFILE ──────────────────────────────────────────────

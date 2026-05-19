@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useUser } from "../../../context/UserContext"
 import { registerStudent } from '../../../api/authApi'
 import { navigateHome } from '../../../utils/homeNavigation'
+import { RegisterFormShell, RegisterSuccessShell } from '../../components/auth/RegisterFormShell'
+import { Button } from '../../components/ui/button'
 import {
   CUSTOM_SKILL_MAX_LENGTH,
   customSelections,
@@ -217,30 +219,13 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
   )
 
   return (
-    <div style={S.page}><Blobs />
-      <div style={S.wrap}>
-        <div style={S.logoRow}>
-          <div style={S.logoIcon}><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg></div>
-          <span style={S.logoText}>Skill<span style={S.logoAccent}>Swap</span></span>
-        </div>
-
-        {onBack && <div style={{textAlign:'center' as const,marginBottom:16}}><button onClick={onBack} style={S.changeRoleBtn}>← Change role</button><span style={S.roleBadge}>Student</span></div>}
-
-        <div style={S.stepper}>
-          {STEPS.map((s,i) => (
-            <div key={s.id} style={{display:'flex',alignItems:'center'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <div style={{...S.stepDot,...(i===step?S.stepDotActive:i<step?S.stepDotDone:S.stepDotIdle)}}>
-                  {i<step?<span style={{fontSize:12,color:'white',fontWeight:900}}>✓</span>:<span style={{fontSize:11,fontWeight:700,color:i===step?'white':'#94a3b8'}}>{i+1}</span>}
-                </div>
-                <span style={{fontSize:12,fontWeight:600,color:i===step?'#1e293b':i<step?'#6366f1':'#94a3b8',whiteSpace:'nowrap' as const}}>{s.icon} {s.label}</span>
-              </div>
-              {i<STEPS.length-1&&<div style={{width:32,height:2,margin:'0 8px',background:i<step?'linear-gradient(90deg,#6366f1,#a855f7)':'#e2e8f0',borderRadius:2}}/>}
-            </div>
-          ))}
-        </div>
-
-        <div style={S.card}>
+    <RegisterFormShell
+      roleLabel="Student"
+      steps={STEPS.map((s) => s.label)}
+      currentStep={step}
+      onChangeRole={onBack ?? undefined}
+      subtitle="Tell us about yourself so AI can find the right teammates and projects."
+    >
           {/* STEP 0 */}
           {step===0&&<Section title="Account Information" sub="Create your SkillSwap account">
             <div style={S.picRow}>
@@ -392,24 +377,26 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
             )}
           </Section>}
 
-          {apiError&&<div style={{marginTop:16,padding:'12px 16px',background:'#fef2f2',border:'1px solid #fca5a5',borderRadius:10,color:'#dc2626',fontSize:13,fontWeight:500}}>❌ {apiError}</div>}
+          {apiError ? <div className="register-api-error">{apiError}</div> : null}
 
-          <div style={S.navRow}>
-            {step>0?<button style={S.btnBack} onClick={back}>← Back</button>:<div/>}
-            <div style={{display:'flex',alignItems:'center',gap:14}}>
-              <span style={{fontSize:12,color:'#94a3b8',fontWeight:600}}>{step+1} / {STEPS.length}</span>
-              {step<STEPS.length-1
-                ?<button style={S.btnPrimary} onClick={next}>Continue →</button>
-                :<button style={{...S.btnPrimary,opacity:isLoading?0.7:1}} onClick={submit} disabled={isLoading}>{isLoading?'⏳ Creating...':'✦ Create Account'}</button>
-              }
+          <div className="register-nav-row">
+            {step > 0 ? (
+              <button type="button" className="register-btn-back" onClick={back}>← Back</button>
+            ) : (
+              <div />
+            )}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-muted-foreground">{step + 1} / {STEPS.length}</span>
+              {step < STEPS.length - 1 ? (
+                <button type="button" className="register-btn-primary" onClick={next}>Continue →</button>
+              ) : (
+                <button type="button" className="register-btn-primary" onClick={submit} disabled={isLoading}>
+                  {isLoading ? "Creating account…" : "Create account"}
+                </button>
+              )}
             </div>
           </div>
-        </div>
-
-        <p style={{textAlign:'center' as const,color:'#cbd5e1',fontSize:12,marginTop:24}}>SkillSwap · Academic Collaboration Platform</p>
-      </div>
-      <style>{`input::placeholder{color:#94a3b8;}input:focus,select:focus{outline:none;border-color:#6366f1!important;box-shadow:0 0 0 3px rgba(99,102,241,0.1);}button:hover{opacity:0.92;}`}</style>
-    </div>
+    </RegisterFormShell>
   )
 }
 

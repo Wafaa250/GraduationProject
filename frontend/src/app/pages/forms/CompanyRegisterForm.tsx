@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Sparkles, Loader2 } from 'lucide-react'
 import './company-register-mobile.css'
+import { RegisterFormShell, RegisterSuccessShell } from '../../components/auth/RegisterFormShell'
+import { Button } from '../../components/ui/button'
 import {
   analyzeCompany,
   registerCompany,
@@ -187,82 +189,14 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
   }
 
   return (
-    <div className="co-company-register" style={S.page}>
-      <Blobs />
-      <div className="co-reg-inner" style={S.wrap}>
-        <div style={S.logoRow}>
-          <div style={S.logoIcon}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                stroke="white"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <span style={S.logoText}>
-            Skill<span style={S.logoAccent}>Swap</span>
-          </span>
-        </div>
-
-        {onBack ? (
-          <button type="button" onClick={onBack} style={S.changeRoleBtn}>
-            ← Back to role selection
-          </button>
-        ) : (
-          <Link to="/register" style={S.changeRoleBtn}>
-            ← Change role
-          </Link>
-        )}
-        <span style={S.roleBadge}>Company</span>
-
-        <div style={S.stepper} className="co-reg-stepper">
-          {STEPS.map((s, i) => (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div
-                    style={{
-                      ...S.stepDot,
-                      ...(i === step ? S.stepDotActive : i < step ? S.stepDotDone : S.stepDotIdle),
-                    }}
-                  >
-                    {i < step ? (
-                      <span style={{ fontSize: 12, color: 'white', fontWeight: 900 }}>✓</span>
-                    ) : (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: i === step ? 'white' : '#94a3b8' }}>
-                        {i + 1}
-                      </span>
-                    )}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: i === step ? '#1e293b' : i < step ? '#059669' : '#94a3b8',
-                    }}
-                  >
-                    {s.icon} {s.label}
-                  </span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div
-                    style={{
-                      width: 32,
-                      height: 2,
-                      margin: '0 8px',
-                      background: i < step ? 'linear-gradient(90deg,#10b981,#059669)' : '#e2e8f0',
-                      borderRadius: 2,
-                    }}
-                  />
-                )}
-              </div>
-          ))}
-        </div>
-
-        <div style={S.card} className="co-reg-card">
-          {apiError && <div style={S.apiError}>{apiError}</div>}
+    <RegisterFormShell
+      roleLabel="Company"
+      steps={STEPS.map((s) => s.label)}
+      currentStep={step}
+      onChangeRole={onBack ?? undefined}
+      subtitle="Connect your company to skilled student teams and opportunities."
+    >
+          {apiError && <div className="register-api-error">{apiError}</div>}
 
           {step === 0 && (
             <Section title="Account" sub="Create the account for your company representative">
@@ -399,7 +333,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
             </Section>
           )}
 
-          <div style={S.navRow} className="co-reg-nav">
+          <div className="register-nav-row co-reg-nav">
             <button type="button" style={S.btnBack} onClick={back}>
               ← Back
             </button>
@@ -409,7 +343,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
                   Skip AI — fill manually →
                 </button>
               ) : (
-                <button type="button" style={S.btnPrimary} onClick={next}>
+                <button type="button" className="register-btn-primary" onClick={next}>
                   Continue →
                 </button>
               )
@@ -424,9 +358,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
               </button>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+    </RegisterFormShell>
   )
 }
 

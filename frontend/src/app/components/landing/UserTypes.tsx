@@ -20,7 +20,7 @@ const userTypes: {
     icon: Users,
     iconGradient: "bg-gradient-primary",
     description:
-      "Build a smart profile. Get matched to projects, teammates and supervisors.",
+      "Build a smart profile and discover projects, teammates, and supervisors that match your skills.",
   },
   {
     image: doctorImg,
@@ -28,22 +28,22 @@ const userTypes: {
     icon: GraduationCap,
     iconGradient: "bg-gradient-to-br from-accent to-primary",
     description:
-      "Receive supervision requests for projects that actually fit your research.",
+      "Receive supervision requests aligned with your research interests and expertise.",
   },
   {
     image: companyImg,
     role: "Company",
     icon: Building2,
     iconGradient: "bg-gradient-ai",
-    description: "Find skilled students or full teams for paid projects and internships.",
+    description:
+      "Find skilled students or full teams for internships, collaborations, and real-world projects.",
   },
   {
     image: assocImg,
     role: "Association",
     icon: Megaphone,
     iconGradient: "bg-gradient-to-br from-primary to-accent",
-    description:
-      "Form campaign teams with the right roles, not just the loudest volunteers.",
+    description: "Build balanced campaign teams with the right skills and roles.",
   },
 ];
 
@@ -52,10 +52,10 @@ export function UserTypes() {
     <section className="py-20" id="for-who">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-widest text-primary">
-            For everyone on campus
-          </p>
-          <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">One platform, four roles.</h2>
+          <p className="text-sm font-bold uppercase tracking-widest text-primary">Who it&apos;s for</p>
+          <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">
+            Built for every part of the university ecosystem
+          </h2>
         </div>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -82,7 +82,7 @@ export function UserTypes() {
 
                 <div className="p-5">
                   <h3 className="font-display text-lg font-semibold">{type.role}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{type.description}</p>
+                  <p className="mt-2 text-base leading-relaxed text-muted-foreground">{type.description}</p>
                 </div>
               </article>
             );

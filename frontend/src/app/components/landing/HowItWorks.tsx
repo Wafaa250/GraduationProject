@@ -22,7 +22,8 @@ const steps: {
   {
     number: "02",
     title: "Post or browse",
-    description: "Projects, supervision requests, or company needs — in one place.",
+    description:
+      "Projects, supervision requests, and collaboration opportunities — all in one place.",
     icon: FolderKanban,
   },
   {
@@ -34,7 +35,8 @@ const steps: {
   {
     number: "04",
     title: "Get matched",
-    description: "Teammates, supervisors, companies, campaigns — with reasons, not just scores.",
+    description:
+      "Teammates, supervisors, companies, and campaigns — with reasons, not just scores.",
     icon: Users,
   },
   {
@@ -50,9 +52,9 @@ export function HowItWorks() {
     <section className="py-20" id="how-it-works">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-widest text-primary">How it works</p>
+          <p className="text-sm font-bold uppercase tracking-widest text-primary">How it works</p>
           <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">
-            Five steps, no friendship politics.
+            From profile to collaboration — in five simple steps.
           </h2>
         </div>
 
@@ -69,7 +71,7 @@ export function HowItWorks() {
                   <Icon className="h-5 w-5" />
                 </div>
                 <p className="mt-4 font-display font-semibold">{step.title}</p>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
+                <p className="mt-2 text-base leading-relaxed text-muted-foreground">{step.description}</p>
               </article>
             );
           })}

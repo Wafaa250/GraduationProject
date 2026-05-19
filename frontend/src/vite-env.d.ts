@@ -1,6 +1,10 @@
 /// <reference types="vite/client" />
 
-declare module "*.png";
-declare module "*.jpg";
-declare module "*.jpeg";
-declare module "*.svg";
+interface ImportMetaEnv {
+  /** Google OAuth 2.0 Web client ID (Google Cloud Console → Credentials). */
+  readonly VITE_GOOGLE_CLIENT_ID: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

@@ -10,11 +10,13 @@ using GraduationProject.API.Middleware;
 using GraduationProject.API.Services;
 using GraduationProject.API.Interfaces;
 using GraduationProject.API.Repositories;
+using GraduationProject.API.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// OpenAI: environment variable overrides appsettings / user secrets (highest priority).
+// OpenAI / Google: environment variables override appsettings / user secrets (highest priority).
 ApplyOpenAiApiKeyFromEnvironment(builder.Configuration);
+ApplyGoogleClientIdFromEnvironment(builder.Configuration);
 
 // ===========================
 // DATABASE - PostgreSQL
@@ -59,6 +61,12 @@ builder.Services.AddSignalR();
 // ===========================
 // SERVICES
 // ===========================
+builder.Services.Configure<GoogleOptions>(builder.Configuration.GetSection(GoogleOptions.SectionName));
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<FrontendOptions>(builder.Configuration.GetSection(FrontendOptions.SectionName));
+builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection(PasswordResetOptions.SectionName));
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICompanyTalentMatchService, CompanyTalentMatchService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
@@ -153,6 +161,18 @@ static void ApplyOpenAiApiKeyFromEnvironment(IConfigurationBuilder configuration
     configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
     {
         ["OpenAI:ApiKey"] = envKey.Trim(),
+    }!);
+}
+
+static void ApplyGoogleClientIdFromEnvironment(IConfigurationBuilder configurationBuilder)
+{
+    var clientId = Environment.GetEnvironmentVariable("Google__ClientId");
+    if (string.IsNullOrWhiteSpace(clientId))
+        return;
+
+    configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["Google:ClientId"] = clientId.Trim(),
     }!);
 }
 

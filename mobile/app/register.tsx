@@ -12,12 +12,18 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 
+import { AuthChrome } from "@/components/auth/AuthChrome";
+import { LovableStepProgress } from "@/components/auth/LovableStepProgress";
+import { SkillSwapLogo } from "@/components/auth/SkillSwapLogo";
 import { spacing } from "@/constants/responsiveLayout";
+import { SS } from "@/constants/skillswapTheme";
 import {
   CUSTOM_SKILL_MAX_LENGTH,
   customSelections,
@@ -32,52 +38,39 @@ import { CompanyRegisterStep } from "@/components/company/CompanyRegisterStep";
 type UserRole = "student" | "doctor" | "company" | "association" | null;
 type FlowStep = 1 | 2;
 
+type RoleIconName = keyof typeof Ionicons.glyphMap;
+
 type RoleCard = {
   id: Exclude<UserRole, null>;
   title: string;
   desc: string;
-  icon: string;
-  selectedBg: string;
-  selectedBorder: string;
-  iconBg: string;
+  icon: RoleIconName;
 };
 
 const ROLES: RoleCard[] = [
   {
     id: "student",
     title: "Student",
-    desc: "Looking for teammates & projects",
-    icon: "🎓",
-    selectedBg: "#eef2ff",
-    selectedBorder: "#6366f1",
-    iconBg: "#6366f1",
+    desc: "Find teams, supervisors and opportunities",
+    icon: "people-outline",
   },
   {
     id: "doctor",
     title: "Doctor / Supervisor",
-    desc: "Seeking research collaborators",
-    icon: "🩺",
-    selectedBg: "#eff6ff",
-    selectedBorder: "#3b82f6",
-    iconBg: "#3b82f6",
+    desc: "Supervise projects in your research area",
+    icon: "school-outline",
   },
   {
     id: "company",
     title: "Company",
-    desc: "Find talented students",
-    icon: "🏢",
-    selectedBg: "#ecfdf5",
-    selectedBorder: "#10b981",
-    iconBg: "#10b981",
+    desc: "Find students or teams for real work",
+    icon: "business-outline",
   },
   {
     id: "association",
     title: "Student Association",
-    desc: "Connect with student communities",
-    icon: "👥",
-    selectedBg: "#fffbeb",
-    selectedBorder: "#f59e0b",
-    iconBg: "#f59e0b",
+    desc: "Form campaign and event teams",
+    icon: "megaphone-outline",
   },
 ];
 
@@ -441,7 +434,8 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
   const modalListMax = Math.min(layout.height * 0.55, 420);
 
   return (
-    <SafeAreaView style={st.page} edges={["top", "left", "right"]}>
+    <AuthChrome edges={["top", "left", "right"]}>
+    <View style={st.page}>
       <KeyboardAvoidingView
         style={st.keyboardFlex}
         behavior={kavBehavior}
@@ -486,14 +480,7 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
           showsVerticalScrollIndicator={false}
         >
           <View style={[st.wrap, { maxWidth: layout.maxFormWidth }]}>
-            <View style={st.logoRow}>
-              <View style={st.logoIconBox}>
-                <Text style={st.logoGlyph}>▲</Text>
-              </View>
-              <Text style={st.logoTitle}>
-                Skill<Text style={st.logoAccent}>Swap</Text>
-              </Text>
-            </View>
+            <SkillSwapLogo size="sm" centered style={st.logoRow} />
 
             <View style={st.changeRoleRow}>
               <Pressable onPress={onBackToRoles}>
@@ -1071,7 +1058,8 @@ function StudentRegisterFullScreen({ onBackToRoles }: { onBackToRoles: () => voi
           </Pressable>
         </Modal>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
+    </AuthChrome>
   );
 }
 
@@ -1499,41 +1487,15 @@ export default function RegisterScreen() {
     setFlowStep(1);
   };
 
-  const topBlob = layout.blobDiameter(0.95);
-  const bottomBlob = layout.blobDiameter(0.78);
   const kavBehavior = Platform.OS === "ios" ? "padding" : undefined;
 
   return (
-    <SafeAreaView style={roleStyles.safeArea} edges={["top", "left", "right"]}>
+    <AuthChrome edges={["top", "left", "right", "bottom"]}>
       <KeyboardAvoidingView
         style={roleStyles.keyboardView}
         behavior={kavBehavior}
         keyboardVerticalOffset={insets.top + spacing.sm}
       >
-        <View
-          style={[
-            roleStyles.bgBlobTop,
-            {
-              width: topBlob,
-              height: topBlob,
-              borderRadius: topBlob / 2,
-              top: -topBlob * 0.22,
-              right: -topBlob * 0.22,
-            },
-          ]}
-        />
-        <View
-          style={[
-            roleStyles.bgBlobBottom,
-            {
-              width: bottomBlob,
-              height: bottomBlob,
-              borderRadius: bottomBlob / 2,
-              bottom: -bottomBlob * 0.22,
-              left: -bottomBlob * 0.22,
-            },
-          ]}
-        />
         <ScrollView
           contentContainerStyle={[
             roleStyles.scrollContent,
@@ -1545,92 +1507,98 @@ export default function RegisterScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={[roleStyles.cardWrap, { maxWidth: layout.maxFormWidth }]}>
+          <View style={[roleStyles.column, { maxWidth: layout.maxFormWidth }]}>
+            <SkillSwapLogo size="md" centered style={roleStyles.logo} />
+            <Text style={roleStyles.welcomeTitle}>Welcome to SkillSwap</Text>
+            <Text style={roleStyles.welcomeSub}>Set up in under 90 seconds.</Text>
+
+            <LovableStepProgress
+              steps={["Choose role", "Account info"]}
+              currentStep={flowStep - 1}
+            />
+
             <View style={roleStyles.card}>
-              <View style={roleStyles.topGradientBar} />
-              <View style={roleStyles.cardContent}>
-                <View style={roleStyles.logoRow}>
-                  <View style={roleStyles.logoIcon}>
-                    <Text style={roleStyles.logoIconText}>▲</Text>
+              {flowStep === 1 ? (
+                <>
+                  <Text style={roleStyles.cardTitle}>Who are you on SkillSwap?</Text>
+                  <Text style={roleStyles.cardSub}>This shapes your dashboard and matches.</Text>
+                  <View style={[roleStyles.rolesGrid, layout.isCompact && roleStyles.rolesGridStack]}>
+                    {ROLES.map((role) => {
+                      const isSelected = selectedRole === role.id;
+                      return (
+                        <Pressable
+                          key={role.id}
+                          style={[
+                            roleStyles.roleCard,
+                            layout.isCompact && roleStyles.roleCardFull,
+                            isSelected ? roleStyles.roleCardActive : roleStyles.roleCardIdle,
+                          ]}
+                          onPress={() => setSelectedRole(role.id)}
+                        >
+                          <View style={roleStyles.roleCardTop}>
+                            {isSelected ? (
+                              <LinearGradient
+                                colors={[...SS.gradientPrimary]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={roleStyles.roleIconActive}
+                              >
+                                <Ionicons name={role.icon} size={18} color={SS.primaryForeground} />
+                              </LinearGradient>
+                            ) : (
+                              <View style={roleStyles.roleIconIdle}>
+                                <Ionicons name={role.icon} size={18} color={SS.foreground} />
+                              </View>
+                            )}
+                            {isSelected ? (
+                              <Ionicons name="checkmark" size={18} color={SS.primaryBright} />
+                            ) : null}
+                          </View>
+                          <Text style={roleStyles.roleTitle}>{role.title}</Text>
+                          <Text style={roleStyles.roleDesc}>{role.desc}</Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
-                  <Text style={roleStyles.logoText}>
-                    Skill<Text style={roleStyles.logoAccent}>Swap</Text>
-                  </Text>
-                </View>
-                <View style={roleStyles.stepperRow}>
-                  {[1, 2].map((s) => {
-                    const isActive = flowStep === s;
-                    const isDone = flowStep > s;
-                    return (
-                      <View key={s} style={roleStyles.stepperItem}>
-                        <View style={[roleStyles.stepDot, (isActive || isDone) && roleStyles.stepDotActive]}>
-                          <Text style={[roleStyles.stepDotText, (isActive || isDone) && roleStyles.stepDotTextActive]}>{s}</Text>
-                        </View>
-                        <Text style={[roleStyles.stepLabel, isActive ? roleStyles.stepLabelActive : roleStyles.stepLabelIdle]}>
-                          {s === 1 ? "Choose Role" : "Account Info"}
-                        </Text>
-                        {s < 2 ? (
-                          <View style={[roleStyles.stepLine, flowStep > 1 ? roleStyles.stepLineDone : roleStyles.stepLineIdle]} />
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                </View>
-                {flowStep === 1 ? (
-                  <>
-                    <Text style={roleStyles.title}>How will you use SkillSwap?</Text>
-                    <Text style={roleStyles.subtitle}>Choose your role to get started</Text>
-                    <View style={[roleStyles.rolesGrid, layout.isCompact && roleStyles.rolesGridStack]}>
-                      {ROLES.map((role) => {
-                        const isSelected = selectedRole === role.id;
-                        return (
-                          <Pressable
-                            key={role.id}
-                            style={[
-                              roleStyles.roleCard,
-                              layout.isCompact && roleStyles.roleCardFull,
-                              isSelected
-                                ? { backgroundColor: role.selectedBg, borderColor: role.selectedBorder }
-                                : roleStyles.roleCardIdle,
-                            ]}
-                            onPress={() => setSelectedRole(role.id)}
-                          >
-                            {isSelected ? <Text style={roleStyles.roleSelectedMark}>✓</Text> : null}
-                            <View style={[roleStyles.roleIconCircle, { backgroundColor: role.iconBg }]}>
-                              <Text style={roleStyles.roleIcon}>{role.icon}</Text>
-                            </View>
-                            <Text style={roleStyles.roleTitle}>{role.title}</Text>
-                            <Text style={roleStyles.roleDesc}>{role.desc}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                    <Pressable style={[roleStyles.primaryButton, !selectedRole && roleStyles.primaryButtonDisabled]} onPress={handleNext} disabled={!selectedRole}>
-                      <Text style={roleStyles.primaryButtonText}>Continue as {selectedRoleData?.title ?? "..."}</Text>
-                    </Pressable>
-                    <Text style={roleStyles.bottomText}>
-                      Already have an account?{" "}
-                      <Text style={roleStyles.bottomLink} onPress={() => router.push("/login")}>
-                        Sign in
+                  <Pressable
+                    style={[roleStyles.primaryWrap, !selectedRole && roleStyles.primaryDisabled]}
+                    onPress={handleNext}
+                    disabled={!selectedRole}
+                  >
+                    <LinearGradient
+                      colors={[...SS.gradientPrimary]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={roleStyles.primaryButton}
+                    >
+                      <Text style={roleStyles.primaryButtonText}>
+                        Continue as {selectedRoleData?.title ?? "…"}
                       </Text>
+                      <Ionicons name="arrow-forward" size={18} color={SS.primaryForeground} />
+                    </LinearGradient>
+                  </Pressable>
+                  <Text style={roleStyles.bottomText}>
+                    Already have an account?{" "}
+                    <Text style={roleStyles.bottomLink} onPress={() => router.push("/login")}>
+                      Sign in
                     </Text>
-                  </>
-                ) : (
-                  <View style={roleStyles.stepTwoWrap}>
-                    {selectedRole === "doctor" ? <DoctorRegisterStep onBack={handleBack} /> : null}
-                  </View>
-                )}
-              </View>
+                  </Text>
+                </>
+              ) : (
+                <View style={roleStyles.stepTwoWrap}>
+                  {selectedRole === "doctor" ? <DoctorRegisterStep onBack={handleBack} /> : null}
+                </View>
+              )}
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </AuthChrome>
   );
 }
 
 const st = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#f3f1fc" },
+  page: { flex: 1 },
   keyboardFlex: { flex: 1 },
   pageScroll: {
     flexGrow: 1,
@@ -1716,17 +1684,13 @@ const st = StyleSheet.create({
   stepConnectorIdle: { backgroundColor: "#e2e8f0" },
   card: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: SS.card,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 20,
+    borderColor: SS.border,
+    borderRadius: 24,
     paddingHorizontal: 22,
     paddingVertical: 26,
-    shadowColor: "#6366f1",
-    shadowOpacity: 0.08,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    ...SS.shadowPop,
   },
   sectionHeader: { marginBottom: 24 },
   sectionTitle: {
@@ -2066,122 +2030,140 @@ const st = StyleSheet.create({
 });
 
 const roleStyles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#f8f7ff" },
   keyboardView: { flex: 1 },
-  bgBlobTop: {
-    position: "absolute",
-    backgroundColor: "rgba(99,102,241,0.10)",
-  },
-  bgBlobBottom: {
-    position: "absolute",
-    backgroundColor: "rgba(168,85,247,0.08)",
-  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingTop: spacing.lg,
     paddingVertical: 20,
   },
-  cardWrap: { width: "100%", alignItems: "center", alignSelf: "stretch" },
+  column: { width: "100%", alignSelf: "stretch" },
+  logo: { marginBottom: spacing.md },
+  welcomeTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: SS.foreground,
+    textAlign: "center",
+    letterSpacing: -0.3,
+  },
+  welcomeSub: {
+    marginTop: 4,
+    marginBottom: spacing.lg,
+    fontSize: 14,
+    color: SS.muted,
+    textAlign: "center",
+  },
   card: {
     width: "100%",
     borderRadius: 24,
-    backgroundColor: "#ffffff",
+    backgroundColor: SS.card,
     borderWidth: 1,
-    borderColor: "#f1f5f9",
-    overflow: "hidden",
-    shadowColor: "#6366f1",
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    borderColor: SS.border,
+    padding: spacing.xl,
+    ...SS.shadowPop,
   },
-  topGradientBar: { height: 6, backgroundColor: "#7c3aed" },
-  cardContent: { paddingHorizontal: 18, paddingVertical: 18 },
-  logoRow: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
-  logoIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    backgroundColor: "#6366f1",
-    marginRight: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#6366f1",
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: SS.foreground,
   },
-  logoIconText: { color: "#ffffff", fontSize: 11, fontWeight: "900", transform: [{ rotate: "90deg" }] },
-  logoText: { fontSize: 22, fontWeight: "800", color: "#0f172a" },
-  logoAccent: { color: "#7c3aed" },
-  stepperRow: { flexDirection: "row", alignItems: "center", marginBottom: 16, flexWrap: "nowrap" },
-  stepperItem: { flexDirection: "row", alignItems: "center" },
-  stepDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f1f5f9",
+  cardSub: {
+    marginTop: 4,
+    marginBottom: spacing.lg,
+    fontSize: 14,
+    color: SS.muted,
+    lineHeight: 20,
   },
-  stepDotActive: { backgroundColor: "#6366f1" },
-  stepDotText: { fontSize: 11, fontWeight: "700", color: "#94a3b8" },
-  stepDotTextActive: { color: "#ffffff" },
-  stepLabel: { marginLeft: 5, marginRight: 5, fontSize: 11, fontWeight: "500" },
-  stepLabelActive: { color: "#334155" },
-  stepLabelIdle: { color: "#94a3b8" },
-  stepLine: { width: 20, height: 1 },
-  stepLineDone: { backgroundColor: "#a5b4fc" },
-  stepLineIdle: { backgroundColor: "#e2e8f0" },
-  title: { fontSize: 24, fontWeight: "800", color: "#0f172a", marginBottom: 4 },
-  subtitle: { fontSize: 14, color: "#64748b", marginBottom: 18 },
   rolesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    rowGap: 10,
-    columnGap: 8,
-    marginBottom: 18,
+    rowGap: 12,
+    columnGap: 12,
+    marginBottom: spacing.lg,
     width: "100%",
   },
   rolesGridStack: { flexDirection: "column" },
   roleCard: {
-    width: "48.5%",
-    minHeight: 132,
+    width: "48%",
+    minHeight: 128,
     borderRadius: 16,
     borderWidth: 2,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    position: "relative",
+    padding: spacing.md,
   },
   roleCardFull: { width: "100%" },
-  roleCardIdle: { borderColor: "#e2e8f0", backgroundColor: "#ffffff" },
-  roleSelectedMark: { position: "absolute", right: 10, top: 8, fontSize: 12, color: "#6366f1", fontWeight: "900" },
-  roleIconCircle: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 10 },
-  roleIcon: { fontSize: 18 },
-  roleTitle: { fontSize: 14, fontWeight: "700", color: "#1f2937", marginBottom: 4, flexShrink: 1 },
-  roleDesc: { fontSize: 11, color: "#64748b", lineHeight: 16, flexShrink: 1 },
-  primaryButton: {
-    width: "100%",
+  roleCardIdle: {
+    borderColor: SS.border,
+    backgroundColor: SS.card,
+  },
+  roleCardActive: {
+    borderColor: SS.primaryBright,
+    backgroundColor: "rgba(123, 92, 232, 0.08)",
+    ...SS.shadowGlow,
+  },
+  roleCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
+  roleIconActive: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    paddingVertical: 12,
-    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#6d28d9",
-    shadowColor: "#6366f1",
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
   },
-  primaryButtonDisabled: { opacity: 0.5 },
-  primaryButtonText: { color: "#ffffff", fontSize: 14, fontWeight: "700" },
-  bottomText: { textAlign: "center", marginTop: 20, fontSize: 14, color: "#64748b" },
-  bottomLink: { color: "#4f46e5", fontWeight: "700" },
-  stepTwoWrap: { width: "100%", alignSelf: "stretch", paddingVertical: 8 },
+  roleIconIdle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  roleTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: SS.foreground,
+    marginBottom: 4,
+  },
+  roleDesc: {
+    fontSize: 12,
+    color: SS.muted,
+    lineHeight: 17,
+  },
+  primaryWrap: {
+    borderRadius: 14,
+    overflow: "hidden",
+    ...SS.shadowGlow,
+  },
+  primaryDisabled: { opacity: 0.5 },
+  primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 48,
+    paddingVertical: 14,
+  },
+  primaryButtonText: {
+    color: SS.primaryForeground,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  bottomText: {
+    textAlign: "center",
+    marginTop: spacing.xl,
+    fontSize: 14,
+    color: SS.muted,
+  },
+  bottomLink: {
+    color: SS.primaryBright,
+    fontWeight: "700",
+  },
+  stepTwoWrap: { width: "100%", alignSelf: "stretch", paddingVertical: 4 },
   stepTwoText: { fontSize: 16, lineHeight: 24, color: "#334155", textAlign: "center", marginBottom: 22, fontWeight: "600" },
   formWrap: { width: "100%", alignSelf: "stretch" },
   formTitle: { fontSize: 23, fontWeight: "800", color: "#0f172a", marginBottom: 4 },

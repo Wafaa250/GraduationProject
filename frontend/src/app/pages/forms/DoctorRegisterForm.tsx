@@ -1,6 +1,8 @@
 import { useState, useRef, ChangeEvent, ReactNode, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../../api/axiosInstance'
+import { RegisterFormShell, RegisterSuccessShell } from '../../components/auth/RegisterFormShell'
+import { Button } from '../../components/ui/button'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -188,52 +190,13 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
   )
 
   return (
-    <div style={S.page}><Blobs />
-      <div style={S.wrap}>
-
-        {/* Logo */}
-        <div style={S.logoRow}>
-          <div style={S.logoIcon}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <span style={S.logoText}>Skill<span style={S.logoAccent}>Swap</span></span>
-        </div>
-
-        {/* Back + role badge */}
-        {onBack && (
-          <div style={{ textAlign: 'center' as const, marginBottom: 16 }}>
-            <button onClick={onBack} style={S.changeRoleBtn}>← Change role</button>
-            <span style={{ ...S.roleBadge, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb' }}>
-              Doctor / Supervisor
-            </span>
-          </div>
-        )}
-
-        {/* Stepper */}
-        <div style={S.stepper}>
-          {STEPS.map((s, i) => (
-            <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ ...S.stepDot, ...(i === step ? S.stepDotActive : i < step ? S.stepDotDone : S.stepDotIdle) }}>
-                  {i < step
-                    ? <span style={{ fontSize: 12, color: 'white', fontWeight: 900 }}>✓</span>
-                    : <span style={{ fontSize: 11, fontWeight: 700, color: i === step ? 'white' : '#94a3b8' }}>{i + 1}</span>
-                  }
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: i === step ? '#1e293b' : i < step ? '#3b82f6' : '#94a3b8', whiteSpace: 'nowrap' as const }}>
-                  {s.icon} {s.label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div style={{ width: 40, height: 2, margin: '0 8px', background: i < step ? 'linear-gradient(90deg,#3b82f6,#06b6d4)' : '#e2e8f0', borderRadius: 2 }} />
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div style={S.card}>
+    <RegisterFormShell
+      roleLabel="Doctor / Supervisor"
+      steps={STEPS.map((s) => s.label)}
+      currentStep={step}
+      onChangeRole={onBack ?? undefined}
+      subtitle="Set up your supervisor profile for research and project collaboration."
+    >
 
           {/* STEP 0 — Account */}
           {step === 0 && (
@@ -371,41 +334,27 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
           )}
 
           {/* API Error */}
-          {apiError && (
-            <div style={{ marginTop: 16, padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, color: '#dc2626', fontSize: 13, fontWeight: 500 }}>
-              ❌ {apiError}
-            </div>
-          )}
+          {apiError ? <div className="register-api-error">{apiError}</div> : null}
 
           {/* Nav Buttons */}
-          <div style={S.navRow}>
-            {step > 0
-              ? <button style={S.btnBack} onClick={back}>← Back</button>
-              : <div />
-            }
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{step + 1} / {STEPS.length}</span>
-              {step < STEPS.length - 1
-                ? <button style={{ ...S.btnPrimary, background: 'linear-gradient(135deg,#3b82f6,#06b6d4)' }} onClick={next}>Continue →</button>
-                : <button style={{ ...S.btnPrimary, background: 'linear-gradient(135deg,#3b82f6,#06b6d4)', opacity: isLoading ? 0.7 : 1 }} onClick={submit} disabled={isLoading}>
-                    {isLoading ? '⏳ Creating...' : '✦ Create Account'}
-                  </button>
-              }
+          <div className="register-nav-row">
+            {step > 0 ? (
+              <button type="button" className="register-btn-back" onClick={back}>← Back</button>
+            ) : (
+              <div />
+            )}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-muted-foreground">{step + 1} / {STEPS.length}</span>
+              {step < STEPS.length - 1 ? (
+                <button type="button" className="register-btn-primary" onClick={next}>Continue →</button>
+              ) : (
+                <button type="button" className="register-btn-primary" onClick={submit} disabled={isLoading}>
+                  {isLoading ? "Creating account…" : "Create account"}
+                </button>
+              )}
             </div>
           </div>
-        </div>
-
-        <p style={{ textAlign: 'center' as const, color: '#cbd5e1', fontSize: 12, marginTop: 24 }}>
-          SkillSwap · Academic Collaboration Platform
-        </p>
-      </div>
-
-      <style>{`
-        input::placeholder, textarea::placeholder { color: #94a3b8; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-        button:hover { opacity: 0.92; }
-      `}</style>
-    </div>
+    </RegisterFormShell>
   )
 }
 

@@ -148,6 +148,8 @@ namespace GraduationProject.API.DTOs
         public string Name      { get; set; } = string.Empty;
         public string Email     { get; set; } = string.Empty;
         public int    ProfileId { get; set; }
+        /// <summary>True when the account was just created via Google sign-up.</summary>
+        public bool   IsNewUser { get; set; }
     }
 
     // ===========================
@@ -169,16 +171,45 @@ namespace GraduationProject.API.DTOs
     }
 
     // ===========================
+    // PASSWORD RESET
+    // ===========================
+    public class ForgotPasswordDto
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordDto
+    {
+        [Required(ErrorMessage = "Reset token is required")]
+        public string Token { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your password")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+
+    public class MessageResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+    }
+
+    // ===========================
     // GOOGLE LOGIN
     // ===========================
     public class GoogleLoginDto
     {
-        // الـ ID Token اللي بيرجع من Google Sign-In على الفرونت
         [Required(ErrorMessage = "Google token is required")]
         public string IdToken { get; set; } = string.Empty;
 
-        // اختياري — لو الفرونت أرسل الدور المطلوب ("student" | "doctor")
-        // لو مش موجود نعتبره student افتراضياً
+        /// <summary>
+        /// Required for new accounts: student | doctor | company | association.
+        /// Omit on sign-in when the user already exists.
+        /// </summary>
         public string? Role { get; set; }
     }
 

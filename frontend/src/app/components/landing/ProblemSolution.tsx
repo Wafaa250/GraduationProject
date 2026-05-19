@@ -17,11 +17,11 @@ export function ProblemSolution() {
     <section className="py-20" id="problem-solution">
       <div className="mx-auto max-w-5xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-widest text-primary">The old way vs. SkillSwap</p>
+          <p className="text-sm font-bold uppercase tracking-widest text-primary">The old way vs. SkillSwap</p>
           <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">
-            Campus collaboration, without friendship politics.
+            Campus collaboration, guided by skills instead of connections.
           </h2>
-          <p className="mt-3 text-muted-foreground">
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground sm:text-lg">
             Matching should run on skills and project signals — not who you already know.
           </p>
         </div>
@@ -36,8 +36,8 @@ export function ProblemSolution() {
             </div>
             <ul className="space-y-4">
               {problems.map((item, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm leading-relaxed text-muted-foreground">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">
+                <li key={i} className="flex items-start gap-3 text-base leading-relaxed text-muted-foreground">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold text-foreground">
                     {i + 1}
                   </span>
                   {item}
@@ -55,7 +55,7 @@ export function ProblemSolution() {
             </div>
             <ul className="space-y-4">
               {solutions.map((item, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm leading-relaxed text-muted-foreground">
+                <li key={i} className="flex items-start gap-3 text-base leading-relaxed text-muted-foreground">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                   {item}
                 </li>

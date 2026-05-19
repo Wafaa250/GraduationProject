@@ -8,6 +8,9 @@ import {
   uploadAssociationLogo,
   parseApiErrorMessage,
 } from '../../../api/associationApi'
+import { RegisterFormShell, RegisterSuccessShell } from '../../components/auth/RegisterFormShell'
+import { GoogleSignInButton } from '../../components/auth/GoogleSignInButton'
+import { Button } from '../../components/ui/button'
 
 const FACULTIES = [
   'Engineering and Information Technology',
@@ -142,97 +145,37 @@ export default function StudentAssociationRegisterPage() {
 
   if (submitted) {
     return (
-      <div style={S.page}>
-        <Blobs />
-        <div style={S.successWrap}>
-          <div style={S.successIcon}>✓</div>
-          <h2 style={S.successH2}>Welcome, {form.associationName}!</h2>
-          <p style={S.successP}>Your student organization account is ready on SkillSwap.</p>
-          <button type="button" style={S.btnPrimary} onClick={() => navigate('/association/dashboard')}>
-            Go to Dashboard →
-          </button>
-        </div>
-      </div>
+      <RegisterSuccessShell>
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-bold text-primary">✓</div>
+        <h2 className="font-display text-2xl font-bold text-foreground">Welcome, {form.associationName}!</h2>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">Your student organization account is ready on SkillSwap.</p>
+        <Button variant="gradient" className="mt-6 h-12 w-full rounded-xl" onClick={() => navigate('/association/dashboard')}>
+          Go to dashboard
+        </Button>
+      </RegisterSuccessShell>
     )
   }
 
   return (
-    <div style={S.page}>
-      <Blobs />
-      <div style={S.wrap}>
-        <div style={S.logoRow}>
-          <div style={S.logoIcon}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                stroke="white"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+    <RegisterFormShell
+      roleLabel="Student Organization"
+      steps={STEPS.map((s) => s.label)}
+      currentStep={step}
+      subtitle="Register your student organization for campaigns and team collaboration."
+    >
+          <div className="mb-4 flex justify-center">
+            <Link to="/register" className="text-sm font-semibold text-primary hover:text-primary/80">
+              ← Change role
+            </Link>
           </div>
-          <span style={S.logoText}>
-            Skill<span style={S.logoAccent}>Swap</span>
-          </span>
-        </div>
-
-        <Link to="/register" style={S.changeRoleBtn}>
-          ← Change role
-        </Link>
-        <span style={S.roleBadge}>Student Organization</span>
-
-        <div style={S.stepper}>
-          {STEPS.map((s, i) => (
-            <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div
-                  style={{
-                    ...S.stepDot,
-                    ...(i === step ? S.stepDotActive : i < step ? S.stepDotDone : S.stepDotIdle),
-                  }}
-                >
-                  {i < step ? (
-                    <span style={{ fontSize: 12, color: 'white', fontWeight: 900 }}>✓</span>
-                  ) : (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: i === step ? 'white' : '#94a3b8',
-                      }}
-                    >
-                      {i + 1}
-                    </span>
-                  )}
-                </div>
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: i === step ? '#1e293b' : i < step ? '#d97706' : '#94a3b8',
-                  }}
-                >
-                  {s.icon} {s.label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  style={{
-                    width: 40,
-                    height: 2,
-                    margin: '0 8px',
-                    background: i < step ? 'linear-gradient(90deg,#f59e0b,#ea580c)' : '#e2e8f0',
-                    borderRadius: 2,
-                  }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div style={S.card}>
           {step === 0 && (
+            <>
+            <GoogleSignInButton role="association" className="mb-6 h-12 w-full" />
+            <div className="mb-6 flex items-center gap-4">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs font-medium text-muted-foreground">or register with email</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
             <Section title="Account" sub="Create your organization account">
               <Field
                 label="Organization name"
@@ -280,6 +223,7 @@ export default function StudentAssociationRegisterPage() {
                 />
               </div>
             </Section>
+            </>
           )}
 
           {step === 1 && (
@@ -341,31 +285,23 @@ export default function StudentAssociationRegisterPage() {
             </div>
           )}
 
-          <div style={S.navRow}>
+          <div className="register-nav-row">
             {step > 0 ? (
-              <button type="button" style={S.btnBack} onClick={back}>
-                ← Back
-              </button>
+              <button type="button" className="register-btn-back" onClick={back}>← Back</button>
             ) : (
-              <span />
+              <div />
             )}
-            {step < STEPS.length - 1 ? (
-              <button type="button" style={S.btnPrimary} onClick={next}>
-                Continue →
-              </button>
-            ) : (
-              <button type="button" style={S.btnPrimary} onClick={submit} disabled={isLoading}>
-                {isLoading ? 'Creating account…' : 'Create account'}
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {step < STEPS.length - 1 ? (
+                <button type="button" className="register-btn-primary" onClick={next}>Continue →</button>
+              ) : (
+                <button type="button" className="register-btn-primary" onClick={submit} disabled={isLoading}>
+                  {isLoading ? "Creating account…" : "Create account"}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-      <style>{`
-        input::placeholder, textarea::placeholder { color: #94a3b8; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #f59e0b !important; box-shadow: 0 0 0 3px rgba(245,158,11,0.15); }
-      `}</style>
-    </div>
+    </RegisterFormShell>
   )
 }
 

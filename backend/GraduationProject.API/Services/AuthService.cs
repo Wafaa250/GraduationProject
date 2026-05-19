@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -9,7 +10,9 @@ using Microsoft.IdentityModel.Tokens;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Models;
+using GraduationProject.API.Options;
 using Google.Apis.Auth;
+using Microsoft.Extensions.Options;
 
 
 namespace GraduationProject.API.Services
@@ -20,18 +23,20 @@ namespace GraduationProject.API.Services
         Task<(AuthResponseDto? result, string? error)> RegisterCompanyAsync(RegisterCompanyDto dto);
         Task<(AuthResponseDto? result, string? error)> RegisterStudentAssociationAsync(StudentAssociationRegisterDto dto);
         Task<(AuthResponseDto? result, string? error)> LoginAsync(LoginDto dto);
-        Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto);
+        Task<(AuthResponseDto? result, string? error, string? errorCode)> GoogleLoginAsync(GoogleLoginDto dto);
     }
 
     public class AuthService : IAuthService
     {
         private readonly ApplicationDbContext _db;
         private readonly IConfiguration _config;
+        private readonly GoogleOptions _google;
 
-        public AuthService(ApplicationDbContext db, IConfiguration config)
+        public AuthService(ApplicationDbContext db, IConfiguration config, IOptions<GoogleOptions> google)
         {
             _db = db;
             _config = config;
+            _google = google.Value;
         }
 
         // ===========================
@@ -203,14 +208,15 @@ namespace GraduationProject.API.Services
             CreatedAt = DateTime.UtcNow
         };
 
-        private AuthResponseDto BuildResponse(User user, int profileId) => new()
+        private AuthResponseDto BuildResponse(User user, int profileId, bool isNewUser = false) => new()
         {
             Token     = GenerateJwtToken(user),
             Role      = user.Role,
             UserId    = user.Id,
             Name      = user.Name,
             Email     = user.Email,
-            ProfileId = profileId
+            ProfileId = profileId,
+            IsNewUser = isNewUser,
         };
 
         private async Task<int> GetProfileIdAsync(User user)
@@ -257,82 +263,141 @@ namespace GraduationProject.API.Services
         // ===========================
         // GOOGLE LOGIN / REGISTER
         // ===========================
-        public async Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto)
+        public async Task<(AuthResponseDto? result, string? error, string? errorCode)> GoogleLoginAsync(GoogleLoginDto dto)
         {
-            // ── 1. تحقق من الـ Google ID Token ──────────────────────────────
+            if (!_google.IsConfigured)
+                return (null, "Google sign-in is not configured on the server.", "GOOGLE_NOT_CONFIGURED");
+
             GoogleJsonWebSignature.Payload googlePayload;
             try
             {
-                var clientId = _config["Google:ClientId"]
-                    ?? throw new InvalidOperationException("Google ClientId missing in config.");
-
                 var settings = new GoogleJsonWebSignature.ValidationSettings
                 {
-                    Audience = new[] { clientId }
+                    Audience = new[] { _google.ClientId }
                 };
 
                 googlePayload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, settings);
             }
             catch (InvalidJwtException)
             {
-                return (null, "Invalid Google token.");
+                return (null, "Invalid Google token.", null);
             }
+
+            if (!googlePayload.EmailVerified)
+                return (null, "Google account email is not verified.", null);
 
             var email = googlePayload.Email?.ToLower().Trim();
             var name = googlePayload.Name ?? email ?? "User";
 
             if (string.IsNullOrWhiteSpace(email))
-                return (null, "Could not retrieve email from Google token.");
+                return (null, "Could not retrieve email from Google token.", null);
 
-            // ── 2. ابحث عن المستخدم أو أنشئه ────────────────────────────────
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+            var isNewUser = false;
 
             if (user == null)
             {
-                // مستخدم جديد — نسجّله تلقائياً
-                var role = dto.Role?.ToLower() switch
+                var role = NormalizeGoogleRole(dto.Role);
+                if (role == null)
                 {
-                    "doctor" => "doctor",
-                    _ => "student"      // افتراضي
-                };
+                    return (
+                        null,
+                        "No account found for this Google email. Choose your role on the sign-up page, then continue with Google.",
+                        "REGISTRATION_REQUIRED");
+                }
 
                 user = new User
                 {
                     Name = name,
                     Email = email,
-                    // لا يوجد باسورد للـ Google users — نحط قيمة غير قابلة للاستخدام
-                    Password = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
+                    Password = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")),
                     Role = role,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
                 };
                 _db.Users.Add(user);
                 await _db.SaveChangesAsync();
 
-                // أنشئ الـ profile المناسب
-                if (role == "student")
-                {
-                    _db.StudentProfiles.Add(new Models.StudentProfile
-                    {
-                        UserId = user.Id,
-                        ProfilePictureBase64 = null,
-                        // باقي الحقول فارغة — الطالب يكملها لاحقاً من صفحة الـ Profile
-                    });
-                }
-                else if (role == "doctor")
-                {
-                    _db.DoctorProfiles.Add(new Models.DoctorProfile
-                    {
-                        UserId = user.Id,
-                        Department = "",
-                    });
-                }
-
-                await _db.SaveChangesAsync();
+                await CreateGoogleProfileAsync(user, name, email);
+                isNewUser = true;
             }
 
-            // ── 3. ارجع الـ JWT ───────────────────────────────────────────────
-            int profileId = await GetProfileIdAsync(user);
-            return (BuildResponse(user, profileId), null);
+            var profileId = await GetProfileIdAsync(user);
+            if (profileId == 0)
+                return (null, "Account profile is incomplete. Please contact support.", null);
+
+            return (BuildResponse(user, profileId, isNewUser), null, null);
+        }
+
+        private static string? NormalizeGoogleRole(string? role) => role?.Trim().ToLowerInvariant() switch
+        {
+            "student" => "student",
+            "doctor" => "doctor",
+            "company" => "company",
+            "association" or "studentassociation" => "studentassociation",
+            _ => null,
+        };
+
+        private async Task CreateGoogleProfileAsync(User user, string displayName, string email)
+        {
+            switch (user.Role)
+            {
+                case "student":
+                    _db.StudentProfiles.Add(new StudentProfile { UserId = user.Id });
+                    break;
+
+                case "doctor":
+                    _db.DoctorProfiles.Add(new DoctorProfile
+                    {
+                        UserId = user.Id,
+                        Department = string.Empty,
+                    });
+                    break;
+
+                case "company":
+                    _db.CompanyProfiles.Add(new CompanyProfile
+                    {
+                        UserId = user.Id,
+                        CompanyName = displayName,
+                    });
+                    break;
+
+                case "studentassociation":
+                    var username = await GenerateUniqueAssociationUsernameAsync(email);
+                    _db.StudentAssociationProfiles.Add(new StudentAssociationProfile
+                    {
+                        UserId = user.Id,
+                        AssociationName = displayName,
+                        Username = username,
+                        Email = email,
+                        Faculty = string.Empty,
+                        IsVerified = false,
+                        CreatedAt = DateTime.UtcNow,
+                    });
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Unsupported role for Google sign-up: {user.Role}");
+            }
+
+            await _db.SaveChangesAsync();
+        }
+
+        private async Task<string> GenerateUniqueAssociationUsernameAsync(string email)
+        {
+            var local = email.Split('@')[0].ToLowerInvariant();
+            var sanitized = new string(local.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+            if (string.IsNullOrWhiteSpace(sanitized))
+                sanitized = "org";
+
+            var username = sanitized;
+            var suffix = 0;
+            while (await _db.StudentAssociationProfiles.AnyAsync(p => p.Username == username))
+            {
+                suffix++;
+                username = $"{sanitized}{suffix}";
+            }
+
+            return username;
         }
 
     }

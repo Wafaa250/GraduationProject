@@ -1,23 +1,18 @@
-import {
-  Brain,
-  Building2,
-  GraduationCap,
-  Layers,
-  Megaphone,
-  ShieldCheck,
-} from "lucide-react";
+import { Brain, Building2, GraduationCap, Megaphone } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const features: { icon: LucideIcon; title: string; description: string }[] = [
   {
     icon: Brain,
     title: "AI Team Matching",
-    description: "Complementary skills, not friendships. Each match explained in plain language.",
+    description:
+      "Built around complementary skills and collaboration fit. Each match explained in plain language.",
   },
   {
     icon: GraduationCap,
     title: "Supervisor Recommendation",
-    description: "Doctors ranked by research overlap, capacity and supervision history.",
+    description:
+      "Doctors ranked by research overlap, supervision capacity, and expertise.",
   },
   {
     icon: Building2,
@@ -29,16 +24,6 @@ const features: { icon: LucideIcon; title: string; description: string }[] = [
     title: "Association Teams",
     description: "Form campaign squads with the exact roles you're missing.",
   },
-  {
-    icon: Layers,
-    title: "Legacy Project Reuse",
-    description: "Turn old graduation projects and reviewer comments into new opportunities.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Not an LMS",
-    description: "No attendance. No grading. No assignments. Just matching and collaboration.",
-  },
 ];
 
 export function Features() {
@@ -46,10 +31,10 @@ export function Features() {
     <section className="py-20" id="features">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-widest text-ai">AI is the heart of it</p>
+          <p className="text-sm font-bold uppercase tracking-widest text-ai">AI is the heart of it</p>
           <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">Matching, not management.</h2>
-          <p className="mt-3 text-muted-foreground">
-            Every recommendation comes with a human-readable reason — never just a percentage.
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground sm:text-lg">
+            Every recommendation includes a clear, human-readable explanation — not just a score.
           </p>
         </div>
 
@@ -65,7 +50,7 @@ export function Features() {
                   <Icon className="h-5 w-5" />
                 </div>
                 <p className="mt-4 font-display font-semibold">{feature.title}</p>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-2 text-base leading-relaxed text-muted-foreground">
                   {feature.description}
                 </p>
               </article>

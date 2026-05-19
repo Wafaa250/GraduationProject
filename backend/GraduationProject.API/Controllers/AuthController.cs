@@ -12,15 +12,18 @@ namespace GraduationProject.API.Controllers
         private readonly IAuthService _authService;
         private readonly IStudentRegisterService _studentService;
         private readonly ICompanyAnalysisService _companyAnalysisService;
+        private readonly IPasswordResetService _passwordResetService;
 
         public AuthController(
             IAuthService authService,
             IStudentRegisterService studentService,
-            ICompanyAnalysisService companyAnalysisService)
+            ICompanyAnalysisService companyAnalysisService,
+            IPasswordResetService passwordResetService)
         {
             _authService = authService;
             _studentService = studentService;
             _companyAnalysisService = companyAnalysisService;
+            _passwordResetService = passwordResetService;
         }
 
         // =====================================================
@@ -133,6 +136,36 @@ namespace GraduationProject.API.Controllers
         }
 
         // =====================================================
+        // POST /api/auth/forgot-password
+        // =====================================================
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _passwordResetService.RequestResetAsync(dto);
+            return Ok(result);
+        }
+
+        // =====================================================
+        // POST /api/auth/reset-password
+        // =====================================================
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var (result, error) = await _passwordResetService.ResetPasswordAsync(dto);
+
+            if (error != null)
+                return BadRequest(new { message = error });
+
+            return Ok(result);
+        }
+
+        // =====================================================
         // POST /api/auth/google
         // يستقبل Google ID Token من الفرونت ويرجع JWT خاص بنا
         // =====================================================
@@ -142,10 +175,16 @@ namespace GraduationProject.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var (result, error) = await _authService.GoogleLoginAsync(dto);
+            var (result, error, errorCode) = await _authService.GoogleLoginAsync(dto);
 
             if (error != null)
-                return Unauthorized(new { message = error });
+            {
+                if (errorCode == "REGISTRATION_REQUIRED")
+                    return NotFound(new { message = error, code = errorCode });
+                if (errorCode == "GOOGLE_NOT_CONFIGURED")
+                    return StatusCode(503, new { message = error, code = errorCode });
+                return Unauthorized(new { message = error, code = errorCode });
+            }
 
             return Ok(result);
         }

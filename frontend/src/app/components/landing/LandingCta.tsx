@@ -12,14 +12,14 @@ export function LandingCta() {
           <div className="relative">
             <Zap className="mx-auto h-10 w-10 text-primary-foreground" />
             <h2 className="mt-4 font-display text-3xl font-bold text-primary-foreground sm:text-4xl">
-              Ready to find your perfect collaborators?
+              Ready to build smarter collaborations?
             </h2>
-            <p className="mx-auto mt-3 max-w-xl text-primary-foreground/80">
-              Set up in 90 seconds. Get your first AI matches instantly.
+            <p className="mx-auto mt-3 max-w-xl text-lg leading-relaxed text-primary-foreground/80 sm:text-xl">
+              Set up your profile and start discovering AI-powered opportunities.
             </p>
             <Button asChild size="lg" variant="secondary" className="mt-6">
               <Link to="/register">
-                Start matching
+                Start collaborating
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
             </Button>
