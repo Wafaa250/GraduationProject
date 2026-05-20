@@ -29,7 +29,19 @@ export function StudentOrganizationMembershipsSection({ cardStyle, titleStyle, m
         const data = await listMyStudentOrganizationMemberships()
         if (!cancelled) setItems(data)
       } catch (err) {
-        if (!cancelled) setError(parseApiErrorMessage(err))
+        if (!cancelled) {
+          const status = (err as { response?: { status?: number } })?.response?.status
+          if (status === 404) {
+            setItems([])
+            setError(null)
+          } else {
+            setError(
+              status === 500
+                ? 'Could not load organizations right now. Refresh the page or try again later.'
+                : parseApiErrorMessage(err),
+            )
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }

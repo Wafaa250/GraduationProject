@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties, type FormEvent } from "react"
+import { useState, useEffect, useRef, type CSSProperties, type FormEvent } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -19,6 +19,9 @@ import { apiClient } from "../../../api/client"
 import { parseApiErrorMessage } from "../../../api/axiosInstance"
 import { navigateHome } from "../../../utils/homeNavigation"
 import { StudentOrganizationMembershipsSection } from "../../components/student/StudentOrganizationMembershipsSection"
+import { StudentDashboardShell } from "../dashboard/components/StudentDashboardShell"
+import { MyProfileView } from "./components/MyProfileView"
+import { ProfileCoverHero } from "./components/ProfileCoverHero"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StudentProfile {
@@ -34,6 +37,9 @@ interface StudentProfile {
   generalSkills?: string[]
   majorSkills?: string[]
   profilePic?: string | null
+  bio?: string
+  availability?: string
+  lookingFor?: string
 }
 
 interface ProfileTask {
@@ -78,6 +84,8 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<StudentTab>("about")
   const [publicProjects, setPublicProjects] = useState<PublicProject[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const globalSearchWrapRef = useRef<HTMLDivElement>(null)
 
   const mode: ProfileMode = location.pathname === "/profile" ? "me" : "public"
   const isPublic = mode === "public"
@@ -116,6 +124,9 @@ export default function ProfilePage() {
             generalSkills: data.generalSkills || [],
             majorSkills: data.majorSkills || [],
             profilePic: data.profilePictureBase64 || null,
+            bio: data.bio || "",
+            availability: data.availability || "",
+            lookingFor: data.lookingFor || "",
           })
         } else {
           const id = Number(studentId)
@@ -137,6 +148,9 @@ export default function ProfilePage() {
             generalSkills: Array.isArray(raw.generalSkills) ? raw.generalSkills : [],
             majorSkills: Array.isArray(raw.majorSkills) ? raw.majorSkills : [],
             profilePic: raw.profilePictureBase64 || profile.profilePictureBase64 || null,
+            bio: raw.bio || profile.bio || "",
+            availability: raw.availability || profile.availability || "",
+            lookingFor: raw.lookingFor || profile.lookingFor || "",
           })
           try {
             const projectsRes = await apiClient.get("/graduation-projects", { params: { studentId: id } })
@@ -215,8 +229,15 @@ export default function ProfilePage() {
       { id: "2", label: "Add general skills", done: generalSkills.length > 0, link: "/edit-profile#skills" },
       { id: "3", label: "Add major skills", done: majorSkills.length > 0, link: "/edit-profile#skills" },
       { id: "4", label: "Complete academic info", done: !!user?.major && !!user?.university, link: "/edit-profile#basic" },
-      { id: "5", label: "Add preferred project topics", done: false, link: "/edit-profile#work" },
+      { id: "5", label: "Add preferred project topics", done: !!user?.lookingFor, link: "/edit-profile#work" },
   ]
+
+  const profileTaskChecklist = PROFILE_TASKS.map((t) => ({ label: t.label, done: t.done }))
+
+  const handleLogout = () => {
+    localStorage.clear()
+    navigate("/login")
+  }
 
   const nextActions = PROFILE_TASKS.filter((t) => !t.done).slice(0, 3)
 
@@ -273,7 +294,7 @@ export default function ProfilePage() {
           <div style={S.topBarInner}>
             <button
               type="button"
-              onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))}
+              onClick={() => navigate(-1)}
               style={S.backBtn}
             >
               <ArrowLeft size={16} />
@@ -290,6 +311,71 @@ export default function ProfilePage() {
     )
   }
 
+  if (!isPublic) {
+    return (
+      <>
+        <StudentDashboardShell
+          userName={user.name}
+          profilePic={user.profilePic}
+          gradProjectId={null}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchWrapRef={globalSearchWrapRef}
+          globalSearchResults={null}
+          globalSearchLoading={false}
+          onSelectStudent={(id) => navigate(`/students/${id}`)}
+          onSelectDoctor={(id) => navigate(`/doctors/${id}`)}
+          onOpenSettings={() => navigate("/edit-profile")}
+          onLogout={handleLogout}
+          onCreateProject={() => navigate("/create-project")}
+        >
+          <MyProfileView
+            name={user.name}
+            major={user.major}
+            academicYear={user.academicYear}
+            university={user.university}
+            bio={user.bio}
+            availability={user.availability}
+            lookingFor={user.lookingFor}
+            profilePic={user.profilePic}
+            generalSkills={generalSkills}
+            majorSkills={majorSkills}
+            completeness={completeness}
+            profileTasks={profileTaskChecklist}
+            onAddSkill={openSkillModal}
+          />
+        </StudentDashboardShell>
+        {skillModalOpen && (
+          <div style={S.modalOverlay} onClick={closeSkillModal} role="presentation">
+            <div style={S.modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="add-skill-title">
+              <div style={S.modalHead}>
+                <h2 id="add-skill-title" style={S.modalTitle}>Add skill</h2>
+                <button type="button" style={S.modalClose} onClick={closeSkillModal} aria-label="Close">
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={handleAddSkillSubmit}>
+                <label style={S.modalLabel}>
+                  Skill name
+                  <input type="text" value={skillNameInput} onChange={(e) => setSkillNameInput(e.target.value)} placeholder="e.g. React, Teamwork" style={S.modalInput} autoFocus autoComplete="off" />
+                </label>
+                <p style={S.modalSub}>Type</p>
+                <div style={S.kindToggle}>
+                  <button type="button" onClick={() => setSkillKind('general')} style={{ ...S.kindBtn, ...(skillKind === 'general' ? S.kindBtnActiveGeneral : {}) }}>General</button>
+                  <button type="button" onClick={() => setSkillKind('major')} style={{ ...S.kindBtn, ...(skillKind === 'major' ? S.kindBtnActiveMajor : {}) }}>Major</button>
+                </div>
+                <div style={S.modalActions}>
+                  <button type="button" onClick={closeSkillModal} style={S.modalBtnSecondary}>Cancel</button>
+                  <button type="submit" style={S.modalBtnPrimary} disabled={!skillNameInput.trim()}>Add</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
     <div style={S.page}>
       <div style={S.blob1} />
@@ -297,19 +383,18 @@ export default function ProfilePage() {
 
       <div style={S.topBar}>
         <div style={S.topBarInner}>
-          <button type="button" onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))} style={S.backBtn}>
+          <button type="button" onClick={() => navigate(-1)} style={S.backBtn}>
             <ArrowLeft size={16} />
-            <span>{isPublic ? "Back" : "Back to Dashboard"}</span>
+            <span>Back</span>
           </button>
         </div>
       </div>
 
       <div style={S.content}>
         {/* Header: avatar + name + badges + edit (one horizontal band) */}
-        <ProfileHeader user={user} mode={mode} onMessage={handleMessage} />
+        <PublicProfileCover user={user} onMessage={handleMessage} />
 
-        {isPublic ? (
-          <div style={S.card}>
+        <div style={S.card}>
             <div style={S.tabsRow}>
               <button type="button" onClick={() => setActiveTab("about")} style={{ ...S.tabBtn, ...(activeTab === "about" ? S.tabBtnActive : {}) }}>About</button>
               <button type="button" onClick={() => setActiveTab("skills")} style={{ ...S.tabBtn, ...(activeTab === "skills" ? S.tabBtnActive : {}) }}>Skills</button>
@@ -350,92 +435,9 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-        ) : (
-        <div className="profile-main-grid">
-          <div style={S.col}>
-            <AcademicInfoSection user={user} />
-            <StudentOrganizationMembershipsSection
-              cardStyle={S.card}
-              titleStyle={S.sectionTitle}
-              mutedStyle={{ margin: 0, fontSize: 13, color: "#64748b", lineHeight: 1.5 }}
-            />
-            <SkillsSection
-              mode={mode}
-              allSkills={allSkills}
-              generalSkills={generalSkills}
-              majorSkills={majorSkills}
-              openSkillModal={openSkillModal}
-            />
-          </div>
-
-          <div style={S.col}>
-            {!isPublic && (
-              <>
-                <div style={S.card}>
-                  <div style={S.sectionHeader}>
-                    <CheckCircle2 size={14} color="#6366f1" />
-                    <h2 style={S.sectionTitle}>Profile Completeness</h2>
-                  </div>
-
-                  <div style={S.progressRow}>
-                    <div style={S.progressTrack}>
-                      <div style={{ ...S.progressFill, width: `${completeness}%` }} />
-                    </div>
-                    <span style={S.progressPct}>{completeness}%</span>
-                  </div>
-                  <p style={S.progressHint}>
-                    {completeness >= 80
-                      ? "Strong profile — you're ready to match."
-                      : "Complete your profile for better AI matches."}
-                  </p>
-
-                  {nextActions.length > 0 ? (
-                    <div style={S.nextActions}>
-                      {nextActions.map((task) => (
-                        <div key={task.id} style={S.taskRow}>
-                          <Circle size={14} color="#cbd5e1" style={{ flexShrink: 0 }} />
-                          <span style={S.taskLabel}>{task.label}</span>
-                          <Link to={task.link} style={S.doItLink}>
-                            Do it →
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p style={S.allDoneHint}>You're on track — no urgent tasks.</p>
-                  )}
-                </div>
-
-                <div style={S.card}>
-                  <div style={S.sectionHeader}>
-                    <Sparkles size={14} color="#6366f1" />
-                    <h2 style={S.sectionTitle}>Next Steps</h2>
-                  </div>
-                  <p style={S.quickIntro}>Suggestions to get the most from the platform.</p>
-                  <div style={S.quickList}>
-                    <Link to="/students" style={S.quickRow}>
-                      <Users size={16} color="#6366f1" style={{ flexShrink: 0 }} />
-                      <span>Browse students & find teammates</span>
-                    </Link>
-                    <Link to="/edit-profile" style={S.quickRow}>
-                      <Pencil size={16} color="#6366f1" style={{ flexShrink: 0 }} />
-                      <span>Update your profile details</span>
-                    </Link>
-                    <button type="button" onClick={() => navigateHome(navigate)} style={S.quickRowBtn}>
-                      <LayoutDashboard size={16} color="#6366f1" style={{ flexShrink: 0 }} />
-                      <span>Return to dashboard</span>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-          </div>
-        </div>
-        )}
       </div>
 
-      {!isPublic && skillModalOpen && (
+      {false && skillModalOpen && (
         <div style={S.modalOverlay} onClick={closeSkillModal} role="presentation">
           <div
             style={S.modalBox}
@@ -523,56 +525,33 @@ export default function ProfilePage() {
   )
 }
 
-function ProfileHeader({ user, mode, onMessage }: { user: StudentProfile; mode: ProfileMode; onMessage: () => void }) {
+function PublicProfileCover({
+  user,
+  onMessage,
+}: {
+  user: StudentProfile
+  onMessage: () => void
+}) {
+  const initials =
+    user.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "ST"
+  const headline = [user.academicYear, user.major].filter(Boolean).join(" · ")
   return (
-    <div style={S.heroCard}>
-      <div style={S.avatarWrap}>
-        {user.profilePic ? (
-          <img src={user.profilePic} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
-        ) : (
-          <div style={S.avatarFallback}>
-            {user.name
-              ?.split(" ")
-              .map((n) => n[0])
-              .join("")
-              .slice(0, 2) || "ST"}
-          </div>
-        )}
-      </div>
-
-      <div style={S.heroTextBlock}>
-        <h1 style={S.heroName}>{user.name || "Student"}</h1>
-        <p style={S.heroEmail}>{user.email}</p>
-        <div style={S.heroBadges}>
-          {user.major && (
-            <span style={S.badge}>
-              <GraduationCap size={12} /> {user.major}
-            </span>
-          )}
-          {user.university && (
-            <span style={{ ...S.badge, background: "#faf5ff", border: "1px solid #e9d5ff", color: "#7c3aed" }}>
-              <MapPin size={12} /> {user.university}
-            </span>
-          )}
-          {user.academicYear && (
-            <span style={{ ...S.badge, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a" }}>
-              <Star size={12} /> {user.academicYear}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {mode === "public" ? (
-        <button type="button" onClick={onMessage} style={S.heroEditBtn}>
-          <span>Message</span>
-        </button>
-      ) : (
-        <Link to="/edit-profile" style={S.heroEditBtn}>
-          <Pencil size={15} />
-          <span>Edit</span>
-        </Link>
-      )}
-    </div>
+    <ProfileCoverHero
+      className="mb-14 sm:mb-20"
+      variant="visitor"
+      displayName={user.name}
+      headline={headline || undefined}
+      campusLabel={user.university || undefined}
+      avatarUrl={user.profilePic}
+      initials={initials}
+      onMessage={onMessage}
+      onInvite={() => onMessage()}
+    />
   )
 }
 
