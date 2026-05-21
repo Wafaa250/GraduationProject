@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -75,6 +77,38 @@ namespace GraduationProject.API.Helpers
             if (string.IsNullOrEmpty(json)) return new();
             try { return JsonSerializer.Deserialize<List<string>>(json) ?? new(); }
             catch { return new(); }
+        }
+
+        /// <summary>
+        /// Skill overlap score (0–100) used on browse / teammate lists.
+        /// If there is no skill overlap but majors match, returns at least 25 so
+        /// students without listed skills still show a discovery hint.
+        /// </summary>
+        public static int ComputeBrowseMatchScore(
+            IReadOnlyList<int> viewerSkillIds,
+            IReadOnlyList<int> candidateSkillIds,
+            string? viewerMajor,
+            string? candidateMajor)
+        {
+            var common = viewerSkillIds.Intersect(candidateSkillIds).Count();
+            var complementary = candidateSkillIds.Except(viewerSkillIds).Count();
+            var matchScore = (int)(
+                (common * 0.6 / Math.Max(viewerSkillIds.Count, 1) * 100) +
+                (complementary * 0.4 / Math.Max(candidateSkillIds.Count, 1) * 100));
+            matchScore = Math.Min(matchScore, 100);
+
+            if (matchScore < 25
+                && !string.IsNullOrWhiteSpace(viewerMajor)
+                && !string.IsNullOrWhiteSpace(candidateMajor)
+                && string.Equals(
+                    viewerMajor.Trim(),
+                    candidateMajor.Trim(),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                matchScore = Math.Max(matchScore, 25);
+            }
+
+            return matchScore;
         }
     }
 }

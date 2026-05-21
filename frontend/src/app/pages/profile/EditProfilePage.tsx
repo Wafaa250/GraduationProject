@@ -270,7 +270,6 @@ export default function EditProfilePage() {
     <StudentDashboardShell
       userName={form.fullName}
       profilePic={form.profilePicPreview}
-      gradProjectId={null}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
       searchWrapRef={globalSearchWrapRef}
@@ -280,7 +279,6 @@ export default function EditProfilePage() {
       onSelectDoctor={(id) => navigate(`/doctors/${id}`)}
       onOpenSettings={() => {}}
       onLogout={handleLogout}
-      onCreateProject={() => navigate('/create-project')}
     >
       <EditProfileFormShell
         activeSection={activeSection}

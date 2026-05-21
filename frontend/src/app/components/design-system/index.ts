@@ -5,3 +5,6 @@ export { DashboardCard, type DashboardCardAccent, type DashboardCardProps } from
 export { SkillChip, skillChipVariants, type SkillChipProps } from "./SkillChip";
 export { MatchScoreBadge } from "./MatchScoreBadge";
 export { AIRecommendationCard } from "./AIRecommendationCard";
+export { PageHeader, type PageHeaderProps } from "./PageHeader";
+export { TeammateMatchCard, type TeammateMatchCardProps } from "./TeammateMatchCard";
+export { SupervisorMatchCard, type SupervisorMatchCardProps } from "./SupervisorMatchCard";

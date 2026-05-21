@@ -16,8 +16,9 @@
   --secondary-foreground: hsl(240 25% 18%);
   --muted: hsl(240 20% 95%);
   --muted-foreground: hsl(240 10% 45%);
-  --accent: hsl(175 75% 42%);
-  --accent-foreground: hsl(0 0% 100%);
+  /* Soft lavender (not teal) — pills, hover surfaces */
+  --accent: hsl(290 80% 92%);
+  --accent-foreground: hsl(280 60% 30%);
   --destructive: hsl(0 75% 58%);
   --destructive-foreground: hsl(0 0% 100%);
   --border: hsl(240 15% 90%);
@@ -28,7 +29,7 @@
   --radius: 1rem;
 
   --chart-1: hsl(245 65% 38%);
-  --chart-2: hsl(175 75% 42%);
+  --chart-2: hsl(285 80% 65%);
   --chart-3: hsl(270 75% 60%);
   --chart-4: hsl(35 92% 55%);
   --chart-5: hsl(150 65% 42%);
@@ -59,8 +60,8 @@
   --secondary-foreground: hsl(240 15% 95%);
   --muted: hsl(240 20% 16%);
   --muted-foreground: hsl(240 10% 65%);
-  --accent: hsl(175 75% 50%);
-  --accent-foreground: hsl(240 25% 8%);
+  --accent: hsl(274 40% 22%);
+  --accent-foreground: hsl(270 20% 95%);
   --destructive: hsl(0 62% 50%);
   --destructive-foreground: hsl(0 0% 100%);
   --border: hsl(240 20% 18%);

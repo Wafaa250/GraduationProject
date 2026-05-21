@@ -1,5 +1,6 @@
-import type { RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { getGraduationProjectsMyEnvelope } from "../../../../api/dashboardApi";
 import {
   BookOpen,
   FolderPlus,
@@ -10,7 +11,6 @@ import {
   LogOut,
   MessageCircle,
   Search,
-  Settings,
   Sparkles,
   User,
   Users,
@@ -18,8 +18,8 @@ import {
 
 import { AppSidebarBrand } from "../../../components/design-system";
 import { CommunitiesNavLink } from "../../../components/navigation/CommunitiesNavLink";
-import { GradProjectNotificationBell } from "../../../components/notifications/GradProjectNotificationBell";
-import { MessagesNotificationBell } from "../../../components/notifications/MessagesNotificationBell";
+import { NotificationDropdown } from "../../../components/notifications/NotificationDropdown";
+import { cn } from "../../../components/ui/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -44,19 +44,6 @@ export type GlobalSearchResponse = {
   doctors: GlobalSearchDoctor[];
 };
 
-const navIconBtn: React.CSSProperties = {
-  width: 36,
-  height: 36,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "none",
-  border: "none",
-  color: "inherit",
-  cursor: "pointer",
-  borderRadius: 8,
-};
-
 export type StudentDashboardShellProps = {
   children: React.ReactNode;
   userName?: string;
@@ -71,7 +58,6 @@ export type StudentDashboardShellProps = {
   onSelectDoctor: (id: number) => void;
   onOpenSettings: () => void;
   onLogout: () => void;
-  onCreateProject: () => void;
 };
 
 function NavLinkItem({
@@ -86,14 +72,24 @@ function NavLinkItem({
   matchPrefix?: boolean;
 }) {
   const { pathname } = useLocation();
+  const toPath = to.split("?")[0];
   const active =
-    pathname === to || (matchPrefix && to !== "/" && pathname.startsWith(to));
+    pathname === toPath ||
+    (matchPrefix && toPath !== "/" && pathname.startsWith(toPath));
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={active} tooltip={label}>
-        <Link to={to}>
-          <Icon className="h-4 w-4" />
+      <SidebarMenuButton asChild isActive={active} tooltip={label} className="h-auto p-0">
+        <Link
+          to={to}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+            active
+              ? "bg-primary/10 text-primary"
+              : "text-sidebar-foreground hover:bg-sidebar-accent",
+          )}
+        >
+          <Icon className="h-4 w-4 shrink-0" />
           <span>{label}</span>
         </Link>
       </SidebarMenuButton>
@@ -115,9 +111,30 @@ export function StudentDashboardShell({
   onSelectDoctor,
   onOpenSettings,
   onLogout,
-  onCreateProject,
 }: StudentDashboardShellProps) {
   const { pathname } = useLocation();
+  const [resolvedGradProjectId, setResolvedGradProjectId] = useState<
+    number | null
+  >(gradProjectId ?? null);
+
+  useEffect(() => {
+    if (gradProjectId !== undefined) {
+      setResolvedGradProjectId(gradProjectId);
+      return;
+    }
+    let cancelled = false;
+    getGraduationProjectsMyEnvelope()
+      .then(({ project }) => {
+        if (!cancelled) setResolvedGradProjectId(project?.id ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedGradProjectId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [gradProjectId]);
+
   const initials =
     userName
       ?.split(" ")
@@ -126,13 +143,20 @@ export function StudentDashboardShell({
       .slice(0, 2)
       .toUpperCase() || "ST";
 
-  const teamWorkspaceTo = gradProjectId
-    ? `/student/team/${gradProjectId}`
+  const teamWorkspaceTo = resolvedGradProjectId
+    ? `/student/team/${resolvedGradProjectId}`
     : "/dashboard";
+
+  const graduationProjectPath = resolvedGradProjectId
+    ? `/student/ai-analysis?projectId=${resolvedGradProjectId}`
+    : "/create-project";
+  const graduationProjectLabel = resolvedGradProjectId
+    ? "Graduation project"
+    : "Create Project";
 
   return (
     <SidebarProvider defaultOpen className="min-h-svh">
-      <Sidebar collapsible="icon" className="border-sidebar-border">
+      <Sidebar collapsible="icon" className="w-64 border-sidebar-border bg-sidebar">
         <SidebarHeader>
           <AppSidebarBrand
             title="SkillSwap"
@@ -142,7 +166,9 @@ export function StudentDashboardShell({
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Workspace
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <NavLinkItem to="/dashboard" label="Dashboard" icon={Home} />
@@ -150,20 +176,47 @@ export function StudentDashboardShell({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === "/create-project"}
-                    tooltip="Create Project"
+                    isActive={
+                      pathname === "/create-project" ||
+                      pathname === "/create-project/edit" ||
+                      pathname === "/student/ai-analysis"
+                    }
+                    tooltip={graduationProjectLabel}
+                    className="h-auto p-0"
                   >
-                    <Link to="/create-project" onClick={onCreateProject}>
-                      <FolderPlus className="h-4 w-4" />
-                      <span>Create Project</span>
+                    <Link
+                      to={graduationProjectPath}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                        pathname === "/create-project" ||
+                          pathname === "/create-project/edit" ||
+                          pathname === "/student/ai-analysis"
+                          ? "bg-primary/10 text-primary"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent",
+                      )}
+                    >
+                      <FolderPlus className="h-4 w-4 shrink-0" />
+                      <span>{graduationProjectLabel}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <NavLinkItem to="/students" label="Find Teammates" icon={Users} matchPrefix />
+                <NavLinkItem
+                  to={
+                    resolvedGradProjectId
+                      ? `/students?projectId=${resolvedGradProjectId}`
+                      : "/students"
+                  }
+                  label="Find Teammates"
+                  icon={Users}
+                  matchPrefix
+                />
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Find Supervisor">
-                    <a href="#supervisor-recommendations">
-                      <GraduationCap className="h-4 w-4" />
+                  <SidebarMenuButton asChild tooltip="Find Supervisor" className="h-auto p-0">
+                    <a
+                      href="#supervisor-recommendations"
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+                    >
+                      <GraduationCap className="h-4 w-4 shrink-0" />
                       <span>Find Supervisor</span>
                     </a>
                   </SidebarMenuButton>
@@ -179,7 +232,9 @@ export function StudentDashboardShell({
             </SidebarGroupContent>
           </SidebarGroup>
           <SidebarGroup>
-            <SidebarGroupLabel>Communication</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Communication
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <NavLinkItem
@@ -192,13 +247,21 @@ export function StudentDashboardShell({
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-        <SidebarFooter>
-          <div className="rounded-2xl border border-ai/20 bg-ai-soft/80 p-3 group-data-[collapsible=icon]:hidden">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-ai">AI tip</p>
+        <SidebarFooter className="gap-3 p-4">
+          <div className="rounded-2xl border border-ai/20 bg-ai-soft p-3 group-data-[collapsible=icon]:hidden">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-ai">AI Tip</p>
             <p className="mt-1 text-xs leading-relaxed text-foreground/80">
-              Complete your skills section to unlock better AI teammate matches.
+              Complete your skills section to unlock 5x better matches.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted group-data-[collapsible=icon]:hidden"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Log out
+          </button>
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
@@ -206,8 +269,11 @@ export function StudentDashboardShell({
       <SidebarInset className="flex min-h-svh flex-col bg-gradient-surface">
         <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur-xl md:px-6">
           <SidebarTrigger className="-ml-1 md:hidden" />
-          <div ref={searchWrapRef} className="relative mx-auto hidden w-full max-w-xl flex-1 md:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div
+            ref={searchWrapRef}
+            className="relative mx-auto hidden w-full max-w-md flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 py-1.5 md:flex"
+          >
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
@@ -215,7 +281,7 @@ export function StudentDashboardShell({
                 if (e.key === "Enter") e.preventDefault();
               }}
               placeholder="Search projects, skills, people…"
-              className="h-10 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
             {searchQuery.trim() !== "" && (
               <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-80 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-pop">
@@ -274,26 +340,9 @@ export function StudentDashboardShell({
             )}
           </div>
 
-          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto flex items-center gap-2">
             <CommunitiesNavLink />
-            <GradProjectNotificationBell bellButtonStyle={navIconBtn} theme="student" />
-            <MessagesNotificationBell buttonStyle={navIconBtn} />
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Profile strength"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Log out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <NotificationDropdown />
             <Link
               to="/profile"
               className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground shadow-glow"
@@ -307,7 +356,7 @@ export function StudentDashboardShell({
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">{children}</div>
+        <main className="flex flex-1 flex-col gap-6 px-4 py-6 pb-24 sm:px-6 lg:pb-10">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -31,36 +31,16 @@ import type {
   GradProject,
   GradProjectMember,
   GraduationProjectType,
-  GradProjectRecommendedStudent,
 } from "../../../api/gradProjectApi";
 import {
-  removeProjectMember,
-  changeProjectLeader,
   createGraduationProject,
   updateGraduationProject,
   isEngineeringOrITFaculty,
   abstractForApi,
   projectTypeForApi,
-  getRecommendedStudents,
 } from "../../../api/gradProjectApi";
-import {
-  getRecommendedSupervisors,
-  requestSupervisor,
-  type Supervisor,
-} from "../../../api/supervisorApi";
-import { aiApi } from "../../../api/ai";
 import { getCourseId } from "../../../utils/normalize";
-import {
-  AiSupervisorRecommendations,
-  enrichAiSupervisorsWithRecommended,
-  type AiSupervisionSnapshot,
-  type AiSupervisorCardRequestState,
-  type AiSupervisorRecommendUiState,
-  type EnrichedAiSupervisorRow,
-} from "../../components/project/AiSupervisorRecommendations";
-import { AiTeammateRecommendations } from "../../components/project/AiTeammateRecommendations";
-import type { AiRecommendationPanelUiState } from "../../components/project/AiRecommendationPanel";
-import { aiPanelStyles } from "../../components/project/aiRecommendationPanelStyles";
+import { GraduationProjectSummaryCard } from "./components/GraduationProjectSummaryCard";
 import ProfileLink, { getProfileUrl } from "../../components/common/ProfileLink";
 import { useToast } from "../../../context/ToastContext";
 import { DashboardActivityRail } from "./components/DashboardActivityRail";
@@ -102,14 +82,6 @@ import {
 
 function normApiStatus(s?: string | null): string {
   return s?.toString().trim().toLowerCase() ?? "";
-}
-
-/** Display line for supervisor name with Dr. prefix when appropriate */
-function formatSupervisorDoctorName(raw: string): string {
-  const t = raw.trim();
-  if (!t) return "—";
-  if (/^dr\.?\s/i.test(t)) return t;
-  return `Dr. ${t}`;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -331,19 +303,6 @@ export default function DashboardPage() {
     ok: boolean;
   } | null>(null);
 
-  // Toast for member-removal feedback — cleared automatically after 3 s
-  const [removeMsg, setRemoveMsg] = useState<{
-    msg: string;
-    ok: boolean;
-  } | null>(null);
-
-  // Per-member loading state and toast for the Make Leader action
-  const [promotingId, setPromotingId] = useState<number | null>(null);
-  const [leaderMsg, setLeaderMsg] = useState<{
-    msg: string;
-    ok: boolean;
-  } | null>(null);
-
   // ─── Modal States ─────────────────────────────────────────────────────────
   const [editInfoOpen, setEditInfoOpen] = useState(false);
 
@@ -549,15 +508,6 @@ export default function DashboardPage() {
   const [gradSubmitting, setGradSubmitting] = useState(false);
   const [gradTeammates, setGradTeammates] = useState<SuggestedTeammate[]>([]);
   const [addTeammatesOpen, setAddTeammatesOpen] = useState(false);
-  const [removingId, setRemovingId] = useState<number | null>(null);
-
-  const [aiStudents, setAiStudents] = useState<GradProjectRecommendedStudent[]>(
-    [],
-  );
-  const [aiStudentsUiState, setAiStudentsUiState] =
-    useState<AiRecommendationPanelUiState>("idle");
-  const [aiStudentsError, setAiStudentsError] = useState<string | null>(null);
-
   // Role the current user holds in their project — comes from GET /my envelope.
   // Kept separately from gradProject so it survives the same optimistic-update
   // pattern used for teamMembers / currentMembers / isFull.
@@ -580,74 +530,9 @@ export default function DashboardPage() {
   const [currentMembers, setCurrentMembers] = useState(0);
   const [isFull, setIsFull] = useState(false);
 
-  const [aiRecommendUiState, setAiRecommendUiState] =
-    useState<AiSupervisorRecommendUiState>("idle");
-  const [aiRecommendItems, setAiRecommendItems] = useState<
-    EnrichedAiSupervisorRow[]
-  >([]);
-  const [aiRecommendError, setAiRecommendError] = useState<string | null>(null);
-  const [aiSupervisorCardRequests, setAiSupervisorCardRequests] = useState<
-    Record<number, AiSupervisorCardRequestState>
-  >({});
-
-  /** Inline AI student cards — invite action (POST invite/{studentProfileId}) */
-  const [aiCardInviteLoadingId, setAiCardInviteLoadingId] = useState<
-    number | null
-  >(null);
-
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-
-  const supervisionUi = useMemo(() => {
-    if (!gradProject) return { mode: "none" as const };
-
-    if (gradProject.supervisor) {
-      return { mode: "assigned" as const, supervisor: gradProject.supervisor };
-    }
-
-    const sr = normApiStatus(gradProject.supervisorRequestStatus);
-    if (sr === "rejected") {
-      return { mode: "rejected" as const };
-    }
-    if (sr === "pending") {
-      const doctorName = gradProject.pendingSupervisor?.name?.trim() || "—";
-      return { mode: "pending" as const, doctorName };
-    }
-    return { mode: "none" as const };
-  }, [gradProject]);
-
-  useEffect(() => {
-    setAiRecommendUiState("idle");
-    setAiStudents([]);
-    setAiStudentsUiState("idle");
-    setAiStudentsError(null);
-    setAiRecommendItems([]);
-    setAiRecommendError(null);
-    setAiSupervisorCardRequests({});
-  }, [gradProject?.id]);
-
-  const aiSupervisionSnapshot = useMemo((): AiSupervisionSnapshot => {
-    if (!gradProject) {
-      return {
-        hasAssignedSupervisor: false,
-        requestStatusNorm: "",
-        pendingDoctorId: null,
-      };
-    }
-    const requestStatusNorm = normApiStatus(
-      gradProject.supervisorRequestStatus,
-    );
-    const pendingDoctorId =
-      requestStatusNorm === "pending"
-        ? (gradProject.pendingSupervisor?.doctorId ?? null)
-        : null;
-    return {
-      hasAssignedSupervisor: !!gradProject.supervisor,
-      requestStatusNorm,
-      pendingDoctorId,
-    };
-  }, [gradProject]);
 
   // ── fetchInvitations: reusable, callable manually or by effects ──────────
   //
@@ -1176,20 +1061,6 @@ export default function DashboardPage() {
     return () => window.removeEventListener("gradProjectSupervisorChanged", handler);
   }, [refetchGradProject]);
 
-  /**
-   * After supervisor request mutations: re-fetch GET /graduation-projects/my without
-   * toggling gradLoading (keeps the project card visible), clear optimistic AI card
-   * state so supervisionUi + mergeAiSupervisorCardRequestState follow the server.
-   * A second silent refetch shortly after helps if the first read is briefly stale.
-   */
-  const refreshGradProjectAfterSupervisorRequest = useCallback(async () => {
-    await refetchGradProject({ silent: true });
-    setAiSupervisorCardRequests({});
-    window.setTimeout(() => {
-      void refetchGradProject({ silent: true });
-    }, 450);
-  }, [refetchGradProject]);
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -1413,30 +1284,16 @@ export default function DashboardPage() {
     borderStyle: "solid",
   };
 
-  const handleAiRecommendedStudents = useCallback(async () => {
-    if (!gradProject) return;
-    setAiStudentsUiState("loading");
-    setAiStudentsError(null);
-    try {
-      const result = await getRecommendedStudents(gradProject.id);
-      setAiStudents(result);
-      setAiStudentsUiState(result.length > 0 ? "success" : "empty");
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? "Request failed.";
-      setAiStudentsError(msg);
-      setAiStudents([]);
-      setAiStudentsUiState("error");
-    }
-  }, [gradProject]);
+  const [aiCardInviteLoadingId, setAiCardInviteLoadingId] = useState<
+    number | null
+  >(null);
 
   const handleAiCardInviteStudent = useCallback(
-    async (studentId: number) => {
+    async (studentProfileId: number) => {
       if (!gradProject?.id) return;
-      setAiCardInviteLoadingId(studentId);
+      setAiCardInviteLoadingId(studentProfileId);
       try {
-        await sendInvitation(gradProject.id, studentId);
+        await sendInvitation(gradProject.id, studentProfileId);
         showToast("Invitation sent", "success");
         void fetchInvitations();
       } catch (err: unknown) {
@@ -1450,100 +1307,6 @@ export default function DashboardPage() {
     },
     [gradProject?.id, fetchInvitations, showToast],
   );
-
-  const handleDeleteProject = async () => {
-    if (!gradProject) return;
-    if (!window.confirm("Are you sure you want to delete this project?"))
-      return;
-    try {
-      await api.delete(`/graduation-projects/${gradProject.id}`);
-      // تحقق من الباك — يجب أن يرجع null بعد الحذف
-      await refetchGradProject();
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to delete project.");
-    }
-  };
-
-  const handleLeaveProject = async () => {
-    if (!gradProject) return;
-    if (!window.confirm("Are you sure you want to leave this project?")) return;
-    try {
-      await api.delete(`/graduation-projects/${gradProject.id}/leave`);
-      // تحقق من الباك بعد المغادرة
-      await refetchGradProject();
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to leave project.");
-    }
-  };
-
-  const handleRemoveMember = async (memberStudentId: number) => {
-    if (!gradProject) return;
-
-    setRemovingId(memberStudentId);
-    setRemoveMsg(null);
-    try {
-      // Uses the typed API function — DELETE /graduation-projects/:id/members/:memberId
-      // Response: { message, currentMembers } where currentMembers is the
-      // authoritative post-deletion count from the DB.
-      const result = await removeProjectMember(gradProject.id, memberStudentId);
-
-      // Update team state from the backend's real count, not a local guess
-      const updatedCount = result.currentMembers;
-      setTeamMembers((prev) =>
-        prev.filter((m) => m.studentId !== memberStudentId),
-      );
-      setCurrentMembers(updatedCount);
-      setIsFull(updatedCount >= (gradProject?.partnersCount ?? 0));
-
-      setRemoveMsg({ msg: "✓ Member removed.", ok: true });
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || "Failed to remove member.";
-      setRemoveMsg({ msg, ok: false });
-    } finally {
-      setRemovingId(null);
-      setTimeout(() => setRemoveMsg(null), 3000);
-    }
-  };
-
-  const handleMakeLeader = async (memberStudentId: number) => {
-    if (!gradProject) return;
-
-    setPromotingId(memberStudentId);
-    setLeaderMsg(null);
-
-    try {
-      // PUT /graduation-projects/:id/change-leader/:memberId
-      // Backend swaps roles atomically: exactly one leader at all times.
-      await changeProjectLeader(gradProject.id, memberStudentId);
-
-      // 🔥 Update team members (optimistic UI)
-      setTeamMembers((prev) =>
-        prev.map((m) => {
-          if (m.studentId === memberStudentId)
-            return { ...m, role: "leader" as const };
-
-          if (m.role === "leader") return { ...m, role: "member" as const };
-
-          return m;
-        }),
-      );
-
-      // 🔥 FIX: update current user role
-      if (memberStudentId === myStudentId) {
-        setMyRole("leader");
-      } else {
-        setMyRole("member");
-      }
-
-      setLeaderMsg({ msg: "✓ Leader updated.", ok: true });
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || "Failed to change leader.";
-      setLeaderMsg({ msg, ok: false });
-    } finally {
-      setPromotingId(null);
-      setTimeout(() => setLeaderMsg(null), 3000);
-    }
-  };
 
   const handleJoinProject = async (projectId: number) => {
     try {
@@ -1608,78 +1371,6 @@ export default function DashboardPage() {
       setTimeout(() => setInviteMsg(null), 3000);
     }
   };
-  const handleRecommendSupervisors = useCallback(async () => {
-    const projectId = gradProject?.id;
-    if (projectId == null) return;
-
-    setAiRecommendUiState("loading");
-    setAiRecommendError(null);
-    setAiRecommendItems([]);
-
-    try {
-      const aiRows = await aiApi.recommendSupervisors(projectId);
-      let recommended: Supervisor[] = [];
-      try {
-        recommended = await getRecommendedSupervisors(projectId);
-      } catch {
-        /* optional: names/specializations when GET recommended list succeeds */
-      }
-      const enriched = enrichAiSupervisorsWithRecommended(aiRows, recommended);
-      setAiRecommendItems(enriched);
-      setAiRecommendUiState(enriched.length === 0 ? "empty" : "success");
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message ??
-        "We could not load AI recommendations. Please try again in a moment.";
-      setAiRecommendError(msg);
-      setAiRecommendItems([]);
-      setAiRecommendUiState("error");
-    }
-  }, [gradProject?.id]);
-
-  const handleAiRecommendRequestSupervisor = useCallback(
-    async (doctorId: number) => {
-      if (!gradProject) return;
-
-      if (gradProject.supervisor) return;
-
-      const sr = normApiStatus(gradProject.supervisorRequestStatus);
-      if (sr === "pending" && gradProject.pendingSupervisor) {
-        if (gradProject.pendingSupervisor.doctorId !== doctorId) return;
-      }
-
-      setAiSupervisorCardRequests((prev) => ({
-        ...prev,
-        [doctorId]: { phase: "sending" },
-      }));
-
-      try {
-        await requestSupervisor(gradProject.id, doctorId);
-        await refreshGradProjectAfterSupervisorRequest();
-      } catch (err: unknown) {
-        const msg =
-          (err as { response?: { data?: { message?: string } } })?.response
-            ?.data?.message || "Failed to send supervisor request.";
-        const lower = msg.toLowerCase();
-        const treatAsPending =
-          lower.includes("pending") ||
-          lower.includes("already") ||
-          lower.includes("exist") ||
-          lower.includes("duplicate");
-        if (treatAsPending) {
-          await refreshGradProjectAfterSupervisorRequest();
-        } else {
-          setAiSupervisorCardRequests((prev) => ({
-            ...prev,
-            [doctorId]: { phase: "error", detail: msg },
-          }));
-        }
-      }
-    },
-    [gradProject, refreshGradProjectAfterSupervisorRequest],
-  );
-
   const openEditInfo = () => {
     setEditInfoOpen(true);
   };
@@ -1792,15 +1483,30 @@ export default function DashboardPage() {
       }}
       onOpenSettings={openEditInfo}
       onLogout={handleLogout}
-      onCreateProject={() => navigate("/create-project")}
     >
       <DashboardWelcomeHero
         firstName={user?.name?.split(" ")[0]}
         completeness={completeness}
         onBrowseProjects={() => setProjectsModalOpen(true)}
-        onCreateProject={() => navigate("/create-project")}
+        onCreateProject={() =>
+          navigate(
+            gradProject?.id
+              ? `/student/ai-analysis?projectId=${gradProject.id}`
+              : "/create-project",
+          )
+        }
+        hasExistingGradProject={!!gradProject?.id}
       />
-      <DashboardQuickActions onCreateProject={() => navigate("/create-project")} />
+      <DashboardQuickActions
+        onCreateProject={() =>
+          navigate(
+            gradProject?.id
+              ? `/student/ai-analysis?projectId=${gradProject.id}`
+              : "/create-project",
+          )
+        }
+        hasExistingGradProject={!!gradProject?.id}
+      />
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-6">
           <DashboardRecommendedSection
@@ -1828,7 +1534,7 @@ export default function DashboardPage() {
             {/* My Graduation Project */}
             <div style={{ ...S.card, ...S.rightColTopCard }}>
               <div style={S.cardHeader}>
-                <h3 style={S.cardTitle}>🎓 My Graduation Project</h3>
+                <h3 style={S.cardTitle}>Graduation project</h3>
                 {!gradProject && !gradLoading && (
                   <button
                     onClick={() => navigate("/create-project")}
@@ -1878,502 +1584,15 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Project exists */}
+              {/* Project exists — summary card (Figma-style) */}
               {!gradLoading && gradProject && (
-                <div
-                  style={{
-                    padding: "14px",
-                    background:
-                      "linear-gradient(135deg,rgba(99,102,241,0.05),rgba(168,85,247,0.05))",
-                    border: "1px solid rgba(99,102,241,0.15)",
-                    borderRadius: 12,
-                  }}
-                >
-                  {/* Header: name + role badge + action */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: 6,
-                    }}
-                  >
-                    <div>
-                      <p
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                          margin: "0 0 3px",
-                        }}
-                      >
-                        {gradProject?.name ?? ""}
-                      </p>
-                      <span
-                        style={{
-                          fontSize: 9,
-                          fontWeight: 700,
-                          padding: "2px 7px",
-                          background: gradProject?.isOwner
-                            ? "linear-gradient(135deg,#6366f1,#a855f7)"
-                            : "#e0e7ff",
-                          color: gradProject?.isOwner ? "white" : "#6366f1",
-                          borderRadius: 20,
-                        }}
-                      >
-                        {gradProject?.isOwner ? "👑 Owner" : "👥 Member"}
-                      </span>
-                    </div>
-                    {gradProject?.isOwner ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => navigate("/create-project")}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "#6366f1",
-                            fontSize: 11,
-                            fontFamily: "inherit",
-                            padding: "2px 6px",
-                            borderRadius: 6,
-                            fontWeight: 700,
-                          }}
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleDeleteProject}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "#ef4444",
-                            fontSize: 11,
-                            fontFamily: "inherit",
-                            padding: "2px 6px",
-                            borderRadius: 6,
-                          }}
-                        >
-                          🗑 Delete
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={handleLeaveProject}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: "#94a3b8",
-                          fontSize: 11,
-                          fontFamily: "inherit",
-                          padding: "2px 6px",
-                          borderRadius: 6,
-                        }}
-                      >
-                        Leave
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Abstract + project type */}
-                  {(gradProject.projectType ||
-                    (gradProject.abstract ?? "").trim()) && (
-                    <div
-                      style={{
-                        margin: "0 0 8px",
-                        display: "flex",
-                        flexWrap: "wrap" as const,
-                        gap: 8,
-                        alignItems: "center",
-                      }}
-                    >
-                      {gradProject.projectType ? (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: "2px 8px",
-                            background: "#f1f5f9",
-                            color: "#475569",
-                            borderRadius: 6,
-                            border: "1px solid #e2e8f0",
-                          }}
-                        >
-                          {gradProject.projectType}
-                        </span>
-                      ) : null}
-                      {(gradProject.abstract ?? "").trim() ? (
-                        <p
-                          style={{
-                            fontSize: 12,
-                            color: "#64748b",
-                            margin: 0,
-                            lineHeight: 1.5,
-                            flex: "1 1 200px",
-                          }}
-                        >
-                          {(gradProject.abstract ?? "").trim()}
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-
-                  {/* Owner name */}
-                  <p
-                    style={{
-                      fontSize: 11,
-                      color: "#94a3b8",
-                      margin: "0 0 8px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    by {gradProject?.ownerName ?? "—"}
-                  </p>
-
-                  {gradProject?.supervisor ? (
-                    <div
-                      style={{
-                        margin: "0 0 10px",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        background:
-                          "linear-gradient(135deg, rgba(91,33,182,0.08) 0%, rgba(99,102,241,0.06) 100%)",
-                        border: "1px solid rgba(91,33,182,0.2)",
-                      }}
-                    >
-                      <p
-                        style={{
-                          margin: "0 0 4px",
-                          fontSize: 10,
-                          fontWeight: 800,
-                          color: "#5b21b6",
-                          letterSpacing: "0.06em",
-                          textTransform: "uppercase" as const,
-                        }}
-                      >
-                        Supervisor
-                      </p>
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 14,
-                          fontWeight: 800,
-                          color: "#0f172a",
-                        }}
-                      >
-                        <ProfileLink
-                          userId={
-                            gradProject.supervisor.userId > 0
-                              ? gradProject.supervisor.userId
-                              : gradProject.supervisor.doctorId
-                          }
-                          role="doctor"
-                          style={{ color: "#5b21b6", fontWeight: 800 }}
-                        >
-                          {formatSupervisorDoctorName(
-                            gradProject.supervisor.name?.trim() || "—",
-                          )}
-                        </ProfileLink>
-                      </p>
-                      {(gradProject.supervisor.specialization ?? "").trim() ? (
-                        <p
-                          style={{
-                            margin: "4px 0 0",
-                            fontSize: 12,
-                            color: "#64748b",
-                            fontWeight: 500,
-                          }}
-                        >
-                          {(gradProject.supervisor.specialization ?? "").trim()}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {/* Required skills */}
-                  {(gradProject.requiredSkills ?? []).length > 0 && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap" as const,
-                        gap: 4,
-                        marginBottom: 10,
-                      }}
-                    >
-                      {(gradProject.requiredSkills ?? []).map((sk: string) => (
-                        <span key={sk} style={S.skillChipSm}>
-                          {sk}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* ── Team Members ── */}
-                  <div
-                    style={{
-                      marginTop: 12,
-                      borderTop: "1px solid rgba(99,102,241,0.12)",
-                      paddingTop: 12,
-                    }}
-                  >
-                    {/* Header: label + count + full badge */}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 10,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                        }}
-                      >
-                        <Users size={12} color="#6366f1" />
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: "#64748b",
-                            textTransform: "uppercase" as const,
-                            letterSpacing: "0.08em",
-                          }}
-                        >
-                          Team
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                        }}
-                      >
-                        {/* Count pill — always visible */}
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: "2px 8px",
-                            background: "#eef2ff",
-                            color: "#6366f1",
-                            border: "1px solid #c7d2fe",
-                            borderRadius: 20,
-                          }}
-                        >
-                          {currentMembers} / {gradProject?.partnersCount ?? 0}
-                        </span>
-                        {/* Full badge — replaces "X seats left" when team is complete */}
-                        {isFull ? (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              padding: "2px 7px",
-                              background:
-                                "linear-gradient(135deg,#10b981,#059669)",
-                              color: "white",
-                              borderRadius: 20,
-                            }}
-                          >
-                            ✓ Full
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 600,
-                              color: "#94a3b8",
-                            }}
-                          >
-                            {Math.max(
-                              0,
-                              (gradProject?.partnersCount ?? 0) -
-                                currentMembers,
-                            )}{" "}
-                            seat
-                            {Math.max(
-                              0,
-                              (gradProject?.partnersCount ?? 0) -
-                                currentMembers,
-                            ) !== 1
-                              ? "s"
-                              : ""}{" "}
-                            open
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Member rows */}
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column" as const,
-                        gap: 6,
-                      }}
-                    >
-                      {teamMembers.length === 0 ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            padding: "10px 12px",
-                            background: "#f8fafc",
-                            border: "1px dashed #cbd5e1",
-                            borderRadius: 8,
-                          }}
-                        >
-                          <Users size={13} color="#cbd5e1" />
-                          <span
-                            style={{
-                              fontSize: 12,
-                              color: "#94a3b8",
-                              fontWeight: 500,
-                            }}
-                          >
-                            No members yet — invite students to join
-                          </span>
-                        </div>
-                      ) : (
-                        teamMembers.map((m) => (
-                          <TeamMemberRow
-                            key={m.studentId}
-                            member={m}
-                            canManageTeam={
-                              myRole === "owner" || myRole === ("leader" as any)
-                            }
-                            isSelf={
-                              myStudentId !== null &&
-                              m.studentId === myStudentId
-                            }
-                            isRemoving={removingId === m.studentId}
-                            onRemove={() => handleRemoveMember(m.studentId)}
-                            isPromoting={promotingId === m.studentId}
-                            onMakeLeader={() => handleMakeLeader(m.studentId)}
-                          />
-                        ))
-                      )}
-                    </div>
-
-                    {/* Inline action feedback — removal or leader change */}
-                    {(removeMsg || leaderMsg) && (
-                      <p
-                        style={{
-                          margin: "8px 0 0",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: (removeMsg ?? leaderMsg)!.ok
-                            ? "#16a34a"
-                            : "#ef4444",
-                        }}
-                      >
-                        {(removeMsg ?? leaderMsg)!.msg}
-                      </p>
-                    )}
-
-                    {/* Footer: browse button (owner, not full) or complete notice */}
-                    {gradProject?.isOwner && !isFull && (
-                      <button
-                        onClick={() =>
-                          navigate(
-                            `/students?projectId=${gradProject?.id ?? ""}`,
-                          )
-                        }
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                          marginTop: 10,
-                          padding: "6px 12px",
-                          background: "white",
-                          border: "1.5px solid #c7d2fe",
-                          borderRadius: 8,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "#6366f1",
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        <UserPlus size={12} /> Browse Students to Join
-                      </button>
-                    )}
-                    {isFull && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                          marginTop: 10,
-                        }}
-                      >
-                        <CheckCircle2 size={13} color="#10b981" />
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: "#10b981",
-                          }}
-                        >
-                          Team is complete
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {/* end team section */}
-
-                  <div style={aiPanelStyles.groupShell}>
-                    {!isFull && (
-                      <AiTeammateRecommendations
-                        uiState={aiStudentsUiState}
-                        students={aiStudents}
-                        errorMessage={aiStudentsError}
-                        onRecommend={() => void handleAiRecommendedStudents()}
-                        onInvite={handleAiCardInviteStudent}
-                        inviteLoadingId={aiCardInviteLoadingId}
-                        canTrigger={
-                          myRole === "owner" || myRole === "leader"
-                        }
-                        canInvite={!!gradProject?.isOwner}
-                        teamFull={isFull}
-                        skillChipStyle={S.skillChipSm}
-                      />
-                    )}
-                    <div id="supervisor-recommendations"><AiSupervisorRecommendations
-                      embedded={!isFull}
-                      uiState={aiRecommendUiState}
-                      items={aiRecommendItems}
-                      errorMessage={aiRecommendError}
-                      onRecommend={handleRecommendSupervisors}
-                      onRequestSupervisor={handleAiRecommendRequestSupervisor}
-                      cardRequestByDoctor={aiSupervisorCardRequests}
-                      supervisionSnapshot={aiSupervisionSnapshot}
-                      supervisionPending={
-                        supervisionUi.mode === "pending"
-                      }
-                      canTriggerRecommend={
-                        myRole === "owner" || myRole === "leader"
-                      }
-                      formatDoctorName={formatSupervisorDoctorName}
-                    />
-                  </div>
-                  </div>
-                </div>
+                <GraduationProjectSummaryCard
+                  project={gradProject}
+                  currentMembers={currentMembers}
+                  isFull={isFull}
+                  workspaceTo={`/student/team/${gradProject.id}`}
+                  teammatesTo={`/student/ai-analysis?projectId=${gradProject.id}`}
+                />
               )}
             </div>
 
@@ -5489,124 +4708,6 @@ export default function DashboardPage() {
         a { text-decoration: none; }
       `}</style>
     </StudentDashboardShell>
-  );
-}
-
-// ─── TeamMemberRow ────────────────────────────────────────────────────────────
-// Renders a single team member as a clean horizontal row.
-//
-// canManageTeam — when true, non-leader rows show Remove + Make Leader buttons.
-// isSelf        — true when this row belongs to the currently logged-in user.
-//                 Hides the Remove button on their own row regardless of role.
-// isRemoving    — disables Remove and fades the row while DELETE is in flight.
-// onRemove      — called on Remove click; handler lives in DashboardPage.
-// isPromoting   — disables Make Leader while PUT is in flight for this member.
-// onMakeLeader  — called on Make Leader click; handler lives in DashboardPage.
-//
-// Leader rows never show action buttons regardless of canManageTeam.
-interface TeamMemberRowProps {
-  member: GradProjectMember;
-  canManageTeam: boolean;
-  isSelf: boolean;
-  isRemoving: boolean;
-  onRemove: () => void;
-  isPromoting: boolean;
-  onMakeLeader: () => void;
-}
-function TeamMemberRow({
-  member: m,
-  canManageTeam,
-  isSelf,
-  isRemoving,
-  onRemove,
-  isPromoting,
-  onMakeLeader,
-}: TeamMemberRowProps) {
-  const isLeader = m.role === "leader";
-  // Actions area is shown only when the manager can act AND the row is not the
-  // leader row. Individual buttons may still be hidden (e.g. Remove for self).
-  const showActions = canManageTeam && !isLeader;
-  const canRemove = showActions && !isSelf;
-  const isBusy = isRemoving || isPromoting;
-  const initials = m.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  return (
-    <div
-      style={{
-        ...S.memberRow,
-        ...(isLeader ? S.memberRowLeader : S.memberRowMember),
-        opacity: isBusy ? 0.5 : 1,
-      }}
-    >
-      {/* Left: avatar + text */}
-      <div style={S.memberLeft}>
-        {/* Avatar */}
-        <div
-          style={{
-            ...S.memberAvatarWrap,
-            boxShadow: isLeader ? "0 0 0 2px #a5b4fc" : "none",
-          }}
-        >
-          {m.profilePicture ? (
-            <img
-              src={m.profilePicture}
-              alt={m.name}
-              style={S.memberAvatarImg}
-            />
-          ) : (
-            <div
-              style={
-                isLeader
-                  ? S.memberAvatarFallbackLeader
-                  : S.memberAvatarFallbackMember
-              }
-            >
-              {initials}
-            </div>
-          )}
-        </div>
-
-        {/* Name + sub-line */}
-        <div style={S.memberText}>
-          <div style={S.memberNameRow}>
-            <span style={S.memberName}>{m.name}</span>
-            <span style={isLeader ? S.memberBadgeLeader : S.memberBadgeMember}>
-              {isLeader ? "👑 Leader" : "Member"}
-            </span>
-            {isSelf && <span style={S.memberBadgeSelf}>You</span>}
-          </div>
-          <span style={S.memberSub}>{m.major || m.university || "—"}</span>
-        </div>
-      </div>
-
-      {/* Right: actions — only for non-leader rows when canManageTeam */}
-      {showActions && (
-        <div style={S.memberActions}>
-          {canRemove && (
-            <button
-              onClick={onRemove}
-              disabled={isBusy}
-              style={{
-                ...S.memberBtnRemove,
-                cursor: isBusy ? "not-allowed" : "pointer",
-                opacity: isBusy ? 0.5 : 1,
-                padding: "4px 5px", // 👈 أصغر
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {isRemoving ? "…" : "🗑"}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
   );
 }
 

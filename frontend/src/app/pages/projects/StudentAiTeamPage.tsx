@@ -1,405 +1,402 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { ArrowLeft, Sparkles } from "lucide-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { parseApiErrorMessage } from "../../../api/axiosInstance";
+import { useEffect, useState } from "react";
+
+import { Bot, Send, Sparkles, Users } from "lucide-react";
+
+import { useParams } from "react-router-dom";
+
+
+
 import {
-    getAiTeamRecommendations,
-    sendManualTeamRequest,
-    type AiTeamRecommendation,
-} from "../../../api/studentCoursesApi";
+
+  getHubAiRecommendations,
+
+  hubTeamChoicePath,
+
+  sendHubTeamInvitation,
+
+} from "../../../api/studentCoursesHubApi";
+
+import type { HubAiRecommendation, HubApiError } from "../../../types/studentCoursesHub";
+
 import { useToast } from "../../../context/ToastContext";
 
+import { Badge } from "../../components/ui/badge";
+
+import { Button } from "../../components/ui/button";
+
+import { Card } from "../../components/ui/card";
+
+import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
+
+import {
+
+  AvailabilityBadge,
+
+  MatchScoreBadge,
+
+} from "../courses/components/courseHub/CourseHubBadges";
+
+import { CourseHubEmptyState } from "../courses/components/courseHub/CourseHubEmptyState";
+
+import { StudentCourseSubpageShell } from "../courses/components/StudentCourseSubpageShell";
+
+
+
+function avatarSrc(raw: string | null | undefined): string | null {
+
+  const trimmed = raw?.trim();
+
+  if (!trimmed) return null;
+
+  return trimmed.startsWith("data:") ? trimmed : `data:image/*;base64,${trimmed}`;
+
+}
+
+
+
 export default function StudentAiTeamPage() {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { showToast } = useToast();
-    const { courseId, projectId } = useParams<{ courseId?: string; projectId?: string }>();
 
-    const safeCourseId = Number(courseId ?? 0);
-    const safeProjectId = Number(projectId ?? 0);
-    const navState = location.state as { projectTitle?: string } | null;
+  const { showToast } = useToast();
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [recommendations, setRecommendations] = useState<AiTeamRecommendation[]>([]);
-    const [sendingToId, setSendingToId] = useState<number | null>(null);
+  const { courseId = "", projectId = "" } = useParams<{ courseId?: string; projectId?: string }>();
 
-    useEffect(() => {
-        if (!safeCourseId || !safeProjectId) {
-            setError("Invalid course/project route.");
-            setLoading(false);
-            return;
-        }
 
-        let cancelled = false;
-        const load = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const data = await getAiTeamRecommendations(safeCourseId, safeProjectId);
-                if (cancelled) return;
-                setRecommendations(data ?? []);
-            } catch (err) {
-                if (cancelled) return;
-                setError(parseApiErrorMessage(err));
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
 
-        void load();
-        return () => {
-            cancelled = true;
-        };
-    }, [safeCourseId, safeProjectId]);
+  const [data, setData] = useState<{
 
-    const pageTitle = useMemo(
-        () => navState?.projectTitle?.trim() || `Project #${safeProjectId || "—"}`,
-        [navState?.projectTitle, safeProjectId],
-    );
+    projectTitle: string;
 
-    const handleSendInvitation = async (studentId: number) => {
-        if (!safeCourseId || !safeProjectId || sendingToId != null) return;
-        setSendingToId(studentId);
-        try {
-            const res = await sendManualTeamRequest(safeCourseId, safeProjectId, studentId);
-            setRecommendations((prev) =>
-                prev.map((r) =>
-                    r.studentId === studentId ? { ...r, hasPendingRequest: true, availabilityStatus: "pending" } : r,
-                ),
-            );
-            showToast(res.message || "Invitation sent.", "success");
-        } catch (err) {
-            showToast(parseApiErrorMessage(err), "error");
-        } finally {
-            setSendingToId(null);
-        }
+    teamSize: number;
+
+    recommendations: HubAiRecommendation[];
+
+  } | null>(null);
+
+  const [error, setError] = useState<HubApiError | null>(null);
+
+  const [sending, setSending] = useState<string | null>(null);
+
+
+
+  useEffect(() => {
+
+    if (!courseId || !projectId) return;
+
+    let cancelled = false;
+
+    setError(null);
+
+    setData(null);
+
+    getHubAiRecommendations(courseId, projectId)
+
+      .then((d) => {
+
+        if (!cancelled) setData(d);
+
+      })
+
+      .catch((e) => {
+
+        if (!cancelled) setError(e as HubApiError);
+
+      });
+
+    return () => {
+
+      cancelled = true;
+
     };
 
-    return (
-        <div style={S.page}>
-            <div style={S.container}>
-                <button
-                    type="button"
-                    onClick={() =>
-                        navigate(
-                            `/student/courses/${safeCourseId}/projects/${safeProjectId}/team-choice`,
-                            { state: { projectTitle: pageTitle } },
-                        )
-                    }
-                    style={S.backBtn}
-                >
-                    <ArrowLeft size={16} />
-                    Back
-                </button>
+  }, [courseId, projectId]);
 
-                <header style={S.headerCard}>
-                    <div style={S.headerIconWrap}>
-                        <Sparkles size={22} color="#6d28d9" />
-                    </div>
-                    <h1 style={S.title}>{pageTitle}</h1>
-                    <p style={S.subtitle}>
-                        AI-ranked suggestions — you still choose who to invite; invitations use the same flow as manual
-                        browse.
-                    </p>
-                </header>
 
-                <section style={S.mainCard}>
-                    {loading ? <p style={S.note}>Loading recommendations...</p> : null}
-                    {error ? <p style={S.error}>{error}</p> : null}
 
-                    {!loading && !error && recommendations.length === 0 ? (
-                        <p style={S.note}>No eligible students to recommend right now.</p>
-                    ) : null}
+  const onInvite = async (s: HubAiRecommendation) => {
 
-                    {!loading && !error && recommendations.length > 0 ? (
-                        <div style={S.grid}>
-                            {recommendations.map((student) => {
-                                const isSending = sendingToId === student.studentId;
-                                const status = student.availabilityStatus;
-                                const canInvite =
-                                    status === "available" &&
-                                    !student.hasPendingRequest &&
-                                    !student.isAlreadyInTeam;
-                                const matchPct = Math.min(100, Math.max(0, Math.round(student.matchScore)));
+    setSending(s.studentId);
 
-                                return (
-                                    <article key={student.studentId} style={S.card}>
-                                        <div style={S.cardTop}>
-                                            {renderAvatar(student)}
-                                            <div style={{ minWidth: 0 }}>
-                                                <p style={S.name}>{student.name}</p>
-                                                <p style={S.email}>{student.email || "No email"}</p>
-                                            </div>
-                                            <span style={S.matchBadge}>{matchPct}% Match</span>
-                                        </div>
-                                        <span style={S.sectionBadge}>{student.sectionName || "Section"}</span>
+    try {
 
-                                        {student.matchReason ? (
-                                            <p style={S.matchReason}>
-                                                <span style={S.matchReasonLabel}>Why this match</span>
-                                                {student.matchReason}
-                                            </p>
-                                        ) : null}
+      await sendHubTeamInvitation(courseId, projectId, s.studentId);
 
-                                        {student.bio ? <p style={S.bio}>{student.bio}</p> : null}
+      showToast(`Your invite to ${s.name} is on its way.`, "success");
 
-                                        <div style={S.skillsWrap}>
-                                            {(student.skills ?? []).length === 0 ? (
-                                                <span style={S.skillTagMuted}>No skills listed</span>
-                                            ) : (
-                                                student.skills.map((skill) => (
-                                                    <span key={skill} style={S.skillTag}>
-                                                        {skill}
-                                                    </span>
-                                                ))
-                                            )}
-                                        </div>
+      const refreshed = await getHubAiRecommendations(courseId, projectId);
 
-                                        <div style={S.actionsRow}>
-                                            {student.isAlreadyInTeam ? (
-                                                <span style={S.alreadyBadge}>Already In Team</span>
-                                            ) : student.hasPendingRequest || status === "pending" ? (
-                                                <button type="button" style={{ ...S.requestBtn, ...S.requestBtnDisabled }} disabled>
-                                                    Invitation Sent
-                                                </button>
-                                            ) : status === "unavailable" ? (
-                                                <button type="button" style={{ ...S.requestBtn, ...S.requestBtnDisabled }} disabled>
-                                                    Unavailable
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    style={{
-                                                        ...S.requestBtn,
-                                                        ...(canInvite ? null : S.requestBtnDisabled),
-                                                    }}
-                                                    disabled={!canInvite || isSending}
-                                                    onClick={() => void handleSendInvitation(student.studentId)}
-                                                >
-                                                    {isSending ? "Sending..." : "Send Invitation"}
-                                                </button>
-                                            )}
-                                        </div>
-                                        {student.availabilityStatus === "unavailable" && student.availabilityReason ? (
-                                            <span style={S.unavailableBadge}>{student.availabilityReason}</span>
-                                        ) : null}
-                                    </article>
-                                );
-                            })}
-                        </div>
-                    ) : null}
-                </section>
-            </div>
-        </div>
-    );
-}
+      setData(refreshed);
 
-function renderAvatar(student: AiTeamRecommendation) {
-    const raw = student.avatar?.trim();
-    const nameInitial = (student.name || "?").charAt(0).toUpperCase();
-    const src = !raw ? null : raw.startsWith("data:") ? raw : `data:image/*;base64,${raw}`;
+    } catch (e) {
 
-    if (src) {
-        return <img src={src} alt={student.name} style={S.avatarImg} />;
+      const err = e as HubApiError;
+
+      showToast(err.message || "Could not send invitation", "error");
+
+    } finally {
+
+      setSending(null);
+
     }
-    return <div style={S.avatarFallback}>{nameInitial}</div>;
+
+  };
+
+
+
+  if (error) {
+
+    return (
+
+      <StudentCourseSubpageShell
+
+        backTo={hubTeamChoicePath(courseId, projectId)}
+
+        backLabel="Back to team choice"
+
+        title="AI recommendations"
+
+        eyebrow="AI teammates"
+
+      >
+
+        <CourseHubEmptyState
+
+          icon={<Bot className="h-6 w-6" />}
+
+          title="No AI recommendations"
+
+          description={error.message}
+
+        />
+
+      </StudentCourseSubpageShell>
+
+    );
+
+  }
+
+
+
+  if (!data) {
+
+    return (
+
+      <StudentCourseSubpageShell
+
+        backTo={hubTeamChoicePath(courseId, projectId)}
+
+        backLabel="Back to team choice"
+
+        title="Loading…"
+
+        eyebrow="AI teammates"
+
+      >
+
+        <div className="h-96 animate-pulse rounded-3xl bg-muted/60" />
+
+      </StudentCourseSubpageShell>
+
+    );
+
+  }
+
+
+
+  return (
+
+    <StudentCourseSubpageShell
+
+      backTo={hubTeamChoicePath(courseId, projectId)}
+
+      backLabel="Back to team choice"
+
+      eyebrow={
+
+        <span className="inline-flex items-center gap-1">
+
+          <Sparkles className="h-3 w-3" /> AI recommendations
+
+        </span>
+
+      }
+
+      title={data.projectTitle}
+
+      description="Classmates whose skills complement yours, ranked by how well they fit your team."
+
+      headerActions={
+
+        <Badge variant="outline" className="gap-1.5 border-primary/30 bg-primary-soft text-primary">
+
+          <Users className="h-3.5 w-3.5" /> Team size: {data.teamSize}
+
+        </Badge>
+
+      }
+
+    >
+
+      {data.recommendations.length === 0 ? (
+
+        <CourseHubEmptyState icon={<Bot className="h-6 w-6" />} title="No recommendations yet" />
+
+      ) : (
+
+        <div className="space-y-4">
+
+          {data.recommendations.map((s, i) => {
+
+            const canInvite = s.availabilityStatus === "available";
+
+            const src = avatarSrc(s.avatar ?? null);
+
+            return (
+
+              <Card
+
+                key={s.studentId}
+
+                className="relative overflow-hidden border-border shadow-card transition-shadow hover:shadow-elegant"
+
+              >
+
+                <div className="absolute left-0 top-0 h-full w-1 bg-gradient-primary" />
+
+                <div className="grid gap-5 p-6 md:grid-cols-[auto_1fr_auto] md:items-center">
+
+                  <div className="flex items-center gap-4">
+
+                    <div className="grid h-10 w-10 place-items-center rounded-full bg-primary-soft text-sm font-bold text-primary">
+
+                      #{i + 1}
+
+                    </div>
+
+                    <Avatar className="h-14 w-14 ring-2 ring-primary/10">
+
+                      {src ? <AvatarImage src={src} alt={s.name} /> : null}
+
+                      <AvatarFallback className="bg-primary-soft text-primary">
+
+                        {s.name
+
+                          .split(/\s+/)
+
+                          .map((p) => p[0])
+
+                          .slice(0, 2)
+
+                          .join("")
+
+                          .toUpperCase()}
+
+                      </AvatarFallback>
+
+                    </Avatar>
+
+                  </div>
+
+
+
+                  <div className="space-y-2">
+
+                    <div className="flex flex-wrap items-center gap-2">
+
+                      <h3 className="font-display text-lg font-semibold">{s.name}</h3>
+
+                      <Badge variant="outline" className="border-border text-xs">
+
+                        {s.sectionName}
+
+                      </Badge>
+
+                      <MatchScoreBadge score={s.matchScore} />
+
+                    </div>
+
+                    <p className="text-sm italic text-muted-foreground">
+
+                      &ldquo;{s.matchReason}&rdquo;
+
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5">
+
+                      {s.skills.map((sk) => (
+
+                        <Badge
+
+                          key={sk}
+
+                          variant="outline"
+
+                          className="border-primary/20 bg-primary-soft text-primary"
+
+                        >
+
+                          {sk}
+
+                        </Badge>
+
+                      ))}
+
+                    </div>
+
+                  </div>
+
+
+
+                  <div className="flex flex-col items-end gap-3">
+
+                    <AvailabilityBadge
+
+                      status={s.availabilityStatus}
+
+                      reason={s.availabilityReason}
+
+                    />
+
+                    <Button
+
+                      onClick={() => void onInvite(s)}
+
+                      disabled={!canInvite || sending === s.studentId}
+
+                      className="bg-gradient-primary shadow-glow disabled:opacity-50 disabled:shadow-none"
+
+                    >
+
+                      <Send className="mr-1.5 h-4 w-4" />
+
+                      {sending === s.studentId
+
+                        ? "Sending…"
+
+                        : canInvite
+
+                          ? "Send invitation"
+
+                          : "Unavailable"}
+
+                    </Button>
+
+                  </div>
+
+                </div>
+
+              </Card>
+
+            );
+
+          })}
+
+        </div>
+
+      )}
+
+    </StudentCourseSubpageShell>
+
+  );
+
 }
 
-const S: Record<string, CSSProperties> = {
-    page: {
-        minHeight: "100vh",
-        background: "#f8fafc",
-        color: "#0f172a",
-        fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-        padding: "24px 28px 40px",
-    },
-    container: {
-        maxWidth: 1080,
-        margin: "0 auto",
-    },
-    backBtn: {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 12px",
-        borderRadius: 10,
-        border: "1px solid #e2e8f0",
-        background: "#fff",
-        color: "#334155",
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: "pointer",
-        fontFamily: "inherit",
-    },
-    headerCard: {
-        marginTop: 20,
-        borderRadius: 16,
-        border: "1px solid #e2e8f0",
-        background: "#fff",
-        padding: "20px 22px",
-        boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
-    },
-    headerIconWrap: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#ede9fe",
-        marginBottom: 10,
-    },
-    title: { margin: 0, fontSize: 24, fontWeight: 800, color: "#1f2937" },
-    subtitle: { margin: "8px 0 0", fontSize: 14, color: "#6b7280", lineHeight: 1.5 },
-    mainCard: {
-        marginTop: 14,
-        borderRadius: 16,
-        border: "1px solid #e2e8f0",
-        background: "#fff",
-        padding: 18,
-        boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
-    },
-    note: { margin: "8px 0 0", fontSize: 13, color: "#6b7280" },
-    error: { margin: "8px 0 0", fontSize: 13, color: "#b91c1c", fontWeight: 600 },
-    grid: {
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))",
-        gap: 12,
-    },
-    card: {
-        border: "1px solid #e5e7eb",
-        borderRadius: 12,
-        background: "#fff",
-        padding: "12px 14px",
-        boxShadow: "0 3px 10px rgba(15,23,42,0.04)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-    },
-    cardTop: {
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-    },
-    avatarImg: {
-        width: 38,
-        height: 38,
-        borderRadius: "50%",
-        objectFit: "cover",
-        border: "1px solid #e2e8f0",
-        flexShrink: 0,
-    },
-    avatarFallback: {
-        width: 38,
-        height: 38,
-        borderRadius: "50%",
-        background: "#ede9fe",
-        color: "#7c3aed",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 13,
-        fontWeight: 800,
-        flexShrink: 0,
-    },
-    name: { margin: 0, fontSize: 14, fontWeight: 800, color: "#1f2937" },
-    email: { margin: "3px 0 0", fontSize: 12, color: "#6b7280" },
-    sectionBadge: {
-        alignSelf: "flex-start",
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "4px 8px",
-        borderRadius: 999,
-        background: "#ede9fe",
-        color: "#6d28d9",
-        border: "1px solid #ddd6fe",
-        fontSize: 11,
-        fontWeight: 700,
-        whiteSpace: "nowrap",
-    },
-    matchBadge: {
-        marginLeft: "auto",
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "4px 8px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 800,
-        color: "#6d28d9",
-        background: "#f3e8ff",
-        border: "1px solid #e9d5ff",
-        whiteSpace: "nowrap",
-    },
-    matchReason: {
-        margin: 0,
-        fontSize: 12,
-        color: "#475569",
-        lineHeight: 1.45,
-    },
-    matchReasonLabel: {
-        display: "block",
-        fontSize: 10,
-        fontWeight: 800,
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
-        color: "#94a3b8",
-        marginBottom: 4,
-    },
-    bio: { margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.45 },
-    skillsWrap: { display: "flex", flexWrap: "wrap", gap: 6 },
-    skillTag: {
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#475569",
-        background: "#f1f5f9",
-        border: "1px solid #e2e8f0",
-        borderRadius: 999,
-        padding: "4px 8px",
-    },
-    skillTagMuted: {
-        fontSize: 11,
-        fontWeight: 600,
-        color: "#94a3b8",
-    },
-    actionsRow: { marginTop: 4, display: "flex", justifyContent: "flex-end" },
-    requestBtn: {
-        border: "none",
-        borderRadius: 10,
-        background: "linear-gradient(135deg,#7c3aed,#8b5cf6)",
-        color: "#fff",
-        fontSize: 12,
-        fontWeight: 700,
-        padding: "8px 12px",
-        cursor: "pointer",
-        fontFamily: "inherit",
-        boxShadow: "0 4px 14px rgba(124,58,237,0.28)",
-    },
-    requestBtnDisabled: {
-        background: "#cbd5e1",
-        boxShadow: "none",
-        cursor: "not-allowed",
-    },
-    alreadyBadge: {
-        display: "inline-flex",
-        alignItems: "center",
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#166534",
-        background: "#dcfce7",
-        border: "1px solid #bbf7d0",
-        borderRadius: 999,
-        padding: "4px 8px",
-    },
-    unavailableBadge: {
-        display: "inline-flex",
-        alignItems: "center",
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#92400e",
-        background: "#fef3c7",
-        border: "1px solid #fde68a",
-        borderRadius: 999,
-        padding: "4px 8px",
-    },
-};

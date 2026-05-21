@@ -10,6 +10,7 @@ const skillChipVariants = cva(
         default: "border-border bg-muted/80 text-muted-foreground",
         have: "border-accent/25 bg-accent-soft text-accent",
         need: "border-primary/20 bg-primary/10 text-primary",
+        missing: "border-warning/30 bg-warning/10 text-warning",
         ai: "border-ai/20 bg-ai-soft text-ai",
       },
     },

@@ -9,6 +9,8 @@ export type DashboardWelcomeHeroProps = {
   completeness: number;
   onBrowseProjects: () => void;
   onCreateProject: () => void;
+  /** When the student already owns a graduation project (one per user). */
+  hasExistingGradProject?: boolean;
 };
 
 export function DashboardWelcomeHero({
@@ -16,6 +18,7 @@ export function DashboardWelcomeHero({
   completeness,
   onBrowseProjects,
   onCreateProject,
+  hasExistingGradProject = false,
 }: DashboardWelcomeHeroProps) {
   return (
     <section className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-hero p-6 text-primary-foreground shadow-glow md:p-8">
@@ -55,7 +58,7 @@ export function DashboardWelcomeHero({
             className="bg-card text-foreground shadow-soft hover:bg-card/95"
             onClick={onCreateProject}
           >
-            Create project
+            {hasExistingGradProject ? "Graduation project" : "Create project"}
             <ArrowRight className="h-4 w-4" />
           </Button>
           <Button

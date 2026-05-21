@@ -18,6 +18,8 @@ export interface UserProfile {
 
   // Student Info
   studentId: string
+  /** StudentProfiles.Id from GET /api/me (profileId). */
+  studentProfileId: number | null
   university: string
   faculty: string
   major: string
@@ -61,6 +63,7 @@ export const EMPTY_PROFILE: UserProfile = {
   profilePic: null,
   coverImage: null,
   studentId: '',
+  studentProfileId: null,
   university: '',
   faculty: '',
   major: '',
@@ -167,6 +170,10 @@ function mapApiToProfile(data: any): UserProfile {
       : data.profilePictureBase64 || null,
     coverImage: data.coverImage || null,
     studentId: data.studentId || '',
+    studentProfileId: (() => {
+      const id = Number(data.profileId ?? data.ProfileId ?? data.studentProfileId)
+      return Number.isFinite(id) && id > 0 ? id : null
+    })(),
     university: isDoctor
       ? (doctorProfile.university ?? doctorProfile.University ?? data.university) || ''
       : data.university || '',

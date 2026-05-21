@@ -258,14 +258,8 @@ namespace GraduationProject.API.Controllers
                     .Concat(SkillHelper.ParseIntList(s.Tools))
                     .ToList();
 
-                // حساب الـ matchScore
-                var common        = myIds.Intersect(theirIds).Count();
-                var complementary = theirIds.Except(myIds).Count();
-                var matchScore    = (int)(
-                    (common        * 0.6 / Math.Max(myIds.Count,    1) * 100) +
-                    (complementary * 0.4 / Math.Max(theirIds.Count, 1) * 100)
-                );
-                matchScore = Math.Min(matchScore, 100);
+                var matchScore = SkillHelper.ComputeBrowseMatchScore(
+                    myIds, theirIds, myProfile?.Major, s.Major);
 
                 // ✅ جلب أسماء الـ roles للعرض (أول 4)
                 var roleIds      = SkillHelper.ParseIntList(s.Roles).Take(4).ToList();

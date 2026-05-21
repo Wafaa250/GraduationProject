@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   GraduationCap,
@@ -33,6 +33,7 @@ import {
   normalizeCustomSkill,
 } from "../../../constants/studentSkillPools";
 import { StudentDashboardShell } from "../dashboard/components/StudentDashboardShell";
+import { GraduationProjectSkillsPicker } from "./GraduationProjectSkillsPicker";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -78,14 +79,14 @@ function buildAbstract(
   projectField: string,
   problem: string,
   supervisorNotes: string,
-  needSupervisor: boolean,
+  wantSupervisorNotes: boolean,
 ): string {
   const field = projectField.trim();
   const prob = problem.trim();
   let abstract = "";
   if (field) abstract += `Domain: ${field}\n\n`;
   abstract += prob;
-  if (needSupervisor && supervisorNotes.trim()) {
+  if (wantSupervisorNotes && supervisorNotes.trim()) {
     abstract += `\n\nSupervisor preferences: ${supervisorNotes.trim()}`;
   }
   return abstract;
@@ -112,7 +113,7 @@ function ProjectTypeRow({
   value,
   onChange,
 }: {
-  value: GraduationProjectType;
+  value: GraduationProjectType | null;
   onChange: (v: GraduationProjectType) => void;
 }) {
   const options: { value: GraduationProjectType; label: string }[] = [
@@ -183,8 +184,14 @@ function Stepper({
 
 export default function CreateGraduationProjectPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isEditRoute = location.pathname.endsWith("/create-project/edit");
   const { showToast } = useToast();
   const { profile } = useUser();
+
+  const [myEnvelopeRole, setMyEnvelopeRole] = useState<
+    "owner" | "member" | null
+  >(null);
 
   const [loading, setLoading] = useState(true);
   const [existingProject, setExistingProject] = useState<GradProject | null>(
@@ -200,9 +207,12 @@ export default function CreateGraduationProjectPage() {
   const [problem, setProblem] = useState("");
   const [projectField, setProjectField] = useState("");
   const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
-  const [teamSize, setTeamSize] = useState("5");
-  const [projectType, setProjectType] = useState<GraduationProjectType>("GP");
-  const [needSupervisor, setNeedSupervisor] = useState(true);
+  const [teamSize, setTeamSize] = useState("");
+  const [projectType, setProjectType] = useState<GraduationProjectType | null>(
+    null,
+  );
+  /** `null` = user has not chosen yet (create flow). */
+  const [needSupervisor, setNeedSupervisor] = useState<boolean | null>(null);
   const [supervisorNotes, setSupervisorNotes] = useState("");
   const [skillDraft, setSkillDraft] = useState("");
   const [showSkillInput, setShowSkillInput] = useState(false);
@@ -216,15 +226,20 @@ export default function CreateGraduationProjectPage() {
     [profile.faculty, profile.major],
   );
 
-  const skillPool = useMemo(() => {
-    if (!skillsPack) return [];
-    const merged = [
-      ...skillsPack.roles,
-      ...skillsPack.technicalSkills,
-      ...skillsPack.tools,
-    ];
-    return [...new Set(merged)].sort((a, b) => a.localeCompare(b));
-  }, [skillsPack]);
+  const resetCreateForm = useCallback(() => {
+    setTitle("");
+    setProblem("");
+    setProjectField("");
+    setRequiredSkills([]);
+    setTeamSize("");
+    setProjectType(null);
+    setNeedSupervisor(null);
+    setSupervisorNotes("");
+    setSkillDraft("");
+    setShowSkillInput(false);
+    setActiveStep(1);
+    setFormError(null);
+  }, []);
 
   const hydrateFromProject = useCallback((project: GradProject) => {
     const parsed = parseStoredAbstract(project.abstract);
@@ -233,26 +248,63 @@ export default function CreateGraduationProjectPage() {
     setProjectField(parsed.projectField);
     setSupervisorNotes(parsed.supervisorNotes);
     setRequiredSkills(project.requiredSkills ?? []);
-    setTeamSize(String(project.partnersCount || 5));
+    setTeamSize(
+      project.partnersCount != null && project.partnersCount > 0
+        ? String(project.partnersCount)
+        : "",
+    );
     setProjectType((project.projectType as GraduationProjectType) ?? "GP");
     setNeedSupervisor(!project.supervisor);
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     (async () => {
       try {
         const { role, project } = await getGraduationProjectsMyEnvelope();
         if (cancelled) return;
-        if (project && role === "owner") {
-          setExistingProject(project);
-          setIsEdit(true);
-          hydrateFromProject(project);
-        } else if (project && role === "member") {
-          setExistingProject(project);
+
+        // One graduation project per student: owners always edit, never "second create".
+        if (!isEditRoute && role === "owner" && project != null) {
+          navigate(`/student/ai-analysis?projectId=${project.id}`, { replace: true });
+          return;
+        }
+
+        if (isEditRoute && (role !== "owner" || project == null)) {
+          navigate("/create-project", { replace: true });
+          return;
+        }
+
+        if (!isEditRoute) {
+          resetCreateForm();
+        }
+
+        if (!project || (role !== "owner" && role !== "member")) {
+          setExistingProject(null);
+          setMyEnvelopeRole(null);
+          setIsEdit(false);
+          return;
+        }
+
+        setExistingProject(project);
+        if (role === "member") {
+          setMyEnvelopeRole("member");
+          setIsEdit(false);
+        } else if (role === "owner") {
+          setMyEnvelopeRole("owner");
+          if (isEditRoute) {
+            setIsEdit(true);
+            hydrateFromProject(project);
+          } else {
+            setIsEdit(false);
+          }
         }
       } catch {
-        /* allow create */
+        if (!isEditRoute) resetCreateForm();
+        setExistingProject(null);
+        setMyEnvelopeRole(null);
+        setIsEdit(false);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -260,9 +312,17 @@ export default function CreateGraduationProjectPage() {
     return () => {
       cancelled = true;
     };
-  }, [hydrateFromProject]);
+  }, [
+    hydrateFromProject,
+    resetCreateForm,
+    isEditRoute,
+    navigate,
+  ]);
 
-  const currentMembers = existingProject?.currentMembers ?? 1;
+  const currentMembers =
+    isEdit && existingProject != null
+      ? existingProject.currentMembers
+      : null;
   const ownerName = profile.fullName?.trim() || "You";
 
   const toggleSkill = (skill: string) => {
@@ -283,13 +343,22 @@ export default function CreateGraduationProjectPage() {
     if (step === 1) {
       if (!title.trim()) return "Project title is required.";
       if (!problem.trim()) return "Problem description is required.";
+      if (engIt && projectType == null) {
+        return "Select a project type (GP1, GP2, or GP).";
+      }
       return null;
     }
     if (step === 2) {
       if (requiredSkills.length === 0) return "Select at least one required skill.";
       const size = parseInt(teamSize, 10);
       if (!teamSize || Number.isNaN(size) || size < 1 || size > 10) {
-        return "Team size must be between 1 and 10.";
+        return "Team size must be between 1 and 10 (includes you as leader).";
+      }
+      return null;
+    }
+    if (step === 3) {
+      if (needSupervisor == null) {
+        return "Choose whether you need a supervisor.";
       }
       return null;
     }
@@ -307,7 +376,7 @@ export default function CreateGraduationProjectPage() {
   };
 
   const handleSubmit = async () => {
-    for (let s = 1; s <= 2; s += 1) {
+    for (let s = 1; s <= 3; s += 1) {
       const err = validateStep(s);
       if (err) {
         setFormError(err);
@@ -317,37 +386,49 @@ export default function CreateGraduationProjectPage() {
     }
 
     const size = parseInt(teamSize, 10);
+    const wantSupervisorNotes = needSupervisor === true;
     const abstractPayload = abstractForApi(
-      buildAbstract(projectField, problem, supervisorNotes, needSupervisor),
+      buildAbstract(
+        projectField,
+        problem,
+        supervisorNotes,
+        wantSupervisorNotes,
+      ),
     );
-    const apiProjectType = projectTypeForApi(profile.faculty, projectType);
+    const apiProjectType = projectTypeForApi(
+      profile.faculty,
+      engIt && projectType != null ? projectType : "GP",
+    );
 
     setSubmitting(true);
     setFormError(null);
     try {
+      let savedId: number;
       if (isEdit && existingProject) {
-        await updateGraduationProject(existingProject.id, {
+        const updated = await updateGraduationProject(existingProject.id, {
           name: title.trim(),
           abstract: abstractPayload,
           projectType: apiProjectType,
           requiredSkills,
           partnersCount: size,
         });
+        savedId = updated.id;
         showToast("Project updated.", "success");
       } else {
-        await createGraduationProject({
+        const created = await createGraduationProject({
           name: title.trim(),
           abstract: abstractPayload,
           projectType: apiProjectType,
           requiredSkills,
           partnersCount: size,
         });
-        showToast(
-          "Project created. Explore AI matches on your dashboard.",
-          "success",
-        );
+        savedId = created.id;
+        showToast("Project saved. Opening AI analysis…", "success");
       }
-      navigate("/dashboard#supervisor-recommendations", { replace: true });
+      navigate(
+        `/student/ai-analysis?projectId=${savedId}`,
+        { replace: true },
+      );
     } catch (err) {
       setFormError(parseApiErrorMessage(err));
     } finally {
@@ -373,7 +454,6 @@ export default function CreateGraduationProjectPage() {
     onSelectDoctor: (id: number) => navigate(`/doctors/${id}`),
     onOpenSettings: () => {},
     onLogout: handleLogout,
-    onCreateProject: () => navigate("/create-project"),
   };
 
   if (loading) {
@@ -384,7 +464,7 @@ export default function CreateGraduationProjectPage() {
     );
   }
 
-  if (existingProject && !isEdit) {
+  if (existingProject && myEnvelopeRole === "member") {
     return (
       <StudentDashboardShell {...shellProps}>
         <div className="max-w-lg rounded-3xl border border-border bg-card p-8 shadow-soft">
@@ -407,10 +487,19 @@ export default function CreateGraduationProjectPage() {
     );
   }
 
+  const teamSizeNum = parseInt(teamSize, 10);
   const seatsHint =
-    currentMembers >= parseInt(teamSize || "0", 10)
-      ? "Your team is at capacity."
-      : `You (${ownerName}) are in. AI can suggest ${Math.max(0, parseInt(teamSize || "0", 10) - currentMembers)} more teammate${parseInt(teamSize || "0", 10) - currentMembers === 1 ? "" : "s"} after you save.`;
+    isEdit && existingProject != null && currentMembers != null
+      ? teamSize &&
+          !Number.isNaN(teamSizeNum) &&
+          currentMembers >= teamSizeNum
+        ? "Your team is at capacity."
+        : teamSize && !Number.isNaN(teamSizeNum)
+          ? `You (${ownerName}) are in. AI can suggest ${Math.max(0, teamSizeNum - currentMembers)} more teammate${teamSizeNum - currentMembers === 1 ? "" : "s"} after you save.`
+          : "Enter needed team size to see teammate capacity."
+      : teamSize && !Number.isNaN(teamSizeNum) && teamSizeNum >= 1
+        ? `After you create the project, you count as 1 member. You can add up to ${teamSizeNum - 1} more teammate${teamSizeNum - 1 === 1 ? "" : "s"}.`
+        : "Enter needed team size to see how many teammates you can add.";
 
   return (
     <StudentDashboardShell {...shellProps}>
@@ -470,93 +559,16 @@ export default function CreateGraduationProjectPage() {
 
           {activeStep === 2 && (
             <div className="space-y-5">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground">
-                  Required skills
-                </label>
-                {!skillsPack && (
-                  <p className="mt-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Complete faculty and major on your profile to see skill
-                    suggestions, or add custom skills below.
-                  </p>
-                )}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {skillPool.map((skill) => {
-                    const selected = requiredSkills.includes(skill);
-                    return (
-                      <button
-                        key={skill}
-                        type="button"
-                        onClick={() => toggleSkill(skill)}
-                        className={cn(
-                          "rounded-full border px-3 py-0.5 text-xs font-medium transition-colors",
-                          selected
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-muted/50 text-muted-foreground hover:bg-muted",
-                        )}
-                      >
-                        {skill}
-                      </button>
-                    );
-                  })}
-                  {requiredSkills
-                    .filter((s) => !skillPool.includes(s))
-                    .map((skill) => (
-                      <button
-                        key={`custom-${skill}`}
-                        type="button"
-                        onClick={() => toggleSkill(skill)}
-                        className="rounded-full border border-primary bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary"
-                      >
-                        {skill} ×
-                      </button>
-                    ))}
-                  {!showSkillInput ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowSkillInput(true)}
-                      className="rounded-full border border-dashed border-border px-3 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-                    >
-                      + Add
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-1 w-full sm:w-auto">
-                      <Input
-                        className="h-8 text-xs max-w-[180px]"
-                        value={skillDraft}
-                        maxLength={CUSTOM_SKILL_MAX_LENGTH}
-                        placeholder="Custom skill"
-                        onChange={(e) => setSkillDraft(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addCustomSkill();
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={addCustomSkill}
-                      >
-                        Add
-                      </Button>
-                      <button
-                        type="button"
-                        className="text-muted-foreground p-1"
-                        aria-label="Cancel"
-                        onClick={() => {
-                          setShowSkillInput(false);
-                          setSkillDraft("");
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <GraduationProjectSkillsPicker
+                skillsPack={skillsPack}
+                requiredSkills={requiredSkills}
+                onToggleSkill={toggleSkill}
+                skillDraft={skillDraft}
+                setSkillDraft={setSkillDraft}
+                showSkillInput={showSkillInput}
+                setShowSkillInput={setShowSkillInput}
+                onAddCustomSkill={addCustomSkill}
+              />
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <FieldLabel label="Needed team size">
@@ -575,9 +587,12 @@ export default function CreateGraduationProjectPage() {
                 <FieldLabel label="Current members">
                   <Input
                     className="mt-1 bg-muted/40"
-                    type="number"
+                    type="text"
                     readOnly
-                    value={String(currentMembers)}
+                    value={
+                      currentMembers != null ? String(currentMembers) : ""
+                    }
+                    placeholder="Shown after you create the project"
                   />
                 </FieldLabel>
               </div>
@@ -601,7 +616,7 @@ export default function CreateGraduationProjectPage() {
                     onClick={() => setNeedSupervisor(true)}
                     className={cn(
                       "rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-colors",
-                      needSupervisor
+                      needSupervisor === true
                         ? "border-primary bg-primary/5 text-primary"
                         : "border-border text-muted-foreground hover:bg-muted",
                     )}
@@ -613,7 +628,7 @@ export default function CreateGraduationProjectPage() {
                     onClick={() => setNeedSupervisor(false)}
                     className={cn(
                       "rounded-xl border-2 px-4 py-2 text-sm font-medium transition-colors",
-                      !needSupervisor
+                      needSupervisor === false
                         ? "border-primary bg-primary/5 text-primary"
                         : "border-border text-muted-foreground hover:bg-muted",
                     )}
@@ -622,7 +637,7 @@ export default function CreateGraduationProjectPage() {
                   </button>
                 </div>
               </div>
-              {needSupervisor && (
+              {needSupervisor === true && (
                 <FieldLabel label="Anything specific about the supervisor?">
                   <Textarea
                     className="mt-1"

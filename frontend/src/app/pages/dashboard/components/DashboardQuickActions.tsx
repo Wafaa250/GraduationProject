@@ -4,9 +4,14 @@ import { DashboardCard } from "../../../components/design-system";
 
 export type DashboardQuickActionsProps = {
   onCreateProject: () => void;
+  /** When the student already owns a graduation project (one per user). */
+  hasExistingGradProject?: boolean;
 };
 
-export function DashboardQuickActions({ onCreateProject }: DashboardQuickActionsProps) {
+export function DashboardQuickActions({
+  onCreateProject,
+  hasExistingGradProject = false,
+}: DashboardQuickActionsProps) {
   return (
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <DashboardCard
@@ -18,8 +23,12 @@ export function DashboardQuickActions({ onCreateProject }: DashboardQuickActions
       />
       <DashboardCard
         icon={FolderPlus}
-        title="Create Project"
-        description="Start your graduation idea"
+        title={hasExistingGradProject ? "Graduation project" : "Create Project"}
+        description={
+          hasExistingGradProject
+            ? "AI analysis & teammate matches"
+            : "Start your graduation idea"
+        }
         onClick={onCreateProject}
         accent="ai"
         badge="AI"

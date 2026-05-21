@@ -234,12 +234,19 @@ namespace GraduationProject.API.Controllers
 
         // =====================================================================
         // GET /api/graduation-projects/{projectId}/available-students
-        // Returns all students with their invite status for a specific project.
-        // Matching is based on owner–student skill similarity.
+        // Returns students with invite status for a specific project.
+        // Query: search, university, major, skill (same names as GET /api/students).
+        // Default (no major filter): same major as project owner (legacy).
+        // With major filter: students matching that major (browse filters).
         // Only the project owner can access.
         // =====================================================================
         [HttpGet("{projectId:int}/available-students")]
-        public async Task<IActionResult> GetAvailableStudents(int projectId)
+        public async Task<IActionResult> GetAvailableStudents(
+            int projectId,
+            [FromQuery] string? skill,
+            [FromQuery] string? university,
+            [FromQuery] string? major,
+            [FromQuery] string? search)
         {
             var owner = await GetStudentProfileAsync();
             if (owner == null) return Forbid();
@@ -254,13 +261,71 @@ namespace GraduationProject.API.Controllers
             if (project.OwnerId != owner.Id)
                 return StatusCode(403, new { message = "Not authorized." });
 
-            var ownerMajor = owner.Major;
-            var allStudents = await _db.StudentProfiles
+            var ownerMajor = owner.Major?.Trim();
+            var query = _db.StudentProfiles
                 .Include(s => s.User)
-                .Where(s => s.UserId != owner.UserId &&
-                            s.Major != null && ownerMajor != null &&
-                            s.Major.ToLower() == ownerMajor.ToLower())
-                .ToListAsync();
+                .Where(s => s.UserId != owner.UserId)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(major))
+            {
+                var majorTerm = major.Trim().ToLower();
+                query = query.Where(s =>
+                    s.Major != null && s.Major.ToLower() == majorTerm);
+            }
+            else if (!string.IsNullOrWhiteSpace(ownerMajor))
+            {
+                var ownerMajorTerm = ownerMajor.ToLower();
+                query = query.Where(s =>
+                    s.Major != null && s.Major.ToLower() == ownerMajorTerm);
+            }
+
+            if (!string.IsNullOrEmpty(university))
+                query = query.Where(s => s.University != null && s.University == university);
+
+            if (!string.IsNullOrEmpty(skill))
+            {
+                var matchingSkill = await _db.Skills.FirstOrDefaultAsync(s => s.Name == skill);
+                if (matchingSkill == null)
+                    return Ok(new List<ProjectAvailableStudentDto>());
+
+                var idStr = matchingSkill.Id.ToString();
+                query = query.Where(s =>
+                    (s.Roles != null && s.Roles.Contains(idStr)) ||
+                    (s.TechnicalSkills != null && s.TechnicalSkills.Contains(idStr)) ||
+                    (s.Tools != null && s.Tools.Contains(idStr)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim().ToLower();
+                var matchingSkillIds = await _db.Skills
+                    .AsNoTracking()
+                    .Where(sk => sk.Name.ToLower().Contains(term))
+                    .Select(sk => sk.Id.ToString())
+                    .ToListAsync();
+
+                query = query.Where(s =>
+                    (s.User.Name != null && s.User.Name.ToLower().Contains(term)) ||
+                    (s.User.Email != null && s.User.Email.ToLower().Contains(term)) ||
+                    (s.Major != null && s.Major.ToLower().Contains(term)) ||
+                    (s.Faculty != null && s.Faculty.ToLower().Contains(term)) ||
+                    (s.University != null && s.University.ToLower().Contains(term)) ||
+                    (s.Roles != null && (
+                        s.Roles.ToLower().Contains(term) ||
+                        matchingSkillIds.Any(id => s.Roles.Contains(id))
+                    )) ||
+                    (s.TechnicalSkills != null && (
+                        s.TechnicalSkills.ToLower().Contains(term) ||
+                        matchingSkillIds.Any(id => s.TechnicalSkills.Contains(id))
+                    )) ||
+                    (s.Tools != null && (
+                        s.Tools.ToLower().Contains(term) ||
+                        matchingSkillIds.Any(id => s.Tools.Contains(id))
+                    )));
+            }
+
+            var allStudents = await query.AsNoTracking().ToListAsync();
 
             var pendingInviteReceiverIds = await _db.ProjectInvitations
                 .Where(i => i.ProjectId == projectId && i.Status == "pending")
@@ -290,13 +355,8 @@ namespace GraduationProject.API.Controllers
                     .Concat(SkillHelper.ParseIntList(s.Tools))
                     .ToList();
 
-                var common = ownerIds.Intersect(theirIds).Count();
-                var complementary = theirIds.Except(ownerIds).Count();
-                var matchScore = (int)(
-                    (common * 0.6 / Math.Max(ownerIds.Count, 1) * 100) +
-                    (complementary * 0.4 / Math.Max(theirIds.Count, 1) * 100)
-                );
-                matchScore = Math.Min(matchScore, 100);
+                var matchScore = SkillHelper.ComputeBrowseMatchScore(
+                    ownerIds, theirIds, owner.Major, s.Major);
 
                 var roleIds = SkillHelper.ParseIntList(s.Roles).Take(4).ToList();
                 var displayNames = await _db.Skills

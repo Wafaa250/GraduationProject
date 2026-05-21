@@ -93,9 +93,11 @@ export function AppSidebarBrand({ title, subtitle, icon, className }: AppSidebar
         </div>
       ) : null}
       <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-        <p className="truncate font-display text-sm font-semibold text-sidebar-foreground">{title}</p>
+        <p className="truncate font-display text-sm font-bold leading-none text-sidebar-foreground">
+          {title}
+        </p>
         {subtitle ? (
-          <p className="text-[11px] font-bold uppercase tracking-wider text-primary">{subtitle}</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{subtitle}</p>
         ) : null}
       </div>
     </div>

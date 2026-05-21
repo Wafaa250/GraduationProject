@@ -1,11 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as signalR from "@microsoft/signalr";
-import { ArrowLeft, Pencil, Send, Trash2, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  MoreVertical,
+  Pencil,
+  Search,
+  Send,
+  Sparkles,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { navigateHome } from "../../../utils/homeNavigation";
 import { apiClient } from "../../../api/client";
 import { getNotificationsHubUrl } from "../../../utils/notificationsHubUrl";
 import { markChatScopeRead } from "../../../api/notificationsApi";
+import { useUser } from "../../../context/UserContext";
+import { StudentDashboardShell } from "../dashboard/components/StudentDashboardShell";
+import { Button } from "../../components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
+import { Input } from "../../components/ui/input";
+import { cn } from "../../components/ui/utils";
 
 type Message = {
   id: number;
@@ -67,10 +87,44 @@ const mapApiMessage = (m: ApiMessage): Message => ({
   seen: Boolean(m.seen),
 });
 
+function initialsFromName(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .map((p) => p[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?"
+  );
+}
+
+function formatRelativeTime(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return date.toLocaleDateString();
+}
+
+function formatMessageTime(date: Date): string {
+  return new Date(date).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function ChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile } = useUser();
   const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState("");
+  const globalSearchWrapRef = useRef<HTMLDivElement>(null);
+  const [listSearch, setListSearch] = useState("");
   const targetUserId = Number(searchParams.get("userId") ?? 0);
   const requestedConversationId = Number(
     (location.state as { conversationId?: number } | null)?.conversationId ?? 0,
@@ -83,7 +137,6 @@ export default function ChatPage() {
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [hoveredConversationId, setHoveredConversationId] = useState<number | null>(null);
-  const onlineUsers = [1, 2];
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const hubRef = useRef<signalR.HubConnection | null>(null);
   const selectedConversationIdRef = useRef<number | null>(null);
@@ -438,12 +491,18 @@ export default function ChatPage() {
     }
   };
 
+  const confirmDeleteConversation = (id: number, displayName?: string) => {
+    const label = displayName?.trim();
+    const message = label
+      ? `Delete conversation with ${label}? This cannot be undone.`
+      : "Delete this conversation? This cannot be undone.";
+    if (!window.confirm(message)) return;
+    void handleDeleteConversation(id);
+  };
+
   const handleSelectConversation = async (id: number) => {
     await loadConversationById(id);
   };
-
-  const formatTime = (date: Date) =>
-    new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const getOtherUserId = (conversation: Conversation) =>
     conversation.users.find((u) => u !== currentUserId) ?? conversation.users[0] ?? 0;
@@ -468,353 +527,383 @@ export default function ChatPage() {
     return `User ${senderId}`;
   };
 
-  return (
-    <div style={S.page}>
-      <div style={S.topBar}>
-        <button type="button" style={S.backBtn} onClick={() => navigateHome(navigate)}>
-          <ArrowLeft size={15} /> Back
-        </button>
-      </div>
+  const getConversationContext = (conversation: Conversation) => {
+    const title = conversation.title?.trim();
+    if (title) return title;
+    if (isGroupConversation(conversation)) return "Team chat";
+    return "Direct message";
+  };
 
-      <div style={S.layout}>
-        <aside style={S.sidebar}>
-          <p style={S.sideTitle}>Messages</p>
-          {conversations.length === 0 ? (
-            <p style={S.emptyText}>Start a conversation</p>
-          ) : (
-            conversations.map((c) => {
-              const otherId = getOtherUserId(c);
-              const displayName = getOtherUserDisplayName(c);
-              const last = c.messages[c.messages.length - 1];
-              const preview =
-                last == null ? "No messages yet" : last.deleted ? "Message removed" : last.text;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => handleSelectConversation(c.id)}
-                  onMouseEnter={() => setHoveredConversationId(c.id)}
-                  onMouseLeave={() => setHoveredConversationId(null)}
-                  style={{
-                    ...S.convBtn,
-                    ...(hoveredConversationId === c.id ? S.convBtnHover : {}),
-                    ...(c.id === selectedConversationId ? S.convBtnActive : {}),
-                  }}
-                >
-                  <div style={S.convTopRow}>
-                    <span style={S.convName}>
-                      {isGroupConversation(c) ? <Users size={12} /> : null}
-                      {displayName}
-                      {!isGroupConversation(c) ? (
-                        <span style={{ ...S.onlineDot, background: onlineUsers.includes(otherId) ? "#22c55e" : "#94a3b8" }} />
-                      ) : null}
-                    </span>
-                    <span style={S.convTopRight}>
-                      {last ? <span style={S.convTime}>{formatTime(last.createdAt)}</span> : null}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteConversation(c.id);
-                        }}
-                        style={{
-                          ...S.deleteIconBtn,
-                          opacity: hoveredConversationId === c.id ? 1 : 0,
-                        }}
-                        aria-label="Delete conversation"
-                        title="Delete chat"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </span>
-                  </div>
-                  <span style={S.convMeta}>{preview}</span>
-                </button>
-              );
-            })
+  const hasUnread = (conversation: Conversation) => {
+    const last = conversation.messages[conversation.messages.length - 1];
+    return !!last && last.senderId !== currentUserId && !last.seen;
+  };
+
+  const filteredConversations = useMemo(() => {
+    const q = listSearch.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((c) => {
+      const name = getOtherUserDisplayName(c).toLowerCase();
+      const ctx = getConversationContext(c).toLowerCase();
+      const last = c.messages[c.messages.length - 1];
+      const preview = last?.deleted ? "message removed" : (last?.text ?? "").toLowerCase();
+      return name.includes(q) || ctx.includes(q) || preview.includes(q);
+    });
+  }, [conversations, listSearch, currentUserId]);
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
+
+  const shellProps = {
+    userName: profile.fullName,
+    profilePic: profile.profilePic,
+    searchQuery,
+    onSearchChange: setSearchQuery,
+    searchWrapRef: globalSearchWrapRef,
+    globalSearchResults: null as const,
+    globalSearchLoading: false,
+    onSelectStudent: (id: number) => navigate(`/students/${id}`),
+    onSelectDoctor: (id: number) => navigate(`/doctors/${id}`),
+    onOpenSettings: () => navigate("/edit-profile"),
+    onLogout: handleLogout,
+  };
+
+  const showListOnMobile = !selectedConversation;
+  const showChatOnMobile = !!selectedConversation;
+
+  return (
+    <StudentDashboardShell {...shellProps}>
+      <div className="flex h-[calc(100vh-8rem)] min-h-[480px] overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
+        {/* Conversation list */}
+        <aside
+          className={cn(
+            "flex w-full flex-col border-border sm:w-80 sm:border-r",
+            showListOnMobile ? "flex" : "hidden sm:flex",
           )}
+        >
+          <div className="border-b border-border p-4">
+            <h2 className="mb-3 font-display text-lg font-bold">Messages</h2>
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <Input
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+                className="h-6 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                placeholder="Search…"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {filteredConversations.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                {conversations.length === 0
+                  ? "Start a conversation from a profile or teammate card."
+                  : "No conversations match your search."}
+              </p>
+            ) : (
+              filteredConversations.map((c) => {
+                const displayName = getOtherUserDisplayName(c);
+                const last = c.messages[c.messages.length - 1];
+                const preview =
+                  last == null
+                    ? "No messages yet"
+                    : last.deleted
+                      ? "Message removed"
+                      : last.text;
+                const unread = hasUnread(c);
+                const isActive = c.id === selectedConversationId;
+
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => void handleSelectConversation(c.id)}
+                    onMouseEnter={() => setHoveredConversationId(c.id)}
+                    onMouseLeave={() => setHoveredConversationId(null)}
+                    className={cn(
+                      "group relative flex w-full gap-3 border-b border-border p-3 text-left transition-colors hover:bg-muted/40",
+                      isActive && "bg-primary/5",
+                    )}
+                  >
+                    <div className="relative shrink-0">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground">
+                        {initialsFromName(displayName)}
+                      </div>
+                      {unread ? (
+                        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gradient-ai ring-2 ring-card" />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold">{displayName}</p>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          {last ? formatRelativeTime(last.createdAt) : ""}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">{preview}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmDeleteConversation(c.id, displayName);
+                      }}
+                      className={cn(
+                        "absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-destructive opacity-0 transition-opacity hover:bg-destructive/10 group-hover:opacity-100",
+                        hoveredConversationId === c.id && "opacity-100",
+                      )}
+                      aria-label="Delete conversation"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </button>
+                );
+              })
+            )}
+          </div>
         </aside>
 
-        <section style={S.chatPanel}>
+        {/* Chat panel */}
+        <section
+          className={cn(
+            "flex min-w-0 flex-1 flex-col",
+            showChatOnMobile ? "flex" : "hidden sm:flex",
+          )}
+        >
           {!selectedConversation ? (
-            <div style={S.chatEmpty}>Select a conversation</div>
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
+              <p className="font-display font-semibold text-foreground">
+                Select a conversation
+              </p>
+              <p className="text-sm">Choose a chat from the list to continue.</p>
+            </div>
           ) : (
             <>
-              <div style={S.chatHeader}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {isGroupConversation(selectedConversation) ? <Users size={14} color="#4f46e5" /> : null}
-                    <span style={S.chatHeaderName}>{getOtherUserDisplayName(selectedConversation)}</span>
-                    {!isGroupConversation(selectedConversation) ? (
-                      <span style={S.statusText}>
-                        {onlineUsers.includes(getOtherUserId(selectedConversation)) ? "Online" : "Offline"}
-                      </span>
-                    ) : null}
+              <header className="flex items-center justify-between border-b border-border p-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 sm:hidden"
+                    onClick={() => setSelectedConversationId(null)}
+                    aria-label="Back to conversations"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground">
+                    {initialsFromName(getOtherUserDisplayName(selectedConversation))}
                   </div>
-                  {isGroupConversation(selectedConversation) ? (
-                    <div style={S.participantsRow}>
-                      {selectedConversation.users.slice(0, 6).map((uid) => {
-                        const n = getSenderName(selectedConversation, uid);
-                        return (
-                          <span key={uid} style={S.participantPill}>{n}</span>
-                        );
-                      })}
-                      {selectedConversation.users.length > 6 ? (
-                        <span style={S.participantPill}>+{selectedConversation.users.length - 6} more</span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-              <div style={S.messagesArea}>
-                {selectedConversation.messages.length === 0 ? (
-                  <p style={S.emptyText}>No messages yet. Say hello.</p>
-                ) : (
-                  selectedConversation.messages.map((m) => (
-                    <div
-                      key={m.id}
-                      style={{
-                        ...S.bubble,
-                        ...(m.senderId === currentUserId ? S.bubbleMe : S.bubbleThem),
-                      }}
-                      onDoubleClick={() => startEditMessage(m)}
-                    >
-                      {editingMessageId === m.id ? (
-                        <div style={S.editRow}>
-                          <input
-                            value={editingText}
-                            onChange={(e) => setEditingText(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") saveEditMessage();
-                              if (e.key === "Escape") {
-                                setEditingMessageId(null);
-                                setEditingText("");
-                              }
-                            }}
-                            style={S.editInput}
-                          />
-                          <button type="button" style={S.inlineActionBtn} onClick={saveEditMessage}>
-                            Save
-                          </button>
-                        </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-display font-semibold leading-tight">
+                      {isGroupConversation(selectedConversation) ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-primary" />
+                          {getOtherUserDisplayName(selectedConversation)}
+                        </span>
                       ) : (
-                        <>
-                          {isGroupConversation(selectedConversation) ? (
-                            <div style={S.senderNameText}>{getSenderName(selectedConversation, m.senderId)}</div>
-                          ) : null}
-                          <div>{m.deleted ? "Message removed" : m.text}</div>
-                          <div style={S.metaRow}>
-                            <span style={S.timeText}>{formatTime(m.createdAt)}</span>
-                            {m.edited && !m.deleted ? <span style={S.editedText}>(edited)</span> : null}
-                            {m.senderId === currentUserId ? (
-                              <>
-                                <span style={S.seenText}>{m.seen ? "✔✔" : "✔"}</span>
-                                {!m.deleted ? (
+                        getOtherUserDisplayName(selectedConversation)
+                      )}
+                    </p>
+                    <p className="inline-flex items-center gap-1 text-xs text-ai">
+                      <Sparkles className="h-3 w-3 shrink-0" />
+                      <span className="truncate">
+                        {getConversationContext(selectedConversation)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      aria-label="Conversation options"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {!isGroupConversation(selectedConversation) ? (
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          const otherId = getOtherUserId(selectedConversation);
+                          if (otherId) navigate(`/students/${otherId}`);
+                        }}
+                      >
+                        View profile
+                      </DropdownMenuItem>
+                    ) : null}
+                    {!isGroupConversation(selectedConversation) ? (
+                      <DropdownMenuSeparator />
+                    ) : null}
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() =>
+                        confirmDeleteConversation(
+                          selectedConversation.id,
+                          getOtherUserDisplayName(selectedConversation),
+                        )
+                      }
+                    >
+                      Delete conversation
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </header>
+
+              {isGroupConversation(selectedConversation) ? (
+                <div className="flex flex-wrap gap-1.5 border-b border-border px-4 py-2">
+                  {selectedConversation.users.slice(0, 8).map((uid) => (
+                    <span
+                      key={uid}
+                      className="rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-semibold text-primary"
+                    >
+                      {getSenderName(selectedConversation, uid)}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="flex flex-1 flex-col gap-4 overflow-y-auto bg-gradient-surface p-6">
+                {selectedConversation.messages.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground">
+                    No messages yet. Say hello.
+                  </p>
+                ) : (
+                  selectedConversation.messages.map((m) => {
+                    const isMe = m.senderId === currentUserId;
+                    return (
+                      <div
+                        key={m.id}
+                        className={cn("flex", isMe ? "justify-end" : "justify-start")}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[70%] rounded-2xl px-4 py-2.5 text-sm",
+                            editingMessageId === m.id
+                              ? "border border-border bg-background text-foreground shadow-soft"
+                              : isMe
+                                ? "bg-gradient-primary text-primary-foreground shadow-glow"
+                                : "border border-border bg-card text-foreground",
+                          )}
+                          onDoubleClick={() => startEditMessage(m)}
+                        >
+                          {editingMessageId === m.id ? (
+                            <div className="flex min-w-[200px] flex-col gap-2">
+                              <Input
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") void saveEditMessage();
+                                  if (e.key === "Escape") {
+                                    setEditingMessageId(null);
+                                    setEditingText("");
+                                  }
+                                }}
+                                className="h-9 border-border bg-card text-foreground caret-primary placeholder:text-muted-foreground"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="gradient"
+                                className="w-full"
+                                onClick={() => void saveEditMessage()}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              {isGroupConversation(selectedConversation) && !isMe ? (
+                                <p className="mb-1 text-[10px] font-bold text-primary">
+                                  {getSenderName(selectedConversation, m.senderId)}
+                                </p>
+                              ) : null}
+                              <p className="leading-relaxed">
+                                {m.deleted ? "Message removed" : m.text}
+                              </p>
+                              <div
+                                className={cn(
+                                  "mt-1 flex flex-wrap items-center gap-2 text-[10px]",
+                                  isMe
+                                    ? "text-primary-foreground/70"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                <span>{formatMessageTime(m.createdAt)}</span>
+                                {m.edited && !m.deleted ? <span>(edited)</span> : null}
+                                {isMe ? (
                                   <>
-                                    <button type="button" style={S.iconBtn} onClick={() => startEditMessage(m)}>
-                                      <Pencil size={12} />
-                                    </button>
-                                    <button type="button" style={S.iconBtn} onClick={() => unsendMessage(m.id)}>
-                                      <Trash2 size={12} />
-                                    </button>
+                                    <span>{m.seen ? "✔✔" : "✔"}</span>
+                                    {!m.deleted ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="opacity-80 hover:opacity-100"
+                                          onClick={() => startEditMessage(m)}
+                                          aria-label="Edit message"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="opacity-80 hover:opacity-100"
+                                          onClick={() => void unsendMessage(m.id)}
+                                          aria-label="Delete message"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </button>
+                                      </>
+                                    ) : null}
                                   </>
                                 ) : null}
-                              </>
-                            ) : null}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
                 <div ref={bottomRef} />
               </div>
 
-              <div style={S.inputRow}>
-                <input
-                  type="text"
+              <div className="flex items-center gap-2 border-t border-border p-3">
+                <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      sendMessage();
+                      void sendMessage();
                     }
                   }}
-                  placeholder="Type a message..."
-                  style={S.input}
+                  placeholder="Write a message…"
+                  className="flex-1"
                   disabled={!selectedConversation}
                 />
-                <button type="button" style={S.sendBtn} onClick={sendMessage} disabled={!selectedConversation}>
-                  <Send size={14} />
-                </button>
+                <Button
+                  type="button"
+                  variant="gradient"
+                  size="icon"
+                  className="shrink-0 shadow-glow"
+                  onClick={() => void sendMessage()}
+                  disabled={!selectedConversation || !input.trim()}
+                  aria-label="Send message"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
             </>
           )}
         </section>
       </div>
-    </div>
+    </StudentDashboardShell>
   );
 }
-
-const S: Record<string, CSSProperties> = {
-  page: { minHeight: "100vh", background: "#eef2f7", fontFamily: "DM Sans, sans-serif" },
-  topBar: { padding: "12px 16px", borderBottom: "1px solid #e8edf3", background: "#fff" },
-  backBtn: {
-    border: "1px solid #e2e8f0",
-    borderRadius: 9,
-    background: "#fff",
-    padding: "7px 12px",
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#64748b",
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-  },
-  layout: {
-    maxWidth: 1120,
-    margin: "0 auto",
-    padding: 16,
-    display: "grid",
-    gridTemplateColumns: "300px minmax(0,1fr)",
-    gap: 14,
-    height: "calc(100vh - 66px)",
-  },
-  sidebar: {
-    border: "1px solid #e8edf3",
-    background: "#ffffff",
-    borderRadius: 14,
-    padding: 12,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    minHeight: 0,
-    overflowY: "auto",
-    boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
-  },
-  sideTitle: { margin: "0 0 4px", fontWeight: 800, fontSize: 14, color: "#0f172a" },
-  convBtn: {
-    border: "1px solid #eef1f6",
-    background: "#ffffff",
-    borderRadius: 12,
-    padding: "12px 14px",
-    textAlign: "left",
-    cursor: "pointer",
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    transition: "background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
-  },
-  convBtnHover: { background: "#f1f5f9" },
-  convBtnActive: { border: "1px solid #c7d2fe", background: "#eef2ff" },
-  convTopRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minWidth: 0 },
-  convTopRight: { display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 },
-  convName: { fontSize: 13, fontWeight: 700, color: "#0f172a", display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" },
-  convTime: { fontSize: 10, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap" },
-  onlineDot: { width: 8, height: 8, borderRadius: "50%", display: "inline-block" },
-  deleteIconBtn: {
-    border: "none",
-    background: "transparent",
-    color: "#ff4d4f",
-    cursor: "pointer",
-    transition: "opacity .2s ease",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-  },
-  convMeta: {
-    fontSize: 12,
-    color: "#64748b",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    lineHeight: 1.35,
-    paddingTop: 2,
-  },
-  chatPanel: {
-    border: "1px solid #e8edf3",
-    background: "#ffffff",
-    borderRadius: 14,
-    minHeight: 0,
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
-  },
-  chatHeader: {
-    padding: "14px 16px",
-    borderBottom: "1px solid #e8edf3",
-    fontSize: 14,
-    fontWeight: 600,
-    color: "#475569",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  chatHeaderName: { fontWeight: 800, color: "#0f172a", fontSize: 15, letterSpacing: "-0.01em" },
-  statusText: { fontSize: 11, color: "#64748b", fontWeight: 600 },
-  participantsRow: { display: "flex", flexWrap: "wrap", gap: 6 },
-  participantPill: {
-    fontSize: 10, fontWeight: 700, color: "#4f46e5",
-    border: "1px solid #c7d2fe", background: "#eef2ff",
-    borderRadius: 999, padding: "2px 8px",
-  },
-  messagesArea: { flex: 1, padding: 16, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" },
-  chatEmpty: { minHeight: 420, display: "grid", placeItems: "center", color: "#64748b", fontSize: 13 },
-  emptyText: { margin: 0, fontSize: 12, color: "#94a3b8" },
-  bubble: {
-    maxWidth: "78%",
-    borderRadius: 16,
-    padding: "12px 16px",
-    fontSize: 13,
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    lineHeight: 1.45,
-  },
-  bubbleMe: { alignSelf: "flex-end", background: "#7c3aed", color: "#ffffff", borderRadius: 16 },
-  bubbleThem: { alignSelf: "flex-start", background: "#eef2f7", color: "#0f172a", borderRadius: 16 },
-  senderNameText: { fontSize: 10, fontWeight: 800, color: "#4f46e5" },
-  metaRow: { display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" },
-  timeText: { fontSize: 10, opacity: 0.85 },
-  editedText: { fontSize: 10, opacity: 0.85 },
-  seenText: { fontSize: 10, opacity: 0.9 },
-  iconBtn: { border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center" },
-  editRow: { display: "flex", alignItems: "center", gap: 6 },
-  editInput: { flex: 1, border: "1px solid #d1d5db", borderRadius: 8, padding: "6px 8px", fontSize: 12, fontFamily: "inherit" },
-  inlineActionBtn: { border: "1px solid #c7d2fe", background: "#eef2ff", color: "#4f46e5", borderRadius: 8, padding: "5px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" },
-  inputRow: {
-    borderTop: "1px solid #e8edf3",
-    padding: "14px 16px",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    background: "#fafbfc",
-  },
-  input: {
-    flex: 1,
-    border: "1px solid #e2e8f0",
-    borderRadius: 999,
-    padding: "12px 18px",
-    fontSize: 14,
-    fontFamily: "inherit",
-    background: "#ffffff",
-    boxShadow: "0 1px 3px rgba(15, 23, 42, 0.06)",
-    outline: "none",
-  },
-  sendBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: "50%",
-    border: "none",
-    background: "#7c3aed",
-    color: "#fff",
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-};

@@ -33,11 +33,20 @@ export interface CourseStudent {
   SectionNumber?: number | null
 }
 
+export interface EnrolledCourseSection {
+  sectionId?: number
+  SectionId?: number
+  sectionName?: string
+  SectionName?: string
+}
+
 export interface EnrolledCourse {
   courseId: number
   name?: string
   code?: string
-  section?: string
+  /** Legacy string or nested object from GET /courses/enrolled */
+  section?: string | EnrolledCourseSection
+  Section?: EnrolledCourseSection
   semester?: string | null
   useSharedProjectAcrossSections?: boolean
   allowCrossSectionTeams?: boolean

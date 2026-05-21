@@ -1,5 +1,6 @@
 import api from './axiosInstance'
 import type { GradProject } from './gradProjectApi'
+import { normalizeGradProject } from './gradProjectNormalize'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -136,9 +137,11 @@ function parseGraduationProjectsMyPayload(raw: unknown): {
         Role?: string | null
     }
 
-    const project = d.project ?? d.Project ?? null
+    const projectRaw = d.project ?? d.Project ?? null
     const roleRaw = d.role ?? d.Role
     const role = roleRaw === 'owner' || roleRaw === 'member' ? roleRaw : null
+    const project =
+      projectRaw != null ? normalizeGradProject(projectRaw) : null
 
     return { role, project }
 }

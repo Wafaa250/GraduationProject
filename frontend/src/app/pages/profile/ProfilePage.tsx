@@ -317,7 +317,6 @@ export default function ProfilePage() {
         <StudentDashboardShell
           userName={user.name}
           profilePic={user.profilePic}
-          gradProjectId={null}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchWrapRef={globalSearchWrapRef}
@@ -327,7 +326,6 @@ export default function ProfilePage() {
           onSelectDoctor={(id) => navigate(`/doctors/${id}`)}
           onOpenSettings={() => navigate("/edit-profile")}
           onLogout={handleLogout}
-          onCreateProject={() => navigate("/create-project")}
         >
           <MyProfileView
             name={user.name}

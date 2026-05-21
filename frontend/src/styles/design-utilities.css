@@ -19,9 +19,10 @@
 }
 
 @layer components {
-  .gradient-text {
+  .gradient-text,
+  .text-gradient {
     @apply bg-clip-text text-transparent;
-    background-image: var(--gradient-hero);
+    background-image: var(--gradient-primary);
   }
 
   .gradient-text-ai {
@@ -66,6 +67,14 @@
     background-image: var(--gradient-hero);
   }
 
+  .bg-gradient-soft {
+    background-image: var(--gradient-soft);
+  }
+
+  .bg-primary-soft {
+    background-color: var(--primary-soft);
+  }
+
   .bg-gradient-surface {
     background-image: var(--gradient-surface);
   }
@@ -82,6 +91,43 @@
     color: var(--ai);
   }
 
+  /** Unified purple pill for course hub badges (team mode, doctor, in team, etc.) */
+  .course-hub-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 9999px;
+    border: 1px solid hsl(263 75% 56% / 0.3);
+    background-color: var(--primary-soft);
+    padding: 0.125rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    color: var(--primary);
+  }
+
+  .course-hub-chip svg {
+    color: var(--primary);
+  }
+
+  .course-hub-chip-muted {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background-color: var(--muted);
+    padding: 0.125rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+
+  .course-hub-chip-muted svg {
+    color: var(--muted-foreground);
+  }
+
   .text-success {
     color: var(--success);
   }
@@ -94,6 +140,14 @@
     box-shadow: var(--shadow-md);
   }
 
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+
   .shadow-pop {
     box-shadow: var(--shadow-lg);
   }
@@ -104,5 +158,48 @@
 
   .shadow-ai {
     box-shadow: var(--shadow-ai);
+  }
+
+  /** Filled circular notification badges — white icons, saturated fills */
+  .notify-badge-base {
+    color: var(--notify-fill-icon);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.12);
+  }
+
+  .notify-badge-message {
+    background-color: var(--notify-fill-message);
+  }
+
+  .notify-badge-team {
+    background-color: var(--notify-fill-team);
+  }
+
+  .notify-badge-ai {
+    background-image: linear-gradient(
+      135deg,
+      var(--notify-fill-ai) 0%,
+      var(--notify-fill-ai-end) 100%
+    );
+  }
+
+  .notify-badge-course {
+    background-color: var(--notify-fill-course);
+  }
+
+  .notify-badge-supervisor {
+    background-color: var(--notify-fill-supervisor);
+  }
+
+  .notify-badge-organization {
+    background-color: var(--notify-fill-organization);
+  }
+
+  .notify-badge-danger {
+    background-color: var(--notify-fill-danger);
   }
 }

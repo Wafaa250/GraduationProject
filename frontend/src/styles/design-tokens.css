@@ -2,7 +2,7 @@
 
 :root {
   --primary-glow: hsl(250 85% 68%);
-  --accent-soft: hsl(175 65% 94%);
+  --accent-soft: hsl(290 80% 96%);
   --ai: hsl(270 75% 60%);
   --ai-foreground: hsl(0 0% 100%);
   --ai-soft: hsl(270 80% 96%);
@@ -11,14 +11,13 @@
   --warning: hsl(35 92% 55%);
   --warning-foreground: hsl(30 60% 15%);
 
+  --primary-soft: hsl(265 95% 96%);
   --gradient-primary: linear-gradient(135deg, hsl(245 65% 38%), hsl(265 75% 55%));
+  --gradient-soft: linear-gradient(135deg, hsl(265 95% 97%), hsl(290 80% 96%));
   --gradient-ai: linear-gradient(135deg, hsl(270 75% 60%), hsl(195 85% 55%));
-  --gradient-hero: linear-gradient(
-    135deg,
-    hsl(245 65% 38%) 0%,
-    hsl(265 70% 50%) 40%,
-    hsl(195 80% 55%) 100%
-  );
+  --gradient-hero:
+    radial-gradient(1200px 600px at 20% -10%, hsl(285 90% 80% / 0.45), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, hsl(263 90% 75% / 0.35), transparent 60%);
   --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(240 30% 98%) 100%);
   --gradient-surface:
     radial-gradient(1200px 600px at 0% 0%, hsl(245 80% 96%) 0%, transparent 60%),
@@ -26,9 +25,22 @@
 
   --shadow-sm: 0 1px 2px hsl(240 30% 20% / 0.04);
   --shadow-md: 0 4px 12px -2px hsl(240 30% 20% / 0.06), 0 2px 6px -2px hsl(240 30% 20% / 0.04);
+  --shadow-card: 0 4px 24px -8px hsl(263 60% 30% / 0.12);
+  --shadow-elegant: 0 20px 50px -20px hsl(263 70% 40% / 0.3);
   --shadow-lg: 0 20px 40px -12px hsl(245 50% 30% / 0.12), 0 8px 16px -8px hsl(245 50% 30% / 0.08);
   --shadow-glow: 0 0 0 1px hsl(245 65% 38% / 0.08), 0 20px 50px -20px hsl(245 65% 38% / 0.35);
   --shadow-ai: 0 20px 50px -15px hsl(270 75% 60% / 0.4);
+
+  /* Notification filled icon badges (Lovable-style) */
+  --notify-fill-message: #6d28d9;
+  --notify-fill-team: #4f46e5;
+  --notify-fill-ai: #7c3aed;
+  --notify-fill-ai-end: #0ea5e9;
+  --notify-fill-course: #5b21b6;
+  --notify-fill-supervisor: #0f766e;
+  --notify-fill-organization: #16a34a;
+  --notify-fill-danger: #ef4444;
+  --notify-fill-icon: #ffffff;
 }
 
 .dark {
@@ -39,4 +51,14 @@
   --success: hsl(150 55% 48%);
   --warning: hsl(35 85% 58%);
   --warning-foreground: hsl(30 60% 10%);
+
+  --notify-fill-message: #8b5cf6;
+  --notify-fill-team: #6366f1;
+  --notify-fill-ai: #8b5cf6;
+  --notify-fill-ai-end: #38bdf8;
+  --notify-fill-course: #7c3aed;
+  --notify-fill-supervisor: #14b8a6;
+  --notify-fill-organization: #22c55e;
+  --notify-fill-danger: #f87171;
+  --notify-fill-icon: #ffffff;
 }

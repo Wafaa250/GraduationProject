@@ -30,13 +30,16 @@ import ProjectTeamsPage from "./pages/courses/ProjectTeamsPage";
 import TeamManagementPage from "./pages/doctor/TeamManagementPage";
 import StudentCoursesPage from "./pages/courses/StudentCoursesPage";
 import StudentTeamGenerationChoicePage from "./pages/courses/StudentTeamGenerationChoicePage";
+import StudentTeamChoiceQueryPage from "./pages/courses/StudentTeamChoiceQueryPage";
 import StudentManualTeamPage from "./pages/courses/StudentManualTeamPage";
 import StudentTeamInvitationsPage from "./pages/courses/StudentTeamInvitationsPage";
 import StudentTeamPage from "./pages/team/StudentTeamPage";
 import StudentAiTeamPage from "./pages/projects/StudentAiTeamPage";
 import CreateGraduationProjectPage from "./pages/projects/CreateGraduationProjectPage";
+import GraduationProjectAiAnalysisPage from "./pages/projects/GraduationProjectAiAnalysisPage";
 import DoctorsPage from "./pages/doctors/DoctorsPage";
 import ChatPage from "./pages/messages/ChatPage";
+import NotificationsPage from "./pages/notifications/NotificationsPage";
 import StudentAssociationRegisterPage from "./pages/auth/StudentAssociationRegisterPage";
 import CompanyDashboardPage from "./pages/company/CompanyDashboardPage";
 import CompanyTalentSearchPage from "./pages/company/CompanyTalentSearchPage";
@@ -119,6 +122,14 @@ function StudentDashboardRoute() {
     return <Navigate to="/" replace />;
 }
 
+function StudentNotificationsRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    if (role === "student") return <NotificationsPage />;
+    return <Navigate to="/" replace />;
+}
+
 function AssociationDashboardRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (isAssociationRole(role)) return <AssociationDashboardPage />;
@@ -198,6 +209,14 @@ function EditProfileRoute() {
 function CreateGraduationProjectRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "student") return <CreateGraduationProjectPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
+function GraduationProjectAiAnalysisRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <GraduationProjectAiAnalysisPage />;
     if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
     if (isAssociationRole(role)) return <Navigate to="/association/dashboard" replace />;
     return <Navigate to="/" replace />;
@@ -301,6 +320,13 @@ function StudentTeamGenerationChoiceRoute() {
     return <Navigate to="/" replace />;
 }
 
+function StudentTeamChoiceQueryRoute() {
+    const role = (localStorage.getItem("role") ?? "").toLowerCase();
+    if (role === "student") return <StudentTeamChoiceQueryPage />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    return <Navigate to="/" replace />;
+}
+
 function StudentManualTeamRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "student") return <StudentManualTeamPage />;
@@ -336,9 +362,18 @@ export default function App() {
                     <Route path="/dashboard" element={<ProtectedRoute><StudentDashboardRoute /></ProtectedRoute>} />
                     <Route path="/profile" element={<ProtectedRoute><ProfileRoute /></ProtectedRoute>} />
                     <Route path="/edit-profile" element={<ProtectedRoute><EditProfileRoute /></ProtectedRoute>} />
+                    <Route path="/create-project/edit" element={<ProtectedRoute><CreateGraduationProjectRoute /></ProtectedRoute>} />
                     <Route path="/create-project" element={<ProtectedRoute><CreateGraduationProjectRoute /></ProtectedRoute>} />
+                    <Route
+                        path="/student/ai-analysis"
+                        element={<ProtectedRoute><GraduationProjectAiAnalysisRoute /></ProtectedRoute>}
+                    />
                     <Route path="/student/courses" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
                     <Route path="/student/courses/:courseId" element={<ProtectedRoute><StudentCoursesRoute /></ProtectedRoute>} />
+                    <Route
+                        path="/student/courses/:courseId/team-choice"
+                        element={<ProtectedRoute><StudentTeamChoiceQueryRoute /></ProtectedRoute>}
+                    />
                     <Route
                         path="/student/courses/:courseId/projects/:projectId/team-choice"
                         element={<ProtectedRoute><StudentTeamGenerationChoiceRoute /></ProtectedRoute>}
@@ -361,6 +396,14 @@ export default function App() {
                         element={<ProtectedRoute><StudentAiTeamRoute /></ProtectedRoute>}
                     />
                     <Route path="/messages" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+                    <Route
+                        path="/notifications"
+                        element={
+                            <ProtectedRoute>
+                                <StudentNotificationsRoute />
+                            </ProtectedRoute>
+                        }
+                    />
 
                     {/* Student communities hub */}
                     <Route
