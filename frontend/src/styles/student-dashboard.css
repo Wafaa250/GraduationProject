@@ -1,0 +1,404 @@
+.student-dashboard {
+  --background: 250 50% 99%;
+  --foreground: 240 24% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 24% 12%;
+  --primary: 247 96% 68%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 260 100% 78%;
+  --primary-soft: 247 100% 96%;
+  --secondary: 250 40% 96%;
+  --secondary-foreground: 240 24% 16%;
+  --muted: 250 30% 96%;
+  --muted-foreground: 240 10% 46%;
+  --accent: 280 90% 96%;
+  --accent-foreground: 247 60% 30%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 70% 42%;
+  --success-foreground: 0 0% 100%;
+  --warning: 35 95% 55%;
+  --warning-foreground: 0 0% 100%;
+  --border: 250 30% 92%;
+  --input: 250 30% 92%;
+  --ring: 247 96% 68%;
+  --radius: 1rem;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 240 14% 30%;
+  --sidebar-primary: 247 96% 68%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 247 100% 97%;
+  --sidebar-accent-foreground: 247 60% 35%;
+  --sidebar-border: 250 30% 94%;
+  --sidebar-ring: 247 96% 68%;
+  --gradient-primary: linear-gradient(135deg, hsl(247 96% 68%) 0%, hsl(280 90% 72%) 100%);
+  --gradient-hero: linear-gradient(135deg, hsl(247 100% 97%) 0%, hsl(280 100% 97%) 50%, hsl(220 100% 98%) 100%);
+  --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(250 50% 99%) 100%);
+  --gradient-mesh: radial-gradient(at 20% 10%, hsl(247 96% 90% / 0.6) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsl(280 90% 90% / 0.5) 0px, transparent 50%),
+    radial-gradient(at 80% 80%, hsl(220 90% 92% / 0.5) 0px, transparent 50%);
+  --shadow-card: 0 1px 3px hsl(247 30% 20% / 0.04), 0 8px 24px -8px hsl(247 40% 30% / 0.08);
+  --shadow-glow: 0 0 40px hsl(247 96% 68% / 0.25);
+
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+}
+
+.student-dashboard h1,
+.student-dashboard h2,
+.student-dashboard h3,
+.student-dashboard h4,
+.student-dashboard .font-display {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.student-dashboard .bg-gradient-primary {
+  background: var(--gradient-primary);
+}
+.student-dashboard .bg-gradient-hero {
+  background: var(--gradient-hero);
+}
+.student-dashboard .bg-gradient-card {
+  background: var(--gradient-card);
+}
+.student-dashboard .bg-gradient-mesh {
+  background: var(--gradient-mesh);
+}
+.student-dashboard .shadow-card {
+  box-shadow: var(--shadow-card);
+}
+.student-dashboard .shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+.student-dashboard .text-gradient {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.student-dashboard .bg-background {
+  background-color: hsl(var(--background));
+}
+.student-dashboard .bg-card {
+  background-color: hsl(var(--card));
+}
+.student-dashboard .bg-muted {
+  background-color: hsl(var(--muted));
+}
+.student-dashboard .bg-primary {
+  background-color: hsl(var(--primary));
+}
+.student-dashboard .bg-primary-soft {
+  background-color: hsl(var(--primary-soft));
+}
+.student-dashboard .bg-primary\/15 {
+  background-color: hsl(var(--primary) / 0.15);
+}
+.student-dashboard .bg-primary\/10 {
+  background-color: hsl(var(--primary) / 0.1);
+}
+.student-dashboard .bg-primary-glow\/20 {
+  background-color: hsl(var(--primary-glow) / 0.2);
+}
+.student-dashboard .bg-success\/10 {
+  background-color: hsl(var(--success) / 0.1);
+}
+.student-dashboard .bg-success\/15 {
+  background-color: hsl(var(--success) / 0.15);
+}
+.student-dashboard .bg-warning\/15 {
+  background-color: hsl(var(--warning) / 0.15);
+}
+.student-dashboard .bg-destructive {
+  background-color: hsl(var(--destructive));
+}
+.student-dashboard .bg-sidebar {
+  background-color: hsl(var(--sidebar-background));
+}
+.student-dashboard .bg-sidebar-accent {
+  background-color: hsl(var(--sidebar-accent));
+}
+
+.student-dashboard .text-foreground {
+  color: hsl(var(--foreground));
+}
+.student-dashboard .text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+.student-dashboard .text-primary {
+  color: hsl(var(--primary));
+}
+.student-dashboard .text-primary-foreground {
+  color: hsl(var(--primary-foreground));
+}
+.student-dashboard .text-primary-glow {
+  color: hsl(var(--primary-glow));
+}
+.student-dashboard .text-success {
+  color: hsl(var(--success));
+}
+.student-dashboard .text-warning {
+  color: hsl(var(--warning));
+}
+.student-dashboard .text-destructive-foreground {
+  color: hsl(var(--destructive-foreground));
+}
+.student-dashboard .text-sidebar-foreground {
+  color: hsl(var(--sidebar-foreground));
+}
+.student-dashboard .text-sidebar-accent-foreground {
+  color: hsl(var(--sidebar-accent-foreground));
+}
+
+.student-dashboard .border-border {
+  border-color: hsl(var(--border));
+}
+.student-dashboard .border-primary\/10 {
+  border-color: hsl(var(--primary) / 0.1);
+}
+.student-dashboard .border-primary\/30 {
+  border-color: hsl(var(--primary) / 0.3);
+}
+.student-dashboard .border-primary\/40 {
+  border-color: hsl(var(--primary) / 0.4);
+}
+.student-dashboard .border-sidebar-border {
+  border-color: hsl(var(--sidebar-border));
+}
+
+.student-dashboard .ring-card {
+  --tw-ring-color: hsl(var(--card));
+}
+
+.student-dashboard .hover\:text-primary-glow:hover {
+  color: hsl(var(--primary-glow));
+}
+.student-dashboard .hover\:bg-primary-soft\/40:hover {
+  background-color: hsl(var(--primary-soft) / 0.4);
+}
+.student-dashboard .hover\:bg-primary-soft\/50:hover {
+  background-color: hsl(var(--primary-soft) / 0.5);
+}
+.student-dashboard .hover\:border-primary\/30:hover {
+  border-color: hsl(var(--primary) / 0.3);
+}
+.student-dashboard .hover\:border-primary\/40:hover {
+  border-color: hsl(var(--primary) / 0.4);
+}
+.student-dashboard .hover\:bg-sidebar-accent\/60:hover {
+  background-color: hsl(var(--sidebar-accent) / 0.6);
+}
+.student-dashboard .hover\:bg-gradient-primary:hover {
+  background: var(--gradient-primary);
+}
+.student-dashboard .hover\:text-primary-foreground:hover {
+  color: hsl(var(--primary-foreground));
+}
+.student-dashboard .hover\:border-transparent:hover {
+  border-color: transparent;
+}
+.student-dashboard .hover\:text-primary:hover {
+  color: hsl(var(--primary));
+}
+.student-dashboard .hover\:shadow-glow:hover {
+  box-shadow: var(--shadow-glow);
+}
+.student-dashboard .hover\:shadow-lg:hover {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+.student-dashboard .hover\:-translate-y-0\.5:hover {
+  transform: translateY(-0.125rem);
+}
+.student-dashboard .hover\:-translate-y-1:hover {
+  transform: translateY(-0.25rem);
+}
+.student-dashboard .hover\:bg-card:hover {
+  background-color: hsl(var(--card));
+}
+.student-dashboard .hover\:bg-muted:hover {
+  background-color: hsl(var(--muted));
+}
+
+.student-dashboard .focus\:border-primary\/40:focus {
+  border-color: hsl(var(--primary) / 0.4);
+}
+.student-dashboard .focus\:bg-card:focus {
+  background-color: hsl(var(--card));
+}
+.student-dashboard .focus\:ring-primary\/10:focus {
+  --tw-ring-color: hsl(var(--primary) / 0.1);
+}
+
+.student-dashboard .from-primary\/15 {
+  --tw-gradient-from: hsl(var(--primary) / 0.15);
+}
+.student-dashboard .to-primary\/5 {
+  --tw-gradient-to: hsl(var(--primary) / 0.05);
+}
+.student-dashboard .from-primary-glow\/20 {
+  --tw-gradient-from: hsl(var(--primary-glow) / 0.2);
+}
+.student-dashboard .to-primary-glow\/5 {
+  --tw-gradient-to: hsl(var(--primary-glow) / 0.05);
+}
+.student-dashboard .from-warning\/15 {
+  --tw-gradient-from: hsl(var(--warning) / 0.15);
+}
+.student-dashboard .to-warning\/5 {
+  --tw-gradient-to: hsl(var(--warning) / 0.05);
+}
+.student-dashboard .from-success\/15 {
+  --tw-gradient-from: hsl(var(--success) / 0.15);
+}
+.student-dashboard .to-success\/5 {
+  --tw-gradient-to: hsl(var(--success) / 0.05);
+}
+.student-dashboard .from-primary\/80 {
+  --tw-gradient-from: hsl(var(--primary) / 0.8);
+}
+.student-dashboard .to-primary-glow {
+  --tw-gradient-to: hsl(var(--primary-glow));
+}
+.student-dashboard .from-pink-400 {
+  --tw-gradient-from: #f472b6;
+}
+.student-dashboard .from-blue-400 {
+  --tw-gradient-from: #60a5fa;
+}
+.student-dashboard .from-amber-400 {
+  --tw-gradient-from: #fbbf24;
+}
+.student-dashboard .to-pink-500 {
+  --tw-gradient-to: #ec4899;
+}
+.student-dashboard .from-primary-glow {
+  --tw-gradient-from: hsl(var(--primary-glow));
+}
+.student-dashboard .to-primary {
+  --tw-gradient-to: hsl(var(--primary));
+}
+.student-dashboard .from-pink-100 {
+  --tw-gradient-from: #fce7f3;
+}
+.student-dashboard .to-primary-soft {
+  --tw-gradient-to: hsl(var(--primary-soft));
+}
+.student-dashboard .to-blue-100 {
+  --tw-gradient-to: #dbeafe;
+}
+.student-dashboard .to-pink-100 {
+  --tw-gradient-to: #fce7f3;
+}
+
+.student-dashboard .bg-primary\/20 {
+  background-color: hsl(var(--primary) / 0.2);
+}
+.student-dashboard .bg-primary-glow\/20 {
+  background-color: hsl(var(--primary-glow) / 0.2);
+}
+.student-dashboard .bg-primary-soft\/60 {
+  background-color: hsl(var(--primary-soft) / 0.6);
+}
+.student-dashboard .bg-muted\/40 {
+  background-color: hsl(var(--muted) / 0.4);
+}
+.student-dashboard .bg-muted\/60 {
+  background-color: hsl(var(--muted) / 0.6);
+}
+.student-dashboard .bg-card\/80 {
+  background-color: hsl(var(--card) / 0.8);
+}
+.student-dashboard .bg-background\/80 {
+  background-color: hsl(var(--background) / 0.8);
+}
+.student-dashboard .bg-primary\/10 {
+  background-color: hsl(var(--primary) / 0.1);
+}
+
+.student-dashboard .text-foreground\/80 {
+  color: hsl(var(--foreground) / 0.8);
+}
+.student-dashboard .text-foreground\/75 {
+  color: hsl(var(--foreground) / 0.75);
+}
+
+.student-dashboard .group:hover .group-hover\:opacity-100 {
+  opacity: 1;
+}
+.student-dashboard .group:hover .group-hover\:text-primary {
+  color: hsl(var(--primary));
+}
+.student-dashboard .group:hover .group-hover\:bg-gradient-primary {
+  background: var(--gradient-primary);
+}
+.student-dashboard .group:hover .group-hover\:text-primary-foreground {
+  color: hsl(var(--primary-foreground));
+}
+
+.student-dashboard .opacity-0 {
+  opacity: 0;
+}
+.student-dashboard .opacity-50 {
+  opacity: 0.5;
+}
+.student-dashboard .opacity-80 {
+  opacity: 0.8;
+}
+.student-dashboard .opacity-90 {
+  opacity: 0.9;
+}
+
+.student-dashboard .backdrop-blur {
+  backdrop-filter: blur(8px);
+}
+.student-dashboard .backdrop-blur-xl {
+  backdrop-filter: blur(24px);
+}
+
+.student-dashboard .focus\:ring-4:focus {
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+}
+
+.student-dashboard .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.student-dashboard .sd-search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.student-dashboard .sd-nav-bell-wrap button {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+}
+.student-dashboard .sd-nav-bell-wrap button:hover {
+  background-color: hsl(var(--muted));
+}
