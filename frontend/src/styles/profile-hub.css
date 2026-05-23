@@ -1,0 +1,173 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+
+.profile-hub {
+  --background: 220 30% 98%;
+  --foreground: 224 35% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 35% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 35% 12%;
+  --primary: 250 75% 58%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 265 85% 68%;
+  --secondary: 220 25% 95%;
+  --secondary-foreground: 224 35% 18%;
+  --muted: 220 25% 96%;
+  --muted-foreground: 220 12% 46%;
+  --accent: 250 90% 96%;
+  --accent-foreground: 250 75% 40%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 20% 90%;
+  --input: 220 20% 90%;
+  --ring: 250 75% 58%;
+  --radius: 0.75rem;
+  --gradient-primary: linear-gradient(135deg, hsl(250 75% 58%), hsl(265 85% 68%));
+  --gradient-subtle: linear-gradient(180deg, hsl(220 30% 99%), hsl(220 30% 96%));
+  --gradient-hero: radial-gradient(ellipse at top, hsl(250 90% 96%), transparent 70%);
+  --shadow-card: 0 1px 2px hsl(224 35% 12% / 0.04), 0 8px 24px -8px hsl(224 35% 12% / 0.08);
+  --shadow-elegant: 0 10px 40px -10px hsl(250 75% 58% / 0.25);
+  --shadow-focus: 0 0 0 4px hsl(250 75% 58% / 0.15);
+  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.profile-hub .font-display {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+.profile-hub .bg-gradient-subtle {
+  background: var(--gradient-subtle);
+}
+
+.profile-hub .bg-gradient-hero {
+  background: var(--gradient-hero);
+}
+
+.profile-hub .bg-gradient-primary {
+  background: var(--gradient-primary);
+}
+
+.profile-hub .shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+.profile-hub .shadow-elegant {
+  box-shadow: var(--shadow-elegant);
+}
+
+.profile-hub .shadow-focus,
+.profile-hub .focus-visible\:shadow-focus:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.profile-hub .transition-smooth {
+  transition: var(--transition-smooth);
+}
+
+.profile-hub .bg-background {
+  background-color: hsl(var(--background));
+}
+
+.profile-hub .bg-card {
+  background-color: hsl(var(--card));
+}
+
+.profile-hub .bg-accent {
+  background-color: hsl(var(--accent));
+}
+
+.profile-hub .text-foreground {
+  color: hsl(var(--foreground));
+}
+
+.profile-hub .text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+
+.profile-hub .text-primary {
+  color: hsl(var(--primary));
+}
+
+.profile-hub .text-primary-foreground {
+  color: hsl(var(--primary-foreground));
+}
+
+.profile-hub .text-accent-foreground {
+  color: hsl(var(--accent-foreground));
+}
+
+.profile-hub .text-destructive {
+  color: hsl(var(--destructive));
+}
+
+.profile-hub .border-border {
+  border-color: hsl(var(--border));
+}
+
+.profile-hub .border-input {
+  border-color: hsl(var(--input));
+}
+
+.profile-hub .border-card {
+  border-color: hsl(var(--card));
+}
+
+.profile-hub .border-primary {
+  border-color: hsl(var(--primary));
+}
+
+.profile-hub .bg-foreground\/60 {
+  background-color: hsl(var(--foreground) / 0.6);
+}
+
+.profile-hub .bg-card\/90 {
+  background-color: hsl(var(--card) / 0.9);
+}
+
+.profile-hub .border-border\/70 {
+  border-color: hsl(var(--border) / 0.7);
+}
+
+.profile-hub .text-muted-foreground\/50 {
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+.profile-hub .hover\:text-destructive:hover {
+  color: hsl(var(--destructive));
+}
+
+.profile-hub .focus-within\:border-ring:focus-within {
+  border-color: hsl(var(--ring));
+}
+
+.profile-hub .focus-within\:shadow-focus:focus-within {
+  box-shadow: var(--shadow-focus);
+}
+
+.profile-hub .hover\:border-primary\/50:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.profile-hub .hover\:bg-accent\/50:hover {
+  background-color: hsl(var(--accent) / 0.5);
+}
+
+.profile-hub .hover\:opacity-95:hover {
+  opacity: 0.95;
+}
+
+.profile-hub .hover\:opacity-100:hover {
+  opacity: 1;
+}
+
+.profile-hub .ring-offset-background {
+  --tw-ring-offset-color: hsl(var(--background));
+}
+
+.profile-hub .focus-visible\:ring-ring:focus-visible {
+  --tw-ring-color: hsl(var(--ring));
+}

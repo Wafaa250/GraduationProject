@@ -1,3 +1,195 @@
-@import './fonts.css';
-@import './tailwind.css';
-@import './theme.css';
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 40% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 40% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 244 75% 57%;
+    --primary-glow: 239 84% 75%;
+
+    --secondary: 189 94% 43%;
+    --secondary-foreground: 222 47% 5%;
+
+    --accent: 258 90% 66%;
+    --accent-foreground: 0 0% 100%;
+
+    --muted: 217 33% 12%;
+    --muted-foreground: 215 20% 65%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 239 84% 67%;
+
+    --radius: 0.75rem;
+
+    --surface-1: 222 47% 7%;
+    --surface-2: 222 40% 10%;
+    --surface-3: 217 33% 14%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(258 90% 66%));
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(239 84% 67%) 0%,
+      hsl(258 90% 66%) 50%,
+      hsl(189 94% 43%) 100%
+    );
+    --gradient-radial: radial-gradient(ellipse at top, hsl(239 84% 67% / 0.25), transparent 60%);
+    --gradient-card: linear-gradient(135deg, hsl(222 40% 10% / 0.8), hsl(217 33% 14% / 0.4));
+    --gradient-text: linear-gradient(135deg, hsl(210 40% 98%), hsl(239 84% 75%));
+    --gradient-mesh: radial-gradient(at 20% 20%, hsl(239 84% 67% / 0.3) 0, transparent 50%),
+      radial-gradient(at 80% 0%, hsl(258 90% 66% / 0.25) 0, transparent 50%),
+      radial-gradient(at 0% 80%, hsl(189 94% 43% / 0.2) 0, transparent 50%);
+
+    --shadow-glow: 0 0 60px hsl(239 84% 67% / 0.35);
+    --shadow-elegant: 0 20px 60px -20px hsl(239 84% 67% / 0.4);
+    --shadow-card: 0 8px 32px -8px hsl(222 47% 2% / 0.6);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Inter", system-ui, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    background-image: var(--gradient-mesh);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply backdrop-blur-xl bg-card/40 border border-white/5;
+  }
+
+  .glass-strong {
+    @apply backdrop-blur-2xl bg-background/70 border-b border-white/10;
+  }
+
+  .text-gradient {
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-primary {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-hero {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .gradient-border {
+    position: relative;
+    background: hsl(var(--card));
+  }
+
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: var(--gradient-primary);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .grid-pattern {
+    background-image: linear-gradient(hsl(217 33% 17% / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(217 33% 17% / 0.5) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+}
+
+@layer utilities {
+  .glow-primary {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .glow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-12px);
+    }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      opacity: 0.5;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 4s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}

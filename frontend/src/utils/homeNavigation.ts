@@ -1,13 +1,12 @@
 import type { NavigateFunction } from "react-router-dom";
+import { ROUTES } from "@/routes/paths";
 
-/**
- * Home route after login / “back to dashboard” (uses `localStorage.role` from login).
- */
-export function getHomePath(): "/doctor-dashboard" | "/association/dashboard" | "/dashboard" {
+export function getHomePath(): string {
   const role = (localStorage.getItem("role") ?? "").toLowerCase();
-  if (role === "doctor") return "/doctor-dashboard";
-  if (role === "studentassociation" || role === "association") return "/association/dashboard";
-  return "/dashboard";
+  if (role === "student") {
+    return ROUTES.dashboard;
+  }
+  return ROUTES.home;
 }
 
 export function navigateHome(navigate: NavigateFunction): void {
