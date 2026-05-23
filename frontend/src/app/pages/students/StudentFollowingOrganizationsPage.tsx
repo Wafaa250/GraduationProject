@@ -12,6 +12,7 @@ import {
 import { OrganizationDiscoveryCard } from '../../components/organizations/OrganizationDiscoveryCard'
 import { OrganizationsEmptyState } from '../../components/organizations/OrganizationsEmptyState'
 import { hub } from '../organizations/organizationHubStyles'
+import { PublicPageNavBrand } from '../../components/brand/PublicPageNavBrand'
 import { publicOrgPage } from '../organizations/publicOrgPageStyles'
 
 export default function StudentFollowingOrganizationsPage() {
@@ -60,9 +61,7 @@ export default function StudentFollowingOrganizationsPage() {
             <ArrowLeft size={14} />
             Back
           </button>
-          <span style={publicOrgPage.logoText}>
-            Skill<span style={publicOrgPage.logoAccent}>Swap</span>
-          </span>
+          <PublicPageNavBrand />
         </div>
       </nav>
 

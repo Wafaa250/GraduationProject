@@ -1,51 +1,36 @@
-import type { CSSProperties } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
-  Briefcase,
   ClipboardList,
   LayoutDashboard,
   MessageCircle,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import type { DoctorDashboardSection } from "../doctorDashboardTypes";
+import { BrandLogo } from "../../../components/brand/BrandLogo";
 import { dash } from "./doctorDashTokens";
 
-function sidebarNavItemStyle(active: boolean): CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1.5px solid",
-    borderColor: active ? dash.accent : "transparent",
-    background: active ? dash.accentMuted : "transparent",
-    color: active ? dash.accent : dash.muted,
-    fontSize: 14,
-    fontWeight: active ? 700 : 600,
-    cursor: "pointer",
-    textAlign: "left",
-    width: "100%",
-    fontFamily: "inherit",
-    boxSizing: "border-box",
-    transition:
-      "background 0.15s ease, border-color 0.15s ease, transform 0.12s ease",
-  };
-}
+type NavCounts = {
+  pendingRequests?: number;
+};
 
-const ITEMS: {
+const PRIMARY: {
   id: DoctorDashboardSection;
   label: string;
   icon: LucideIcon;
+  countKey?: keyof NavCounts;
 }[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "requests", label: "Requests", icon: ClipboardList },
-  { id: "projects", label: "My Projects", icon: Briefcase },
-  { id: "deleted", label: "Deleted Projects", icon: Trash2 },
-  { id: "courses", label: "My Courses", icon: BookOpen },
+  { id: "overview", label: "Dashboard", icon: LayoutDashboard },
+  { id: "requests", label: "Supervision Requests", icon: ClipboardList, countKey: "pendingRequests" },
+  { id: "projects", label: "Active Supervisions", icon: Users },
+];
+
+const SECONDARY: { id: DoctorDashboardSection; label: string; icon: LucideIcon }[] = [
+  { id: "courses", label: "Course spaces", icon: BookOpen },
+  { id: "deleted", label: "Removed projects", icon: Trash2 },
 ];
 
 type Props = {
@@ -53,79 +38,113 @@ type Props = {
   onSelect: (id: DoctorDashboardSection) => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  navCounts?: NavCounts;
+  /** GET /api/me — sidebar profile card */
+  doctorName?: string;
+  doctorSubtitle?: string;
+  initials?: string;
 };
+
+function NavButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+  badge,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: LucideIcon;
+  label: string;
+  badge?: number;
+}) {
+  return (
+    <button
+      type="button"
+      data-active={active ? "true" : "false"}
+      onClick={onClick}
+      className={active ? "dd-sidebar-nav-btn dd-sidebar-nav-active" : "dd-sidebar-nav-btn"}
+    >
+      <Icon size={18} strokeWidth={active ? 2.25 : 2} />
+      <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
+      {badge != null && badge > 0 ? (
+        <span className="dd-sidebar-nav-badge">{badge > 99 ? "99+" : badge}</span>
+      ) : null}
+    </button>
+  );
+}
 
 export function Sidebar({
   activeSection,
   onSelect,
   mobileOpen,
   onCloseMobile,
+  navCounts,
+  doctorName,
+  doctorSubtitle,
+  initials = "DR",
 }: Props) {
   const location = useLocation();
   const messagesActive = location.pathname.startsWith("/messages");
 
   const nav = (
     <nav
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-        padding: "16px 12px",
-        fontFamily: dash.font,
-      }}
+      className="dd-sidebar-nav-scroll"
+      style={{ display: "flex", flexDirection: "column", fontFamily: dash.font, flex: 1, minHeight: 0 }}
     >
-      <div
-        style={{
-          padding: "8px 12px 16px",
-          borderBottom: `1px solid ${dash.border}`,
-          marginBottom: 8,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 20,
-            fontWeight: 800,
-            fontFamily: dash.fontDisplay,
-            color: dash.text,
-          }}
-        >
-          Skill<span style={{ color: dash.accent }}>Swap</span>
-        </span>
-        <p style={{ margin: "6px 0 0", fontSize: 12, color: dash.muted }}>
-          Doctor dashboard
+      <div className="dd-sidebar-brand">
+        <BrandLogo to="/doctor-dashboard" size="sm" variant="full" />
+        <p style={{ margin: "6px 0 0", fontSize: 10, color: dash.muted, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+          Doctor workspace
         </p>
       </div>
-      {ITEMS.map(({ id, label, icon: Icon }) => {
-        const active = activeSection === id;
-        return (
-          <button
+
+      <p className="dd-sidebar-group-label">Workspace</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 8px" }}>
+        {PRIMARY.map(({ id, label, icon, countKey }) => (
+          <NavButton
             key={id}
-            type="button"
+            active={activeSection === id}
+            icon={icon}
+            label={label}
+            badge={countKey && navCounts ? navCounts[countKey] : undefined}
             onClick={() => {
               onSelect(id);
               onCloseMobile();
             }}
-            style={sidebarNavItemStyle(active)}
-            className="dd-sidebar-nav-btn"
-          >
-            <Icon size={18} strokeWidth={active ? 2.25 : 2} />
-            {label}
-          </button>
-        );
-      })}
-      <Link
-        to="/messages"
-        onClick={onCloseMobile}
-        style={{
-          ...sidebarNavItemStyle(messagesActive),
-          textDecoration: "none",
-          boxSizing: "border-box",
-        }}
-        className="dd-sidebar-nav-btn"
-      >
-        <MessageCircle size={18} strokeWidth={messagesActive ? 2.25 : 2} />
-        Messages
-      </Link>
+          />
+        ))}
+      </div>
+
+      <p className="dd-sidebar-group-label" style={{ marginTop: 12 }}>
+        Collaboration
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 8px" }}>
+        {SECONDARY.map(({ id, label, icon }) => (
+          <NavButton
+            key={id}
+            active={activeSection === id}
+            icon={icon}
+            label={label}
+            onClick={() => {
+              onSelect(id);
+              onCloseMobile();
+            }}
+          />
+        ))}
+        <Link
+          to="/messages"
+          onClick={onCloseMobile}
+          data-active={messagesActive ? "true" : "false"}
+          className={
+            messagesActive ? "dd-sidebar-nav-btn dd-sidebar-nav-active" : "dd-sidebar-nav-btn"
+          }
+          style={{ textDecoration: "none" }}
+        >
+          <MessageCircle size={18} strokeWidth={messagesActive ? 2.25 : 2} />
+          <span style={{ flex: 1 }}>Messages</span>
+        </Link>
+      </div>
     </nav>
   );
 
@@ -136,88 +155,32 @@ export function Sidebar({
           type="button"
           aria-label="Close menu"
           onClick={onCloseMobile}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 40,
-            background: "rgba(15,23,42,0.35)",
-            border: "none",
-            cursor: "pointer",
-          }}
-          className="dd-sidebar-backdrop"
+          className="dd-sidebar-overlay"
         />
       ) : null}
 
-      <aside
-        className="dd-sidebar-aside"
-        style={{
-          width: 260,
-          flexShrink: 0,
-          background: dash.surface,
-          borderRight: `1px solid ${dash.border}`,
-          display: "flex",
-          flexDirection: "column",
-          minHeight: 0,
-        }}
-      >
-        <div
-          style={{
-            display: "none",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 14px",
-            borderBottom: `1px solid ${dash.border}`,
-          }}
-          className="dd-sidebar-mobile-header"
-        >
-          <span style={{ fontWeight: 800, fontFamily: dash.fontDisplay }}>
-            Menu
-          </span>
-          <button
-            type="button"
-            onClick={onCloseMobile}
-            style={{
-              border: "none",
-              background: dash.bg,
-              borderRadius: 8,
-              padding: 8,
-              cursor: "pointer",
-              color: dash.muted,
-            }}
-          >
+      <aside className={`dd-sidebar-aside dd-sidebar-aside-col${mobileOpen ? " dd-sidebar-open" : ""}`}>
+        <div className="dd-sidebar-mobile-header">
+          <span style={{ fontWeight: 800, fontFamily: dash.fontDisplay }}>Menu</span>
+          <button type="button" onClick={onCloseMobile} className="dd-sidebar-close-btn" aria-label="Close">
             <X size={18} />
           </button>
         </div>
         {nav}
+        {doctorName ? (
+          <div className="dd-sidebar-profile">
+            <Link to="/doctor/profile" onClick={onCloseMobile} className="dd-sidebar-profile-link">
+              <span className="dd-sidebar-profile-avatar">{initials}</span>
+              <span className="dd-sidebar-profile-text">
+                <span className="dd-sidebar-profile-name">{doctorName}</span>
+                {doctorSubtitle ? (
+                  <span className="dd-sidebar-profile-sub">{doctorSubtitle}</span>
+                ) : null}
+              </span>
+            </Link>
+          </div>
+        ) : null}
       </aside>
-
-      <style>{`
-        @media (min-width: 901px) {
-          .dd-sidebar-aside {
-            position: sticky;
-            top: 0;
-            align-self: flex-start;
-            max-height: 100vh;
-            overflow-y: auto;
-          }
-        }
-        .dd-sidebar-nav-btn:hover {
-          background: ${dash.accentMuted} !important;
-        }
-        @media (max-width: 900px) {
-          .dd-sidebar-aside {
-            position: fixed !important;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            z-index: 50;
-            box-shadow: ${dash.shadowLg};
-            transform: translateX(${mobileOpen ? "0" : "-100%"});
-            transition: transform 0.22s ease;
-          }
-          .dd-sidebar-mobile-header { display: flex !important; }
-        }
-      `}</style>
     </>
   );
 }

@@ -1,0 +1,13 @@
+.brand-logo__wordmark {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 52%, #a855f7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-logo__wordmark--on-dark {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  color: #ffffff;
+}

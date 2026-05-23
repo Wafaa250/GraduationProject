@@ -2,9 +2,12 @@
 export interface DoctorMeResponse {
   role: string;
   profileId: number;
+  userId: number;
   name: string;
   email: string;
   specialization?: string | null;
+  faculty?: string | null;
+  department?: string | null;
 }
 
 // ─── GET /api/doctors/me/supervised-projects ─────────────────────────────────
@@ -39,6 +42,7 @@ export type DoctorDashboardSection =
   | "overview"
   | "requests"
   | "projects"
+  | "recommendations"
   | "deleted"
   | "courses";
 
@@ -64,6 +68,7 @@ export type RequestRow =
       partnersCount: number;
       memberCount: number;
       teamMembers: RequestRowSupervisionTeamMember[];
+      createdAt: string;
     }
   | {
       kind: "cancellation";

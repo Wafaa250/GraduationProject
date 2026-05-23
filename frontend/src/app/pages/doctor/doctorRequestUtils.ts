@@ -46,6 +46,7 @@ export function mergeDoctorRequestRows(
           partnersCount: typeof p?.partnersCount === "number" ? p.partnersCount : 0,
           memberCount: typeof p?.memberCount === "number" ? p.memberCount : teamMembers.length,
           teamMembers,
+          createdAt: r.createdAt ?? "",
         };
       }),
     ...cancelRequests

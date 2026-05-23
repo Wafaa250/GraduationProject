@@ -150,5 +150,38 @@ namespace GraduationProject.API.Controllers
             return Ok(result);
         }
 
+        // =====================================================
+        // POST /api/auth/forgot-password
+        // =====================================================
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var message = await _authService.ForgotPasswordAsync(dto);
+            return Ok(new MessageResponseDto { Message = message });
+        }
+
+        // =====================================================
+        // POST /api/auth/reset-password
+        // =====================================================
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var (success, error) = await _authService.ResetPasswordAsync(dto);
+
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new MessageResponseDto
+            {
+                Message = "Your password has been reset successfully. You can sign in with your new password."
+            });
+        }
+
     }
 }

@@ -31,6 +31,7 @@ import { FollowingActivityCard } from '../../components/communities/feed/Followi
 import { SuggestedCommunityCard } from '../../components/communities/feed/SuggestedCommunityCard'
 import { feed, feedPageStyles } from './communitiesFeedStyles'
 import { hub } from './communitiesHubStyles'
+import { PublicPageNavBrand } from '../../components/brand/PublicPageNavBrand'
 import { publicOrgPage } from '../organizations/publicOrgPageStyles'
 import { assocDash } from '../association/dashboard/associationDashTokens'
 
@@ -210,9 +211,7 @@ export default function CommunitiesHubPage() {
             <ArrowLeft size={14} />
             Back
           </button>
-          <span style={publicOrgPage.logoText}>
-            Skill<span style={publicOrgPage.logoAccent}>Swap</span>
-          </span>
+          <PublicPageNavBrand />
         </div>
       </nav>
 

@@ -120,3 +120,38 @@ export async function markChatScopeRead(scope: string): Promise<void> {
     params: { category: "chat", scope },
   });
 }
+
+function sortNotificationsNewestFirst(
+  items: GraduationNotificationDto[],
+): GraduationNotificationDto[] {
+  return [...items].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
+/** Doctor inbox: graduation + course + organization_event (no chat). */
+export async function fetchDoctorInboxNotifications(take = 100): Promise<GraduationNotificationDto[]> {
+  const [grad, course, org] = await Promise.all([
+    fetchGraduationNotifications(take),
+    fetchCourseNotifications(take),
+    fetchOrganizationEventNotifications(take),
+  ]);
+  return sortNotificationsNewestFirst([...grad, ...course, ...org]);
+}
+
+export async function fetchDoctorInboxUnreadCount(): Promise<number> {
+  const [grad, course, org] = await Promise.all([
+    fetchUnreadGraduationNotificationCount(),
+    fetchUnreadCourseNotificationCount(),
+    fetchUnreadOrganizationEventNotificationCount(),
+  ]);
+  return grad + course + org;
+}
+
+export async function markAllDoctorInboxNotificationsRead(): Promise<void> {
+  await Promise.all([
+    markAllGraduationNotificationsRead(),
+    markAllCourseNotificationsRead(),
+    markAllOrganizationEventNotificationsRead(),
+  ]);
+}

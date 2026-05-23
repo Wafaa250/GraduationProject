@@ -1,393 +1,189 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Building2, BriefcaseBusiness, Mail, Linkedin, Clock3, ShieldCheck } from 'lucide-react'
-import { navigateHome } from '../../../utils/homeNavigation'
-import { apiClient } from '../../../api/client'
-import { parseApiErrorMessage } from '../../../api/axiosInstance'
-
-interface DoctorProfile {
-  userId: number
-  fullName: string
-  email: string
-  title: string
-  department: string
-  university: string
-  bio: string
-  faculty: string
-  specialization: string
-  yearsOfExperience: string
-  linkedin: string
-  officeHours: string
-  profilePictureBase64: string | null
-}
-type DoctorTab = 'about' | 'courses' | 'projects'
-type DoctorCourse = { id: number; name: string; code: string; semester: string }
-type DoctorProject = { id: number; name: string }
-
-function mapDoctorProfile(data: any): DoctorProfile {
-  const root = data?.doctor ?? data ?? {}
-  const user = root?.user ?? root?.User ?? root ?? {}
-  const dp = root?.doctorProfile ?? root?.DoctorProfile ?? {}
-
-  return {
-    userId: Number(user?.id ?? root?.userId ?? 0),
-    // Required mapping
-    fullName: user?.name ?? user?.fullName ?? '',
-    email: user?.email ?? '',
-    faculty: dp?.faculty ?? dp?.Faculty ?? '',
-    department: dp?.department ?? dp?.Department ?? '',
-    specialization: dp?.specialization ?? dp?.Specialization ?? '',
-    yearsOfExperience:
-      dp?.yearsOfExperience != null ? String(dp.yearsOfExperience) : '',
-    // Additional display fields
-    title: dp?.title ?? (user?.role?.toLowerCase?.() === 'doctor' ? 'Doctor' : 'Professor'),
-    university: dp?.university ?? dp?.University ?? user?.university ?? '',
-    bio: dp?.bio ?? user?.bio ?? '',
-    linkedin: dp?.linkedin ?? user?.linkedin ?? '',
-    officeHours: dp?.officeHours ?? dp?.OfficeHours ?? '',
-    profilePictureBase64: user?.profilePictureBase64 ?? dp?.profilePictureBase64 ?? null,
-  }
-}
-
-function displayValue(value?: string | null): string {
-  if (value == null) return '—'
-  const text = String(value).trim()
-  return text.length > 0 ? text : '—'
-}
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Loader2, MessageSquare, Pencil } from "lucide-react";
+import { apiClient } from "../../../api/client";
+import { parseApiErrorMessage } from "../../../api/axiosInstance";
+import { navigateHome } from "../../../utils/homeNavigation";
+import { DoctorHubPageHeader } from "../../components/doctor/hub/DoctorHubPageHeader";
+import {
+  DoctorProfileView,
+  type DoctorPublicCourse,
+  type DoctorPublicProject,
+} from "../../components/doctor/profile/DoctorProfileView";
+import { mapDoctorProfileFromApi, type DoctorProfileViewModel } from "./doctorProfileMappers";
+import { Button } from "../../components/ui/button";
+import { Alert, AlertDescription } from "../../components/ui/alert";
+import "./hub/doctor-hub-theme.css";
 
 export default function DoctorProfilePage() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { doctorId } = useParams<{ doctorId?: string }>()
-  const [profile, setProfile] = useState<DoctorProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<DoctorTab>('about')
-  const [publicCourses, setPublicCourses] = useState<DoctorCourse[]>([])
-  const [publicProjects, setPublicProjects] = useState<DoctorProject[]>([])
-  const mode: 'me' | 'public' = location.pathname === '/doctor/profile' ? 'me' : 'public'
-  const isPublic = mode === 'public'
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { doctorId } = useParams<{ doctorId?: string }>();
+  const [profile, setProfile] = useState<DoctorProfileViewModel | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [publicCourses, setPublicCourses] = useState<DoctorPublicCourse[]>([]);
+  const [publicProjects, setPublicProjects] = useState<DoctorPublicProject[]>([]);
 
-  const fetchProfile = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const endpoint =
-        mode === 'public' ? `/doctors/${doctorId}` : '/me'
-      const res = await apiClient.get(endpoint, {
-        headers: {
-          'Cache-Control': 'no-cache',
-          Pragma: 'no-cache',
-        },
-      })
-      const data = res.data
-      if (mode === 'public') {
-        console.log('Doctor public profile response:', data)
-      }
-      setProfile(mapDoctorProfile(data))
-      if (mode === 'public') {
-        const id = Number(doctorId)
-        const [coursesRes, projectsRes] = await Promise.allSettled([
-          apiClient.get('/courses', { params: { doctorId: id } }),
-          apiClient.get('/graduation-projects', { params: { doctorId: id } }),
-        ])
-        setPublicCourses(
-          coursesRes.status === 'fulfilled' && Array.isArray(coursesRes.value.data)
-            ? coursesRes.value.data.map((c: any) => ({
-                id: Number(c.courseId ?? c.id ?? 0),
-                name: c.name ?? 'Course',
-                code: c.code ?? '',
-                semester: c.semester ?? '',
-              }))
-            : [],
-        )
-        setPublicProjects(
-          projectsRes.status === 'fulfilled' && Array.isArray(projectsRes.value.data)
-            ? projectsRes.value.data.map((p: any) => ({
-                id: Number(p.id ?? p.projectId ?? 0),
-                name: p.name ?? p.title ?? 'Project',
-              }))
-            : [],
-        )
-      }
-    } catch (err: unknown) {
-      setError(parseApiErrorMessage(err) || 'Failed to load doctor profile.')
-      setPublicCourses([])
-      setPublicProjects([])
-    } finally {
-      setLoading(false)
-    }
-  }
+  const mode: "me" | "public" = location.pathname === "/doctor/profile" ? "me" : "public";
+  const isPublic = mode === "public";
 
   useEffect(() => {
-    if (mode === 'public') {
-      const id = Number(doctorId)
+    if (mode === "public") {
+      const id = Number(doctorId);
       if (!Number.isFinite(id) || id <= 0) {
-        setError('Invalid doctor profile link.')
-        setLoading(false)
-        return
+        setError("Invalid doctor profile link.");
+        setLoading(false);
+        return;
       }
     }
-    void fetchProfile()
-  }, [location.pathname, location.key, doctorId, mode])
 
-  const initials = useMemo(
-    () => (profile?.fullName || 'DR').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase(),
-    [profile?.fullName],
-  )
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const endpoint = mode === "public" ? `/doctors/${doctorId}` : "/me";
+        const res = await apiClient.get(endpoint, {
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+        });
+        setProfile(mapDoctorProfileFromApi(res.data));
+
+        if (mode === "public") {
+          const id = Number(doctorId);
+          const [coursesRes, projectsRes] = await Promise.allSettled([
+            apiClient.get("/courses", { params: { doctorId: id } }),
+            apiClient.get("/graduation-projects", { params: { doctorId: id } }),
+          ]);
+          setPublicCourses(
+            coursesRes.status === "fulfilled" && Array.isArray(coursesRes.value.data)
+              ? coursesRes.value.data.map((c: Record<string, unknown>) => ({
+                  id: Number(c.courseId ?? c.id ?? 0),
+                  name: String(c.name ?? "Course"),
+                  code: String(c.code ?? ""),
+                  semester: String(c.semester ?? ""),
+                }))
+              : [],
+          );
+          setPublicProjects(
+            projectsRes.status === "fulfilled" && Array.isArray(projectsRes.value.data)
+              ? projectsRes.value.data.map((p: Record<string, unknown>) => ({
+                  id: Number(p.id ?? p.projectId ?? 0),
+                  name: String(p.name ?? p.title ?? "Project"),
+                }))
+              : [],
+          );
+        }
+      } catch (err: unknown) {
+        setError(parseApiErrorMessage(err) || "Failed to load doctor profile.");
+        setPublicCourses([]);
+        setPublicProjects([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchProfile();
+  }, [location.pathname, location.key, doctorId, mode]);
 
   const handleMessage = () => {
-    if (!profile?.userId || profile.userId <= 0) return
-    navigate(`/messages?userId=${profile.userId}`)
-  }
+    if (!profile?.userId || profile.userId <= 0) return;
+    navigate(`/messages?userId=${profile.userId}`);
+  };
+
+  const loadingUi = (
+    <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm mt-3">Loading doctor profile…</p>
+    </div>
+  );
+
+  const errorUi = (
+    <div className="max-w-lg mx-auto">
+      <Alert variant="destructive">
+        <AlertDescription>{error || "Profile not found."}</AlertDescription>
+      </Alert>
+      <Button
+        variant="outline"
+        className="mt-4 gap-2"
+        onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+    </div>
+  );
+
+  const profileContent =
+    profile && !error ? (
+      <>
+        <DoctorHubPageHeader
+          title={isPublic ? profile.fullName : "Profile settings"}
+          description={
+            isPublic
+              ? "Public doctor profile"
+              : "How students and collaborators see you across SkillSwap."
+          }
+          actions={
+            isPublic ? (
+              <Button size="sm" onClick={handleMessage} className="gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Message
+              </Button>
+            ) : (
+              <Button size="sm" asChild className="gap-2">
+                <Link to="/doctor/edit-profile">
+                  <Pencil className="h-4 w-4" />
+                  Edit profile
+                </Link>
+              </Button>
+            )
+          }
+        />
+        <DoctorProfileView
+          profile={profile}
+          isPublic={isPublic}
+          publicCourses={publicCourses}
+          publicProjects={publicProjects}
+        />
+      </>
+    ) : null;
 
   if (loading) {
+    if (!isPublic) {
+      return loadingUi;
+    }
     return (
-      <div style={S.page}>
-        <div style={S.centerState}>
-          <div style={S.spinner} />
-          <p style={S.centerText}>Loading doctor profile...</p>
-        </div>
-      </div>
-    )
+      <div className="doctor-hub min-h-screen px-4 py-8 max-w-5xl mx-auto">{loadingUi}</div>
+    );
   }
 
   if (error || !profile) {
+    if (!isPublic) {
+      return errorUi;
+    }
     return (
-      <div style={S.page}>
-        <div style={S.centerState}>
-          <p style={S.errorText}>{error || 'Profile not found.'}</p>
-          <button style={S.backButton} onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))}>
-            <ArrowLeft size={14} /> Back
-          </button>
-        </div>
-      </div>
-    )
+      <div className="doctor-hub min-h-screen px-4 py-8 max-w-5xl mx-auto">{errorUi}</div>
+    );
+  }
+
+  if (!isPublic) {
+    return profileContent;
   }
 
   return (
-    <div style={S.page}>
-      <div style={S.decorTop} />
-      <div style={S.decorBottom} />
-
-      <nav style={S.nav}>
-        <div style={S.navInner}>
-          <button style={S.backButton} onClick={() => (isPublic ? navigate(-1) : navigateHome(navigate))}>
-            <ArrowLeft size={14} /> {isPublic ? 'Back' : 'Dashboard'}
-          </button>
-          {mode === 'me' ? (
-            <Link to="/doctor/edit-profile" style={S.editButton}>
-              Edit Doctor Profile
-            </Link>
-          ) : (
-            <button type="button" style={S.editButton} onClick={handleMessage}>Message</button>
-          )}
+    <div className="doctor-hub min-h-screen">
+      <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
+        <div className="max-w-5xl mx-auto h-14 px-4 flex items-center justify-between">
+          <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
         </div>
-      </nav>
-
-      <div style={S.container}>
-        <section style={S.heroCard}>
-          <div style={S.avatarWrap}>
-            {profile.profilePictureBase64 ? (
-              <img src={profile.profilePictureBase64} alt={profile.fullName} style={S.avatarImg} />
-            ) : (
-              <div style={S.avatarFallback}>
-                <span style={S.fallbackGlyph}>👨‍⚕️</span>
-                <span>{initials}</span>
-              </div>
-            )}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={S.roleBadge}>
-              <ShieldCheck size={12} /> Doctor
-            </div>
-            <h1 style={S.name}>{profile.fullName || 'Doctor'}</h1>
-            <p style={S.title}>{displayValue(profile.title)}</p>
-            <div style={S.heroMeta}>
-              <span style={S.metaBadge}>
-                <Building2 size={12} /> {displayValue(profile.department)}
-              </span>
-              <span style={S.metaBadgePurple}>
-                <BriefcaseBusiness size={12} /> {displayValue(profile.university)}
-              </span>
-            </div>
-            <p style={S.bio}>{displayValue(profile.bio)}</p>
-          </div>
-        </section>
-
-        {isPublic ? (
-          <section style={S.card}>
-            <div style={S.tabsRow}>
-              <button type="button" style={{ ...S.tabBtn, ...(activeTab === 'about' ? S.tabBtnActive : {}) }} onClick={() => setActiveTab('about')}>About</button>
-              <button type="button" style={{ ...S.tabBtn, ...(activeTab === 'courses' ? S.tabBtnActive : {}) }} onClick={() => setActiveTab('courses')}>Courses</button>
-              <button type="button" style={{ ...S.tabBtn, ...(activeTab === 'projects' ? S.tabBtnActive : {}) }} onClick={() => setActiveTab('projects')}>Projects</button>
-            </div>
-            {activeTab === 'about' && (
-              <div style={S.grid}>
-                <section style={S.card}>
-                  <h2 style={S.sectionTitle}>Academic Info</h2>
-                  <div style={S.infoGrid}>
-                    <InfoCell label="Faculty" value={displayValue(profile.faculty)} />
-                    <InfoCell label="Department" value={displayValue(profile.department)} />
-                    <InfoCell label="Specialization" value={displayValue(profile.specialization)} />
-                    <InfoCell label="Experience" value={profile.yearsOfExperience ? `${profile.yearsOfExperience} years` : '—'} />
-                  </div>
-                </section>
-                <section style={S.card}>
-                  <h2 style={S.sectionTitle}>Contact</h2>
-                  <div style={S.contactCol}>
-                    <ContactRow icon={<Mail size={14} />} label="Email" value={profile.email} />
-                    <ContactRow icon={<Linkedin size={14} />} label="LinkedIn" value={profile.linkedin} isLink />
-                    <ContactRow icon={<Clock3 size={14} />} label="Office Hours" value={profile.officeHours} />
-                  </div>
-                </section>
-              </div>
-            )}
-            {activeTab === 'courses' && (
-              <div style={S.card}>
-                <h2 style={S.sectionTitle}>Courses</h2>
-                {publicCourses.length === 0 ? (
-                  <p style={S.muted}>No courses listed.</p>
-                ) : (
-                  <div style={S.contactCol}>
-                    {publicCourses.map((course) => (
-                      <div key={`c-${course.id}`} style={S.contactRow}>
-                        <span style={S.contactValue}>{course.name}</span>
-                        <span style={S.contactLabel}>{course.code || '—'} {course.semester ? `· ${course.semester}` : ''}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {activeTab === 'projects' && (
-              <div style={S.card}>
-                <h2 style={S.sectionTitle}>Projects</h2>
-                {publicProjects.length === 0 ? (
-                  <p style={S.muted}>No supervised projects yet</p>
-                ) : (
-                  <div style={S.contactCol}>
-                    {publicProjects.map((project) => (
-                      <div key={`p-${project.id}`} style={S.contactRow}>
-                        <span style={S.contactValue}>{project.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-        ) : (
-        <div style={S.grid}>
-          <section style={S.card}>
-            <h2 style={S.sectionTitle}>Academic Info</h2>
-            <div style={S.infoGrid}>
-              <InfoCell label="Faculty" value={displayValue(profile.faculty)} />
-              <InfoCell label="Department" value={displayValue(profile.department)} />
-              <InfoCell label="Specialization" value={displayValue(profile.specialization)} />
-              <InfoCell
-                label="Experience"
-                value={profile.yearsOfExperience ? `${profile.yearsOfExperience} years` : '—'}
-              />
-            </div>
-          </section>
-
-          <section style={S.card}>
-            <h2 style={S.sectionTitle}>Contact</h2>
-            <div style={S.contactCol}>
-              <ContactRow icon={<Mail size={14} />} label="Email" value={profile.email} />
-              <ContactRow icon={<Linkedin size={14} />} label="LinkedIn" value={profile.linkedin} isLink />
-              <ContactRow icon={<Clock3 size={14} />} label="Office Hours" value={profile.officeHours} />
-            </div>
-          </section>
-        </div>
-        )}
-
-      </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </header>
+      <main className="px-4 py-6 md:py-8 max-w-5xl mx-auto">{profileContent}</main>
     </div>
-  )
-}
-
-function InfoCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={S.infoCell}>
-      <p style={S.infoLabel}>{label}</p>
-      <p style={S.infoValue}>{displayValue(value)}</p>
-    </div>
-  )
-}
-
-function ContactRow({
-  icon,
-  label,
-  value,
-  isLink = false,
-}: {
-  icon: ReactNode
-  label: string
-  value: string
-  isLink?: boolean
-}) {
-  if (!value || !String(value).trim()) return null
-  const href = value.startsWith('http') ? value : (isLink ? `https://${value}` : value)
-  return (
-    <div style={S.contactRow}>
-      <span style={S.contactLabel}>{icon} {label}</span>
-      {isLink ? (
-        <a href={href} target="_blank" rel="noopener noreferrer" style={S.contactLink}>
-          {value}
-        </a>
-      ) : (
-        <span style={S.contactValue}>{value}</span>
-      )}
-    </div>
-  )
-}
-
-const S: Record<string, CSSProperties> = {
-  page: { minHeight: '100vh', background: 'linear-gradient(160deg,#f8f7ff 0%,#f0f4ff 50%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative' },
-  decorTop: { position: 'fixed', top: -140, right: -150, width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(circle,rgba(99,102,241,0.1) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 },
-  decorBottom: { position: 'fixed', bottom: -120, left: -120, width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(circle,rgba(168,85,247,0.09) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 },
-  nav: { position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid rgba(99,102,241,0.12)', backdropFilter: 'blur(16px)', background: 'rgba(248,247,255,0.9)' },
-  navInner: { maxWidth: 1100, margin: '0 auto', height: 62, padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  backButton: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: '1px solid #dbe1f0', background: 'white', color: '#475569', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' },
-  editButton: { display: 'inline-flex', alignItems: 'center', padding: '10px 16px', borderRadius: 10, background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', textDecoration: 'none', fontSize: 13, fontWeight: 700, boxShadow: '0 6px 18px rgba(99,102,241,0.28)' },
-  container: { maxWidth: 1100, margin: '0 auto', padding: '26px 20px 56px', display: 'flex', flexDirection: 'column', gap: 18, position: 'relative', zIndex: 1 },
-  heroCard: { display: 'flex', gap: 22, alignItems: 'center', background: 'linear-gradient(135deg,#ffffff 0%,#f6f5ff 55%,#f3f7ff 100%)', border: '1px solid rgba(99,102,241,0.16)', borderRadius: 18, padding: '24px', boxShadow: '0 8px 24px rgba(99,102,241,0.08)', flexWrap: 'wrap' },
-  avatarWrap: { width: 124, height: 124, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 0 5px #eef2ff' },
-  avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
-  avatarFallback: { width: '100%', height: '100%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: 'white', fontWeight: 800, fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 },
-  fallbackGlyph: { fontSize: 24, lineHeight: 1 },
-  roleBadge: { display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8, borderRadius: 999, padding: '6px 12px', border: '1px solid #c7d2fe', background: '#eef2ff', color: '#4f46e5', fontSize: 12, fontWeight: 800, letterSpacing: '0.02em' },
-  name: { margin: '0 0 4px', fontSize: 28, fontWeight: 800, fontFamily: 'Syne, sans-serif' },
-  title: { margin: '0 0 10px', fontSize: 14, color: '#6366f1', fontWeight: 700 },
-  heroMeta: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  metaBadge: { display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#4f46e5', borderRadius: 999, padding: '5px 12px', fontSize: 12, fontWeight: 600 },
-  metaBadgePurple: { display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid #e9d5ff', background: '#faf5ff', color: '#7c3aed', borderRadius: 999, padding: '5px 12px', fontSize: 12, fontWeight: 600 },
-  bio: { margin: 0, fontSize: 14, color: '#64748b', lineHeight: 1.75 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 },
-  card: { background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(99,102,241,0.06)', padding: 18 },
-  sectionTitle: { margin: '0 0 14px', fontSize: 13, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' },
-  tabsRow: { display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, marginBottom: 12, borderBottom: '1px solid #e2e8f0' },
-  tabBtn: { border: 'none', background: 'transparent', color: '#64748b', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', whiteSpace: 'nowrap' },
-  tabBtnActive: { background: '#eef2ff', color: '#4f46e5' },
-  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 },
-  infoCell: { padding: '10px 12px', border: '1px solid #e5eaf4', borderRadius: 10, background: '#f8fafc' },
-  infoLabel: { margin: '0 0 4px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' },
-  infoValue: { margin: 0, fontSize: 13, color: '#0f172a', fontWeight: 700 },
-  contactCol: { display: 'flex', flexDirection: 'column', gap: 10 },
-  contactRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 12px', border: '1px solid #e5eaf4', borderRadius: 10, background: '#f8fafc', flexWrap: 'wrap' },
-  contactLabel: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', fontWeight: 700 },
-  contactValue: { fontSize: 13, color: '#334155', fontWeight: 600 },
-  contactLink: { fontSize: 13, color: '#4f46e5', textDecoration: 'none', fontWeight: 700 },
-  tagsRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  techTag: { borderRadius: 999, padding: '6px 12px', border: '1px solid #c7d2fe', background: '#eef2ff', color: '#4f46e5', fontSize: 12, fontWeight: 700 },
-  researchTag: { borderRadius: 999, padding: '6px 12px', border: '1px solid #e9d5ff', background: '#faf5ff', color: '#7c3aed', fontSize: 12, fontWeight: 700 },
-  centerState: { minHeight: '70vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  spinner: { width: 36, height: 36, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#6366f1', animation: 'spin 0.9s linear infinite' },
-  centerText: { margin: 0, color: '#64748b', fontWeight: 600 },
-  errorText: { margin: 0, color: '#dc2626', fontWeight: 700 },
-  muted: { margin: 0, fontSize: 13, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  );
 }

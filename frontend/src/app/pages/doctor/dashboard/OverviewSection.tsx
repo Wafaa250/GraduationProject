@@ -1,359 +1,325 @@
-import type { ReactNode } from "react";
-import { Briefcase, ClipboardList } from "lucide-react";
-import type { DashboardSummary } from "../../../../api/dashboardApi";
-import type { DoctorMeResponse } from "../doctorDashboardTypes";
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  ClipboardList,
+  Inbox,
+  Loader2,
+  PlusCircle,
+  UserCheck,
+  Users,
+  XCircle,
+} from "lucide-react";
+import { Button } from "../../../components/ui/button";
+import { Card, CardContent } from "../../../components/ui/card";
+import { DoctorHubPageHeader } from "../../../components/doctor/hub/DoctorHubPageHeader";
+import { formatDistanceToNow } from "date-fns";
+import type { DoctorSupervisedProject } from "../../../../api/doctorDashboardApi";
+import type { DoctorMeResponse, RequestRow } from "../doctorDashboardTypes";
+import { MemberAvatarStack } from "../../../components/doctor/supervision/MemberAvatarStack";
+import { DoctorHubEmptyState } from "../../../components/doctor/hub/DoctorHubEmptyState";
 import { SectionSpinner } from "./SectionSpinner";
-import { dash, card } from "./doctorDashTokens";
-import type { ProjectHighlight, SuggestionRow } from "./doctorDashboardHelpers";
-import ProfileLink from "../../../components/common/ProfileLink";
+import {
+  buildRecentActivity,
+  countActiveStudentsAcrossTeams,
+} from "./doctorDashboardHelpers";
+import { StatCard } from "./ui/StatCard";
+import { Badge } from "../../../components/ui/badge";
+import { RecentActivitySection } from "./ui/RecentActivitySection";
+import {
+  formatDoctorGreeting,
+  formatDepartmentLine,
+  formatHeroDiscipline,
+} from "./doctorDisplayCopy";
 
+/** Stats from GET /api/doctors/me/dashboard-summary */
 type DoctorStats = {
   pendingRequestsCount: number;
   supervisedCount: number;
+  pendingCancelCount: number;
 };
 
 type Props = {
+  /** GET /api/me */
   me: DoctorMeResponse;
-  summary: DashboardSummary | null;
   doctorStats: DoctorStats | null;
-  loading: boolean;
-  error: string | null;
-  highlight: ProjectHighlight | null;
-  suggestions: SuggestionRow[];
+  statsLoading: boolean;
+  statsError: string | null;
+  /** Pending rows from GET /api/doctors/me/requests + /supervisor-cancel-requests */
+  pendingPreview: RequestRow[];
+  pendingForActivity: RequestRow[];
+  /** GET /api/doctors/me/supervised-projects */
+  supervisedProjects: DoctorSupervisedProject[];
+  actionKey: string | null;
+  /** POST /api/supervisor-requests/{id}/accept|reject */
+  onSupervisionAction: (requestId: number, action: "accept" | "reject") => void;
+  onViewAllRequests: () => void;
+  onViewActiveTeams: () => void;
 };
+
+function formatRequestedAt(iso: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  return formatDistanceToNow(new Date(t), { addSuffix: true });
+}
+
+function teamLine(row: Extract<RequestRow, { kind: "supervision" }>): string {
+  const names = row.teamMembers.map((m) => m.name?.trim()).filter(Boolean);
+  const major = row.teamMembers.find((m) => m.major?.trim())?.major?.trim() ?? "";
+  const shown = names.slice(0, 3).join(", ");
+  const extra = names.length > 3 ? ` +${names.length - 3}` : "";
+  const dept = major || row.studentName || "";
+  return dept ? `${shown}${extra} · ${dept}` : `${shown}${extra}`;
+}
 
 export function OverviewSection({
   me,
-  summary,
   doctorStats,
-  loading,
-  error,
-  highlight,
-  suggestions,
+  statsLoading,
+  statsError,
+  pendingPreview,
+  pendingForActivity,
+  supervisedProjects,
+  actionKey,
+  onSupervisionAction,
+  onViewAllRequests,
+  onViewActiveTeams,
 }: Props) {
-  const displayName = me.name || summary?.name || "—";
+  const greeting = formatDoctorGreeting(me.name);
+  const heroDiscipline = formatHeroDiscipline(me.specialization, me.department, me.faculty);
+  const departmentLine = formatDepartmentLine(me.specialization, me.department, me.faculty);
 
-  if (loading && !summary && !error) {
-    return (
-      <div>
-        <p style={{ margin: "0 0 8px", fontSize: 13, color: dash.muted }}>
-          Overview
-        </p>
-        <h1
-          style={{
-            margin: "0 0 20px",
-            fontSize: 26,
-            fontWeight: 800,
-            fontFamily: dash.fontDisplay,
-          }}
-        >
-          {displayName}
-        </h1>
-        <SectionSpinner label="Loading dashboard summary…" />
-      </div>
-    );
+  const activeTeams = doctorStats?.supervisedCount ?? supervisedProjects.length;
+  const pendingRequests = doctorStats?.pendingRequestsCount ?? 0;
+  const cancelPending = doctorStats?.pendingCancelCount ?? 0;
+  const activeStudents = countActiveStudentsAcrossTeams(supervisedProjects);
+  const supervisionPreview = pendingPreview
+    .filter((r): r is Extract<RequestRow, { kind: "supervision" }> => r.kind === "supervision")
+    .slice(0, 3);
+
+  const recentActivity = buildRecentActivity(pendingForActivity, supervisedProjects, []);
+
+  if (statsLoading && !doctorStats && !statsError) {
+    return <SectionSpinner label="Loading dashboard…" />;
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <div>
-        <p
-          style={{
-            margin: "0 0 8px",
-            fontSize: 12,
-            fontWeight: 700,
-            color: dash.subtle,
-            letterSpacing: "0.08em",
-          }}
-        >
-          OVERVIEW
-        </p>
-        <h1
-          style={{
-            margin: "0 0 6px",
-            fontSize: 28,
-            fontWeight: 800,
-            fontFamily: dash.fontDisplay,
-            color: dash.text,
-          }}
-        >
-          {displayName}
-        </h1>
-        <p style={{ margin: 0, fontSize: 14, color: dash.muted }}>
-          {me.specialization ? `${me.specialization} · ` : null}
-          {summary?.university ?? ""}
-        </p>
-      </div>
+  const firstName = me.name.trim().split(/\s+/)[0] ?? "Doctor";
 
-      {error && !summary ? (
-        <div
-          style={{
-            padding: "14px 16px",
-            borderRadius: dash.radiusMd,
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            color: "#991b1b",
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          {error}
+  return (
+    <div className="space-y-6">
+      <DoctorHubPageHeader
+        eyebrow="Doctor workspace"
+        title={`Welcome back, ${firstName}`}
+        description="Manage your courses, generate balanced teams, and review supervision activity."
+        actions={
+          <Button asChild>
+            <Link to="/courses/create">
+              <PlusCircle className="h-4 w-4 mr-2" />
+              New course
+            </Link>
+          </Button>
+        }
+      />
+
+      {statsError ? (
+        <div className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm font-medium">
+          {statsError}
         </div>
       ) : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 14,
-        }}
-      >
-        <StatCard
-          icon={<ClipboardList size={18} />}
-          label="Pending requests"
-          value={
-            loading
-              ? "…"
-              : doctorStats != null
-                ? String(doctorStats.pendingRequestsCount)
-                : "—"
-          }
-          accent
-        />
-        <StatCard
-          icon={<Briefcase size={18} />}
-          label="Supervised projects"
-          value={
-            loading
-              ? "…"
-              : doctorStats != null
-                ? String(doctorStats.supervisedCount)
-                : "—"
-          }
-        />
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-          gap: 20,
-        }}
-      >
-        <div style={{ ...card, padding: 20 }} className="dd-overview-card">
-          <h2
-            style={{
-              margin: "0 0 14px",
-              fontSize: 12,
-              fontWeight: 700,
-              color: dash.subtle,
-              letterSpacing: "0.06em",
-            }}
-          >
-            PROJECT SUMMARY
-          </h2>
-          {loading && !highlight ? (
-            <SectionSpinner label="Loading project context…" />
-          ) : !highlight ? (
-            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-              No active project in your dashboard summary yet.
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 18,
-                  fontWeight: 800,
-                  fontFamily: dash.fontDisplay,
-                }}
-              >
-                {highlight.name}
-              </p>
-              <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                Role: <strong style={{ color: dash.text }}>{highlight.role}</strong>
-              </p>
-              <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                Members: {highlight.memberCount} / {highlight.maxTeamSize} ·{" "}
-                {highlight.isFull ? "Full" : "Not full"}
-              </p>
+      {pendingRequests > 0 ? (
+        <Card className="mb-6 border-primary/30 bg-accent/50">
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="font-medium text-foreground">
+                {pendingRequests} pending supervision request{pendingRequests === 1 ? "" : "s"}
+              </div>
+              <div className="text-sm text-muted-foreground mt-0.5">
+                {heroDiscipline ? departmentLine : greeting}
+              </div>
             </div>
-          )}
-        </div>
+            <Button type="button" variant="outline" onClick={onViewAllRequests}>
+              Review requests
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
-        <div style={{ ...card, padding: 20 }} className="dd-overview-card">
-          <h2
-            style={{
-              margin: "0 0 14px",
-              fontSize: 12,
-              fontWeight: 700,
-              color: dash.subtle,
-              letterSpacing: "0.06em",
-            }}
-          >
-            SUGGESTED TEAMMATES
-          </h2>
-          {loading && suggestions.length === 0 && !error ? (
-            <SectionSpinner label="Loading suggestions…" />
-          ) : suggestions.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-              No teammate suggestions in the current summary.
-            </p>
-          ) : (
-            <ul
-              style={{
-                listStyle: "none",
-                margin: 0,
-                padding: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              {suggestions.map((s) => (
-                <li
-                  key={s.userId}
-                  style={{
-                    ...card,
-                    padding: "14px 16px",
-                    boxShadow: "none",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                  }}
-                  className="dd-suggest-card"
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      alignItems: "flex-start",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <ProfileLink
-                        userId={s.userId}
-                        role="student"
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: dash.accent,
-                          textDecoration: "none",
-                        }}
-                      >
-                        {s.name}
-                      </ProfileLink>
-                      <p style={{ margin: "4px 0 0", fontSize: 12, color: dash.muted }}>
-                        {s.major}
-                        {s.university ? ` · ${s.university}` : ""}
-                      </p>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 800,
-                        padding: "4px 10px",
-                        borderRadius: 20,
-                        background: dash.accentMuted,
-                        color: dash.accent,
-                        flexShrink: 0,
-                      }}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <StatCard
+          icon={Users}
+          label="Active teams"
+          value={statsLoading && doctorStats == null ? "…" : String(activeTeams)}
+          to="/doctor-dashboard?section=projects"
+        />
+        <StatCard
+          icon={Inbox}
+          label="Pending requests"
+          value={statsLoading && doctorStats == null ? "…" : String(pendingRequests)}
+          to="/doctor-dashboard?section=requests"
+        />
+        <StatCard
+          icon={ClipboardList}
+          label="Cancel requests"
+          value={statsLoading && doctorStats == null ? "…" : String(cancelPending)}
+          to="/doctor-dashboard?section=requests"
+        />
+        <StatCard
+          icon={UserCheck}
+          label="Active students"
+          value={
+            statsLoading && supervisedProjects.length === 0 && doctorStats == null
+              ? "…"
+              : String(activeStudents)
+          }
+          hint={activeStudents > 0 ? "Across supervised teams" : undefined}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-base font-semibold text-foreground m-0">
+                  Recent supervision requests
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1 mb-0">
+                  Pending requests from student teams
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={onViewAllRequests} className="shrink-0">
+                View all
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+
+            {supervisionPreview.length === 0 ? (
+              <DoctorHubEmptyState
+                icon={Inbox}
+                title="No pending supervision requests"
+                description="New requests from student teams will appear here."
+                action={
+                  <Button type="button" size="sm" onClick={onViewAllRequests}>
+                    Open inbox
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="space-y-3">
+                {supervisionPreview.map((row) => {
+                  const acceptKey = `sup-${row.requestId}-accept`;
+                  const rejectKey = `sup-${row.requestId}-reject`;
+                  const acceptLoading = actionKey === acceptKey;
+                  const rejectLoading = actionKey === rejectKey;
+                  const abstract = row.projectAbstract?.trim() ?? "";
+                  const skills = row.requiredSkills.slice(0, 6);
+                  const requestedLabel = formatRequestedAt(row.createdAt);
+                  const teamNames = row.teamMembers.map((m) => m.name?.trim()).filter(Boolean);
+
+                  return (
+                    <div
+                      key={row.requestId}
+                      className="rounded-lg border border-border bg-muted/30 p-4 space-y-3"
                     >
-                      {s.matchScore}% match
-                    </span>
-                  </div>
-                  {s.skills.length > 0 ? (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {s.skills.slice(0, 8).map((sk, i) => (
-                        <span
-                          key={`${s.userId}-sk-${i}`}
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            padding: "4px 8px",
-                            borderRadius: 8,
-                            background: dash.bg,
-                            color: dash.muted,
-                            border: `1px solid ${dash.border}`,
-                          }}
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground">{row.projectName || "—"}</div>
+                        <p className="text-xs text-muted-foreground mt-1 mb-0">{teamLine(row)}</p>
+                        {teamNames.length > 0 ? (
+                          <div className="mt-2">
+                            <MemberAvatarStack names={teamNames} max={4} />
+                          </div>
+                        ) : null}
+                        {abstract ? (
+                          <p className="text-sm text-muted-foreground mt-2 mb-0 line-clamp-3">
+                            {abstract.length > 220 ? `${abstract.slice(0, 220).trim()}…` : abstract}
+                          </p>
+                        ) : null}
+                        {skills.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {skills.map((s) => (
+                              <Badge key={s} variant="outline" className="text-[10px] font-normal">
+                                {s}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
+                        {requestedLabel ? (
+                          <p className="text-[11px] text-muted-foreground mt-2 mb-0">
+                            Requested {requestedLabel}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={actionKey != null}
+                          onClick={() => onSupervisionAction(row.requestId, "accept")}
                         >
-                          {sk}
-                        </span>
-                      ))}
+                          {acceptLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <CheckCircle2 className="h-4 w-4 mr-1" />
+                          )}
+                          Accept
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={actionKey != null}
+                          onClick={() => onSupervisionAction(row.requestId, "reject")}
+                        >
+                          {rejectLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <XCircle className="h-4 w-4 mr-1" />
+                          )}
+                          Reject
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" onClick={onViewAllRequests}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          Details
+                        </Button>
+                      </div>
                     </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      <style>{`
-        .dd-suggest-card:hover { box-shadow: ${dash.shadowLg}; }
-        .dd-overview-card { transition: box-shadow 0.18s ease; }
-        .dd-overview-card:hover { box-shadow: ${dash.shadowLg}; }
-        .dd-stat-hover { transition: transform 0.15s ease, box-shadow 0.15s ease; }
-        .dd-stat-hover:hover { transform: translateY(-2px); box-shadow: ${dash.shadowLg}; }
-      `}</style>
-    </div>
-  );
-}
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-function StatCard({
-  icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        ...card,
-        padding: "16px 18px",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 12,
-      }}
-      className="dd-stat-hover"
-    >
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 10,
-          background: accent ? dash.accentMuted : "transparent",
-          border: accent ? "none" : `1px solid ${dash.border}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: dash.accent,
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 22,
-            fontWeight: 800,
-            fontFamily: dash.fontDisplay,
-            color: dash.text,
-          }}
-        >
-          {value}
-        </p>
-        <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 600, color: dash.muted }}>
-          {label}
-        </p>
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h2 className="text-base font-semibold text-foreground m-0">Supervised teams</h2>
+                <Button type="button" variant="ghost" size="sm" onClick={onViewActiveTeams}>
+                  View all
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+              {supervisedProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground m-0">No active supervisions yet.</p>
+              ) : (
+                <ul className="space-y-2 m-0 p-0 list-none">
+                  {supervisedProjects.slice(0, 4).map((p) => (
+                    <li key={p.projectId} className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">{p.name}</span>
+                      {" · "}
+                      {p.memberCount} member{p.memberCount === 1 ? "" : "s"}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <RecentActivitySection items={recentActivity} />
+        </div>
       </div>
     </div>
   );

@@ -1,413 +1,378 @@
-import type { CSSProperties } from "react";
-import { useMemo, useState } from "react";
-import { ArrowLeft, Plus, Trash2, Users } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
-
-type TeamMember = {
-    id: number;
-    name: string;
-};
-
-const teamMembersSeed: Record<number, TeamMember[]> = {
-    1: [
-        { id: 1, name: "Mohammad" },
-        { id: 2, name: "Ahmad" },
-    ],
-    2: [
-        { id: 3, name: "Sara" },
-        { id: 4, name: "Lina" },
-    ],
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Loader2, MessageCircle, Plus, Trash2, Users } from "lucide-react";
+import {
+  addDoctorTeamMember,
+  getDoctorCourseEnrolledStudents,
+  getDoctorCourseProjects,
+  getDoctorTeamByIndex,
+  openCourseTeamConversation,
+  removeDoctorTeamMember,
+  type DoctorCourseEnrolledStudent,
+  type DoctorProjectTeam,
+} from "../../../api/doctorCoursesApi";
+import { parseApiErrorMessage } from "../../../api/axiosInstance";
+import { useToast } from "../../../context/ToastContext";
+import { DoctorHubPageHeader } from "../../components/doctor/hub/DoctorHubPageHeader";
+import { DoctorSubpageLayout } from "../../components/doctor/hub/DoctorSubpageLayout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog";
+import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+type TeamManagementLocationState = {
+  courseId?: number;
+  projectName?: string;
 };
 
 export default function TeamManagementPage() {
-    const navigate = useNavigate();
-    const { projectId, teamId } = useParams<{ projectId: string; teamId: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { projectId, teamId } = useParams<{ projectId: string; teamId: string }>();
+  const { showToast } = useToast();
 
-    const parsedTeamId = Number(teamId ?? 0);
-    const initialMembers = useMemo(() => teamMembersSeed[parsedTeamId] ?? [], [parsedTeamId]);
-    const [members, setMembers] = useState<TeamMember[]>(initialMembers);
-    const [showAddStudentModal, setShowAddStudentModal] = useState(false);
-    const [studentIdInput, setStudentIdInput] = useState("");
-    const [selectedStudent, setSelectedStudent] = useState("");
-    const mockStudents = [
-        { id: "121", name: "Ahmad" },
-        { id: "122", name: "Sara" },
-        { id: "123", name: "Lina" },
-    ];
+  const st = location.state as TeamManagementLocationState | null;
+  const backendCourseId =
+    typeof st?.courseId === "number" && st.courseId > 0 ? st.courseId : null;
+  const backendProjectId =
+    projectId && /^\d+$/.test(projectId) ? Number(projectId) : null;
+  const teamIndex =
+    teamId != null && /^\d+$/.test(teamId) ? Number(teamId) : null;
 
-    const handleRemoveMember = (memberId: number) => {
-        setMembers((prev) => prev.filter((member) => member.id !== memberId));
+  const [team, setTeam] = useState<DoctorProjectTeam | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [projectTitle, setProjectTitle] = useState(st?.projectName?.trim() ?? "Project");
+  const [addOpen, setAddOpen] = useState(false);
+  const [universityIdInput, setUniversityIdInput] = useState("");
+  const [selectedUniversityId, setSelectedUniversityId] = useState("");
+  const [enrolledStudents, setEnrolledStudents] = useState<DoctorCourseEnrolledStudent[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [removingStudentId, setRemovingStudentId] = useState<number | null>(null);
+  const [openingChat, setOpeningChat] = useState(false);
+
+  const teamsBackHref = useMemo(() => {
+    if (backendCourseId != null && backendProjectId != null) {
+      return `/courses/${backendCourseId}/projects/${backendProjectId}/teams`;
+    }
+    return "/doctor-dashboard?section=courses";
+  }, [backendCourseId, backendProjectId]);
+
+  const loadTeam = useCallback(async () => {
+    if (backendCourseId == null || backendProjectId == null || teamIndex == null) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [teamData, projects] = await Promise.all([
+        getDoctorTeamByIndex(backendCourseId, backendProjectId, teamIndex),
+        getDoctorCourseProjects(backendCourseId),
+      ]);
+      setTeam(teamData);
+      const meta = projects.find((p) => p.id === backendProjectId);
+      if (meta) {
+        setProjectTitle(meta.title.trim() || projectTitle);
+      }
+    } catch (err) {
+      showToast(parseApiErrorMessage(err), "error");
+      setTeam(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [backendCourseId, backendProjectId, teamIndex, showToast]);
+
+  useEffect(() => {
+    void loadTeam();
+  }, [loadTeam]);
+
+  useEffect(() => {
+    if (backendCourseId == null || !addOpen) return;
+    let cancelled = false;
+    getDoctorCourseEnrolledStudents(backendCourseId)
+      .then((list) => {
+        if (!cancelled) setEnrolledStudents(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
+  }, [backendCourseId, addOpen]);
 
-    const handleAddStudent = () => {
-        setShowAddStudentModal(true);
-    };
+  const handleAddMember = async () => {
+    if (backendCourseId == null || backendProjectId == null || teamIndex == null) return;
+    const typed = universityIdInput.trim();
+    const picked = selectedUniversityId.trim();
+    if (typed && picked) {
+      showToast("Use either university ID or the dropdown, not both.", "error");
+      return;
+    }
+    const universityId = typed || picked;
+    if (!universityId) {
+      showToast("Enter a university ID or select a student.", "error");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const updated = await addDoctorTeamMember(
+        backendCourseId,
+        backendProjectId,
+        teamIndex,
+        universityId,
+      );
+      setTeam(updated);
+      showToast("Member added.", "success");
+      setUniversityIdInput("");
+      setSelectedUniversityId("");
+      setAddOpen(false);
+    } catch (err) {
+      showToast(parseApiErrorMessage(err), "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-    const handleConfirmAddStudent = () => {
-        const typedId = studentIdInput.trim();
-        const pickedStudentId = selectedStudent.trim();
+  const handleRemoveMember = async (studentProfileId: number) => {
+    if (backendCourseId == null || backendProjectId == null || teamIndex == null) return;
+    setRemovingStudentId(studentProfileId);
+    try {
+      const updated = await removeDoctorTeamMember(
+        backendCourseId,
+        backendProjectId,
+        teamIndex,
+        studentProfileId,
+      );
+      setTeam(updated);
+      showToast("Member removed.", "success");
+    } catch (err) {
+      showToast(parseApiErrorMessage(err), "error");
+    } finally {
+      setRemovingStudentId(null);
+    }
+  };
 
-        if (typedId && pickedStudentId) {
-            alert("Please use only one option (ID or select).");
-            return;
-        }
+  const handleOpenChat = async () => {
+    if (!team?.teamId) return;
+    setOpeningChat(true);
+    try {
+      const { conversationId } = await openCourseTeamConversation(team.teamId);
+      navigate("/messages", { state: { conversationId } });
+    } catch (err) {
+      showToast(parseApiErrorMessage(err), "error");
+    } finally {
+      setOpeningChat(false);
+    }
+  };
 
-        if (!typedId && !pickedStudentId) {
-            alert("Please enter student ID or select a student.");
-            return;
-        }
+  const displayTeamNumber = teamIndex != null ? teamIndex + 1 : "—";
 
-        const pickedId = typedId || pickedStudentId;
-        const pickedFromList = mockStudents.find((student) => student.id === pickedId);
-        setMembers((prev) => {
-            const nextId = prev.reduce((max, current) => Math.max(max, current.id), 0) + 1;
-            return [
-                ...prev,
-                {
-                    id: nextId,
-                    name: pickedFromList?.name ?? `Student ${pickedId}`,
-                },
-            ];
-        });
-        console.log("Add student:", pickedId);
-        setStudentIdInput("");
-        setSelectedStudent("");
-        setShowAddStudentModal(false);
-    };
-
+  if (backendCourseId == null || backendProjectId == null || teamIndex == null) {
     return (
-        <div style={S.page}>
-            <div style={S.container}>
-                <button
-                    type="button"
-                    onClick={() => navigate(`/doctor/projects/${projectId}/teams`)}
-                    style={S.backBtn}
-                >
-                    <ArrowLeft size={16} />
-                    Back to teams
-                </button>
-
-                <header style={S.header}>
-                    <div>
-                        <h1 style={S.title}>Team Management</h1>
-                        <p style={S.subtitle}>
-                            Project #{projectId ?? "—"} - Team #{teamId ?? "—"}
-                        </p>
-                    </div>
-                    <button type="button" style={S.primaryBtn} onClick={handleAddStudent}>
-                        <Plus size={14} />
-                        Add Student
-                    </button>
-                </header>
-
-                <section style={S.card}>
-                    <div style={S.cardHead}>
-                        <h2 style={S.cardTitle}>Team Members</h2>
-                        <span style={S.countChip}>
-                            <Users size={12} />
-                            {members.length} members
-                        </span>
-                    </div>
-
-                    {members.length === 0 ? (
-                        <p style={S.empty}>No members in this team yet.</p>
-                    ) : (
-                        <div style={S.membersList}>
-                            {members.map((member) => (
-                                <div key={member.id} style={S.memberRow}>
-                                    <div style={S.memberLeft}>
-                                        <div style={S.avatar}>{member.name.charAt(0).toUpperCase()}</div>
-                                        <p style={S.memberName}>{member.name}</p>
-                                    </div>
-                                    <div style={S.actions}>
-                                        <button
-                                            type="button"
-                                            style={S.dangerBtn}
-                                            onClick={() => handleRemoveMember(member.id)}
-                                        >
-                                            <Trash2 size={13} />
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </section>
-            </div>
-            {showAddStudentModal ? (
-                <div style={S.modalOverlay}>
-                    <div style={S.modalCard}>
-                        <h3 style={S.modalTitle}>Add Student</h3>
-
-                        <input
-                            type="text"
-                            placeholder="Enter student ID"
-                            value={studentIdInput}
-                            onChange={(e) => setStudentIdInput(e.target.value)}
-                            disabled={selectedStudent !== ""}
-                            style={S.modalInput}
-                        />
-
-                        <div style={S.orText}>OR</div>
-
-                        <select
-                            value={selectedStudent}
-                            onChange={(e) => setSelectedStudent(e.target.value)}
-                            disabled={studentIdInput.trim() !== ""}
-                            style={S.modalInput}
-                        >
-                            <option value="">Select student</option>
-                            {mockStudents.map((student) => (
-                                <option key={student.id} value={student.id}>
-                                    {student.name}
-                                </option>
-                            ))}
-                        </select>
-
-                        <div style={S.modalActions}>
-                            <button
-                                type="button"
-                                style={S.modalCancelBtn}
-                                onClick={() => {
-                                    setShowAddStudentModal(false);
-                                    setStudentIdInput("");
-                                    setSelectedStudent("");
-                                }}
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                style={S.modalAddBtn}
-                                onClick={handleConfirmAddStudent}
-                            >
-                                Add
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
-        </div>
+      <DoctorSubpageLayout backTo="/doctor-dashboard?section=courses" backLabel="All courses">
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Open team management from a course project&apos;s teams page so course context is available.
+          </CardContent>
+        </Card>
+      </DoctorSubpageLayout>
     );
-}
+  }
 
-const S: Record<string, CSSProperties> = {
-    page: {
-        minHeight: "100vh",
-        background: "#f8fafc",
-        color: "#0f172a",
-        fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-        padding: "24px 28px 40px",
-    },
-    container: {
-        maxWidth: 980,
-        margin: "0 auto",
-    },
-    backBtn: {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 12px",
-        borderRadius: 10,
-        border: "1px solid #e2e8f0",
-        background: "#fff",
-        color: "#334155",
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: "pointer",
-        fontFamily: "inherit",
-    },
-    header: {
-        marginTop: 14,
-        border: "1px solid #e2e8f0",
-        borderRadius: 14,
-        background: "#fff",
-        padding: 18,
-        boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        flexWrap: "wrap",
-    },
-    title: { margin: 0, fontSize: 24, fontWeight: 800, color: "#1f2937" },
-    subtitle: { margin: "6px 0 0", fontSize: 13, color: "#64748b" },
-    primaryBtn: {
-        border: "none",
-        borderRadius: 10,
-        background: "linear-gradient(135deg,#7c3aed,#8b5cf6)",
-        color: "#fff",
-        fontSize: 12,
-        fontWeight: 700,
-        padding: "9px 12px",
-        cursor: "pointer",
-        fontFamily: "inherit",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-    },
-    card: {
-        marginTop: 16,
-        border: "1px solid #e2e8f0",
-        borderRadius: 14,
-        background: "#fff",
-        padding: 16,
-        boxShadow: "0 8px 22px rgba(15,23,42,0.05)",
-    },
-    cardHead: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 8,
-        marginBottom: 12,
-    },
-    cardTitle: { margin: 0, fontSize: 18, fontWeight: 800, color: "#0f172a" },
-    countChip: {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#6d28d9",
-        background: "#f3e8ff",
-        border: "1px solid #e9d5ff",
-        borderRadius: 999,
-        padding: "4px 8px",
-    },
-    empty: {
-        margin: 0,
-        color: "#64748b",
-        fontSize: 14,
-    },
-    membersList: {
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-    },
-    memberRow: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        border: "1px solid #e2e8f0",
-        borderRadius: 10,
-        background: "#f8fafc",
-        padding: "10px 12px",
-    },
-    memberLeft: {
-        minWidth: 0,
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-    },
-    avatar: {
-        width: 34,
-        height: 34,
-        borderRadius: "50%",
-        background: "#ddd6fe",
-        color: "#6d28d9",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 13,
-        fontWeight: 800,
-        flexShrink: 0,
-    },
-    memberName: { margin: 0, fontSize: 14, fontWeight: 600, color: "#1f2937" },
-    actions: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-    },
-    dangerBtn: {
-        border: "1px solid #fecaca",
-        borderRadius: 9,
-        background: "#fff1f2",
-        color: "#be123c",
-        fontSize: 12,
-        fontWeight: 700,
-        padding: "7px 10px",
-        cursor: "pointer",
-        fontFamily: "inherit",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-    },
-    modalOverlay: {
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.3)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        zIndex: 50,
-    },
-    modalCard: {
-        width: "100%",
-        maxWidth: 400,
-        borderRadius: 14,
-        border: "1px solid #e2e8f0",
-        background: "#fff",
-        padding: 20,
-        boxShadow: "0 16px 40px rgba(15,23,42,0.2)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-    },
-    modalTitle: {
-        margin: 0,
-        fontSize: 18,
-        fontWeight: 800,
-        color: "#111827",
-    },
-    modalInput: {
-        width: "100%",
-        border: "1px solid #cbd5e1",
-        borderRadius: 10,
-        padding: "10px 12px",
-        fontSize: 14,
-        color: "#0f172a",
-        fontFamily: "inherit",
-        boxSizing: "border-box",
-        background: "#fff",
-    },
-    orText: {
-        textAlign: "center",
-        color: "#94a3b8",
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: "0.04em",
-    },
-    modalActions: {
-        display: "flex",
-        justifyContent: "flex-end",
-        gap: 8,
-        marginTop: 4,
-    },
-    modalCancelBtn: {
-        border: "1px solid #e2e8f0",
-        borderRadius: 10,
-        background: "#fff",
-        color: "#334155",
-        fontSize: 13,
-        fontWeight: 700,
-        padding: "8px 12px",
-        cursor: "pointer",
-        fontFamily: "inherit",
-    },
-    modalAddBtn: {
-        border: "none",
-        borderRadius: 10,
-        background: "#7c3aed",
-        color: "#fff",
-        fontSize: 13,
-        fontWeight: 700,
-        padding: "8px 14px",
-        cursor: "pointer",
-        fontFamily: "inherit",
-    },
-};
+  return (
+    <DoctorSubpageLayout wide backTo={teamsBackHref} backLabel="Back to teams">
+      <DoctorHubPageHeader
+        eyebrow={projectTitle}
+        title={`Team ${displayTeamNumber}`}
+        description="Add or remove members and start a team conversation."
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!team?.teamId || openingChat}
+            onClick={() => void handleOpenChat()}
+            className="gap-2"
+          >
+            <MessageCircle className="h-4 w-4" />
+            {openingChat ? "Opening…" : "Team conversation"}
+          </Button>
+        }
+      />
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Members
+              <Badge variant="secondary" className="tabular-nums">
+                {team?.memberCount ?? 0}
+              </Badge>
+            </CardTitle>
+            <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add member
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {!team || team.members.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center m-0">
+                No members in this team yet.
+              </p>
+            ) : (
+              team.members.map((member) => (
+                <div
+                  key={member.studentId}
+                  className="flex items-center gap-3 rounded-lg border border-border p-3"
+                >
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                      {member.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <Link
+                      to={`/students/profile/${member.userId}`}
+                      className="text-sm font-medium hover:underline"
+                    >
+                      {member.name}
+                    </Link>
+                    {member.universityId ? (
+                      <p className="text-xs text-muted-foreground m-0 mt-0.5">
+                        {member.universityId}
+                      </p>
+                    ) : null}
+                    {member.skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {member.skills.slice(0, 4).map((sk) => (
+                          <Badge key={sk} variant="outline" className="text-[10px] font-normal">
+                            {sk}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={removingStudentId === member.studentId}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove {member.name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          They will be removed from this team.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => void handleRemoveMember(member.studentId)}
+                        >
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add member by university ID</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="uni-id">University ID</Label>
+              <Input
+                id="uni-id"
+                value={universityIdInput}
+                onChange={(e) => {
+                  setUniversityIdInput(e.target.value);
+                  if (e.target.value.trim()) setSelectedUniversityId("");
+                }}
+                placeholder="e.g. U20210001"
+                disabled={Boolean(selectedUniversityId)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center m-0">or</p>
+            <div className="space-y-2">
+              <Label>Enrolled student</Label>
+              <Select
+                value={selectedUniversityId || "__none__"}
+                onValueChange={(v) => {
+                  const id = v === "__none__" ? "" : v;
+                  setSelectedUniversityId(id);
+                  if (id) setUniversityIdInput("");
+                }}
+                disabled={Boolean(universityIdInput.trim())}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select student" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select student</SelectItem>
+                  {enrolledStudents
+                    .filter((s) => s.universityId)
+                    .map((s) => (
+                      <SelectItem key={s.studentId} value={s.universityId}>
+                        {s.name || s.universityId} ({s.universityId})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void handleAddMember()} disabled={submitting}>
+              {submitting ? "Adding…" : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DoctorSubpageLayout>
+  );
+}

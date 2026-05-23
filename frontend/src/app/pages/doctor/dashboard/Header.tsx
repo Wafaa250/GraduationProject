@@ -1,35 +1,42 @@
 import { Link } from "react-router-dom";
-import { LogOut, Menu, MessageCircle, Settings } from "lucide-react";
+import { LogOut, Menu, MessageSquare, Settings } from "lucide-react";
 import { dash } from "./doctorDashTokens";
+import { formatDoctorGreeting } from "./doctorDisplayCopy";
 import { GradProjectNotificationBell } from "../../../components/notifications/GradProjectNotificationBell";
 
 type Props = {
-  doctorName: string;
+  doctorName?: string | null;
   initials: string;
   onMenuClick: () => void;
   onLogout: () => void;
 };
 
 export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
+  const greeting = formatDoctorGreeting(doctorName);
   return (
     <header
       style={{
         flexShrink: 0,
-        height: 60,
-        padding: "0 16px 0 20px",
+        height: 64,
+        padding: "0 20px 0 24px",
         display: "flex",
         alignItems: "center",
         gap: 16,
         borderBottom: `1px solid ${dash.border}`,
-        background: dash.surface,
+        background: dash.headerBlur,
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
         fontFamily: dash.font,
-        boxShadow: "0 1px 0 rgba(15,23,42,0.04)",
+        position: "sticky",
+        top: 0,
+        zIndex: 40,
       }}
     >
       <button
         type="button"
         aria-label="Open menu"
         onClick={onMenuClick}
+        className="dd-header-menu-btn"
         style={{
           display: "none",
           alignItems: "center",
@@ -37,12 +44,11 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
           width: 40,
           height: 40,
           border: "none",
-          borderRadius: 10,
-          background: dash.bg,
-          color: dash.muted,
+          borderRadius: 12,
+          background: dash.accentMuted,
+          color: dash.accent,
           cursor: "pointer",
         }}
-        className="dd-header-menu-btn"
       >
         <Menu size={20} />
       </button>
@@ -51,18 +57,7 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
         <p
           style={{
             margin: 0,
-            fontSize: 11,
-            fontWeight: 700,
-            color: dash.subtle,
-            letterSpacing: "0.06em",
-          }}
-        >
-          DOCTOR WORKSPACE
-        </p>
-        <p
-          style={{
-            margin: "2px 0 0",
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: 800,
             color: dash.text,
             fontFamily: dash.fontDisplay,
@@ -71,11 +66,11 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
             whiteSpace: "nowrap",
           }}
         >
-          {doctorName}
+          {greeting}
         </p>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
         <GradProjectNotificationBell
           theme="doctor"
           bellButtonStyle={{
@@ -85,7 +80,7 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
             alignItems: "center",
             justifyContent: "center",
             border: "none",
-            borderRadius: 10,
+            borderRadius: 12,
             background: "transparent",
             color: dash.muted,
             cursor: "pointer",
@@ -93,35 +88,35 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
         />
         <Link
           to="/messages"
-          title="Messages"
+          title="Collaboration messages"
+          className="dd-header-icon-link"
           style={{
             width: 40,
             height: 40,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: 10,
+            borderRadius: 12,
             color: dash.muted,
             transition: "background 0.15s ease",
           }}
-          className="dd-header-icon-link"
         >
-          <MessageCircle size={18} />
+          <MessageSquare size={18} />
         </Link>
         <Link
           to="/settings"
           title="Settings"
+          className="dd-header-icon-link"
           style={{
             width: 40,
             height: 40,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: 10,
+            borderRadius: 12,
             color: dash.muted,
             transition: "background 0.15s ease",
           }}
-          className="dd-header-icon-link"
         >
           <Settings size={18} />
         </Link>
@@ -129,6 +124,7 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
           type="button"
           title="Sign out"
           onClick={onLogout}
+          className="dd-header-icon-btn"
           style={{
             width: 40,
             height: 40,
@@ -136,46 +132,36 @@ export function Header({ doctorName, initials, onMenuClick, onLogout }: Props) {
             alignItems: "center",
             justifyContent: "center",
             border: "none",
-            borderRadius: 10,
+            borderRadius: 12,
             background: "transparent",
             color: dash.muted,
             cursor: "pointer",
           }}
-          className="dd-header-icon-btn"
         >
           <LogOut size={18} />
         </button>
         <Link
           to="/doctor/profile"
-          title="Profile"
+          title="Expertise & profile"
           style={{
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
             borderRadius: "50%",
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "linear-gradient(135deg,#6366f1,#a855f7)",
+            background: dash.gradientPrimary,
             color: "#fff",
             fontSize: 12,
             fontWeight: 800,
             flexShrink: 0,
+            boxShadow: "0 4px 12px rgba(124, 58, 237, 0.35)",
           }}
         >
           {initials}
         </Link>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          .dd-header-menu-btn { display: flex !important; }
-        }
-        .dd-header-icon-link:hover, .dd-header-icon-btn:hover {
-          background: ${dash.bg} !important;
-          color: ${dash.text} !important;
-        }
-      `}</style>
     </header>
   );
 }

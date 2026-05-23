@@ -60,6 +60,7 @@ builder.Services.AddSignalR();
 // SERVICES
 // ===========================
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICompanyTalentMatchService, CompanyTalentMatchService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();

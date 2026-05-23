@@ -1,7 +1,69 @@
-import { Briefcase } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowRight, MessageSquare, Search, Users } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router-dom";
 import type { DoctorSupervisedProject } from "../../../../api/doctorDashboardApi";
+import { MemberAvatarStack } from "../../../components/doctor/supervision/MemberAvatarStack";
+import { DoctorHubEmptyState } from "../../../components/doctor/hub/DoctorHubEmptyState";
+import { DoctorHubPageHeader } from "../../../components/doctor/hub/DoctorHubPageHeader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../../components/ui/alert-dialog";
+import { Alert, AlertDescription } from "../../../components/ui/alert";
+import { Badge } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
+import { Card, CardContent } from "../../../components/ui/card";
+import { Input } from "../../../components/ui/input";
+import { Progress } from "../../../components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../components/ui/select";
 import { SectionSpinner } from "./SectionSpinner";
-import { dash, card } from "./doctorDashTokens";
+
+type TeamFilter = "all" | "full" | "recruiting" | "guidance";
+type SortKey = "fill" | "recent";
+
+function teamStatusLabel(p: DoctorSupervisedProject): { label: string; variant: "default" | "secondary" | "outline" } {
+  if (p.isFull) return { label: "Team full", variant: "secondary" };
+  if (p.memberCount === 0) return { label: "Needs guidance", variant: "outline" };
+  return { label: "Recruiting", variant: "default" };
+}
+
+function teamFilterMatch(p: DoctorSupervisedProject, filter: TeamFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "full") return p.isFull;
+  if (filter === "guidance") return p.memberCount === 0;
+  return !p.isFull && p.memberCount > 0;
+}
+
+function teamFillPercent(p: DoctorSupervisedProject): number {
+  if (!p.partnersCount) return 0;
+  return Math.min(100, Math.round((p.memberCount / p.partnersCount) * 100));
+}
+
+function formatLastActivity(iso: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "—";
+  return formatDistanceToNow(new Date(t), { addSuffix: true });
+}
+
+function memberNames(p: DoctorSupervisedProject): string[] {
+  const names: string[] = [];
+  if (p.owner?.name?.trim()) names.push(p.owner.name.trim());
+  return names;
+}
 
 type Props = {
   projects: DoctorSupervisedProject[];
@@ -9,20 +71,8 @@ type Props = {
   error: string | null;
   removingProjectId: number | null;
   onCancelSupervision: (project: DoctorSupervisedProject) => void;
+  onViewRequests?: () => void;
 };
-
-function formatCreatedAt(iso: string): string {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(d);
-  } catch {
-    return iso;
-  }
-}
 
 export function ProjectsSection({
   projects,
@@ -30,227 +80,193 @@ export function ProjectsSection({
   error,
   removingProjectId,
   onCancelSupervision,
+  onViewRequests,
 }: Props) {
+  const [search, setSearch] = useState("");
+  const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
+  const [sort, setSort] = useState<SortKey>("fill");
+
+  const list = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let rows = projects.filter((p) => {
+      if (!teamFilterMatch(p, teamFilter)) return false;
+      if (!q) return true;
+      const name = p.name?.toLowerCase() ?? "";
+      const owner = p.owner?.name?.toLowerCase() ?? "";
+      const skills = (p.requiredSkills ?? []).join(" ").toLowerCase();
+      return name.includes(q) || owner.includes(q) || skills.includes(q);
+    });
+    if (sort === "fill") {
+      rows = [...rows].sort((a, b) => teamFillPercent(b) - teamFillPercent(a));
+    } else {
+      rows = [...rows].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    }
+    return rows;
+  }, [projects, search, teamFilter, sort]);
+
   return (
-    <div>
-      <h2
-        style={{
-          margin: "0 0 18px",
-          fontSize: 13,
-          fontWeight: 700,
-          color: dash.subtle,
-          letterSpacing: "0.06em",
-        }}
-      >
-        MY PROJECTS
-      </h2>
-      <div style={{ ...card, padding: 0, overflow: "hidden" }}>
-        <div
-          style={{
-            padding: "16px 20px",
-            borderBottom: `1px solid ${dash.border}`,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <Briefcase size={18} color={dash.accent} />
-          <span style={{ fontSize: 15, fontWeight: 800, fontFamily: dash.fontDisplay }}>
-            Supervised projects
-          </span>
-          <span style={{ fontSize: 12, color: dash.muted, marginLeft: "auto" }}>
-            {projects.length} active
-          </span>
+    <div className="space-y-6">
+      <DoctorHubPageHeader
+        title="Active supervisions"
+        description="Track every team you are currently supervising."
+      />
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            type="search"
+            className="pl-9"
+            placeholder="Search project or team member…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search supervisions"
+          />
         </div>
-
-        {error ? (
-          <div style={{ padding: "16px 20px", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>
-            {error}
-          </div>
-        ) : null}
-
-        {loading ? (
-          <SectionSpinner label="Loading supervised projects…" />
-        ) : projects.length === 0 ? (
-          <div style={{ padding: "40px 24px", textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>
-              No supervised projects yet
-            </p>
-            <p style={{ margin: "10px 0 0", fontSize: 13, color: dash.subtle }}>
-              Accept a supervision request to see projects here.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {projects.map((project) => {
-              const removing = removingProjectId === project.projectId;
-              const statusLabel = project.isFull ? "Team full" : "Recruiting";
-              const skills = project.requiredSkills?.length ? project.requiredSkills : [];
-              const detailText = (
-                project.abstract ??
-                project.description ??
-                ""
-              ).trim();
-              return (
-                <div
-                  key={project.projectId}
-                  style={{
-                    padding: "20px 24px",
-                    borderBottom: `1px solid ${dash.border}`,
-                  }}
-                  className={
-                    removing ? "dd-myproj-row dd-myproj-fade-out" : "dd-myproj-row"
-                  }
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 16,
-                      flexWrap: "wrap",
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <div style={{ minWidth: 0, flex: "1 1 280px" }}>
-                      <p
-                        style={{
-                          margin: "0 0 10px",
-                          fontSize: 18,
-                          fontWeight: 800,
-                          fontFamily: dash.fontDisplay,
-                          color: dash.text,
-                        }}
-                      >
-                        {project.name}
-                      </p>
-                      <p style={{ margin: "0 0 10px", fontSize: 13, color: dash.muted, lineHeight: 1.5 }}>
-                        <span style={{ fontWeight: 700, color: dash.subtle }}>Description</span> ·{" "}
-                        {detailText || "—"}
-                      </p>
-                      {skills.length > 0 ? (
-                        <div style={{ margin: "0 0 12px" }}>
-                          <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: dash.subtle }}>
-                            REQUIRED SKILLS
-                          </p>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {skills.map((sk, i) => (
-                              <span
-                                key={`${project.projectId}-sk-${i}`}
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  padding: "4px 10px",
-                                  borderRadius: 8,
-                                  background: dash.bg,
-                                  color: dash.muted,
-                                  border: `1px solid ${dash.border}`,
-                                }}
-                              >
-                                {sk}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <p style={{ margin: "0 0 12px", fontSize: 12, color: dash.subtle }}>Required skills: —</p>
-                      )}
-                      <p style={{ margin: "0 0 6px", fontSize: 13, color: dash.muted }}>
-                        <span style={{ fontWeight: 700, color: dash.subtle }}>Members</span> ·{" "}
-                        {project.memberCount}
-                        {" · "}
-                        <span style={{ fontWeight: 700, color: dash.subtle }}>Partners capacity</span> ·{" "}
-                        {project.partnersCount}
-                      </p>
-                      <p style={{ margin: "0 0 10px", fontSize: 13, color: dash.muted }}>
-                        <span style={{ fontWeight: 700, color: dash.subtle }}>Owner</span> ·{" "}
-                        {project.owner?.name ?? "—"}
-                        {project.owner?.major ? ` · ${project.owner.major}` : ""}
-                        {project.owner?.university ? ` · ${project.owner.university}` : ""}
-                      </p>
-                      <p style={{ margin: "0 0 10px", fontSize: 12, color: dash.subtle }}>
-                        <span style={{ fontWeight: 700, color: dash.muted }}>Created</span> ·{" "}
-                        {formatCreatedAt(project.createdAt)}
-                      </p>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          padding: "6px 12px",
-                          borderRadius: 20,
-                          background: project.isFull ? "#dcfce7" : dash.accentMuted,
-                          color: project.isFull ? "#166534" : dash.accent,
-                        }}
-                      >
-                        {statusLabel}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-end",
-                        gap: 10,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        disabled={removingProjectId === project.projectId}
-                        onClick={() => onCancelSupervision(project)}
-                        style={{
-                          padding: "10px 16px",
-                          borderRadius: 10,
-                          border: "1.5px solid #fecaca",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: removingProjectId === project.projectId ? "wait" : "pointer",
-                          fontFamily: "inherit",
-                          background: dash.surface,
-                          color: dash.danger,
-                          opacity: removingProjectId === project.projectId ? 0.85 : 1,
-                          minWidth: 168,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 8,
-                        }}
-                      >
-                        {removing ? (
-                          <>
-                            <span
-                              style={{
-                                width: 14,
-                                height: 14,
-                                border: "2px solid #fecaca",
-                                borderTopColor: dash.danger,
-                                borderRadius: "50%",
-                                animation: "dd-spin 0.7s linear infinite",
-                              }}
-                            />
-                            Removing…
-                          </>
-                        ) : (
-                          "Cancel Supervision"
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <Select value={teamFilter} onValueChange={(v) => setTeamFilter(v as TeamFilter)}>
+          <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by team status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All teams</SelectItem>
+            <SelectItem value="full">Team full</SelectItem>
+            <SelectItem value="recruiting">Recruiting</SelectItem>
+            <SelectItem value="guidance">Needs guidance</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+          <SelectTrigger className="w-full sm:w-[200px]" aria-label="Sort supervisions">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fill">Sort: Team fill</SelectItem>
+            <SelectItem value="recent">Sort: Recently added</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <style>{`
-        @keyframes dd-spin { to { transform: rotate(360deg); } }
-        .dd-myproj-row:last-child { border-bottom: none !important; }
-        .dd-myproj-row:hover { background: #fafbfc; }
-        .dd-myproj-fade-out {
-          opacity: 0;
-          transform: translateX(20px);
-          transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-      `}</style>
+
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {loading ? (
+        <SectionSpinner label="Loading supervised teams…" />
+      ) : list.length === 0 ? (
+        <DoctorHubEmptyState
+          icon={Users}
+          title={projects.length === 0 ? "No supervised teams yet" : "No supervisions match"}
+          description={
+            projects.length === 0
+              ? "Accepted supervision requests will appear here."
+              : "Try clearing filters or adjusting your search."
+          }
+          action={
+            projects.length === 0 && onViewRequests ? (
+              <Button type="button" onClick={onViewRequests}>
+                View requests
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="grid md:grid-cols-2 gap-3">
+          {list.map((project) => {
+            const removing = removingProjectId === project.projectId;
+            const status = teamStatusLabel(project);
+            const skills = project.requiredSkills?.length ? project.requiredSkills : [];
+            const fill = teamFillPercent(project);
+            const names = memberNames(project);
+
+            return (
+              <Card
+                key={project.projectId}
+                className={`transition-opacity ${removing ? "opacity-50 pointer-events-none" : "hover:border-primary/40"}`}
+              >
+                <CardContent className="p-4 md:p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-foreground leading-snug m-0">{project.name}</h3>
+                    <Badge variant={status.variant}>{status.label}</Badge>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground m-0">
+                    {project.memberCount} member{project.memberCount === 1 ? "" : "s"}
+                    {names.length > 0 ? ` · led by ${names[0]}` : ""}
+                    {" · "}
+                    last updated {formatLastActivity(project.createdAt)}
+                  </p>
+
+                  {names.length > 0 ? <MemberAvatarStack names={names} max={4} /> : null}
+
+                  {skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {skills.slice(0, 5).map((sk) => (
+                        <Badge key={sk} variant="outline" className="text-[10px] font-normal">
+                          {sk}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {project.partnersCount > 0 ? (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Team fill</span>
+                        <span className="font-semibold text-foreground tabular-nums">{fill}%</span>
+                      </div>
+                      <Progress value={fill} className="h-2" />
+                    </div>
+                  ) : null}
+
+                  <div className="flex gap-2 pt-1">
+                    <Button asChild className="flex-1">
+                      <Link to={`/project/${project.projectId}`}>
+                        Open workspace
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="icon" asChild title="Messages">
+                      <Link to="/messages">
+                        <MessageSquare className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-muted-foreground hover:text-destructive"
+                        disabled={removing}
+                      >
+                        {removing ? "Ending supervision…" : "End supervision"}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>End supervision?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          You will no longer supervise &ldquo;{project.name}&rdquo;. Students will be
+                          notified.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onCancelSupervision(project)}>
+                          Confirm
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

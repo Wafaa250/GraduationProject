@@ -49,6 +49,11 @@ export const SKILLS_DATA: Record<SkillCategory, { roles: string[]; technicalSkil
       'DevOps Engineer',
       'QA Tester',
       'UI/UX Designer',
+      'Project Manager',
+      'Business Analyst',
+      'Product Designer',
+      'Data Engineer',
+      'Research Assistant',
       'Game Developer',
     ],
     technicalSkills: [

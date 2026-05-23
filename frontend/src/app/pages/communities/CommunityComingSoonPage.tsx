@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, CalendarDays, Megaphone } from 'lucide-react'
 import { hub } from '../organizations/organizationHubStyles'
+import { PublicPageNavBrand } from '../../components/brand/PublicPageNavBrand'
 import { publicOrgPage } from '../organizations/publicOrgPageStyles'
 import { assocDash } from '../association/dashboard/associationDashTokens'
 
@@ -22,9 +23,7 @@ export default function CommunityComingSoonPage({ title, subtitle, icon }: Props
             <ArrowLeft size={14} />
             Back
           </button>
-          <span style={publicOrgPage.logoText}>
-            Skill<span style={publicOrgPage.logoAccent}>Swap</span>
-          </span>
+          <PublicPageNavBrand />
         </div>
       </nav>
 

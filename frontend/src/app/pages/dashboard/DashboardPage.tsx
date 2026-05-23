@@ -24,6 +24,7 @@ import {
   Heart,
 } from "lucide-react";
 import { CommunitiesNavLink } from "../../components/navigation/CommunitiesNavLink";
+import { BrandLogo } from "../../components/brand/BrandLogo";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
 import {
   getDashboardSummary,
@@ -1809,22 +1810,7 @@ export default function DashboardPage() {
       {/* ── NAV ── */}
       <nav style={S.nav}>
         <div style={S.navInner}>
-          <Link to={getHomePath()} style={S.navLogo}>
-            <div style={S.logoIconWrap}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                  stroke="white"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <span style={S.logoText}>
-              Skill<span style={S.logoAccent}>Swap</span>
-            </span>
-          </Link>
+          <BrandLogo to={getHomePath()} size="sm" className="shrink-0" />
           <div style={S.searchWrap} ref={globalSearchWrapRef}>
             <Search size={14} style={S.searchIcon} />
             <input

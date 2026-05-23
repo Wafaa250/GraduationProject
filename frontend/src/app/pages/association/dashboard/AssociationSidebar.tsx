@@ -1,6 +1,7 @@
 import { CalendarDays, LayoutDashboard, Megaphone, User, UsersRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { AssociationAvatar } from '../../../components/association/associationBrand'
+import { BrandLogo } from '../../../components/brand/BrandLogo'
 import { assocDash } from './associationDashTokens'
 
 const NAV = [
@@ -97,16 +98,7 @@ export function AssociationSidebar({ mobileOpen, onCloseMobile, profile }: Props
               </p>
             </div>
           </div>
-          <span
-            style={{
-              fontFamily: assocDash.fontDisplay,
-              fontWeight: 800,
-              fontSize: 15,
-              color: assocDash.subtle,
-            }}
-          >
-            Skill<span style={{ color: assocDash.accent }}>Swap</span>
-          </span>
+          <BrandLogo to="/association/dashboard" size="xs" />
         </div>
 
         {NAV.map(({ to, label, icon: Icon, ...rest }) => {

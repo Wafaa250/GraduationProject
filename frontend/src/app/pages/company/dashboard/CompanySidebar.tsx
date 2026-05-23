@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Building2, LayoutDashboard, Sparkles } from 'lucide-react'
+import { BrandLogo } from '../../../components/brand/BrandLogo'
 import { coDash } from './companyDashTokens'
 
 const NAV = [
@@ -29,6 +30,7 @@ export function CompanySidebar({ companyName, onNavigate }: Props) {
       }}
     >
       <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${coDash.border}` }}>
+        <BrandLogo to="/company/dashboard" size="sm" className="mb-4" />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{

@@ -1,8 +1,19 @@
-import { useState, useRef, useEffect, ReactNode, ChangeEvent, type CSSProperties } from 'react'
+import { useState, useRef, useEffect, ReactNode, ChangeEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
-import { useUser } from "../../../context/UserContext"
+import { Eye, EyeOff, Mail, Lock, User, Sparkles, Users, GraduationCap } from 'lucide-react'
+import { useUser } from '../../../context/UserContext'
 import { registerStudent } from '../../../api/authApi'
 import { navigateHome } from '../../../utils/homeNavigation'
+import { RegistrationLayout } from '../../components/registration/RegistrationLayout'
+import { FormSection, FieldGrid, RegField } from '../../components/registration/FormSection'
+import { TextInput, RegSelect } from '../../components/registration/Inputs'
+import { AlertError, AlertSuccess } from '../../components/registration/States'
+import { RegistrationStepFooter } from '../../components/registration/RegistrationStepFooter'
+import { RegistrationSuccess } from '../../components/registration/RegistrationSuccess'
+import { ProfilePhotoUpload } from '../../components/registration/ProfilePhotoUpload'
+import { ReviewGroup, ReviewItem } from '../../components/registration/Review'
+import type { RegistrationStep } from '../../components/registration/types'
 import {
   CUSTOM_SKILL_MAX_LENGTH,
   customSelections,
@@ -34,11 +45,19 @@ const MAJORS: Record<string, string[]> = {
   'Nursing': ['Nursing'],
   'Agriculture and Veterinary Medicine': ['Agriculture','Plant Production and Protection','Animal Production','Food Science and Technology','Veterinary Medicine'],
 }
-const STEPS = [
-  { id: 'account', label: 'Account', icon: '👤' },
-  { id: 'student', label: 'Student Info', icon: '🎓' },
-  { id: 'academic', label: 'Academic', icon: '📚' },
-  { id: 'skills', label: 'Skills', icon: '⚡' },
+const STEPS: RegistrationStep[] = [
+  { id: 'account', label: 'Account', hint: 'Email & password' },
+  { id: 'academic', label: 'Academic', hint: 'University & program' },
+  { id: 'skills', label: 'Skills & interests', hint: 'AI matching profile' },
+  { id: 'review', label: 'Review', hint: 'Confirm and submit' },
+]
+
+const ACADEMIC_YEARS = ['First Year', 'Second Year', 'Third Year', 'Fourth Year', 'Fifth Year']
+
+const STUDENT_HIGHLIGHTS = [
+  { icon: <Sparkles className="h-4 w-4" />, label: 'AI-powered matching', sub: 'Complementary skill suggestions' },
+  { icon: <GraduationCap className="h-4 w-4" />, label: 'Graduation project opportunities', sub: 'From faculty supervisors and industry partners' },
+  { icon: <Users className="h-4 w-4" />, label: 'Balanced team formation', sub: 'Roles, skills, and expertise' },
 ]
 
 const SKILLS_COLLAPSE_MAX_PX = 560
@@ -73,7 +92,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
   }, [])
 
   useEffect(() => {
-    if (step !== 3) return
+    if (step !== 2) return
     if (typeof window === 'undefined') return
     const narrow = window.innerWidth < SKILLS_COLLAPSE_MAX_PX
     setSkillPanelOpen({
@@ -139,17 +158,30 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
       if (!form.university) e.university = 'Please select your university'
       if (!form.faculty) e.faculty = 'Please select your faculty'
       if (!form.major) e.major = 'Please select your major'
+      if (!form.academicYear) e.academicYear = 'Please select your academic year'
+      if (form.gpa.trim() && (isNaN(parseFloat(form.gpa)) || parseFloat(form.gpa) < 0 || parseFloat(form.gpa) > 4))
+        e.gpa = 'GPA must be between 0.0 and 4.0'
     }
     if (step === 2) {
-      if (!form.academicYear) e.academicYear = 'Please select your academic year'
-      if (form.gpa.trim() && (isNaN(parseFloat(form.gpa)) || parseFloat(form.gpa) < 0 || parseFloat(form.gpa) > 4)) e.gpa = 'GPA must be between 0.0 and 4.0'
+      if (form.roles.length === 0) e.roles = 'Please select at least one team role'
     }
-    if (step === 3) { if (form.roles.length === 0) e.roles = 'Please select at least one team role' }
     setErrors(e); return Object.keys(e).length === 0
   }
 
-  const next = () => { if (validate()) setStep(s => s + 1) }
-  const back = () => setStep(s => s - 1)
+  const next = () => {
+    if (step === STEPS.length - 1) {
+      submit()
+      return
+    }
+    if (validate()) setStep((s) => s + 1)
+  }
+  const back = () => {
+    if (step === 0 && onBack) onBack()
+    else setStep((s) => Math.max(0, s - 1))
+  }
+  const goToStep = (i: number) => {
+    if (i < step) setStep(i)
+  }
   const submit = async () => {
     if (!validate()) return
     setIsLoading(true); setApiError(null)
@@ -195,122 +227,297 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
   const gpaColor = gpaVal>=3.5?'#10b981':gpaVal>=2.5?'#f59e0b':'#ef4444'
   const gpaLabel = gpaVal>=3.5?'Excellent':gpaVal>=2.5?'Good':'Needs Improvement'
 
-  if (submitted) return (
-    <div style={S.page}><Blobs />
-      <div style={S.successWrap}>
-        <div style={S.successIcon}><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="15" stroke="#6366f1" strokeWidth="2"/><path d="M9 16l5 5 9-9" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg></div>
-        <h2 style={S.successH2}>You're all set! 🎉</h2>
-        <p style={S.successP}>Welcome to SkillSwap, <strong style={{color:'#6366f1'}}>{form.fullName}</strong>! Our AI will match you with the best teammates.</p>
-        <div style={S.successStats}>
-          <div style={S.successStat}><span style={{...S.successNum,color:'#6366f1'}}>{form.roles.length}</span><span style={S.successLabel}>Roles</span></div>
-          <div style={S.successDivider}/>
-          <div style={S.successStat}><span style={{...S.successNum,color:'#a855f7'}}>{form.technicalSkills.length}</span><span style={S.successLabel}>Skills</span></div>
-          <div style={S.successDivider}/>
-          <div style={S.successStat}><span style={{...S.successNum,color:'#6366f1'}}>{form.tools.length}</span><span style={S.successLabel}>Tools</span></div>
-        </div>
-        <div style={{display:'flex',flexDirection:'column' as const,gap:10}}>
-          <button style={S.btnPrimary} onClick={()=>{sessionStorage.removeItem('selectedRole');navigate('/profile')}}>View My Profile →</button>
-          <button style={S.btnOutline} onClick={()=>{sessionStorage.removeItem('selectedRole');navigateHome(navigate)}}>Go to Dashboard</button>
-        </div>
-      </div>
-    </div>
-  )
+  const formTitles = [
+    'Create your student account',
+    'Academic profile',
+    'Skills & interests',
+    'Review and confirm',
+  ]
+  const formSubtitles = [
+    'Enter your details as they appear on university records. A university email address is recommended.',
+    'Provide your program information so SkillSwap can tailor skills and project recommendations.',
+    'Select roles, skills, and tools that reflect how you contribute on graduation projects.',
+    'Review your information before submitting your registration.',
+  ]
+
+  if (submitted) {
+    return (
+      <RegistrationSuccess
+        title="Registration complete"
+        description={
+          <>
+            Welcome to SkillSwap, <strong className="text-primary">{form.fullName}</strong>. Your profile is
+            ready—you can explore teammates and graduation project opportunities from your dashboard.
+          </>
+        }
+        stats={[
+          { label: 'Roles', value: form.roles.length },
+          { label: 'Technical skills', value: form.technicalSkills.length, color: '#a855f7' },
+          { label: 'Tools', value: form.tools.length },
+        ]}
+        primaryAction={{
+          label: 'View my profile',
+          onClick: () => {
+            sessionStorage.removeItem('selectedRole')
+            navigate('/profile')
+          },
+        }}
+        secondaryAction={{
+          label: 'Go to dashboard',
+          onClick: () => {
+            sessionStorage.removeItem('selectedRole')
+            navigateHome(navigate)
+          },
+        }}
+      />
+    )
+  }
 
   return (
-    <div style={S.page}><Blobs />
-      <div style={S.wrap}>
-        <div style={S.logoRow}>
-          <div style={S.logoIcon}><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg></div>
-          <span style={S.logoText}>Skill<span style={S.logoAccent}>Swap</span></span>
-        </div>
-
-        {onBack && <div style={{textAlign:'center' as const,marginBottom:16}}><button onClick={onBack} style={S.changeRoleBtn}>← Change role</button><span style={S.roleBadge}>Student</span></div>}
-
-        <div style={S.stepper}>
-          {STEPS.map((s,i) => (
-            <div key={s.id} style={{display:'flex',alignItems:'center'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <div style={{...S.stepDot,...(i===step?S.stepDotActive:i<step?S.stepDotDone:S.stepDotIdle)}}>
-                  {i<step?<span style={{fontSize:12,color:'white',fontWeight:900}}>✓</span>:<span style={{fontSize:11,fontWeight:700,color:i===step?'white':'#94a3b8'}}>{i+1}</span>}
-                </div>
-                <span style={{fontSize:12,fontWeight:600,color:i===step?'#1e293b':i<step?'#6366f1':'#94a3b8',whiteSpace:'nowrap' as const}}>{s.icon} {s.label}</span>
+    <RegistrationLayout
+      steps={STEPS}
+      current={step}
+      onJump={goToStep}
+      brandEyebrow="Student onboarding"
+      brandTitle={
+        <>
+          Find your team.
+          <br />
+          Complete your graduation project.
+        </>
+      }
+      brandDescription="Build your skill profile and discover compatible teammates, supervisors, and graduation project opportunities through AI-powered matching."
+      highlights={STUDENT_HIGHLIGHTS}
+      formTitle={formTitles[step]}
+      formSubtitle={formSubtitles[step]}
+      changeRole={
+        onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-sm font-medium text-primary hover:text-primary-deep"
+          >
+            ← Change account type
+          </button>
+        ) : (
+          <Link to="/register" className="text-sm font-medium text-primary hover:text-primary-deep">
+            ← Change account type
+          </Link>
+        )
+      }
+      footer={
+        <RegistrationStepFooter
+          step={step}
+          totalSteps={STEPS.length}
+          onBack={back}
+          onNext={next}
+          loading={isLoading}
+          isLastStep={step === STEPS.length - 1}
+          backLabel={step === 0 && onBack ? '← Back to account types' : 'Back'}
+          nextLabel={step === STEPS.length - 1 ? 'Create account' : 'Continue'}
+        />
+      }
+    >
+      {step === 0 && (
+        <>
+          <FormSection title="Personal information" description="As recorded by your university.">
+            <ProfilePhotoUpload
+              preview={form.profilePicPreview}
+              label="Profile photo"
+              hint="Optional · JPG or PNG · You can update this later in your profile"
+              onFile={(file) => handlePic({ target: { files: [file] } } as ChangeEvent<HTMLInputElement>)}
+            />
+            <RegField label="Full name" htmlFor="fullName" required error={errors.fullName}>
+              <TextInput
+                id="fullName"
+                invalid={!!errors.fullName}
+                leading={<User className="h-4 w-4" />}
+                placeholder="Mohammad Abdullah"
+                value={form.fullName}
+                onChange={(e) => set('fullName', e.target.value)}
+              />
+            </RegField>
+          </FormSection>
+          <FormSection title="Sign-in credentials" description="Used for account access and platform notifications.">
+            <RegField label="University email" htmlFor="email" required error={errors.email}>
+              <TextInput
+                id="email"
+                type="email"
+                autoComplete="email"
+                invalid={!!errors.email}
+                leading={<Mail className="h-4 w-4" />}
+                placeholder="you@university.edu"
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
+              />
+            </RegField>
+            <FieldGrid>
+              <RegField label="Password" htmlFor="password" required error={errors.password} hint="At least 8 characters, including a number and a symbol.">
+                <TextInput
+                  id="password"
+                  type={showPass ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  invalid={!!errors.password}
+                  leading={<Lock className="h-4 w-4" />}
+                  trailing={
+                    <button type="button" onClick={() => setShowPass((x) => !x)} className="text-muted-foreground">
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
+                  placeholder="Enter password"
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                />
+              </RegField>
+              <RegField label="Confirm password" htmlFor="confirmPassword" required error={errors.confirmPassword}>
+                <TextInput
+                  id="confirmPassword"
+                  type={showConfirm ? 'text' : 'password'}
+                  invalid={!!errors.confirmPassword}
+                  leading={<Lock className="h-4 w-4" />}
+                  trailing={
+                    <button type="button" onClick={() => setShowConfirm((x) => !x)} className="text-muted-foreground">
+                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
+                  placeholder="Confirm password"
+                  value={form.confirmPassword}
+                  onChange={(e) => set('confirmPassword', e.target.value)}
+                />
+              </RegField>
+            </FieldGrid>
+            {form.password.length > 0 && (
+              <div className="flex items-center gap-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-1 flex-1 rounded-full transition-colors"
+                    style={{ background: i < passScore ? passColors[passScore] : '#e2e8f0' }}
+                  />
+                ))}
+                <span className="text-xs font-semibold min-w-[44px]" style={{ color: passColors[passScore] }}>
+                  {passLabels[passScore]}
+                </span>
               </div>
-              {i<STEPS.length-1&&<div style={{width:32,height:2,margin:'0 8px',background:i<step?'linear-gradient(90deg,#6366f1,#a855f7)':'#e2e8f0',borderRadius:2}}/>}
-            </div>
-          ))}
-        </div>
+            )}
+          </FormSection>
+        </>
+      )}
 
-        <div style={S.card}>
-          {/* STEP 0 */}
-          {step===0&&<Section title="Account Information" sub="Create your SkillSwap account">
-            <div style={S.picRow}>
-              <div style={S.picCircle} onClick={()=>fileRef.current?.click()}>
-                {form.profilePicPreview?<img src={form.profilePicPreview} style={{width:'100%',height:'100%',objectFit:'cover' as const}} alt=""/>:<span style={{fontSize:26,color:'#cbd5e1'}}>+</span>}
-              </div>
-              <div><p style={{fontSize:13,fontWeight:600,color:'#475569',margin:'0 0 8px'}}>Profile Picture <span style={{color:'#94a3b8',fontWeight:400}}>(Optional)</span></p>
-                <button style={S.picBtn} onClick={()=>fileRef.current?.click()}>Upload Photo</button>
-                <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handlePic}/>
-              </div>
-            </div>
-            <Field label="Full Name" placeholder="Mohammad Abdullah" value={form.fullName} onChange={v=>set('fullName',v)} error={errors.fullName} required/>
-            <Field label="Email" placeholder="student@najah.edu" value={form.email} onChange={v=>set('email',v)} error={errors.email} required type="email"/>
-            <div style={S.row2}>
-              <Field label="Password" placeholder="Min. 8 characters" value={form.password} onChange={v=>set('password',v)} error={errors.password} required type={showPass?'text':'password'} suffix={<EyeBtn show={showPass} toggle={()=>setShowPass(x=>!x)}/>}/>
-              <Field label="Confirm Password" placeholder="Re-enter password" value={form.confirmPassword} onChange={v=>set('confirmPassword',v)} error={errors.confirmPassword} required type={showConfirm?'text':'password'} suffix={<EyeBtn show={showConfirm} toggle={()=>setShowConfirm(x=>!x)}/>}/>
-            </div>
-            {form.password&&<div style={{marginBottom:16}}><div style={{display:'flex',alignItems:'center',gap:6}}>{[0,1,2,3].map(i=><div key={i} style={{flex:1,height:4,borderRadius:2,background:i<passScore?passColors[passScore]:'#e2e8f0',transition:'background 0.3s'}}/>)}<span style={{fontSize:12,fontWeight:700,minWidth:44,color:passColors[passScore]}}>{passLabels[passScore]}</span></div></div>}
-          </Section>}
-
-          {/* STEP 1 */}
-          {step===1&&<Section title="Student Information" sub="Tell us about your university">
-            <div style={S.row2}>
-              <Field label="Student ID" placeholder="2021123456" value={form.studentId} onChange={v=>set('studentId',v)} error={errors.studentId} required/>
-              <Select label="University" value={form.university} onChange={handleUniversity} error={errors.university} required options={UNIVERSITIES} placeholder="Select your university"/>
-            </div>
-            <Select label="Faculty / College" value={form.faculty} onChange={handleFaculty} error={errors.faculty} required options={availableFaculties} placeholder={form.university?'Select your faculty':'Select a university first'} disabled={!form.university}/>
-            <Select label="Major / Department" value={form.major} onChange={handleMajor} error={errors.major} required options={availableMajors} placeholder={form.faculty?'Select your major':'Select a faculty first'} disabled={!form.faculty}/>
-          </Section>}
-
-          {/* STEP 2 */}
-          {step===2&&<Section title="Academic Information" sub="Your current academic standing">
-            <div style={{marginBottom:20}}>
-              <label style={S.label}>Academic Year <span style={{color:'#ef4444'}}>*</span></label>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8}}>
-                {['First Year','Second Year','Third Year','Fourth Year','Fifth Year'].map(y=>(
-                  <button key={y} style={{padding:'10px 4px',borderRadius:10,border:form.academicYear===y?'2px solid #6366f1':'2px solid #e2e8f0',background:form.academicYear===y?'#eef2ff':'white',color:form.academicYear===y?'#6366f1':'#64748b',fontSize:11,fontWeight:700,cursor:'pointer',transition:'all 0.2s',fontFamily:'inherit'}} onClick={()=>set('academicYear',y)}>{y}</button>
+      {step === 1 && (
+        <>
+          <FormSection title="Student and program" description="Used to tailor your skills catalog and project recommendations.">
+            <FieldGrid>
+              <RegField label="Student ID" htmlFor="studentId" required error={errors.studentId}>
+                <TextInput
+                  id="studentId"
+                  invalid={!!errors.studentId}
+                  placeholder="2021123456"
+                  value={form.studentId}
+                  onChange={(e) => set('studentId', e.target.value)}
+                />
+              </RegField>
+              <RegField label="University" htmlFor="university" required error={errors.university}>
+                <RegSelect
+                  id="university"
+                  invalid={!!errors.university}
+                  value={form.university}
+                  onChange={(e) => handleUniversity(e.target.value)}
+                >
+                  <option value="">Select your university</option>
+                  {UNIVERSITIES.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </RegSelect>
+              </RegField>
+            </FieldGrid>
+            <RegField label="Faculty / college" htmlFor="faculty" required error={errors.faculty}>
+              <RegSelect
+                id="faculty"
+                invalid={!!errors.faculty}
+                value={form.faculty}
+                disabled={!form.university}
+                onChange={(e) => handleFaculty(e.target.value)}
+              >
+                <option value="">{form.university ? 'Select faculty' : 'Select university first'}</option>
+                {availableFaculties.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </RegSelect>
+            </RegField>
+            <RegField label="Major / department" htmlFor="major" required error={errors.major}>
+              <RegSelect
+                id="major"
+                invalid={!!errors.major}
+                value={form.major}
+                disabled={!form.faculty}
+                onChange={(e) => handleMajor(e.target.value)}
+              >
+                <option value="">{form.faculty ? 'Select major' : 'Select faculty first'}</option>
+                {availableMajors.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </RegSelect>
+            </RegField>
+          </FormSection>
+          <FormSection title="Academic standing">
+            <RegField label="Academic year" required error={errors.academicYear}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                {ACADEMIC_YEARS.map((y) => (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => set('academicYear', y)}
+                    className={`rounded-lg border px-2 py-2.5 text-xs font-semibold transition ${
+                      form.academicYear === y
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-background text-muted-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    {y}
+                  </button>
                 ))}
               </div>
-              {errors.academicYear&&<span style={S.error}>{errors.academicYear}</span>}
-            </div>
-            <div style={{marginBottom:20}}>
-              <label style={S.label}>GPA <span style={{color:'#94a3b8',fontWeight:400,fontSize:12}}>(Optional)</span></label>
-              <input style={S.input} placeholder="e.g. 3.50" value={form.gpa} onChange={e=>{const val=e.target.value;if(val===''||(/^\d*\.?\d*$/.test(val)&&parseFloat(val)<=4))set('gpa',val)}}/>
-              {form.gpa&&!isNaN(gpaVal)&&<div style={{marginTop:8}}><div style={{height:6,background:'#f1f5f9',borderRadius:3,overflow:'hidden',marginBottom:4}}><div style={{height:'100%',width:`${gpaPct}%`,background:gpaColor,borderRadius:3,transition:'width 0.4s'}}/></div><span style={{fontSize:11,color:gpaColor,fontWeight:600}}>{gpaLabel}</span></div>}
-              {errors.gpa&&<span style={S.error}>{errors.gpa}</span>}
-            </div>
-          </Section>}
+            </RegField>
+            <RegField label="GPA (optional)" htmlFor="gpa" hint="Scale 0.0 – 4.0" error={errors.gpa}>
+              <TextInput
+                id="gpa"
+                placeholder="e.g. 3.50"
+                value={form.gpa}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val === '' || (/^\d*\.?\d*$/.test(val) && parseFloat(val) <= 4)) set('gpa', val)
+                }}
+              />
+            </RegField>
+          </FormSection>
+        </>
+      )}
 
-          {/* STEP 3 — NEW SKILLS STRUCTURE */}
-          {step===3&&<Section title="Your Skills" sub="Help the AI find the best team matches for you">
-            {!skillsData?(
-              <div style={{padding:16,background:'#fffbeb',border:'1px solid #fde68a',borderRadius:10,color:'#92400e',fontSize:13}}>
-                ⚠️ Please complete your faculty and major in Step 2 to see skills matched to your program.
-              </div>
-            ):(
-              <>
-                {skillsNarrow && (
-                  <div style={S.skillsSummaryBar}>
-                    <span style={{ fontWeight: 700, color: '#475569' }}>Selections</span>
-                    <span style={{ color: '#64748b' }}>
-                      Roles {form.roles.length} · Tech {form.technicalSkills.length} · Tools {form.tools.length}
-                    </span>
-                  </div>
-                )}
-                {/* Team roles (stored as roles / generalSkills for AI matching — not your major) */}
-                <SkillGroup
+      {step === 2 && (
+        <FormSection title="Your skills" description="These selections inform AI teammate and graduation project recommendations.">
+          {!skillsData ? (
+            <AlertError title="Complete your academic profile first">
+              Select your faculty and major to view skills aligned with your program.
+            </AlertError>
+          ) : (
+            <>
+              {skillsNarrow && (
+                <p className="text-xs text-muted-foreground rounded-lg border border-border bg-muted/30 px-3 py-2">
+                  Roles {form.roles.length} · Technical {form.technicalSkills.length} · Tools{' '}
+                  {form.tools.length}
+                </p>
+              )}
+              <SkillGroup
                   title="Team roles"
                   badge={`${form.roles.length} selected`}
-                  hint="How you usually contribute on projects (separate from your major)"
+                  hint="How you typically contribute on graduation projects (independent of your major)"
                   required
                   error={errors.roles}
                   collapsible={skillsNarrow}
@@ -335,9 +542,9 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
 
                 {/* Technical Skills */}
                 <SkillGroup
-                  title="Technical Skills"
+                  title="Technical skills"
                   badge={`${form.technicalSkills.length} selected`}
-                  hint="Select skills you're comfortable with"
+                  hint="Areas where you have practical experience"
                   collapsible={skillsNarrow}
                   expanded={skillPanelOpen.technicalSkills}
                   onToggle={() => setSkillPanelOpen(p => ({ ...p, technicalSkills: !p.technicalSkills }))}
@@ -366,9 +573,9 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
 
                 {/* Technologies & Tools */}
                 <SkillGroup
-                  title="Technologies & Tools"
+                  title="Technologies and tools"
                   badge={`${form.tools.length} selected`}
-                  hint="Languages, frameworks, and tools you use"
+                  hint="Languages, frameworks, and software you use in coursework or projects"
                   collapsible={skillsNarrow}
                   expanded={skillPanelOpen.tools}
                   onToggle={() => setSkillPanelOpen(p => ({ ...p, tools: !p.tools }))}
@@ -390,31 +597,41 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 </SkillGroup>
               </>
             )}
-          </Section>}
+        </FormSection>
+      )}
 
-          {apiError&&<div style={{marginTop:16,padding:'12px 16px',background:'#fef2f2',border:'1px solid #fca5a5',borderRadius:10,color:'#dc2626',fontSize:13,fontWeight:500}}>❌ {apiError}</div>}
-
-          <div style={S.navRow}>
-            {step>0?<button style={S.btnBack} onClick={back}>← Back</button>:<div/>}
-            <div style={{display:'flex',alignItems:'center',gap:14}}>
-              <span style={{fontSize:12,color:'#94a3b8',fontWeight:600}}>{step+1} / {STEPS.length}</span>
-              {step<STEPS.length-1
-                ?<button style={S.btnPrimary} onClick={next}>Continue →</button>
-                :<button style={{...S.btnPrimary,opacity:isLoading?0.7:1}} onClick={submit} disabled={isLoading}>{isLoading?'⏳ Creating...':'✦ Create Account'}</button>
-              }
-            </div>
-          </div>
+      {step === 3 && (
+        <div className="space-y-4">
+          <ReviewGroup title="Account" onEdit={() => setStep(0)}>
+            <ReviewItem label="Name" value={form.fullName} />
+            <ReviewItem label="Email" value={form.email} />
+          </ReviewGroup>
+          <ReviewGroup title="Academic" onEdit={() => setStep(1)}>
+            <ReviewItem label="Student ID" value={form.studentId} />
+            <ReviewItem label="University" value={form.university} />
+            <ReviewItem label="Faculty" value={form.faculty} />
+            <ReviewItem label="Major" value={form.major} />
+            <ReviewItem label="Year" value={form.academicYear} />
+            <ReviewItem label="GPA" value={form.gpa || '—'} />
+          </ReviewGroup>
+          <ReviewGroup title="Skills" onEdit={() => setStep(2)}>
+            <ReviewItem label="Team roles" value={form.roles.join(', ') || '—'} />
+            <ReviewItem label="Technical" value={form.technicalSkills.join(', ') || '—'} />
+            <ReviewItem label="Tools" value={form.tools.join(', ') || '—'} />
+          </ReviewGroup>
+          <AlertSuccess title="Ready to submit">
+            Select Create account to complete registration. You may update your profile at any time after signing in.
+          </AlertSuccess>
         </div>
+      )}
 
-        <p style={{textAlign:'center' as const,color:'#cbd5e1',fontSize:12,marginTop:24}}>SkillSwap · Academic Collaboration Platform</p>
-      </div>
-      <style>{`input::placeholder{color:#94a3b8;}input:focus,select:focus{outline:none;border-color:#6366f1!important;box-shadow:0 0 0 3px rgba(99,102,241,0.1);}button:hover{opacity:0.92;}`}</style>
-    </div>
+      {apiError ? (
+        <div className="mt-4">
+          <AlertError title="Registration failed">{apiError}</AlertError>
+        </div>
+      ) : null}
+    </RegistrationLayout>
   )
-}
-
-function Section({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
-  return <div><div style={{marginBottom:24}}><h3 style={{fontSize:20,fontWeight:800,color:'#0f172a',margin:'0 0 4px',fontFamily:'Syne, sans-serif'}}>{title}</h3><p style={{fontSize:13,color:'#64748b',margin:0}}>{sub}</p></div>{children}</div>
 }
 
 function SkillGroup({
@@ -493,7 +710,7 @@ function CustomSkillAddRow({
   return (
     <div style={{ marginTop: 12 }}>
       <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>
-        Other — not listed? Type and press Enter or Add (max {maxLen} characters).
+        Not listed below? Add a custom entry (up to {maxLen} characters), then select Add or press Enter.
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input

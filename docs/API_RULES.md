@@ -2,6 +2,8 @@
 
 ## 🔐 Auth
 POST /api/auth/login  
+POST /api/auth/forgot-password  
+POST /api/auth/reset-password  
 POST /api/auth/register/student  
 POST /api/auth/register/doctor  
 

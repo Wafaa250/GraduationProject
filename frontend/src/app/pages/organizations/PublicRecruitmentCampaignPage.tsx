@@ -12,6 +12,7 @@ import { PublicRecruitmentPositionCard } from '../../components/association/Publ
 import { AssociationAvatar } from '../../components/association/associationBrand'
 import { assocDash } from '../association/dashboard/associationDashTokens'
 import { formatEventDate } from '../association/events/eventFormUtils'
+import { PublicPageNavBrand } from '../../components/brand/PublicPageNavBrand'
 import { publicOrgPage } from './publicOrgPageStyles'
 
 export default function PublicRecruitmentCampaignPage() {
@@ -55,9 +56,7 @@ export default function PublicRecruitmentCampaignPage() {
             <ArrowLeft size={14} />
             Back
           </button>
-          <span style={publicOrgPage.logoText}>
-            Skill<span style={publicOrgPage.logoAccent}>Swap</span>
-          </span>
+          <PublicPageNavBrand />
         </div>
       </nav>
 

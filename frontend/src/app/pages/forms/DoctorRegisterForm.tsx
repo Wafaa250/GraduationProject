@@ -1,8 +1,16 @@
-import { useState, useRef, ChangeEvent, ReactNode, type CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, ChangeEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, Mail, Lock, User, GraduationCap, Users, BookOpen } from 'lucide-react'
 import api from '../../../api/axiosInstance'
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import { RegistrationLayout } from '../../components/registration/RegistrationLayout'
+import { FormSection, FieldGrid, RegField } from '../../components/registration/FormSection'
+import { TextInput, Textarea, RegSelect } from '../../components/registration/Inputs'
+import { AlertError } from '../../components/registration/States'
+import { RegistrationStepFooter } from '../../components/registration/RegistrationStepFooter'
+import { RegistrationSuccess } from '../../components/registration/RegistrationSuccess'
+import { ProfilePhotoUpload } from '../../components/registration/ProfilePhotoUpload'
+import { GhostButton } from '../../components/registration/States'
+import type { RegistrationStep } from '../../components/registration/types'
 
 const UNIVERSITIES = ['An-Najah National University (NNU)']
 
@@ -28,9 +36,21 @@ const SPECIALIZATIONS = [
   'Law', 'Education', 'Architecture', 'Environmental Science',
 ]
 
-const STEPS = [
-  { id: 'account', label: 'Account',     icon: '👤' },
-  { id: 'academic', label: 'Academic',   icon: '🎓' },
+const STEPS: RegistrationStep[] = [
+  { id: 'account', label: 'Account', hint: 'Email & password' },
+  { id: 'academic', label: 'Academic', hint: 'University & departments' },
+]
+
+const DOCTOR_HIGHLIGHTS = [
+  { icon: <GraduationCap className="h-4 w-4" />, label: 'Course channels', sub: 'Organize students by course' },
+  { icon: <Users className="h-4 w-4" />, label: 'Team oversight', sub: 'Guide graduation project teams' },
+  { icon: <BookOpen className="h-4 w-4" />, label: 'Project curation', sub: 'Publish graduation project ideas' },
+]
+
+const FORM_TITLES = ['Create your doctor account', 'Academic profile']
+const FORM_SUBTITLES = [
+  'Supervise teams and publish graduation projects on SkillSwap.',
+  'Tell us about your university position and departments.',
 ]
 
 interface FormState {
@@ -47,16 +67,13 @@ interface FormState {
   bio: string
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => void) | null }) {
-  const navigate  = useNavigate()
-  const fileRef   = useRef<HTMLInputElement>(null)
-  const [step, setStep]         = useState(0)
+  const navigate = useNavigate()
+  const [step, setStep] = useState(0)
   const [submitted, setSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [apiError, setApiError]   = useState<string | null>(null)
-  const [showPass, setShowPass]   = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
+  const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
   const [form, setForm] = useState<FormState>({
@@ -67,19 +84,22 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) => {
-    setForm(f => ({ ...f, [field]: value }))
-    setErrors(e => ({ ...e, [field]: '' }))
+    setForm((f) => ({ ...f, [field]: value }))
+    setErrors((e) => ({ ...e, [field]: '' }))
   }
 
   const handlePic = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return
+    const file = e.target.files?.[0]
+    if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => { if (ev.target?.result) set('profilePicPreview', ev.target.result as string) }
-    reader.readAsDataURL(file); set('profilePic', file)
+    reader.onload = (ev) => {
+      if (ev.target?.result) set('profilePicPreview', ev.target.result as string)
+    }
+    reader.readAsDataURL(file)
+    set('profilePic', file)
   }
 
-  const handleUniversity = (val: string) => setForm(f => ({ ...f, university: val, faculty: '' }))
-
+  const handleUniversity = (val: string) => setForm((f) => ({ ...f, university: val, faculty: '' }))
   const availableFaculties = form.university ? (FACULTIES[form.university] ?? []) : []
 
   const handleDepartmentChange = (index: number, value: string) => {
@@ -89,415 +109,309 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
     setErrors((err) => ({ ...err, departments: '' }))
   }
 
-  const addDepartment = () => {
-    setForm({ ...form, departments: [...form.departments, ''] })
-  }
-
+  const addDepartment = () => setForm({ ...form, departments: [...form.departments, ''] })
   const removeDepartment = (index: number) => {
-    const updated = form.departments.filter((_, i) => i !== index)
-    setForm({ ...form, departments: updated })
+    setForm({ ...form, departments: form.departments.filter((_, i) => i !== index) })
   }
 
   const validate = () => {
     const e: Record<string, string> = {}
     if (step === 0) {
-      if (!form.fullName.trim())   e.fullName = 'Full name is required'
-      if (!form.email.trim())      e.email    = 'Email is required'
+      if (!form.fullName.trim()) e.fullName = 'Full name is required'
+      if (!form.email.trim()) e.email = 'Email is required'
       else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Invalid email'
-      if (!form.password)          e.password = 'Password is required'
+      if (!form.password) e.password = 'Password is required'
       else if (form.password.length < 8) e.password = 'Min. 8 characters'
       if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match'
     }
     if (step === 1) {
-      if (!form.university)     e.university     = 'Please select university'
-      if (!form.faculty)        e.faculty        = 'Please select faculty'
+      if (!form.university) e.university = 'Please select university'
+      if (!form.faculty) e.faculty = 'Please select faculty'
       if (form.departments.some((d) => !d.trim())) e.departments = 'All departments are required'
       if (!form.specialization) e.specialization = 'Please select specialization'
     }
-    setErrors(e); return Object.keys(e).length === 0
+    setErrors(e)
+    return Object.keys(e).length === 0
   }
 
-  const next   = () => { if (validate()) setStep(s => s + 1) }
-  const back   = () => setStep(s => s - 1)
+  const next = () => {
+    if (step < STEPS.length - 1) {
+      if (validate()) setStep((s) => s + 1)
+    } else {
+      submit()
+    }
+  }
+
+  const back = () => {
+    if (step === 0 && onBack) onBack()
+    else setStep((s) => Math.max(0, s - 1))
+  }
 
   const submit = async () => {
     if (form.departments.some((d) => !d.trim())) {
-      alert('All departments are required')
+      setErrors((e) => ({ ...e, departments: 'All departments are required' }))
       return
     }
     if (!validate()) return
-    setIsLoading(true); setApiError(null)
+    setIsLoading(true)
+    setApiError(null)
     try {
       const payload = {
-        fullName:        form.fullName,
-        email:           form.email,
-        password:        form.password,
+        fullName: form.fullName,
+        email: form.email,
+        password: form.password,
         confirmPassword: form.confirmPassword,
-        university:      form.university,
-        faculty:         form.faculty,
-        department:      form.departments.join(', '),
-        specialization:  form.specialization,
-        bio:             form.bio,
+        university: form.university,
+        faculty: form.faculty,
+        department: form.departments.join(', '),
+        specialization: form.specialization,
+        bio: form.bio,
         profilePictureBase64: form.profilePicPreview,
         role: 'doctor',
       }
-
       const { data } = await api.post('/auth/register/doctor', payload)
-
       localStorage.setItem('token', data.token)
       localStorage.setItem('userId', data.userId.toString())
       localStorage.setItem('role', 'doctor')
       localStorage.setItem('name', data.name)
-
       setSubmitted(true)
-    } catch (err: any) {
-      setApiError(err.message || 'Something went wrong')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong'
+      setApiError(message)
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Password strength
-  const passChecks = [form.password.length >= 8, /[A-Z]/.test(form.password), /[0-9]/.test(form.password), /[^A-Za-z0-9]/.test(form.password)]
-  const passScore  = passChecks.filter(Boolean).length
-  const passColors = ['', '#ef4444', '#f59e0b', '#10b981', '#6366f1']
+  const passChecks = [
+    form.password.length >= 8,
+    /[A-Z]/.test(form.password),
+    /[0-9]/.test(form.password),
+    /[^A-Za-z0-9]/.test(form.password),
+  ]
+  const passScore = passChecks.filter(Boolean).length
+  const passBarColors = ['', 'bg-red-500', 'bg-amber-500', 'bg-emerald-500', 'bg-primary']
   const passLabels = ['', 'Weak', 'Fair', 'Good', 'Strong']
 
-  // ── Success screen ─────────────────────────────────────────────────────────
-  if (submitted) return (
-    <div style={S.page}><Blobs />
-      <div style={S.successWrap}>
-        <div style={S.successIcon}>
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="15" stroke="#3b82f6" strokeWidth="2"/>
-            <path d="M9 16l5 5 9-9" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <h2 style={S.successH2}>Welcome, Dr. {form.fullName.split(' ')[0]}! 🎓</h2>
-        <p style={S.successP}>Your account is ready. Start creating channels for your courses.</p>
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-          <button style={S.btnPrimary} onClick={() => navigate('/doctor-dashboard')}>
-            Go to Dashboard →
-          </button>
-          <button style={S.btnOutline} onClick={() => navigate('/login')}>
-            Sign In Instead
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+  if (submitted) {
+    return (
+      <RegistrationSuccess
+        title={`Welcome, Dr. ${form.fullName.split(' ')[0]}!`}
+        description="Your account is ready. Start creating channels for your courses."
+        primaryAction={{ label: 'Go to dashboard', onClick: () => navigate('/doctor-dashboard') }}
+        secondaryAction={{ label: 'Sign in instead', onClick: () => navigate('/login') }}
+      />
+    )
+  }
 
   return (
-    <div style={S.page}><Blobs />
-      <div style={S.wrap}>
-
-        {/* Logo */}
-        <div style={S.logoRow}>
-          <div style={S.logoIcon}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <span style={S.logoText}>Skill<span style={S.logoAccent}>Swap</span></span>
-        </div>
-
-        {/* Back + role badge */}
-        {onBack && (
-          <div style={{ textAlign: 'center' as const, marginBottom: 16 }}>
-            <button onClick={onBack} style={S.changeRoleBtn}>← Change role</button>
-            <span style={{ ...S.roleBadge, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb' }}>
-              Doctor / Supervisor
-            </span>
-          </div>
-        )}
-
-        {/* Stepper */}
-        <div style={S.stepper}>
-          {STEPS.map((s, i) => (
-            <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ ...S.stepDot, ...(i === step ? S.stepDotActive : i < step ? S.stepDotDone : S.stepDotIdle) }}>
-                  {i < step
-                    ? <span style={{ fontSize: 12, color: 'white', fontWeight: 900 }}>✓</span>
-                    : <span style={{ fontSize: 11, fontWeight: 700, color: i === step ? 'white' : '#94a3b8' }}>{i + 1}</span>
+    <RegistrationLayout
+      steps={STEPS}
+      current={step}
+      brandEyebrow="Doctor onboarding"
+      brandTitle={
+        <>
+          Guide teams.
+          <br />
+          Shape graduation projects.
+        </>
+      }
+      brandDescription="Create your supervisor profile so students can find your courses, channels, and published project ideas."
+      highlights={DOCTOR_HIGHLIGHTS}
+      formTitle={FORM_TITLES[step]}
+      formSubtitle={FORM_SUBTITLES[step]}
+      changeRole={
+        onBack ? (
+          <button type="button" onClick={onBack} className="text-sm font-medium text-primary hover:text-primary-deep">
+            ← Change account type
+          </button>
+        ) : (
+          <Link to="/register" className="text-sm font-medium text-primary hover:text-primary-deep">
+            ← Change account type
+          </Link>
+        )
+      }
+      footer={
+        <RegistrationStepFooter
+          step={step}
+          totalSteps={STEPS.length}
+          onBack={back}
+          onNext={next}
+          loading={isLoading}
+          isLastStep={step === STEPS.length - 1}
+          backLabel={step === 0 && onBack ? '← Back to account types' : 'Back'}
+          nextLabel={step === STEPS.length - 1 ? 'Create account' : 'Continue'}
+        />
+      }
+    >
+      {step === 0 && (
+        <>
+          <FormSection title="Personal info" description="As shown on university records.">
+            <ProfilePhotoUpload
+              preview={form.profilePicPreview}
+              onFile={(file) =>
+                handlePic({ target: { files: [file] } } as ChangeEvent<HTMLInputElement>)
+              }
+            />
+            <RegField label="Full name" htmlFor="doc-fullName" required error={errors.fullName}>
+              <TextInput
+                id="doc-fullName"
+                invalid={!!errors.fullName}
+                leading={<User className="h-4 w-4" />}
+                placeholder="Dr. Mohammad Khalil"
+                value={form.fullName}
+                onChange={(e) => set('fullName', e.target.value)}
+              />
+            </RegField>
+          </FormSection>
+          <FormSection title="Sign-in credentials" description="Use your university email when possible.">
+            <RegField label="University email" htmlFor="doc-email" required error={errors.email}>
+              <TextInput
+                id="doc-email"
+                type="email"
+                invalid={!!errors.email}
+                leading={<Mail className="h-4 w-4" />}
+                placeholder="doctor@najah.edu"
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
+              />
+            </RegField>
+            <FieldGrid>
+              <RegField label="Password" htmlFor="doc-password" required error={errors.password}>
+                <TextInput
+                  id="doc-password"
+                  type={showPass ? 'text' : 'password'}
+                  invalid={!!errors.password}
+                  leading={<Lock className="h-4 w-4" />}
+                  placeholder="Min. 8 characters"
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                  trailing={
+                    <button type="button" className="text-muted-foreground" onClick={() => setShowPass((x) => !x)}>
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   }
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: i === step ? '#1e293b' : i < step ? '#3b82f6' : '#94a3b8', whiteSpace: 'nowrap' as const }}>
-                  {s.icon} {s.label}
+                />
+              </RegField>
+              <RegField label="Confirm password" htmlFor="doc-confirm" required error={errors.confirmPassword}>
+                <TextInput
+                  id="doc-confirm"
+                  type={showConfirm ? 'text' : 'password'}
+                  invalid={!!errors.confirmPassword}
+                  leading={<Lock className="h-4 w-4" />}
+                  placeholder="Re-enter password"
+                  value={form.confirmPassword}
+                  onChange={(e) => set('confirmPassword', e.target.value)}
+                  trailing={
+                    <button type="button" className="text-muted-foreground" onClick={() => setShowConfirm((x) => !x)}>
+                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
+                />
+              </RegField>
+            </FieldGrid>
+            {form.password ? (
+              <div className="flex items-center gap-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-1 flex-1 rounded-full transition-colors ${
+                      i < passScore ? passBarColors[passScore] : 'bg-muted'
+                    }`}
+                  />
+                ))}
+                <span className="text-xs font-semibold text-muted-foreground min-w-[44px]">
+                  {passLabels[passScore]}
                 </span>
               </div>
-              {i < STEPS.length - 1 && (
-                <div style={{ width: 40, height: 2, margin: '0 8px', background: i < step ? 'linear-gradient(90deg,#3b82f6,#06b6d4)' : '#e2e8f0', borderRadius: 2 }} />
-              )}
-            </div>
-          ))}
-        </div>
+            ) : null}
+          </FormSection>
+        </>
+      )}
 
-        <div style={S.card}>
-
-          {/* STEP 0 — Account */}
-          {step === 0 && (
-            <Section title="Account Information" sub="Create your SkillSwap doctor account">
-              {/* Profile pic */}
-              <div style={S.picRow}>
-                <div style={S.picCircle} onClick={() => fileRef.current?.click()}>
-                  {form.profilePicPreview
-                    ? <img src={form.profilePicPreview} style={{ width: '100%', height: '100%', objectFit: 'cover' as const }} alt="" />
-                    : <span style={{ fontSize: 26, color: '#cbd5e1' }}>+</span>
-                  }
+      {step === 1 && (
+        <FormSection title="Academic information" description="Tell us about your position.">
+          <RegField label="University" htmlFor="doc-university" required error={errors.university}>
+            <RegSelect
+              id="doc-university"
+              invalid={!!errors.university}
+              value={form.university}
+              onChange={(e) => handleUniversity(e.target.value)}
+            >
+              <option value="">Select your university</option>
+              {UNIVERSITIES.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </RegSelect>
+          </RegField>
+          <RegField label="Faculty / college" htmlFor="doc-faculty" required error={errors.faculty}>
+            <RegSelect
+              id="doc-faculty"
+              invalid={!!errors.faculty}
+              value={form.faculty}
+              disabled={!form.university}
+              onChange={(e) => set('faculty', e.target.value)}
+            >
+              <option value="">{form.university ? 'Select your faculty' : 'Select a university first'}</option>
+              {availableFaculties.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </RegSelect>
+          </RegField>
+          <RegField label="Departments" required error={errors.departments}>
+            <div className="space-y-2">
+              {form.departments.map((dep, index) => (
+                <div key={index} className="flex gap-2 items-start">
+                  <TextInput
+                    className="flex-1"
+                    invalid={!!errors.departments}
+                    placeholder="e.g. Computer Engineering"
+                    value={dep}
+                    onChange={(e) => handleDepartmentChange(index, e.target.value)}
+                  />
+                  {form.departments.length > 1 ? (
+                    <GhostButton type="button" onClick={() => removeDepartment(index)} className="shrink-0 px-3">
+                      −
+                    </GhostButton>
+                  ) : null}
                 </div>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#475569', margin: '0 0 8px' }}>
-                    Profile Picture <span style={{ color: '#94a3b8', fontWeight: 400 }}>(Optional)</span>
-                  </p>
-                  <button style={{ ...S.picBtn, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb' }} onClick={() => fileRef.current?.click()}>
-                    Upload Photo
-                  </button>
-                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePic} />
-                </div>
-              </div>
-
-              <Field label="Full Name" placeholder="Dr. Mohammad Khalil" value={form.fullName} onChange={v => set('fullName', v)} error={errors.fullName} required />
-              <Field label="Email" placeholder="doctor@najah.edu" value={form.email} onChange={v => set('email', v)} error={errors.email} required type="email" />
-
-              <div style={S.row2}>
-                <Field label="Password" placeholder="Min. 8 characters" value={form.password} onChange={v => set('password', v)} error={errors.password} required
-                  type={showPass ? 'text' : 'password'} suffix={<EyeBtn show={showPass} toggle={() => setShowPass(x => !x)} />} />
-                <Field label="Confirm Password" placeholder="Re-enter password" value={form.confirmPassword} onChange={v => set('confirmPassword', v)} error={errors.confirmPassword} required
-                  type={showConfirm ? 'text' : 'password'} suffix={<EyeBtn show={showConfirm} toggle={() => setShowConfirm(x => !x)} />} />
-              </div>
-
-              {/* Password strength */}
-              {form.password && (
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {[0, 1, 2, 3].map(i => (
-                      <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < passScore ? passColors[passScore] : '#e2e8f0', transition: 'background 0.3s' }} />
-                    ))}
-                    <span style={{ fontSize: 12, fontWeight: 700, minWidth: 44, color: passColors[passScore] }}>{passLabels[passScore]}</span>
-                  </div>
-                </div>
-              )}
-            </Section>
-          )}
-
-          {/* STEP 1 — Academic */}
-          {step === 1 && (
-            <Section title="Academic Information" sub="Tell us about your position">
-              <SelectField label="University" value={form.university} onChange={handleUniversity} error={errors.university} required
-                options={UNIVERSITIES} placeholder="Select your university" />
-              <SelectField label="Faculty / College" value={form.faculty} onChange={v => set('faculty', v)} error={errors.faculty} required
-                options={availableFaculties} placeholder={form.university ? 'Select your faculty' : 'Select a university first'} disabled={!form.university} />
-              <div style={{ marginBottom: 16 }}>
-                <label style={S.label}>
-                  Departments<span style={{ color: '#ef4444' }}> *</span>
-                </label>
-                {form.departments.map((dep, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      display: 'flex',
-                      gap: 8,
-                      marginBottom: 8,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <input
-                      type="text"
-                      placeholder="Enter department (e.g. Computer Engineering)"
-                      value={dep}
-                      onChange={(e) =>
-                        handleDepartmentChange(index, e.target.value)
-                      }
-                      style={{
-                        ...S.input,
-                        flex: 1,
-                        minWidth: 0,
-                        borderColor: errors.departments ? '#fca5a5' : '#e2e8f0',
-                      }}
-                    />
-                    {form.departments.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeDepartment(index)}
-                        style={{
-                          padding: '10px 14px',
-                          background: 'white',
-                          border: '1.5px solid #e2e8f0',
-                          borderRadius: 10,
-                          cursor: 'pointer',
-                          fontFamily: 'inherit',
-                          fontWeight: 700,
-                          color: '#64748b',
-                          flexShrink: 0,
-                          lineHeight: 1,
-                        }}
-                      >
-                        -
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addDepartment}
-                  style={{
-                    ...S.picBtn,
-                    background: '#eff6ff',
-                    border: '1px solid #bfdbfe',
-                    color: '#2563eb',
-                    marginTop: 4,
-                  }}
-                >
-                  + Add Department
-                </button>
-                {errors.departments && (
-                  <span style={S.error}>{errors.departments}</span>
-                )}
-              </div>
-              <SelectField label="Specialization" value={form.specialization} onChange={v => set('specialization', v)} error={errors.specialization} required
-                options={SPECIALIZATIONS} placeholder="Select your specialization" />
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={S.label}>Bio <span style={{ color: '#94a3b8', fontWeight: 400, fontSize: 12 }}>(Optional)</span></label>
-                <textarea
-                  style={{ ...S.input, height: 90, resize: 'vertical' as const, paddingTop: 10 }}
-                  placeholder="Brief description about your research interests and teaching areas..."
-                  value={form.bio}
-                  onChange={e => set('bio', e.target.value)}
-                />
-              </div>
-            </Section>
-          )}
-
-          {/* API Error */}
-          {apiError && (
-            <div style={{ marginTop: 16, padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, color: '#dc2626', fontSize: 13, fontWeight: 500 }}>
-              ❌ {apiError}
+              ))}
+              <GhostButton type="button" onClick={addDepartment} className="text-primary">
+                + Add department
+              </GhostButton>
             </div>
-          )}
+          </RegField>
+          <RegField label="Specialization" htmlFor="doc-spec" required error={errors.specialization}>
+            <RegSelect
+              id="doc-spec"
+              invalid={!!errors.specialization}
+              value={form.specialization}
+              onChange={(e) => set('specialization', e.target.value)}
+            >
+              <option value="">Select your specialization</option>
+              {SPECIALIZATIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </RegSelect>
+          </RegField>
+          <RegField label="Bio" htmlFor="doc-bio" hint="Optional">
+            <Textarea
+              id="doc-bio"
+              placeholder="Brief description about your research interests and teaching areas..."
+              value={form.bio}
+              onChange={(e) => set('bio', e.target.value)}
+            />
+          </RegField>
+        </FormSection>
+      )}
 
-          {/* Nav Buttons */}
-          <div style={S.navRow}>
-            {step > 0
-              ? <button style={S.btnBack} onClick={back}>← Back</button>
-              : <div />
-            }
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{step + 1} / {STEPS.length}</span>
-              {step < STEPS.length - 1
-                ? <button style={{ ...S.btnPrimary, background: 'linear-gradient(135deg,#3b82f6,#06b6d4)' }} onClick={next}>Continue →</button>
-                : <button style={{ ...S.btnPrimary, background: 'linear-gradient(135deg,#3b82f6,#06b6d4)', opacity: isLoading ? 0.7 : 1 }} onClick={submit} disabled={isLoading}>
-                    {isLoading ? '⏳ Creating...' : '✦ Create Account'}
-                  </button>
-              }
-            </div>
-          </div>
-        </div>
-
-        <p style={{ textAlign: 'center' as const, color: '#cbd5e1', fontSize: 12, marginTop: 24 }}>
-          SkillSwap · Academic Collaboration Platform
-        </p>
-      </div>
-
-      <style>{`
-        input::placeholder, textarea::placeholder { color: #94a3b8; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-        button:hover { opacity: 0.92; }
-      `}</style>
-    </div>
+      {apiError ? <AlertError title="Registration failed">{apiError}</AlertError> : null}
+    </RegistrationLayout>
   )
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function Section({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
-  return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 4px', fontFamily: 'Syne, sans-serif' }}>{title}</h3>
-        <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{sub}</p>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function Field({ label, placeholder, value, onChange, error, required = false, type = 'text', suffix }: {
-  label: ReactNode; placeholder: string; value: string; onChange: (v: string) => void
-  error?: string; required?: boolean; type?: string; suffix?: ReactNode
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <label style={S.label}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
-      <div style={{ position: 'relative' as const }}>
-        <input type={type} style={{ ...S.input, borderColor: error ? '#fca5a5' : '#e2e8f0', paddingRight: suffix ? 40 : 14 }}
-          placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} />
-        {suffix && <div style={{ position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)' }}>{suffix}</div>}
-      </div>
-      {error && <span style={S.error}>{error}</span>}
-    </div>
-  )
-}
-
-function SelectField({ label, value, onChange, error, required = false, options, placeholder, disabled = false }: {
-  label: string; value: string; onChange: (v: string) => void; error?: string
-  required?: boolean; options: string[]; placeholder: string; disabled?: boolean
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <label style={S.label}>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
-      <select style={{ ...S.input, borderColor: error ? '#fca5a5' : '#e2e8f0', opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
-        value={value} onChange={e => onChange(e.target.value)} disabled={disabled}>
-        <option value="">{placeholder}</option>
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-      {error && <span style={S.error}>{error}</span>}
-    </div>
-  )
-}
-
-function EyeBtn({ show, toggle }: { show: boolean; toggle: () => void }) {
-  return <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, padding: 0, color: '#94a3b8' }} onClick={toggle} type="button">{show ? '🙈' : '👁️'}</button>
-}
-
-function Blobs() {
-  return (
-    <>
-      <div style={{ position: 'fixed' as const, top: -150, right: -150, width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle,rgba(59,130,246,0.08) 0%,transparent 70%)', pointerEvents: 'none' as const }} />
-      <div style={{ position: 'fixed' as const, bottom: -150, left: -150, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle,rgba(6,182,212,0.06) 0%,transparent 70%)', pointerEvents: 'none' as const }} />
-    </>
-  )
-}
-
-const S: Record<string, CSSProperties> = {
-  page:       { minHeight: '100vh', background: 'linear-gradient(155deg,#f0f9ff 0%,#e0f2fe 40%,#f0fdfa 100%)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '40px 20px 60px', fontFamily: 'DM Sans, sans-serif', position: 'relative', overflow: 'hidden' },
-  wrap:       { width: '100%', maxWidth: 600, position: 'relative', zIndex: 1 },
-  logoRow:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 24 },
-  logoIcon:   { width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#3b82f6,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(59,130,246,0.3)' },
-  logoText:   { fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'Syne, sans-serif' },
-  logoAccent: { background: 'linear-gradient(135deg,#3b82f6,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-  stepper:    { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, gap: 4 },
-  stepDot:    { width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.3s' },
-  stepDotActive: { background: 'linear-gradient(135deg,#3b82f6,#06b6d4)', boxShadow: '0 2px 8px rgba(59,130,246,0.4)' },
-  stepDotDone:   { background: 'linear-gradient(135deg,#3b82f6,#06b6d4)' },
-  stepDotIdle:   { background: 'white', border: '2px solid #e2e8f0' },
-  card:       { background: 'white', border: '1px solid #e2e8f0', borderRadius: 20, padding: '36px 40px', boxShadow: '0 8px 32px rgba(59,130,246,0.08)' },
-  row2:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
-  label:      { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 },
-  input:      { width: '100%', padding: '11px 14px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 10, color: '#1e293b', fontSize: 14, boxSizing: 'border-box' as const, fontFamily: 'inherit' },
-  error:      { display: 'block', fontSize: 12, color: '#ef4444', marginTop: 4, fontWeight: 500 },
-  picRow:     { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: 16, background: '#f0f9ff', borderRadius: 12, border: '1px solid #e0f2fe' },
-  picCircle:  { width: 68, height: 68, borderRadius: '50%', background: '#e0f2fe', border: '2px dashed #93c5fd', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, overflow: 'hidden' },
-  picBtn:     { padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-  navRow:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 28, paddingTop: 22, borderTop: '1px solid #f1f5f9' },
-  btnBack:    { padding: '10px 20px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 10, color: '#64748b', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-  btnPrimary: { padding: '11px 26px', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(59,130,246,0.35)' },
-  changeRoleBtn: { background: 'none', border: 'none', color: '#3b82f6', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', marginRight: 8 },
-  roleBadge:  { display: 'inline-block', padding: '3px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700 },
-  successWrap:{ margin: '60px auto', maxWidth: 440, background: 'white', border: '1px solid #e0f2fe', borderRadius: 24, padding: '48px 40px', textAlign: 'center' as const, boxShadow: '0 8px 40px rgba(59,130,246,0.1)' },
-  successIcon:{ width: 68, height: 68, margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eff6ff', borderRadius: '50%', border: '1px solid #bfdbfe' },
-  successH2:  { fontSize: 24, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', fontFamily: 'Syne, sans-serif' },
-  successP:   { color: '#64748b', fontSize: 14, lineHeight: 1.7, margin: '0 0 28px' },
-  btnOutline: { padding: '11px 24px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 10, color: '#64748b', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', width: '100%' },
 }

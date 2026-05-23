@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getDashboardSummary, type DashboardSummary } from "../../../api/dashboardApi";
 import api, { parseApiErrorMessage } from "../../../api/axiosInstance";
 import {
     doctorDashboardApi,
@@ -24,18 +23,25 @@ import type {
     DoctorDashboardSummary,
     DoctorUiTestCourse,
 } from "./doctorDashboardTypes";
-import { mergeDoctorRequestRows } from "./doctorRequestUtils";
+import { isPendingRequestStatus, mergeDoctorRequestRows } from "./doctorRequestUtils";
+import { dash, glassCard } from "./dashboard/doctorDashTokens";
+import "./dashboard/doctor-dashboard.css";
 import { DoctorDashboardLayout } from "./dashboard/DoctorDashboardLayout";
+import {
+  parseSectionFromSearch,
+  sectionToSearchParam,
+} from "../../components/doctor/hub/doctorHubNav";
 import { OverviewSection } from "./dashboard/OverviewSection";
 import { RequestsSection } from "./dashboard/RequestsSection";
 import { ProjectsSection } from "./dashboard/ProjectsSection";
 import { DeletedProjectsSection } from "./dashboard/DeletedProjectsSection";
 import { DoctorCoursesSection } from "./dashboard/DoctorCoursesSection";
+import { formatDepartmentLine } from "./dashboard/doctorDisplayCopy";
 import {
-    buildOverviewHighlight,
-    buildOverviewHighlightFromSupervised,
-    buildOverviewSuggestions,
-} from "./dashboard/doctorDashboardHelpers";
+    normalizeDoctorDashboardSummary,
+    normalizeDoctorMe,
+    normalizeSupervisedProjectsList,
+} from "./dashboard/doctorDashboardApiMappers";
 import {
     appendDeletedProject,
     loadDeletedProjects,
@@ -64,8 +70,7 @@ function readPersistedUiCourses(): DoctorUiTestCourse[] {
 }
 
 function initialSectionFromSearch(search: string): DoctorDashboardSection {
-    const tab = new URLSearchParams(search).get("tab");
-    return tab === "my-courses" ? "courses" : "overview";
+    return parseSectionFromSearch(search) ?? "overview";
 }
 
 function DoctorDashboardContent() {
@@ -76,22 +81,31 @@ function DoctorDashboardContent() {
     const [activeSection, setActiveSection] = useState<DoctorDashboardSection>(() =>
         initialSectionFromSearch(location.search),
     );
-    const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
-
     useEffect(() => {
-        const tab = new URLSearchParams(location.search).get("tab");
-        if (tab === "my-courses") {
-            setActiveSection("courses");
-        }
+        const parsed = parseSectionFromSearch(location.search);
+        if (parsed) setActiveSection(parsed);
     }, [location.search]);
+
+    const handleSectionChange = useCallback(
+        (section: DoctorDashboardSection) => {
+            setActiveSection(section);
+            const params = new URLSearchParams(location.search);
+            params.set("section", sectionToSearchParam(section));
+            params.delete("tab");
+            navigate(
+                { pathname: "/doctor-dashboard", search: params.toString() ? `?${params.toString()}` : "" },
+                { replace: true },
+            );
+        },
+        [location.search, navigate],
+    );
 
     const [me, setMe] = useState<DoctorMeResponse | null>(null);
     const [pageLoading, setPageLoading] = useState(true);
     const [pageError, setPageError] = useState<string | null>(null);
 
-    const [summary, setSummary] = useState<DashboardSummary | null>(null);
-    const [overviewLoading, setOverviewLoading] = useState(false);
-    const [overviewError, setOverviewError] = useState<string | null>(null);
+    const [statsLoading, setStatsLoading] = useState(false);
+    const [statsError, setStatsError] = useState<string | null>(null);
     const [doctorStats, setDoctorStats] = useState<DoctorDashboardSummary | null>(null);
 
     const [supervisedProjects, setSupervisedProjects] = useState<DoctorSupervisedProject[]>([]);
@@ -119,35 +133,18 @@ function DoctorDashboardContent() {
 
     const uiCourses: DoctorUiTestCourse[] = [];
 
-    const loadOverview = useCallback(async () => {
-        setOverviewLoading(true);
-        setOverviewError(null);
+    /** GET /api/doctors/me/dashboard-summary */
+    const loadDoctorStats = useCallback(async () => {
+        setStatsLoading(true);
+        setStatsError(null);
         try {
-            const settled = await Promise.allSettled([
-                getDashboardSummary(),
-                doctorDashboardApi.getSummary(),
-            ]);
-            const sumRes = settled[0];
-            const docRes = settled[1];
-
-            if (sumRes.status === "fulfilled") {
-                setSummary(sumRes.value);
-            } else {
-                setSummary(null);
-                setOverviewError(parseApiErrorMessage(sumRes.reason));
-            }
-
-            if (docRes.status === "fulfilled") {
-                setDoctorStats(docRes.value.data);
-            } else {
-                setDoctorStats(null);
-            }
+            const { data } = await doctorDashboardApi.getSummary();
+            setDoctorStats(normalizeDoctorDashboardSummary(data));
         } catch (e) {
-            setOverviewError(parseApiErrorMessage(e));
-            setSummary(null);
+            setStatsError(parseApiErrorMessage(e));
             setDoctorStats(null);
         } finally {
-            setOverviewLoading(false);
+            setStatsLoading(false);
         }
     }, []);
 
@@ -157,7 +154,7 @@ function DoctorDashboardContent() {
         setSupervisedError(null);
         try {
             const { data } = await doctorDashboardApi.getProjects();
-            setSupervisedProjects(Array.isArray(data) ? data : []);
+            setSupervisedProjects(normalizeSupervisedProjectsList(data));
         } catch (e) {
             setSupervisedError(parseApiErrorMessage(e));
             setSupervisedProjects([]);
@@ -210,8 +207,8 @@ function DoctorDashboardContent() {
 
     /** After any request/supervision change: sync inbox + supervised list + overview stats. */
     const refetchAll = useCallback(async () => {
-        await Promise.all([loadRequests(), loadSupervisedProjects(), loadOverview()]);
-    }, [loadRequests, loadSupervisedProjects, loadOverview]);
+        await Promise.all([loadRequests(), loadSupervisedProjects(), loadDoctorStats()]);
+    }, [loadRequests, loadSupervisedProjects, loadDoctorStats]);
 
     /** Refresh deleted list from localStorage when opening the section (e.g. after remove on another tab). */
     useEffect(() => {
@@ -236,14 +233,15 @@ function DoctorDashboardContent() {
             setPageLoading(true);
             setPageError(null);
             try {
-                const { data } = await api.get<DoctorMeResponse>("/me");
-                if (data.role !== "doctor" || data.profileId == null) {
+                const { data } = await api.get("/me");
+                const doctorMe = normalizeDoctorMe(data);
+                if (!doctorMe) {
                     setPageError("This account is not a doctor profile.");
                     setMe(null);
                     return;
                 }
-                setMe(data);
-                await Promise.all([loadOverview(), loadSupervisedProjects(), loadRequests()]);
+                setMe(doctorMe);
+                await Promise.all([loadDoctorStats(), loadSupervisedProjects(), loadRequests()]);
             } catch (err: unknown) {
                 const status = (err as { response?: { status?: number } })?.response?.status;
                 if (status === 401) {
@@ -258,24 +256,21 @@ function DoctorDashboardContent() {
             }
         };
         void run();
-    }, [loadOverview, loadSupervisedProjects, loadRequests]);
+    }, [loadDoctorStats, loadSupervisedProjects, loadRequests]);
+
+    useEffect(() => {
+        if (activeSection === "recommendations") {
+            setActiveSection("overview");
+        }
+    }, [activeSection]);
 
     const mergedRows = useMemo(
         () => mergeDoctorRequestRows(supervisionRequests, cancelRequests),
         [supervisionRequests, cancelRequests],
     );
 
-    const highlight = useMemo(() => {
-        return (
-            buildOverviewHighlight(summary, null) ??
-            buildOverviewHighlightFromSupervised(supervisedProjects)
-        );
-    }, [summary, supervisedProjects]);
-
-    const suggestions = useMemo(() => buildOverviewSuggestions(summary), [summary]);
-
     const initials = useMemo(() => {
-        const n = me?.name?.trim();
+        const n = (me?.name ?? "").trim();
         if (!n) return "DR";
         return n
             .split(/\s+/)
@@ -284,6 +279,37 @@ function DoctorDashboardContent() {
             .slice(0, 2)
             .toUpperCase();
     }, [me?.name]);
+
+    const statsForOverview =
+        doctorStats != null
+            ? {
+                pendingRequestsCount: doctorStats.pendingRequestsCount,
+                supervisedCount: doctorStats.supervisedCount,
+                pendingCancelCount: doctorStats.pendingCancelCount,
+            }
+            : null;
+
+    const pendingPreview = useMemo(
+        () => mergedRows.filter((r) => isPendingRequestStatus(r.status)).slice(0, 3),
+        [mergedRows],
+    );
+
+    const pendingForActivity = useMemo(
+        () => mergedRows.filter((r) => isPendingRequestStatus(r.status)),
+        [mergedRows],
+    );
+
+    const doctorSubtitle = useMemo(
+        () => formatDepartmentLine(me?.specialization, me?.department, me?.faculty),
+        [me?.specialization, me?.department, me?.faculty],
+    );
+
+    const navCounts = useMemo(
+        () => ({
+            pendingRequests: mergedRows.filter((r) => isPendingRequestStatus(r.status)).length,
+        }),
+        [mergedRows],
+    );
 
     const handleLogout = () => {
         localStorage.clear();
@@ -361,16 +387,22 @@ function DoctorDashboardContent() {
     if (pageLoading) {
         return (
             <div
+                className="dd-root"
                 style={{
                     minHeight: "100vh",
-                    background: "#f1f5f9",
+                    background: dash.bg,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontFamily: "DM Sans, sans-serif",
+                    fontFamily: dash.font,
+                    position: "relative",
+                    overflow: "hidden",
                 }}
             >
-                <p style={{ fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>Loading…</p>
+                <div className="dd-blob-a" aria-hidden />
+                <p style={{ fontSize: 14, color: dash.muted, fontWeight: 600, position: "relative", zIndex: 1 }}>
+                    Loading supervision hub…
+                </p>
             </div>
         );
     }
@@ -378,27 +410,19 @@ function DoctorDashboardContent() {
     if (pageError || !me) {
         return (
             <div
+                className="dd-root"
                 style={{
                     minHeight: "100vh",
-                    background: "#f1f5f9",
+                    background: dash.bg,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     padding: 24,
-                    fontFamily: "DM Sans, sans-serif",
+                    fontFamily: dash.font,
                 }}
             >
-                <div
-                    style={{
-                        maxWidth: 420,
-                        padding: 24,
-                        borderRadius: 16,
-                        background: "#fff",
-                        border: "1px solid #e2e8f0",
-                        boxShadow: "0 8px 30px rgba(15,23,42,0.08)",
-                    }}
-                >
-                    <p style={{ margin: 0, fontSize: 14, color: "#b91c1c", fontWeight: 600 }}>
+                <div style={{ ...glassCard, maxWidth: 420, padding: 28 }}>
+                    <p style={{ margin: 0, fontSize: 14, color: dash.danger, fontWeight: 600 }}>
                         {pageError || "Unable to load dashboard."}
                     </p>
                     <Link
@@ -408,7 +432,7 @@ function DoctorDashboardContent() {
                             marginTop: 16,
                             fontSize: 14,
                             fontWeight: 700,
-                            color: "#4f46e5",
+                            color: dash.accent,
                         }}
                     >
                         Go to sign in
@@ -418,40 +442,36 @@ function DoctorDashboardContent() {
         );
     }
 
-    const statsForOverview =
-        doctorStats != null
-            ? {
-                pendingRequestsCount: doctorStats.pendingRequestsCount,
-                supervisedCount: doctorStats.supervisedCount,
-            }
-            : null;
-
     return (
         <DoctorDashboardLayout
             doctorName={me.name}
+            doctorSubtitle={doctorSubtitle}
             initials={initials}
             activeSection={activeSection}
-            onSectionChange={setActiveSection}
-            sidebarMobileOpen={sidebarMobileOpen}
-            onSidebarOpen={() => setSidebarMobileOpen(true)}
-            onSidebarClose={() => setSidebarMobileOpen(false)}
+            onSectionChange={handleSectionChange}
             onLogout={handleLogout}
+            navCounts={navCounts}
         >
             {activeSection === "overview" ? (
                 <OverviewSection
                     me={me}
-                    summary={summary}
                     doctorStats={statsForOverview}
-                    loading={overviewLoading}
-                    error={overviewError}
-                    highlight={highlight}
-                    suggestions={suggestions}
+                    statsLoading={statsLoading}
+                    statsError={statsError}
+                    pendingPreview={pendingPreview}
+                    pendingForActivity={pendingForActivity}
+                    supervisedProjects={supervisedProjects}
+                    actionKey={actionKey}
+                    onSupervisionAction={handleSupervisionAction}
+                    onViewAllRequests={() => handleSectionChange("requests")}
+                    onViewActiveTeams={() => handleSectionChange("projects")}
                 />
             ) : null}
 
             {activeSection === "requests" ? (
                 <RequestsSection
-                    rows={mergedRows}
+                    supervisionRequests={supervisionRequests}
+                    cancelRequests={cancelRequests}
                     loading={requestsLoading}
                     error={requestsError}
                     actionKey={actionKey}
@@ -467,12 +487,13 @@ function DoctorDashboardContent() {
                     error={supervisedError}
                     removingProjectId={removingProjectId}
                     onCancelSupervision={(p) => void handleRemoveSupervision(p)}
+                    onViewRequests={() => handleSectionChange("requests")}
                 />
             ) : null}
 
             {activeSection === "deleted" ? <DeletedProjectsSection items={deletedItems} /> : null}
 
-            {activeSection === "courses" ? <DoctorCoursesSection uiCourses={uiCourses} /> : null}
+            {activeSection === "courses" ? <DoctorCoursesSection /> : null}
         </DoctorDashboardLayout>
     );
 }

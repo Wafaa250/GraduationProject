@@ -521,6 +521,82 @@ export const openCourseTeamConversation = async (
     return response.data
 }
 
+export const generateDoctorProjectTeams = async (
+    courseId: number,
+    projectId: number,
+): Promise<DoctorProjectTeamsResponse> => {
+    const response = await api.post(
+        `/courses/${courseId}/projects/${projectId}/generate-teams`,
+    )
+    return mapDoctorProjectTeamsResponse(response.data)
+}
+
+export const getDoctorTeamByIndex = async (
+    courseId: number,
+    projectId: number,
+    teamIndex: number,
+): Promise<DoctorProjectTeam> => {
+    const response = await api.get(
+        `/courses/${courseId}/projects/${projectId}/teams/${teamIndex}`,
+    )
+    return mapDoctorProjectTeam(response.data)
+}
+
+export const addDoctorTeamMember = async (
+    courseId: number,
+    projectId: number,
+    teamIndex: number,
+    universityId: string,
+): Promise<DoctorProjectTeam> => {
+    const response = await api.post(
+        `/courses/${courseId}/projects/${projectId}/teams/${teamIndex}/members`,
+        { universityId: universityId.trim() },
+    )
+    return mapDoctorProjectTeam(response.data)
+}
+
+export const removeDoctorTeamMember = async (
+    courseId: number,
+    projectId: number,
+    teamIndex: number,
+    studentProfileId: number,
+): Promise<DoctorProjectTeam> => {
+    const response = await api.delete(
+        `/courses/${courseId}/projects/${projectId}/teams/${teamIndex}/members/${studentProfileId}`,
+    )
+    return mapDoctorProjectTeam(response.data)
+}
+
+export interface DoctorCourseEnrolledStudent {
+    studentId: number
+    name: string
+    universityId: string
+    university: string
+    major: string
+    email: string
+}
+
+function mapDoctorCourseEnrolledStudent(raw: unknown): DoctorCourseEnrolledStudent {
+    const r = raw as Record<string, unknown>
+    return {
+        studentId: Number(r.studentId ?? r.StudentId ?? 0),
+        name: String(r.name ?? r.Name ?? ''),
+        universityId: String(r.universityId ?? r.UniversityId ?? ''),
+        university: String(r.university ?? r.University ?? ''),
+        major: String(r.major ?? r.Major ?? ''),
+        email: String(r.email ?? r.Email ?? ''),
+    }
+}
+
+export const getDoctorCourseEnrolledStudents = async (
+    courseId: number,
+): Promise<DoctorCourseEnrolledStudent[]> => {
+    const response = await api.get(`/courses/${courseId}/enrolled-students`)
+    const data = response.data
+    if (!Array.isArray(data)) return []
+    return data.map(mapDoctorCourseEnrolledStudent)
+}
+
 // ── Course sections (GET/POST /courses/{courseId}/sections, …/sections/{id}/…) ──
 
 export const getDoctorCourseSections = async (

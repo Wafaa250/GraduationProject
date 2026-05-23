@@ -1,355 +1,329 @@
 import {
-    useEffect,
-    useRef,
-    useState,
-    type ChangeEvent,
-    type CSSProperties,
-    type FormEvent,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
 } from "react";
-import { ArrowLeft, GraduationCap, Plus, Upload, UserPlus, Users } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
-import { dash, card } from "../doctor/dashboard/doctorDashTokens";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { GraduationCap, Plus, Upload, UserPlus, Users } from "lucide-react";
 import {
-    getDoctorSectionStudents,
-    addStudentsToDoctorSection,
-    type DoctorCourseStudent,
+  getDoctorSectionStudents,
+  addStudentsToDoctorSection,
+  type DoctorCourseStudent,
 } from "../../../api/doctorCoursesApi";
 import { parseApiErrorMessage } from "../../../api/axiosInstance";
 import { useToast } from "../../../context/ToastContext";
+import { DoctorHubEmptyState } from "../../components/doctor/hub/DoctorHubEmptyState";
+import { DoctorHubPageHeader } from "../../components/doctor/hub/DoctorHubPageHeader";
+import { DoctorSubpageLayout } from "../../components/doctor/hub/DoctorSubpageLayout";
+import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent } from "../../components/ui/card";
+import { Skeleton } from "../../components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Textarea } from "../../components/ui/textarea";
 
 type AddStudentsTab = "manual" | "upload";
 
-function addStudentsTabStyle(active: boolean): CSSProperties {
-    return {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "12px 16px",
-        marginBottom: -1,
-        border: "none",
-        borderBottom: active ? `2px solid ${dash.accent}` : "2px solid transparent",
-        background: "transparent",
-        color: active ? dash.accent : dash.muted,
-        fontSize: 14,
-        fontWeight: active ? 700 : 600,
-        cursor: "pointer",
-        fontFamily: dash.font,
-        borderRadius: "10px 10px 0 0",
-    };
-}
+type LocationState = {
+  sectionName?: string;
+};
 
 export default function SectionStudentsPage() {
-    const navigate = useNavigate();
-    const { courseId, sectionId } = useParams<{ courseId: string; sectionId: string }>();
-    const { showToast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { courseId, sectionId } = useParams<{ courseId: string; sectionId: string }>();
+  const { showToast } = useToast();
 
-    const backendSectionId = sectionId && /^\d+$/.test(sectionId) ? Number(sectionId) : null;
+  const sectionName =
+    (location.state as LocationState | null)?.sectionName?.trim() ||
+    (sectionId ? `Section ${sectionId}` : "Section");
 
-    // ── State ──────────────────────────────────────────────────────────────────
-    const [students, setStudents] = useState<DoctorCourseStudent[]>([]);
-    const [loadingStudents, setLoadingStudents] = useState(true);
+  const backendSectionId = sectionId && /^\d+$/.test(sectionId) ? Number(sectionId) : null;
 
-    const [showAddStudents, setShowAddStudents] = useState(false);
-    const [addStudentsTab, setAddStudentsTab] = useState<AddStudentsTab>("manual");
+  const [students, setStudents] = useState<DoctorCourseStudent[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(true);
 
-    // Manual entry — one or more IDs/emails separated by newlines or commas
-    const [inputValue, setInputValue] = useState("");
-    const [inputError, setInputError] = useState<string | null>(null);
-    const [submitting, setSubmitting] = useState(false);
+  const [showAddStudents, setShowAddStudents] = useState(false);
+  const [addStudentsTab, setAddStudentsTab] = useState<AddStudentsTab>("manual");
 
-    // File upload
-    const [uploadFile, setUploadFile] = useState<File | null>(null);
-    const [uploadFileLabel, setUploadFileLabel] = useState<string | null>(null);
-    const [uploadError, setUploadError] = useState<string | null>(null);
-    const [uploading, setUploading] = useState(false);
-    const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = useState("");
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-    const courseLabel = courseId?.trim() || "—";
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFileLabel, setUploadFileLabel] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
-    // ── Load students from backend ─────────────────────────────────────────────
-    useEffect(() => {
-        if (backendSectionId == null) {
-            setLoadingStudents(false);
-            return;
-        }
-        let cancelled = false;
-        setLoadingStudents(true);
-        getDoctorSectionStudents(backendSectionId)
-            .then((data) => {
-                if (!cancelled) setStudents(data);
-            })
-            .catch((err) => {
-                if (!cancelled) showToast(parseApiErrorMessage(err), "error");
-            })
-            .finally(() => {
-                if (!cancelled) setLoadingStudents(false);
-            });
-        return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [backendSectionId]);
-
-    // ── Parse raw text into student ID list ────────────────────────────────────
-    function parseIds(raw: string): string[] {
-        return raw
-            .split(/[\n,]+/)
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0);
+  useEffect(() => {
+    if (backendSectionId == null) {
+      setLoadingStudents(false);
+      return;
     }
-
-    // ── Manual add ─────────────────────────────────────────────────────────────
-    const handleAddManual = async (e: FormEvent) => {
-        e.preventDefault();
-        setInputError(null);
-        const ids = parseIds(inputValue);
-        if (ids.length === 0) {
-            setInputError("Enter at least one student ID or email.");
-            return;
-        }
-        if (backendSectionId == null) {
-            setInputError("Cannot save — section ID is not a valid number.");
-            return;
-        }
-        setSubmitting(true);
-        try {
-            await addStudentsToDoctorSection(backendSectionId, ids);
-            // Reload the list from the backend so we see the real student names
-            const updated = await getDoctorSectionStudents(backendSectionId);
-            setStudents(updated);
-            setInputValue("");
-            setShowAddStudents(false);
-            showToast(`${ids.length} student(s) added successfully.`, "success");
-        } catch (err) {
-            setInputError(parseApiErrorMessage(err));
-        } finally {
-            setSubmitting(false);
-        }
+    let cancelled = false;
+    setLoadingStudents(true);
+    getDoctorSectionStudents(backendSectionId)
+      .then((data) => {
+        if (!cancelled) setStudents(data);
+      })
+      .catch((err) => {
+        if (!cancelled) showToast(parseApiErrorMessage(err), "error");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingStudents(false);
+      });
+    return () => {
+      cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backendSectionId]);
 
-    // ── File upload add ────────────────────────────────────────────────────────
-    const handleUploadFilePick = () => uploadInputRef.current?.click();
+  function parseIds(raw: string): string[] {
+    return raw
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
 
-    const handleUploadInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const f = e.target.files?.[0] ?? null;
-        setUploadError(null);
-        setUploadFile(f);
-        setUploadFileLabel(f ? f.name : null);
-    };
+  const handleAddManual = async (e: FormEvent) => {
+    e.preventDefault();
+    setInputError(null);
+    const ids = parseIds(inputValue);
+    if (ids.length === 0) {
+      setInputError("Enter at least one student ID or email.");
+      return;
+    }
+    if (backendSectionId == null) {
+      setInputError("Cannot save — section ID is not a valid number.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await addStudentsToDoctorSection(backendSectionId, ids);
+      const updated = await getDoctorSectionStudents(backendSectionId);
+      setStudents(updated);
+      setInputValue("");
+      setShowAddStudents(false);
+      showToast(`${ids.length} student(s) added successfully.`, "success");
+    } catch (err) {
+      setInputError(parseApiErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-    const handleUploadAndAddStudents = async () => {
-        setUploadError(null);
-        if (!uploadFile) { setUploadError("Choose a file first."); return; }
-        if (backendSectionId == null) { setUploadError("Cannot save — section ID is not valid."); return; }
-        let ids: string[] = [];
-        try {
-            const text = await uploadFile.text();
-            ids = parseIds(text);
-            if (ids.length === 0) { setUploadError("No entries found in this file."); return; }
-        } catch {
-            setUploadError("Could not read this file.");
-            return;
+  const handleUploadFilePick = () => uploadInputRef.current?.click();
+
+  const handleUploadInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    setUploadError(null);
+    setUploadFile(f);
+    setUploadFileLabel(f ? f.name : null);
+  };
+
+  const handleUploadAndAddStudents = async () => {
+    setUploadError(null);
+    if (!uploadFile) {
+      setUploadError("Choose a file first.");
+      return;
+    }
+    if (backendSectionId == null) {
+      setUploadError("Cannot save — section ID is not valid.");
+      return;
+    }
+    let ids: string[] = [];
+    try {
+      const text = await uploadFile.text();
+      ids = parseIds(text);
+      if (ids.length === 0) {
+        setUploadError("No entries found in this file.");
+        return;
+      }
+    } catch {
+      setUploadError("Could not read this file.");
+      return;
+    }
+    setUploading(true);
+    try {
+      await addStudentsToDoctorSection(backendSectionId, ids);
+      const updated = await getDoctorSectionStudents(backendSectionId);
+      setStudents(updated);
+      setUploadFile(null);
+      setUploadFileLabel(null);
+      if (uploadInputRef.current) uploadInputRef.current.value = "";
+      setShowAddStudents(false);
+      showToast(`${ids.length} student(s) added successfully.`, "success");
+    } catch (err) {
+      setUploadError(parseApiErrorMessage(err));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const backTo = courseId ? `/courses/${courseId}` : "/doctor-dashboard?section=courses";
+
+  return (
+    <DoctorSubpageLayout backTo={backTo} backLabel="Back to course">
+      <DoctorHubPageHeader
+        eyebrow={courseId ? `Course ${courseId}` : "Course"}
+        title={sectionName}
+        description="Enroll students by university ID. Manual entry and file upload use the same enrollment API."
+        actions={
+          <Button type="button" onClick={() => setShowAddStudents(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add students
+          </Button>
         }
-        setUploading(true);
-        try {
-            await addStudentsToDoctorSection(backendSectionId, ids);
-            const updated = await getDoctorSectionStudents(backendSectionId);
-            setStudents(updated);
-            setUploadFile(null);
-            setUploadFileLabel(null);
-            if (uploadInputRef.current) uploadInputRef.current.value = "";
-            setShowAddStudents(false);
-            showToast(`${ids.length} student(s) added successfully.`, "success");
-        } catch (err) {
-            setUploadError(parseApiErrorMessage(err));
-        } finally {
-            setUploading(false);
-        }
-    };
+      />
 
-    // ── Render ─────────────────────────────────────────────────────────────────
-    return (
-        <div
-            style={{
-                minHeight: "100vh",
-                background: dash.bg,
-                fontFamily: dash.font,
-                color: dash.text,
-                padding: "24px 28px 40px",
-            }}
-        >
-            <div style={{ maxWidth: 720, margin: "0 auto" }}>
-                <button
-                    type="button"
-                    onClick={() => navigate(courseId ? `/courses/${courseId}` : "/doctor-dashboard")}
-                    style={S.backBtn}
-                >
-                    <ArrowLeft size={18} />
-                    Back to course
-                </button>
+      <p className="text-sm text-muted-foreground mb-4 -mt-2">
+        {loadingStudents
+          ? "Loading roster…"
+          : `${students.length} student${students.length === 1 ? "" : "s"} enrolled`}
+      </p>
 
-                <header style={{ ...card, padding: "22px 24px", marginTop: 20 }}>
-                    <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: dash.subtle, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Section students
-                    </p>
-                    <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, fontFamily: dash.fontDisplay, lineHeight: 1.25 }}>
-                        Section{" "}
-                        <span style={{ color: dash.accent }}>{sectionId}</span>
-                    </h1>
-                    <p style={{ margin: "10px 0 0", fontSize: 12, color: dash.muted, lineHeight: 1.45 }}>
-                        Course <span style={{ fontWeight: 700, color: dash.text }}>{courseLabel}</span>
-                    </p>
-                </header>
+      {showAddStudents ? (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <Tabs
+              value={addStudentsTab}
+              onValueChange={(v) => setAddStudentsTab(v as AddStudentsTab)}
+            >
+              <TabsList>
+                <TabsTrigger value="manual">Manual entry</TabsTrigger>
+                <TabsTrigger value="upload">Upload file</TabsTrigger>
+              </TabsList>
 
-                <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.muted }}>
-                        {loadingStudents
-                            ? "Loading…"
-                            : students.length === 0
-                                ? "No students in this section"
-                                : `${students.length} ${students.length === 1 ? "student" : "students"}`}
-                    </p>
-                    <button
-                        type="button"
-                        style={S.primaryBtn}
-                        onClick={() => { setAddStudentsTab("manual"); setShowAddStudents(true); }}
+              <TabsContent value="manual" className="mt-4 space-y-3">
+                <p className="text-sm text-muted-foreground m-0">
+                  Enter one or more university student IDs separated by commas or new lines.
+                </p>
+                <form onSubmit={(e) => void handleAddManual(e)} className="space-y-3">
+                  <Textarea
+                    value={inputValue}
+                    onChange={(e) => {
+                      setInputValue(e.target.value);
+                      setInputError(null);
+                    }}
+                    placeholder={"2021001\n2021002, 2021003"}
+                    rows={5}
+                    className="resize-y"
+                  />
+                  {inputError ? (
+                    <p className="text-sm font-medium text-destructive m-0">{inputError}</p>
+                  ) : null}
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowAddStudents(false)}
                     >
-                        <UserPlus size={17} />
-                        Add Students
-                    </button>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={submitting}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      {submitting ? "Adding…" : "Add students"}
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="upload" className="mt-4 space-y-3">
+                <input
+                  ref={uploadInputRef}
+                  type="file"
+                  accept=".txt,.csv,text/plain,text/csv"
+                  className="hidden"
+                  onChange={handleUploadInputChange}
+                />
+                <p className="text-sm text-muted-foreground m-0">
+                  Each line (or comma-separated value) should contain one university student ID.
+                </p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <Button type="button" variant="outline" onClick={handleUploadFilePick}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Choose file
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {uploadFileLabel ?? "No file selected"}
+                  </span>
                 </div>
-
-                {showAddStudents ? (
-                    <div style={{ ...card, marginTop: 16, padding: 0, overflow: "hidden" }}>
-                        <div
-                            style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: `1px solid ${dash.border}`, padding: "0 12px" }}
-                            role="tablist"
-                        >
-                            <button type="button" role="tab" aria-selected={addStudentsTab === "manual"} onClick={() => setAddStudentsTab("manual")} style={addStudentsTabStyle(addStudentsTab === "manual")}>
-                                Manual Entry
-                            </button>
-                            <button type="button" role="tab" aria-selected={addStudentsTab === "upload"} onClick={() => setAddStudentsTab("upload")} style={addStudentsTabStyle(addStudentsTab === "upload")}>
-                                Upload File
-                            </button>
-                        </div>
-
-                        {addStudentsTab === "manual" ? (
-                            <form onSubmit={(e) => void handleAddManual(e)} style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-                                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: dash.subtle, letterSpacing: "0.06em" }}>
-                                    ADD BY UNIVERSITY STUDENT ID
-                                </p>
-                                <p style={{ margin: 0, fontSize: 12, color: dash.muted }}>
-                                    Enter one or more student IDs separated by commas or new lines.
-                                </p>
-                                <textarea
-                                    style={{ ...S.input, minHeight: 90, resize: "vertical" }}
-                                    value={inputValue}
-                                    onChange={(e) => { setInputValue(e.target.value); setInputError(null); }}
-                                    placeholder={"2021001\n2021002, 2021003"}
-                                    autoComplete="off"
-                                />
-                                {inputError ? (
-                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: dash.danger }}>{inputError}</p>
-                                ) : null}
-                                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                                    <button type="button" style={S.secondaryBtn} onClick={() => setShowAddStudents(false)}>
-                                        Cancel
-                                    </button>
-                                    <button type="submit" style={S.primaryBtn} disabled={submitting}>
-                                        <Plus size={17} />
-                                        {submitting ? "Adding…" : "Add"}
-                                    </button>
-                                </div>
-                            </form>
-                        ) : (
-                            <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-                                <input ref={uploadInputRef} type="file" accept=".txt,.csv,text/plain,text/csv" style={{ display: "none" }} onChange={handleUploadInputChange} />
-                                <p style={{ margin: 0, fontSize: 13, color: dash.muted, lineHeight: 1.5 }}>
-                                    Each line (or comma-separated value) should contain one university student ID.
-                                </p>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                                    <button type="button" style={S.secondaryBtn} onClick={handleUploadFilePick}>
-                                        <Upload size={16} />
-                                        Choose File
-                                    </button>
-                                    <span style={{ fontSize: 13, color: uploadFileLabel ? dash.text : dash.subtle }}>
-                                        {uploadFileLabel ?? "No file selected"}
-                                    </span>
-                                </div>
-                                {uploadError ? (
-                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: dash.danger }}>{uploadError}</p>
-                                ) : null}
-                                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                                    <button type="button" style={S.secondaryBtn} onClick={() => setShowAddStudents(false)}>
-                                        Cancel
-                                    </button>
-                                    <button type="button" style={S.primaryBtn} onClick={() => void handleUploadAndAddStudents()} disabled={uploading}>
-                                        <Upload size={17} />
-                                        {uploading ? "Uploading…" : "Upload & Add"}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                {uploadError ? (
+                  <p className="text-sm font-medium text-destructive m-0">{uploadError}</p>
                 ) : null}
-
-                <div style={{ marginTop: 20 }}>
-                    {!loadingStudents && students.length === 0 && !showAddStudents ? (
-                        <div style={{ ...card, padding: "48px 24px", textAlign: "center" }}>
-                            <Users size={40} color="#cbd5e1" style={{ marginBottom: 14 }} />
-                            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: dash.muted }}>No students yet</p>
-                            <p style={{ margin: "10px auto 0", fontSize: 13, color: dash.subtle, lineHeight: 1.55, maxWidth: 400 }}>
-                                Use <strong style={{ color: dash.text }}>Add Students</strong> to enroll students by their university ID.
-                            </p>
-                        </div>
-                    ) : null}
-
-                    {students.length > 0 ? (
-                        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-                            {students.map((s) => (
-                                <li
-                                    key={s.studentId}
-                                    style={{ ...card, padding: "16px 18px", boxShadow: dash.shadow, display: "flex", alignItems: "center", gap: 14 }}
-                                >
-                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: dash.accentMuted, display: "flex", alignItems: "center", justifyContent: "center", color: dash.accent, flexShrink: 0 }}>
-                                        <GraduationCap size={22} />
-                                    </div>
-                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: dash.text }}>{s.name}</p>
-                                        <p style={{ margin: "3px 0 0", fontSize: 12, color: dash.subtle }}>
-                                            {s.universityId && <span style={{ marginRight: 10 }}>ID: {s.universityId}</span>}
-                                            {s.university && <span style={{ marginRight: 10 }}>{s.university}</span>}
-                                            {s.major && <span>{s.major}</span>}
-                                        </p>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : null}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAddStudents(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => void handleUploadAndAddStudents()}
+                    disabled={uploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploading ? "Uploading…" : "Upload & add"}
+                  </Button>
                 </div>
-            </div>
-        </div>
-    );
-}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      ) : null}
 
-const S: Record<string, CSSProperties> = {
-    backBtn: {
-        display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px",
-        borderRadius: 10, border: `1px solid ${dash.border}`, background: dash.surface,
-        color: dash.muted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: dash.font,
-    },
-    primaryBtn: {
-        display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 18px",
-        borderRadius: 10, border: "none", background: `linear-gradient(135deg,${dash.accent},#7c3aed)`,
-        color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: dash.font,
-        boxShadow: "0 4px 16px rgba(79,70,229,0.3)",
-    },
-    secondaryBtn: {
-        display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 14px",
-        borderRadius: 10, border: `1px solid ${dash.border}`, background: dash.surface,
-        color: dash.muted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: dash.font,
-    },
-    input: {
-        width: "100%", padding: "11px 12px", borderRadius: 10,
-        border: `1.5px solid ${dash.border}`, fontSize: 14, color: dash.text,
-        boxSizing: "border-box" as const, fontFamily: dash.font, background: "#f8fafc",
-    },
-};
+      {loadingStudents ? (
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-16 rounded-lg" />
+          ))}
+        </div>
+      ) : null}
+
+      {!loadingStudents && students.length === 0 && !showAddStudents ? (
+        <DoctorHubEmptyState
+          icon={Users}
+          title="No students yet"
+          description="Use Add students to enroll learners by their university ID."
+          action={
+            <Button type="button" onClick={() => setShowAddStudents(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add students
+            </Button>
+          }
+        />
+      ) : null}
+
+      {!loadingStudents && students.length > 0 ? (
+        <div className="space-y-2 border border-border rounded-lg overflow-hidden bg-card">
+          {students.map((s) => (
+            <div
+              key={s.studentId}
+              className="flex items-center gap-3 border-b border-border last:border-b-0 p-3 hover:bg-accent/30"
+            >
+              <Avatar className="h-9 w-9 shrink-0">
+                <AvatarFallback className="bg-accent text-accent-foreground text-xs font-semibold">
+                  {(s.name?.trim()[0] ?? "?").toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-foreground truncate">{s.name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                  {s.universityId ? <span>ID: {s.universityId}</span> : null}
+                  {s.major ? <span>{s.major}</span> : null}
+                  {s.university ? <span>{s.university}</span> : null}
+                </div>
+              </div>
+              <GraduationCap className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </DoctorSubpageLayout>
+  );
+}

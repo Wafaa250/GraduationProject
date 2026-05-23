@@ -1,8 +1,24 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, ArrowRight, Mail, Lock } from 'lucide-react'
+import { BrandLogo } from '../../components/brand/BrandLogo'
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  AlertCircle,
+  Sparkles,
+  Users,
+  Network,
+  GraduationCap,
+} from 'lucide-react'
 import api from '../../../api/axiosInstance'
 import { isAssociationRole } from '../../../api/associationApi'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Label } from '../../components/ui/label'
+import { Checkbox } from '../../components/ui/checkbox'
+import { cn } from '../../components/ui/utils'
+import './login-page.css'
 
 export type LoginPageProps = {
   /** When true, successful login does not navigate — caller refreshes in-place (e.g. embedded doctor dashboard). */
@@ -13,9 +29,10 @@ export type LoginPageProps = {
 
 export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPageProps) {
   const navigate = useNavigate()
-  const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [remember, setRemember] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
 
@@ -28,7 +45,6 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
       const response = await api.post('/auth/login', { email, password })
       const result = response.data
 
-      // ✅ حفظ التوكن والمعلومات
       localStorage.setItem('token', result.token)
       localStorage.setItem('userId', result.userId.toString())
       localStorage.setItem('role', result.role)
@@ -53,7 +69,6 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
       } else {
         navigate('/dashboard')
       }
-
     } catch (error: any) {
       const msg =
         error.response?.data?.message ||
@@ -65,159 +80,277 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+    <main
+      className={cn(
+        'login-page relative min-h-screen bg-gradient-soft overflow-hidden',
+        embedded && 'min-h-0 bg-transparent'
+      )}
+    >
+      {!embedded && (
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-40 -left-40 h-[520px] w-[520px] rounded-full bg-primary/20 blur-3xl"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-40 -right-40 h-[600px] w-[600px] rounded-full bg-primary-glow/20 blur-3xl"
+          />
+        </>
+      )}
 
-      <div className="w-full max-w-md px-8 py-12 bg-white rounded-3xl shadow-xl shadow-slate-100 border border-slate-100 relative overflow-hidden mx-4">
-
-        {/* Decorative blobs */}
-        <div className="absolute top-[-80px] left-[-80px] w-[300px] h-[300px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)' }} />
-        <div className="absolute bottom-[-60px] right-[-60px] w-[250px] h-[250px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.07) 0%, transparent 70%)' }} />
-
-        <div className="relative">
-
-          {/* Logo */}
-          <Link to="/" className="inline-flex items-center gap-2.5 mb-10">
+      <div
+        className={cn(
+          'relative grid min-h-screen',
+          !embedded && 'lg:grid-cols-2',
+          embedded && 'min-h-0'
+        )}
+      >
+        {!embedded && (
+          <aside className="hidden lg:flex relative flex-col justify-between p-12 xl:p-16 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-brand opacity-[0.97]" />
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200"
-              style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7)' }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-white">
-                <path
-                  d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              aria-hidden
+              className="absolute inset-0 opacity-30 bg-gradient-mesh mix-blend-overlay"
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 [background-image:linear-gradient(hsl(0_0%_100%/0.08)_1px,transparent_1px),linear-gradient(90deg,hsl(0_0%_100%/0.08)_1px,transparent_1px)] [background-size:42px_42px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]"
+            />
+
+            <BrandLogo to="/" size="lg" onDark className="relative" />
+
+            <div className="relative space-y-10 text-primary-foreground">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
+                <Sparkles className="h-3.5 w-3.5" />
+                AI-powered university collaboration
+              </div>
+              <h1 className="text-4xl xl:text-5xl font-semibold leading-[1.05] tracking-tight">
+                Build the team
+                <br />
+                behind your next
+                <br />
+                <span className="italic font-serif">great project.</span>
+              </h1>
+              <p className="max-w-md text-base xl:text-lg text-primary-foreground/85 leading-relaxed">
+                Discover compatible teammates, form balanced AI-assisted teams, find graduation
+                projects, and connect with supervisors and partner organizations.
+              </p>
+
+              <ul className="grid gap-3 text-sm text-primary-foreground/90">
+                <FeatureRow
+                  icon={<Network className="h-4 w-4" />}
+                  label="Smart skill-matching across your campus"
                 />
-              </svg>
+                <FeatureRow
+                  icon={<Users className="h-4 w-4" />}
+                  label="Balanced team formation with AI insights"
+                />
+                <FeatureRow
+                  icon={<GraduationCap className="h-4 w-4" />}
+                  label="Request supervisors & collaborate with partners"
+                />
+              </ul>
             </div>
 
-            <span className="text-xl font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
-              Skill
-              <span
-                style={{
-                  background: 'linear-gradient(135deg,#6366f1,#a855f7)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                Swap
-              </span>
-            </span>
-          </Link>
-
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-extrabold text-slate-900 mb-2" style={{ fontFamily: 'Syne, sans-serif' }}>
-              Welcome back 👋
-            </h1>
-            <p className="text-slate-500 text-sm">
-              Sign in to continue building your dream team
+            <p className="relative text-xs text-primary-foreground/70">
+              Trusted by student teams at universities building research, startups, and capstone
+              projects.
             </p>
-          </div>
+          </aside>
+        )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="you@university.edu"
-                  required
-                  className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 focus:bg-white transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Password
-                </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  className="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 focus:bg-white transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
-                </button>
-              </div>
-            </div>
-
-            {/* ── API Error ── */}
-            {apiError && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
-                ❌ {apiError}
+        <section
+          className={cn(
+            'flex items-center justify-center px-5 py-10 sm:px-8',
+            embedded ? 'py-6' : 'lg:px-12'
+          )}
+        >
+          <div className="w-full max-w-md">
+            {!embedded && (
+              <div className="lg:hidden mb-8 flex items-center justify-center gap-2.5">
+                <BrandLogo to="/" size="sm" className="justify-center w-full" />
               </div>
             )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2.5 text-white py-3.5 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg,#4f46e5,#9333ea)' }}
-            >
-              {isLoading ? '⏳ Signing in...' : (
-                <>Sign In <ArrowRight size={16} strokeWidth={2.5}/></>
+            <div className="rounded-2xl border border-border/70 bg-card/90 backdrop-blur-xl p-7 sm:p-9 shadow-card">
+              <header className="mb-7">
+                <h2 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-foreground">
+                  Sign in to <span className="text-gradient-brand">SkillSwap</span>
+                </h2>
+              </header>
+
+              {apiError && (
+                <div
+                  role="alert"
+                  className="mb-5 flex items-start gap-3 rounded-xl border border-destructive/30 bg-red-50 px-3.5 py-3 text-sm text-destructive"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-medium">Sign in failed</p>
+                    <p className="text-destructive/85">{apiError}</p>
+                  </div>
+                </div>
               )}
-            </button>
 
-          </form>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <Field id="email" label="Email Address">
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="Enter your email address"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (apiError) setApiError(null)
+                    }}
+                    required
+                    className={cn(
+                      'h-11 rounded-lg bg-background transition-shadow',
+                      'focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary'
+                    )}
+                  />
+                </Field>
 
-          {/* Divider */}
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-slate-200"/>
-            <span className="text-xs text-slate-400 font-medium">or continue with</span>
-            <div className="flex-1 h-px bg-slate-200"/>
+                <Field
+                  id="password"
+                  label="Password"
+                  rightSlot={
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs font-medium text-primary hover:text-primary-deep transition-colors"
+                    >
+                      Forgot password?
+                    </Link>
+                  }
+                >
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value)
+                        if (apiError) setApiError(null)
+                      }}
+                      required
+                      className={cn(
+                        'h-11 pr-11 rounded-lg bg-background transition-shadow',
+                        'focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary'
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-muted-foreground hover:text-foreground focus:outline-none focus-visible:text-primary"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </Field>
+
+                <label className="flex items-center gap-2.5 text-sm text-foreground/85 cursor-pointer select-none">
+                  <Checkbox
+                    checked={remember}
+                    onCheckedChange={(v) => setRemember(!!v)}
+                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                  Keep me signed in on this device
+                </label>
+
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className={cn(
+                    'h-11 w-full rounded-lg text-sm font-semibold tracking-tight',
+                    'bg-gradient-brand text-primary-foreground hover:opacity-95 hover:shadow-glow',
+                    'transition-all duration-200',
+                    'disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none'
+                  )}
+                >
+                  {isLoading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Signing in...
+                    </span>
+                  ) : (
+                    'Sign in'
+                  )}
+                </Button>
+              </form>
+
+              <div className="my-7 flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or
+                <span className="h-px flex-1 bg-border" />
+              </div>
+
+              <p className="text-center text-sm text-muted-foreground">
+                New to SkillSwap?{' '}
+                <Link
+                  to="/register"
+                  className="font-medium text-primary hover:text-primary-deep transition-colors"
+                >
+                  Create an account
+                </Link>
+              </p>
+            </div>
+
+            {!embedded && (
+              <p className="mt-6 text-center text-xs text-muted-foreground">
+                By signing in you agree to SkillSwap&apos;s{' '}
+                <a href="#" className="underline-offset-2 hover:underline">
+                  Terms
+                </a>{' '}
+                &{' '}
+                <a href="#" className="underline-offset-2 hover:underline">
+                  Privacy
+                </a>
+                .
+              </p>
+            )}
           </div>
-
-          {/* Google */}
-          <button className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium transition-all hover:-translate-y-0.5 shadow-sm">
-            Continue with Google
-          </button>
-
-          {/* Register link */}
-          <p className="text-center text-sm text-slate-500 mt-7">
-            Don't have an account?{" "}
-            <Link
-              to="/register"
-              className="font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
-            >
-              Sign up for free
-            </Link>
-          </p>
-
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   )
 }
+
+const Field = ({
+  id,
+  label,
+  rightSlot,
+  children,
+}: {
+  id: string
+  label: string
+  rightSlot?: ReactNode
+  children: ReactNode
+}) => (
+  <div className="space-y-1.5">
+    <div className="flex items-center justify-between">
+      <Label htmlFor={id} className="text-sm font-medium text-foreground/90">
+        {label}
+      </Label>
+      {rightSlot}
+    </div>
+    {children}
+  </div>
+)
+
+const FeatureRow = ({ icon, label }: { icon: ReactNode; label: string }) => (
+  <li className="flex items-center gap-3">
+    <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 border border-white/20 backdrop-blur">
+      {icon}
+    </span>
+    {label}
+  </li>
+)

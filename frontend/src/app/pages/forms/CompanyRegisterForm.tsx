@@ -1,18 +1,37 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Sparkles, Loader2 } from 'lucide-react'
-import './company-register-mobile.css'
+import { Sparkles, Loader2, Eye, EyeOff, Mail, Lock, User, Building2, Link2, Briefcase } from 'lucide-react'
 import {
   analyzeCompany,
   registerCompany,
   parseApiErrorMessage,
 } from '../../../api/companyApi'
+import { RegistrationLayout } from '../../components/registration/RegistrationLayout'
+import { FormSection, FieldGrid, RegField } from '../../components/registration/FormSection'
+import { TextInput, Textarea } from '../../components/registration/Inputs'
+import { AlertError, GhostButton, PrimaryButton } from '../../components/registration/States'
+import { RegistrationStepFooter } from '../../components/registration/RegistrationStepFooter'
+import { RegistrationSuccess } from '../../components/registration/RegistrationSuccess'
+import type { RegistrationStep } from '../../components/registration/types'
 
-const STEPS = [
-  { id: 'account', label: 'Account', icon: '👤' },
-  { id: 'links', label: 'Company links', icon: '🔗' },
-  { id: 'profile', label: 'Company profile', icon: '🏢' },
+const STEPS: RegistrationStep[] = [
+  { id: 'account', label: 'Account', hint: 'Contact credentials' },
+  { id: 'links', label: 'Company links', hint: 'AI profile import' },
+  { id: 'profile', label: 'Company profile', hint: 'Review and finish' },
+]
+
+const COMPANY_HIGHLIGHTS = [
+  { icon: <Building2 className="h-4 w-4" />, label: 'Graduation projects', sub: 'Publish real-world project ideas' },
+  { icon: <Sparkles className="h-4 w-4" />, label: 'AI profile import', sub: 'From website or LinkedIn' },
+  { icon: <Briefcase className="h-4 w-4" />, label: 'Talent matching', sub: 'Connect with skilled students' },
+]
+
+const FORM_TITLES = ['Create your company account', 'Company links', 'Company profile']
+const FORM_SUBTITLES = [
+  'Represent your organization on SkillSwap.',
+  'We use AI to read your website or LinkedIn and fill your company profile.',
+  'Review and edit your company details before creating your account.',
 ]
 
 type FormState = {
@@ -94,7 +113,6 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
     }
   }
 
-  /** Go to profile step without requiring website/LinkedIn (manual entry). */
   const skipAiAndGoManual = () => {
     setErrors((e) => ({ ...e, websiteUrl: '' }))
     setAnalysisNote(null)
@@ -170,551 +188,234 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
     }
   }
 
+  const handleNext = () => {
+    if (step === STEPS.length - 1) submit()
+    else next()
+  }
+
   if (submitted) {
     return (
-      <div className="co-company-register" style={S.page}>
-          <Blobs />
-          <div style={S.successWrap} className="co-success-card">
-            <div style={S.successIcon}>✓</div>
-            <h2 style={S.successH2}>Welcome, {form.companyName}!</h2>
-            <p style={S.successP}>Your company account is ready on SkillSwap.</p>
-            <button type="button" style={S.btnPrimary} onClick={() => navigate('/login')}>
-              Sign in →
-            </button>
-          </div>
+      <div className="co-company-register">
+        <RegistrationSuccess
+          title={`Welcome, ${form.companyName}!`}
+          description="Your company account is ready on SkillSwap."
+          primaryAction={{ label: 'Sign in', onClick: () => navigate('/login') }}
+        />
       </div>
     )
   }
 
+  const profileSubtitle = skippedAi
+    ? 'Enter your company details manually. Add a website or LinkedIn on the previous step anytime if you have one.'
+    : 'Review and edit what AI suggested before creating your account'
+
   return (
-    <div className="co-company-register" style={S.page}>
-      <Blobs />
-      <div className="co-reg-inner" style={S.wrap}>
-        <div style={S.logoRow}>
-          <div style={S.logoIcon}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                stroke="white"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <span style={S.logoText}>
-            Skill<span style={S.logoAccent}>Swap</span>
-          </span>
-        </div>
-
-        {onBack ? (
-          <button type="button" onClick={onBack} style={S.changeRoleBtn}>
-            ← Back to role selection
-          </button>
-        ) : (
-          <Link to="/register" style={S.changeRoleBtn}>
-            ← Change role
-          </Link>
-        )}
-        <span style={S.roleBadge}>Company</span>
-
-        <div style={S.stepper} className="co-reg-stepper">
-          {STEPS.map((s, i) => (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div
-                    style={{
-                      ...S.stepDot,
-                      ...(i === step ? S.stepDotActive : i < step ? S.stepDotDone : S.stepDotIdle),
-                    }}
-                  >
-                    {i < step ? (
-                      <span style={{ fontSize: 12, color: 'white', fontWeight: 900 }}>✓</span>
-                    ) : (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: i === step ? 'white' : '#94a3b8' }}>
-                        {i + 1}
-                      </span>
-                    )}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: i === step ? '#1e293b' : i < step ? '#059669' : '#94a3b8',
-                    }}
-                  >
-                    {s.icon} {s.label}
-                  </span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div
-                    style={{
-                      width: 32,
-                      height: 2,
-                      margin: '0 8px',
-                      background: i < step ? 'linear-gradient(90deg,#10b981,#059669)' : '#e2e8f0',
-                      borderRadius: 2,
-                    }}
-                  />
-                )}
+    <div className="co-company-register">
+      <RegistrationLayout
+        steps={STEPS}
+        current={step}
+        brandEyebrow="Company onboarding"
+        brandTitle={
+          <>
+            Hire talent.
+            <br />
+            Sponsor graduation projects.
+          </>
+        }
+        brandDescription="Register your company to publish projects, mentor teams, and connect with skilled students on SkillSwap."
+        highlights={COMPANY_HIGHLIGHTS}
+        formTitle={FORM_TITLES[step]}
+        formSubtitle={step === 2 ? profileSubtitle : FORM_SUBTITLES[step]}
+        changeRole={
+          onBack ? (
+            <button type="button" onClick={onBack} className="text-sm font-medium text-primary hover:text-primary-deep">
+              ← Change account type
+            </button>
+          ) : (
+            <Link to="/register" className="text-sm font-medium text-primary hover:text-primary-deep">
+              ← Change account type
+            </Link>
+          )
+        }
+        footer={
+          step === 1 ? (
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 mt-6 border-t border-border">
+              <GhostButton type="button" onClick={back} className="w-full sm:w-auto">
+                Back
+              </GhostButton>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <GhostButton type="button" onClick={skipAiAndGoManual} className="w-full sm:w-auto">
+                  Skip AI — fill manually
+                </GhostButton>
+                <PrimaryButton
+                  type="button"
+                  onClick={runAnalysis}
+                  loading={isAnalyzing}
+                  className="co-reg-analyze w-full sm:w-auto min-w-[200px]"
+                >
+                  {!isAnalyzing ? <Sparkles className="h-4 w-4" /> : null}
+                  {isAnalyzing ? 'Analyzing with AI…' : 'Analyze company with AI'}
+                </PrimaryButton>
               </div>
-          ))}
-        </div>
+            </div>
+          ) : (
+            <RegistrationStepFooter
+              step={step}
+              totalSteps={STEPS.length}
+              onBack={back}
+              onNext={handleNext}
+              loading={isLoading}
+              isLastStep={step === STEPS.length - 1}
+              backLabel={step === 0 && onBack ? '← Back to account types' : 'Back'}
+              nextLabel={step === STEPS.length - 1 ? 'Create company account' : 'Continue'}
+            />
+          )
+        }
+      >
+        {apiError ? <AlertError title="Something went wrong">{apiError}</AlertError> : null}
 
-        <div style={S.card} className="co-reg-card">
-          {apiError && <div style={S.apiError}>{apiError}</div>}
-
-          {step === 0 && (
-            <Section title="Account" sub="Create the account for your company representative">
-              <Field
-                label="Your name (contact person)"
-                value={form.contactName}
-                onChange={(v) => set('contactName', v)}
-                error={errors.contactName}
-                required
+        {step === 0 && (
+          <FormSection title="Account" description="Create the account for your company representative.">
+            <RegField label="Your name (contact person)" htmlFor="co-contact" required error={errors.contactName}>
+              <TextInput
+                id="co-contact"
+                invalid={!!errors.contactName}
+                leading={<User className="h-4 w-4" />}
                 placeholder="e.g. Sara Ahmad"
+                value={form.contactName}
+                onChange={(e) => set('contactName', e.target.value)}
               />
-              <Field
-                label="Work email"
-                value={form.email}
-                onChange={(v) => set('email', v)}
-                error={errors.email}
-                required
+            </RegField>
+            <RegField label="Work email" htmlFor="co-email" required error={errors.email}>
+              <TextInput
+                id="co-email"
                 type="email"
+                invalid={!!errors.email}
+                leading={<Mail className="h-4 w-4" />}
                 placeholder="hr@company.com"
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
               />
-              <Field
-                label="Password"
-                value={form.password}
-                onChange={(v) => set('password', v)}
-                error={errors.password}
-                required
-                type={showPass ? 'text' : 'password'}
-                suffix={<EyeBtn show={showPass} toggle={() => setShowPass(!showPass)} />}
-              />
-              <Field
-                label="Confirm password"
-                value={form.confirmPassword}
-                onChange={(v) => set('confirmPassword', v)}
-                error={errors.confirmPassword}
-                required
-                type={showConfirm ? 'text' : 'password'}
-                suffix={<EyeBtn show={showConfirm} toggle={() => setShowConfirm(!showConfirm)} />}
-              />
-            </Section>
-          )}
+            </RegField>
+            <FieldGrid>
+              <RegField label="Password" htmlFor="co-pass" required error={errors.password}>
+                <TextInput
+                  id="co-pass"
+                  type={showPass ? 'text' : 'password'}
+                  invalid={!!errors.password}
+                  leading={<Lock className="h-4 w-4" />}
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                  trailing={
+                    <button type="button" className="text-muted-foreground" onClick={() => setShowPass((x) => !x)}>
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
+                />
+              </RegField>
+              <RegField label="Confirm password" htmlFor="co-confirm" required error={errors.confirmPassword}>
+                <TextInput
+                  id="co-confirm"
+                  type={showConfirm ? 'text' : 'password'}
+                  invalid={!!errors.confirmPassword}
+                  leading={<Lock className="h-4 w-4" />}
+                  value={form.confirmPassword}
+                  onChange={(e) => set('confirmPassword', e.target.value)}
+                  trailing={
+                    <button type="button" className="text-muted-foreground" onClick={() => setShowConfirm((x) => !x)}>
+                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
+                />
+              </RegField>
+            </FieldGrid>
+          </FormSection>
+        )}
 
-          {step === 1 && (
-            <Section
-              title="Company links"
-              sub="We use AI to read your website or LinkedIn and fill your company profile"
-            >
-              <Field
-                label="Company website"
-                value={form.websiteUrl}
-                onChange={(v) => set('websiteUrl', v)}
-                error={errors.websiteUrl}
+        {step === 1 && (
+          <FormSection
+            title="Company links"
+            description="Provide at least one link. If you only have LinkedIn, that works too."
+          >
+            <RegField label="Company website" htmlFor="co-web" error={errors.websiteUrl}>
+              <TextInput
+                id="co-web"
+                invalid={!!errors.websiteUrl}
+                leading={<Link2 className="h-4 w-4" />}
                 placeholder="https://yourcompany.com"
+                value={form.websiteUrl}
+                onChange={(e) => set('websiteUrl', e.target.value)}
               />
-              <Field
-                label="LinkedIn company page"
-                value={form.linkedInUrl}
-                onChange={(v) => set('linkedInUrl', v)}
+            </RegField>
+            <RegField label="LinkedIn company page" htmlFor="co-li">
+              <TextInput
+                id="co-li"
+                leading={<Link2 className="h-4 w-4" />}
                 placeholder="https://linkedin.com/company/..."
+                value={form.linkedInUrl}
+                onChange={(e) => set('linkedInUrl', e.target.value)}
               />
-              <p style={S.hint}>Provide at least one link. If you only have LinkedIn, that works too.</p>
-              <button
-                type="button"
-                className="co-reg-analyze"
-                style={{
-                  ...S.btnAnalyze,
-                  opacity: isAnalyzing ? 0.7 : 1,
-                  cursor: isAnalyzing ? 'wait' : 'pointer',
-                }}
-                disabled={isAnalyzing}
-                onClick={runAnalysis}
-              >
-                {isAnalyzing ? (
-                  <span style={S.btnAnalyzeInner}>
-                    <Loader2 size={18} className="animate-spin" />
-                    Analyzing with AI…
-                  </span>
-                ) : (
-                  <span style={S.btnAnalyzeInner}>
-                    <Sparkles size={18} />
-                    Analyze company with AI
-                  </span>
-                )}
-              </button>
-            </Section>
-          )}
+            </RegField>
+          </FormSection>
+        )}
 
-          {step === 2 && (
-            <Section
-              title="Company profile"
-              sub={
-                skippedAi
-                  ? 'Enter your company details manually. Add a website or LinkedIn on the previous step anytime if you have one.'
-                  : 'Review and edit what AI suggested before creating your account'
-              }
-            >
-            {skippedAi && (
-              <p style={{ ...S.hint, marginTop: -8, marginBottom: 16 }}>
+        {step === 2 && (
+          <FormSection title="Company profile" description={profileSubtitle}>
+            {skippedAi ? (
+              <p className="text-xs text-muted-foreground -mt-2 mb-2">
                 No website yet? Describe your company clearly below (at least 40 characters), or go back and add a
                 link.
               </p>
-            )}
-              {analysisNote && <p style={S.analysisNote}>{analysisNote}</p>}
-              <Field
-                label="Company name"
+            ) : null}
+            {analysisNote ? (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                {analysisNote}
+              </p>
+            ) : null}
+            <RegField label="Company name" htmlFor="co-name" required error={errors.companyName}>
+              <TextInput
+                id="co-name"
+                invalid={!!errors.companyName}
+                leading={<Building2 className="h-4 w-4" />}
                 value={form.companyName}
-                onChange={(v) => set('companyName', v)}
-                error={errors.companyName}
-                required
+                onChange={(e) => set('companyName', e.target.value)}
               />
-              <Field
-                label="Industry"
-                value={form.industry}
-                onChange={(v) => set('industry', v)}
-                placeholder="e.g. Software, FinTech"
-              />
-              <Field
-                label="Location"
-                value={form.location}
-                onChange={(v) => set('location', v)}
-                placeholder="e.g. Nablus, Palestine"
-              />
-            <Field
-                label="About the company"
-                value={form.description}
-                onChange={(v) => set('description', v)}
-                multiline
+            </RegField>
+            <FieldGrid>
+              <RegField label="Industry" htmlFor="co-industry">
+                <TextInput
+                  id="co-industry"
+                  placeholder="e.g. Software, FinTech"
+                  value={form.industry}
+                  onChange={(e) => set('industry', e.target.value)}
+                />
+              </RegField>
+              <RegField label="Location" htmlFor="co-loc">
+                <TextInput
+                  id="co-loc"
+                  placeholder="e.g. Nablus, Palestine"
+                  value={form.location}
+                  onChange={(e) => set('location', e.target.value)}
+                />
+              </RegField>
+            </FieldGrid>
+            <RegField label="About the company" htmlFor="co-desc" error={errors.description}>
+              <Textarea
+                id="co-desc"
                 placeholder="What does your company do?"
-                error={errors.description}
+                value={form.description}
+                onChange={(e) => set('description', e.target.value)}
               />
-              <div style={S.linkSummary}>
-                {form.websiteUrl && <span>🌐 {form.websiteUrl}</span>}
-                {form.linkedInUrl && <span>in {form.linkedInUrl}</span>}
+            </RegField>
+            {(form.websiteUrl || form.linkedInUrl) && (
+              <div className="text-xs text-muted-foreground space-y-1 pt-1">
+                {form.websiteUrl ? <p>🌐 {form.websiteUrl}</p> : null}
+                {form.linkedInUrl ? <p>in {form.linkedInUrl}</p> : null}
               </div>
-            </Section>
-          )}
-
-          <div style={S.navRow} className="co-reg-nav">
-            <button type="button" style={S.btnBack} onClick={back}>
-              ← Back
-            </button>
-            {step < 2 ? (
-              step === 1 ? (
-                <button type="button" style={S.btnOutline} onClick={skipAiAndGoManual}>
-                  Skip AI — fill manually →
-                </button>
-              ) : (
-                <button type="button" style={S.btnPrimary} onClick={next}>
-                  Continue →
-                </button>
-              )
-            ) : (
-              <button
-                type="button"
-                style={{ ...S.btnPrimary, opacity: isLoading ? 0.7 : 1 }}
-                onClick={submit}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Creating account…' : 'Create company account'}
-              </button>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Section({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
-  return (
-    <div>
-      <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', fontFamily: 'Syne, sans-serif' }}>{title}</h2>
-      <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 24px' }}>{sub}</p>
-      {children}
-    </div>
-  )
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  error,
-  required,
-  type = 'text',
-  placeholder,
-  multiline,
-  suffix,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  error?: string
-  required?: boolean
-  type?: string
-  placeholder?: string
-  multiline?: boolean
-  suffix?: ReactNode
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <label style={S.label}>
-        {label}
-        {required && <span style={{ color: '#ef4444' }}> *</span>}
-      </label>
-      <div style={{ position: 'relative' }}>
-        {multiline ? (
-          <textarea
-            style={{ ...S.input, minHeight: 100, borderColor: error ? '#fca5a5' : '#e2e8f0' }}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-          />
-        ) : (
-          <input
-            type={type}
-            style={{ ...S.input, borderColor: error ? '#fca5a5' : '#e2e8f0', paddingRight: suffix ? 40 : 14 }}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-          />
+          </FormSection>
         )}
-        {suffix && (
-          <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>{suffix}</div>
-        )}
-      </div>
-      {error && <span style={S.error}>{error}</span>}
+      </RegistrationLayout>
     </div>
   )
-}
-
-function EyeBtn({ show, toggle }: { show: boolean; toggle: () => void }) {
-  return (
-    <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }} onClick={toggle}>
-      {show ? '🙈' : '👁️'}
-    </button>
-  )
-}
-
-function Blobs() {
-  return (
-    <>
-      <div
-        style={{
-          position: 'fixed',
-          top: -150,
-          right: -150,
-          width: 500,
-          height: 500,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle,rgba(16,185,129,0.1) 0%,transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'fixed',
-          bottom: -150,
-          left: -150,
-          width: 400,
-          height: 400,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle,rgba(5,150,105,0.06) 0%,transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-    </>
-  )
-}
-
-const S: Record<string, CSSProperties> = {
-  page: {
-    minHeight: '100vh',
-    background: 'linear-gradient(155deg,#ecfdf5 0%,#d1fae5 40%,#f0fdf4 100%)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    padding: '40px 20px 60px',
-    fontFamily: 'DM Sans, sans-serif',
-    position: 'relative',
-  },
-  wrap: { width: '100%', maxWidth: 600, position: 'relative', zIndex: 1 },
-  logoRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 },
-  logoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    background: 'linear-gradient(135deg,#10b981,#059669)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: { fontSize: 22, fontWeight: 800, color: '#0f172a', fontFamily: 'Syne, sans-serif' },
-  logoAccent: { color: '#059669' },
-  changeRoleBtn: {
-    display: 'block',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#059669',
-    fontWeight: 600,
-    fontSize: 13,
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    width: '100%',
-    fontFamily: 'inherit',
-    textDecoration: 'none',
-  },
-  roleBadge: {
-    display: 'block',
-    textAlign: 'center',
-    marginBottom: 20,
-    padding: '3px 12px',
-    borderRadius: 20,
-    fontSize: 12,
-    fontWeight: 700,
-    background: '#ecfdf5',
-    border: '1px solid #a7f3d0',
-    color: '#047857',
-    width: 'fit-content',
-    marginLeft: 'auto',
-    marginRight: 'auto',
-  },
-  stepper: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 4 },
-  stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepDotActive: { background: 'linear-gradient(135deg,#10b981,#059669)' },
-  stepDotDone: { background: 'linear-gradient(135deg,#10b981,#059669)' },
-  stepDotIdle: { background: 'white', border: '2px solid #e2e8f0' },
-  card: {
-    background: 'white',
-    border: '1px solid #a7f3d0',
-    borderRadius: 20,
-    padding: '36px 40px',
-    boxShadow: '0 8px 32px rgba(16,185,129,0.1)',
-  },
-  label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 },
-  input: {
-    width: '100%',
-    padding: '11px 14px',
-    border: '1.5px solid #e2e8f0',
-    borderRadius: 10,
-    fontSize: 14,
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
-  },
-  error: { display: 'block', fontSize: 12, color: '#ef4444', marginTop: 4 },
-  hint: { fontSize: 13, color: '#64748b', margin: '0 0 16px', lineHeight: 1.5 },
-  analysisNote: {
-    fontSize: 13,
-    color: '#b45309',
-    background: '#fffbeb',
-    border: '1px solid #fde68a',
-    borderRadius: 10,
-    padding: '10px 14px',
-    marginBottom: 16,
-  },
-  apiError: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    color: '#b91c1c',
-    borderRadius: 10,
-    padding: '10px 14px',
-    fontSize: 13,
-    marginBottom: 16,
-  },
-  linkSummary: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 8,
-  },
-  btnAnalyze: {
-    width: '100%',
-    padding: '12px 20px',
-    border: 'none',
-    borderRadius: 12,
-    fontWeight: 700,
-    fontSize: 14,
-    color: 'white',
-    fontFamily: 'inherit',
-    background: 'linear-gradient(135deg,#6366f1,#9333ea)',
-    marginTop: 8,
-  },
-  btnAnalyzeInner: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  navRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 28,
-    paddingTop: 22,
-    borderTop: '1px solid #f1f5f9',
-  },
-  btnBack: {
-    padding: '10px 20px',
-    background: 'white',
-    border: '1.5px solid #e2e8f0',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  },
-  btnOutline: {
-    padding: '10px 18px',
-    background: 'white',
-    border: '1.5px solid #a7f3d0',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    color: '#059669',
-    fontWeight: 600,
-    fontSize: 13,
-  },
-  btnPrimary: {
-    padding: '11px 26px',
-    color: 'white',
-    border: 'none',
-    borderRadius: 10,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    background: 'linear-gradient(135deg,#10b981,#059669)',
-  },
-  successWrap: {
-    margin: '60px auto',
-    maxWidth: 440,
-    background: 'white',
-    borderRadius: 24,
-    padding: 48,
-    textAlign: 'center',
-    border: '1px solid #a7f3d0',
-  },
-  successIcon: {
-    width: 68,
-    height: 68,
-    margin: '0 auto 20px',
-    borderRadius: '50%',
-    background: '#ecfdf5',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 28,
-    color: '#059669',
-  },
-  successH2: { fontSize: 24, fontWeight: 800, fontFamily: 'Syne, sans-serif', margin: '0 0 10px' },
-  successP: { color: '#64748b', margin: '0 0 24px' },
 }

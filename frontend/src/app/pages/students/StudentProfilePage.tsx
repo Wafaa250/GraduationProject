@@ -1,355 +1,399 @@
-import { useState, useEffect, type CSSProperties } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
-  ArrowLeft, Github, Linkedin, Globe, Star,
-  GraduationCap, MapPin, BookOpen, Zap, Wrench, Languages
-} from 'lucide-react'
-import api from '../../../api/axiosInstance'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+  ArrowLeft,
+  Github,
+  Linkedin,
+  Globe,
+  Star,
+  GraduationCap,
+  MapPin,
+  BookOpen,
+  Zap,
+  Wrench,
+  Languages,
+  Loader2,
+} from "lucide-react";
+import api from "../../../api/axiosInstance";
+import { DoctorHubPageHeader } from "../../components/doctor/hub/DoctorHubPageHeader";
+import { DoctorSubpageLayout } from "../../components/doctor/hub/DoctorSubpageLayout";
+import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Progress } from "../../components/ui/progress";
 
 interface StudentProfile {
-  userId:               number
-  profileId:            number
-  name:                 string
-  email:                string
-  studentId:            string
-  university:           string
-  faculty:              string
-  major:                string
-  academicYear:         string
-  gpa:                  number | null
-  bio:                  string
-  availability:         string
-  lookingFor:           string
-  github:               string
-  linkedin:             string
-  portfolio:            string
-  profilePictureBase64: string | null
-  languages:            string[]
-  roles:                string[]
-  technicalSkills:      string[]
-  tools:                string[]
-  matchScore:           number | null
+  userId: number;
+  profileId: number;
+  name: string;
+  email: string;
+  studentId: string;
+  university: string;
+  faculty: string;
+  major: string;
+  academicYear: string;
+  gpa: number | null;
+  bio: string;
+  availability: string;
+  lookingFor: string;
+  github: string;
+  linkedin: string;
+  portfolio: string;
+  profilePictureBase64: string | null;
+  languages: string[];
+  roles: string[];
+  technicalSkills: string[];
+  tools: string[];
+  matchScore: number | null;
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+function getRole(): string | null {
+  try {
+    return localStorage.getItem("role");
+  } catch {
+    return null;
+  }
+}
 
 export default function StudentProfilePage() {
-  const { userId } = useParams<{ userId: string }>()
-  const navigate   = useNavigate()
+  const { userId } = useParams<{ userId: string }>();
+  const navigate = useNavigate();
+  const isDoctor = getRole() === "doctor";
 
-  const [profile, setProfile] = useState<StudentProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState<string | null>(null)
+  const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return
-    setLoading(true)
-    setError(null)
-    api.get(`/students/${userId}`)
-      .then(res => setProfile(res.data))
-      .catch(err => {
-        const msg = err?.response?.status === 403
-          ? 'You do not have permission to view this profile.'
-          : err?.response?.data?.message || 'Student not found.'
-        setError(msg)
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
+    api
+      .get(`/students/${userId}`)
+      .then((res) => setProfile(res.data))
+      .catch((err) => {
+        const msg =
+          err?.response?.status === 403
+            ? "You do not have permission to view this profile."
+            : err?.response?.data?.message || "Student not found.";
+        setError(msg);
       })
-      .finally(() => setLoading(false))
-  }, [userId])
+      .finally(() => setLoading(false));
+  }, [userId]);
 
-  // ── Loading ───────────────────────────────────────────────────────────────
-  if (loading) return (
-    <div style={S.page}>
-      <div style={S.centered}>
-        <div style={S.spinner} />
-        <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 14 }}>Loading profile...</p>
-      </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  )
+  const backBar = (
+    <Button variant="ghost" size="sm" className="mb-4 -ml-2 gap-2" asChild>
+      <Link to="/students">
+        <ArrowLeft className="h-4 w-4" />
+        {isDoctor ? "Student directory" : "Browse students"}
+      </Link>
+    </Button>
+  );
 
-  // ── Error ─────────────────────────────────────────────────────────────────
-  if (error || !profile) return (
-    <div style={S.page}>
-      <div style={S.centered}>
-        <span style={{ fontSize: 40 }}>😕</span>
-        <p style={{ fontSize: 15, fontWeight: 700, color: '#475569', margin: '10px 0 6px' }}>
-          {error || 'Profile not found'}
-        </p>
-        <button onClick={() => navigate('/students')} style={S.backBtn}>
-          <ArrowLeft size={14} /> Back to Students
-        </button>
+  if (loading) {
+    const loadingUi = (
+      <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm mt-3">Loading profile…</p>
       </div>
-    </div>
-  )
+    );
+    if (isDoctor) {
+      return (
+        <DoctorSubpageLayout wide backTo="/students" backLabel="Back to directory">
+          {loadingUi}
+        </DoctorSubpageLayout>
+      );
+    }
+    return <div className="min-h-screen max-w-4xl mx-auto px-4 py-8">{loadingUi}</div>;
+  }
+
+  if (error || !profile) {
+    const errorUi = (
+      <>
+        {backBar}
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="font-semibold text-foreground">{error || "Profile not found"}</p>
+            <Button className="mt-4" variant="outline" onClick={() => navigate("/students")}>
+              Back to students
+            </Button>
+          </CardContent>
+        </Card>
+      </>
+    );
+    if (isDoctor) {
+      return (
+        <DoctorSubpageLayout wide backTo="/students" backLabel="Back to directory">
+          {errorUi}
+        </DoctorSubpageLayout>
+      );
+    }
+    return <div className="min-h-screen max-w-4xl mx-auto px-4 py-8">{errorUi}</div>;
+  }
 
   const initials = profile.name
-    .split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
-  const scoreColor =
-    (profile.matchScore ?? 0) >= 70 ? '#16a34a' :
-    (profile.matchScore ?? 0) >= 40 ? '#d97706' : '#64748b'
+  const matchScore = profile.matchScore ?? 0;
+  const allSkills = [...(profile.roles || []), ...(profile.technicalSkills || [])];
 
-  const allSkills = [...(profile.roles || []), ...(profile.technicalSkills || [])]
-
-  return (
-    <div style={S.page}>
-      <BgDecor />
-
-      {/* ── NAV ── */}
-      <nav style={S.nav}>
-        <div style={S.navInner}>
-          <button onClick={() => navigate(-1)} style={S.backBtn}>
-            <ArrowLeft size={14} /> Back
-          </button>
-          <div style={S.navLogo}>
-            <div style={S.logoIcon}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                  stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span style={S.logoText}>Skill<span style={S.logoAccent}>Swap</span></span>
-          </div>
-          <Link to="/students" style={{ ...S.backBtn, marginLeft: 'auto', textDecoration: 'none' }}>
-            Browse Students
-          </Link>
-        </div>
-      </nav>
-
-      <div style={S.content}>
-        <div style={S.twoCol}>
-
-          {/* ── LEFT — Profile Card ── */}
-          <div style={S.leftCol}>
-
-            {/* Avatar + basic */}
-            <div style={S.profileCard}>
-
-              {/* Match score */}
-              {profile.matchScore !== null && profile.matchScore > 0 && (
-                <div style={{ ...S.matchBadge, color: scoreColor }}>
-                  <Star size={12} fill={scoreColor} />
-                  <span style={{ fontSize: 13, fontWeight: 800 }}>{profile.matchScore}% match</span>
-                </div>
-              )}
-
-              {/* Avatar */}
-              <div style={S.avatarWrap}>
+  const content = (
+    <>
+      {backBar}
+      <div className="grid lg:grid-cols-[minmax(280px,320px)_1fr] gap-6 items-start">
+        <div className="space-y-4">
+          <Card className="overflow-hidden">
+            <CardContent className="p-6 flex flex-col items-center text-center relative">
+              {profile.matchScore !== null && profile.matchScore > 0 ? (
+                <Badge
+                  variant="outline"
+                  className="absolute top-4 right-4 gap-1 tabular-nums"
+                >
+                  <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                  {profile.matchScore}% match
+                </Badge>
+              ) : null}
+              <Avatar className="h-20 w-20 ring-4 ring-accent">
                 {profile.profilePictureBase64 ? (
-                  <img
-                    src={profile.profilePictureBase64}
-                    alt={profile.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' as const, borderRadius: '50%' }}
-                  />
-                ) : (
-                  <div style={S.avatarFallback}>{initials}</div>
-                )}
-              </div>
-
-              <h1 style={S.name}>{profile.name}</h1>
-
-              {/* Academic info pills */}
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, justifyContent: 'center', marginBottom: 14 }}>
-                {profile.major && (
-                  <span style={S.pill}><GraduationCap size={11} /> {profile.major}</span>
-                )}
-                {profile.academicYear && (
-                  <span style={S.pill}><BookOpen size={11} /> {profile.academicYear}</span>
-                )}
-                {profile.university && (
-                  <span style={S.pill}><MapPin size={11} /> {profile.university}</span>
-                )}
-                {profile.gpa && (
-                  <span style={{ ...S.pill, background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0' }}>
+                  <AvatarImage src={profile.profilePictureBase64} alt={profile.name} />
+                ) : null}
+                <AvatarFallback className="text-lg font-semibold bg-primary text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <h1 className="text-xl font-semibold mt-4 mb-2 m-0">{profile.name}</h1>
+              <div className="flex flex-wrap gap-2 justify-center mb-3">
+                {profile.major ? (
+                  <Badge variant="secondary" className="gap-1 font-normal">
+                    <GraduationCap className="h-3 w-3" />
+                    {profile.major}
+                  </Badge>
+                ) : null}
+                {profile.academicYear ? (
+                  <Badge variant="secondary" className="gap-1 font-normal">
+                    <BookOpen className="h-3 w-3" />
+                    {profile.academicYear}
+                  </Badge>
+                ) : null}
+                {profile.university ? (
+                  <Badge variant="secondary" className="gap-1 font-normal">
+                    <MapPin className="h-3 w-3" />
+                    {profile.university}
+                  </Badge>
+                ) : null}
+                {profile.gpa != null ? (
+                  <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-200 font-normal">
                     GPA {profile.gpa}
-                  </span>
-                )}
+                  </Badge>
+                ) : null}
               </div>
-
-              {/* Bio */}
-              {profile.bio && (
-                <p style={S.bio}>{profile.bio}</p>
-              )}
-
-              {/* Availability / Looking for */}
+              {profile.faculty ? (
+                <p className="text-xs text-muted-foreground mb-2">{profile.faculty}</p>
+              ) : null}
+              {profile.studentId ? (
+                <p className="text-xs text-muted-foreground mb-2">ID: {profile.studentId}</p>
+              ) : null}
+              {profile.bio ? (
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">{profile.bio}</p>
+              ) : null}
               {(profile.availability || profile.lookingFor) && (
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 14 }}>
-                  {profile.availability && (
-                    <div style={S.infoRow}>
-                      <span style={S.infoLabel}>⏱ Availability</span>
-                      <span style={S.infoVal}>{profile.availability}</span>
+                <div className="w-full space-y-2 text-left mb-4">
+                  {profile.availability ? (
+                    <div className="flex justify-between gap-2 text-sm rounded-md bg-muted/50 px-3 py-2">
+                      <span className="text-muted-foreground">Availability</span>
+                      <span className="font-medium text-right">{profile.availability}</span>
                     </div>
-                  )}
-                  {profile.lookingFor && (
-                    <div style={S.infoRow}>
-                      <span style={S.infoLabel}>🎯 Looking for</span>
-                      <span style={S.infoVal}>{profile.lookingFor}</span>
+                  ) : null}
+                  {profile.lookingFor ? (
+                    <div className="flex justify-between gap-2 text-sm rounded-md bg-muted/50 px-3 py-2">
+                      <span className="text-muted-foreground">Looking for</span>
+                      <span className="font-medium text-right">{profile.lookingFor}</span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
-
-              {/* Social links */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                {profile.github && (
-                  <a href={profile.github.startsWith('http') ? profile.github : `https://github.com/${profile.github}`}
-                    target="_blank" rel="noopener noreferrer" style={S.socialBtn}>
-                    <Github size={14} /> GitHub
-                  </a>
-                )}
-                {profile.linkedin && (
-                  <a href={profile.linkedin.startsWith('http') ? profile.linkedin : `https://linkedin.com/in/${profile.linkedin}`}
-                    target="_blank" rel="noopener noreferrer" style={{ ...S.socialBtn, background: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' }}>
-                    <Linkedin size={14} /> LinkedIn
-                  </a>
-                )}
-                {profile.portfolio && (
-                  <a href={profile.portfolio.startsWith('http') ? profile.portfolio : `https://${profile.portfolio}`}
-                    target="_blank" rel="noopener noreferrer" style={{ ...S.socialBtn, background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0' }}>
-                    <Globe size={14} /> Portfolio
-                  </a>
-                )}
+              <div className="flex flex-wrap gap-2 justify-center">
+                {profile.github ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <a
+                      href={
+                        profile.github.startsWith("http")
+                          ? profile.github
+                          : `https://github.com/${profile.github}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Github className="h-4 w-4 mr-1" />
+                      GitHub
+                    </a>
+                  </Button>
+                ) : null}
+                {profile.linkedin ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <a
+                      href={
+                        profile.linkedin.startsWith("http")
+                          ? profile.linkedin
+                          : `https://linkedin.com/in/${profile.linkedin}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Linkedin className="h-4 w-4 mr-1" />
+                      LinkedIn
+                    </a>
+                  </Button>
+                ) : null}
+                {profile.portfolio ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <a
+                      href={
+                        profile.portfolio.startsWith("http")
+                          ? profile.portfolio
+                          : `https://${profile.portfolio}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Globe className="h-4 w-4 mr-1" />
+                      Portfolio
+                    </a>
+                  </Button>
+                ) : null}
               </div>
+            </CardContent>
+          </Card>
 
-            </div>
-
-            {/* Languages */}
-            {profile.languages?.length > 0 && (
-              <div style={S.card}>
-                <h3 style={S.sectionTitle}><Languages size={14} /> Languages</h3>
-                <div style={S.chipRow}>
-                  {profile.languages.map(l => (
-                    <span key={l} style={S.langChip}>{l}</span>
+          {profile.languages?.length > 0 ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Languages className="h-4 w-4" />
+                  Languages
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex flex-wrap gap-2">
+                  {profile.languages.map((l) => (
+                    <Badge key={l} variant="secondary">
+                      {l}
+                    </Badge>
                   ))}
                 </div>
-              </div>
-            )}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
 
-          </div>
+        <div className="space-y-4">
+          {profile.roles?.length > 0 ? (
+            <SkillCard title="Specializations" icon={Star} items={profile.roles} tone="primary" />
+          ) : null}
+          {profile.technicalSkills?.length > 0 ? (
+            <SkillCard
+              title="Technical skills"
+              icon={Zap}
+              items={profile.technicalSkills}
+              tone="violet"
+            />
+          ) : null}
+          {profile.tools?.length > 0 ? (
+            <SkillCard title="Tools & technologies" icon={Wrench} items={profile.tools} tone="cyan" />
+          ) : null}
 
-          {/* ── RIGHT — Skills ── */}
-          <div style={S.rightCol}>
-
-            {/* Roles */}
-            {profile.roles?.length > 0 && (
-              <div style={S.card}>
-                <h3 style={S.sectionTitle}><Star size={14} color="#6366f1" /> Specializations</h3>
-                <div style={S.chipRow}>
-                  {profile.roles.map(r => (
-                    <span key={r} style={S.roleChip}>{r}</span>
-                  ))}
+          {profile.matchScore !== null && profile.matchScore > 0 ? (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Star className="h-4 w-4 text-primary" />
+                  Match score
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-2">
+                <div className="flex items-center gap-3">
+                  <Progress value={matchScore} className="flex-1 h-2" />
+                  <span className="text-lg font-semibold tabular-nums">{matchScore}%</span>
                 </div>
-              </div>
-            )}
-
-            {/* Technical Skills */}
-            {profile.technicalSkills?.length > 0 && (
-              <div style={S.card}>
-                <h3 style={S.sectionTitle}><Zap size={14} color="#a855f7" /> Technical Skills</h3>
-                <div style={S.chipRow}>
-                  {profile.technicalSkills.map(s => (
-                    <span key={s} style={{ ...S.roleChip, background: '#faf5ff', color: '#a855f7', borderColor: '#e9d5ff' }}>{s}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Tools */}
-            {profile.tools?.length > 0 && (
-              <div style={S.card}>
-                <h3 style={S.sectionTitle}><Wrench size={14} color="#0891b2" /> Tools & Technologies</h3>
-                <div style={S.chipRow}>
-                  {profile.tools.map(t => (
-                    <span key={t} style={{ ...S.roleChip, background: '#ecfeff', color: '#0891b2', borderColor: '#a5f3fc' }}>{t}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Match breakdown */}
-            {profile.matchScore !== null && profile.matchScore > 0 && (
-              <div style={{ ...S.card, background: 'linear-gradient(135deg,rgba(99,102,241,0.04),rgba(168,85,247,0.04))', border: '1px solid rgba(99,102,241,0.15)' }}>
-                <h3 style={S.sectionTitle}><Star size={14} color="#6366f1" /> AI Match Score</h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
-                  <div style={{ flex: 1, height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${profile.matchScore}%`, background: 'linear-gradient(90deg,#6366f1,#a855f7)', borderRadius: 4, transition: 'width 0.8s ease' }} />
-                  </div>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: scoreColor, minWidth: 48 }}>
-                    {profile.matchScore}%
-                  </span>
-                </div>
-                <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.6 }}>
-                  Based on skill overlap and complementary strengths between your profile and this student.
+                <p className="text-xs text-muted-foreground mb-0">
+                  Based on skill overlap and complementary strengths between your profile and this
+                  student.
                 </p>
-              </div>
-            )}
+              </CardContent>
+            </Card>
+          ) : null}
 
-            {/* Empty state */}
-            {allSkills.length === 0 && !profile.bio && (
-              <div style={{ ...S.card, textAlign: 'center' as const, padding: '32px 20px' }}>
-                <span style={{ fontSize: 32 }}>📋</span>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#94a3b8', margin: '8px 0 0' }}>
-                  This student hasn't filled in their skills yet.
-                </p>
-              </div>
-            )}
-
-          </div>
+          {allSkills.length === 0 && !profile.bio ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                This student hasn&apos;t filled in their skills yet.
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        a { text-decoration: none; }
-      `}</style>
-    </div>
-  )
-}
-
-// ─── Background ───────────────────────────────────────────────────────────────
-
-function BgDecor() {
-  return (
-    <>
-      <div style={{ position: 'fixed' as const, top: -150, right: -150, width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle,rgba(99,102,241,0.07) 0%,transparent 70%)', pointerEvents: 'none' as const, zIndex: 0 }} />
-      <div style={{ position: 'fixed' as const, bottom: -100, left: -100, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle,rgba(168,85,247,0.05) 0%,transparent 70%)', pointerEvents: 'none' as const, zIndex: 0 }} />
     </>
-  )
+  );
+
+  if (isDoctor) {
+    return (
+      <DoctorSubpageLayout wide backTo="/students" backLabel="Back to directory">
+        <DoctorHubPageHeader title={profile.name} description="Student profile" />
+        {content}
+      </DoctorSubpageLayout>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
+        <DoctorHubPageHeader title={profile.name} description="Student profile" />
+        {content}
+      </div>
+    </div>
+  );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+function SkillCard({
+  title,
+  icon: Icon,
+  items,
+  tone,
+}: {
+  title: string;
+  icon: typeof Star;
+  items: string[];
+  tone: "primary" | "violet" | "cyan";
+}) {
+  const toneClass =
+    tone === "violet"
+      ? "bg-violet-500/10 text-violet-700 border-violet-200"
+      : tone === "cyan"
+        ? "bg-cyan-500/10 text-cyan-700 border-cyan-200"
+        : "bg-primary/10 text-primary border-primary/20";
 
-const S: Record<string, CSSProperties> = {
-  page:          { minHeight: '100vh', background: 'linear-gradient(155deg,#f8f7ff 0%,#f0f4ff 40%,#faf5ff 100%)', fontFamily: 'DM Sans, sans-serif', color: '#0f172a', position: 'relative' },
-  centered:      { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', minHeight: '70vh', gap: 8 },
-  spinner:       { width: 34, height: 34, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' },
-  nav:           { position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248,247,255,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(99,102,241,0.1)' },
-  navInner:      { maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 58, display: 'flex', alignItems: 'center', gap: 12 },
-  navLogo:       { display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' },
-  logoIcon:      { width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  logoText:      { fontSize: 16, fontWeight: 800, color: '#0f172a', fontFamily: 'Syne, sans-serif' },
-  logoAccent:    { background: 'linear-gradient(135deg,#6366f1,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-  backBtn:       { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 9, fontSize: 12, fontWeight: 600, color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const },
-  content:       { maxWidth: 1100, margin: '0 auto', padding: '28px 24px 60px', position: 'relative', zIndex: 1 },
-  twoCol:        { display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, alignItems: 'start' },
-  leftCol:       { display: 'flex', flexDirection: 'column' as const, gap: 14 },
-  rightCol:      { display: 'flex', flexDirection: 'column' as const, gap: 14 },
-  profileCard:   { background: 'white', border: '1px solid #e2e8f0', borderRadius: 20, padding: '28px 22px', boxShadow: '0 2px 12px rgba(99,102,241,0.06)', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 10, position: 'relative' as const },
-  matchBadge:    { position: 'absolute' as const, top: 16, right: 16, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 20 },
-  avatarWrap:    { width: 88, height: 88, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, boxShadow: '0 0 0 4px #eef2ff' },
-  avatarFallback:{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, color: 'white' },
-  name:          { fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0, textAlign: 'center' as const, fontFamily: 'Syne, sans-serif' },
-  pill:          { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 11, color: '#6366f1', fontWeight: 600 },
-  bio:           { fontSize: 13, color: '#64748b', lineHeight: 1.7, textAlign: 'center' as const, margin: 0 },
-  infoRow:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #f1f5f9' },
-  infoLabel:     { fontSize: 11, color: '#94a3b8', fontWeight: 600 },
-  infoVal:       { fontSize: 12, color: '#334155', fontWeight: 600, textAlign: 'right' as const, maxWidth: 160 },
-  socialBtn:     { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#475569', cursor: 'pointer', textDecoration: 'none' },
-  card:          { background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, padding: '18px', boxShadow: '0 2px 8px rgba(99,102,241,0.04)' },
-  sectionTitle:  { fontSize: 11, fontWeight: 700, color: '#64748b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase' as const, letterSpacing: '0.07em' },
-  chipRow:       { display: 'flex', flexWrap: 'wrap' as const, gap: 6 },
-  roleChip:      { padding: '4px 12px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 20, fontSize: 12, color: '#6366f1', fontWeight: 600 },
-  langChip:      { padding: '4px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 20, fontSize: 12, color: '#16a34a', fontWeight: 600 },
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Icon className="h-4 w-4 text-muted-foreground" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="flex flex-wrap gap-2">
+          {items.map((item) => (
+            <Badge key={item} variant="outline" className={toneClass}>
+              {item}
+            </Badge>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }

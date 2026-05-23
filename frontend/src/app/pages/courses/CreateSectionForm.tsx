@@ -1,5 +1,9 @@
-import { useState, type CSSProperties, type FormEvent } from "react";
-import { dash } from "../doctor/dashboard/doctorDashTokens";
+import { useState, type FormEvent } from "react";
+import { Button } from "../../components/ui/button";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { cn } from "../../components/ui/utils";
 
 const WEEKDAY_OPTIONS = [
   { id: "mon", label: "Mon" },
@@ -22,9 +26,11 @@ export type NewSectionPayload = {
 type Props = {
   onSubmit: (payload: NewSectionPayload) => void;
   onCancel: () => void;
+  submitting?: boolean;
+  className?: string;
 };
 
-export function CreateSectionForm({ onSubmit, onCancel }: Props) {
+export function CreateSectionForm({ onSubmit, onCancel, submitting = false, className }: Props) {
   const [name, setName] = useState("");
   const [days, setDays] = useState<string[]>([]);
   const [timeFrom, setTimeFrom] = useState("");
@@ -32,10 +38,11 @@ export function CreateSectionForm({ onSubmit, onCancel }: Props) {
   const [capacityInput, setCapacityInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const toggleDay = (id: string) => {
-    setDays((prev) =>
-      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id].sort(byWeekdayOrder),
-    );
+  const toggleDay = (id: string, checked: boolean) => {
+    setDays((prev) => {
+      const next = checked ? [...prev, id] : prev.filter((d) => d !== id);
+      return [...next].sort(byWeekdayOrder);
+    });
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -74,106 +81,80 @@ export function CreateSectionForm({ onSubmit, onCancel }: Props) {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        margin: "0 20px 20px",
-        padding: 20,
-        borderRadius: dash.radiusMd,
-        border: `1px solid ${dash.border}`,
-        background: "#f8fafc",
-        boxSizing: "border-box",
-      }}
-    >
-      <p
-        style={{
-          margin: "0 0 16px",
-          fontSize: 12,
-          fontWeight: 700,
-          color: dash.subtle,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}
-      >
-        New section
-      </p>
-
-      <label style={F.label}>
-        Section name
-        <input
-          style={F.input}
+    <form onSubmit={handleSubmit} className={cn("space-y-4", className)}>
+      <div className="space-y-2">
+        <Label htmlFor="section-name">Section name</Label>
+        <Input
+          id="section-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Section A — Morning"
           autoComplete="off"
         />
-      </label>
+      </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <span style={F.labelInline}>Days</span>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-          {WEEKDAY_OPTIONS.map(({ id, label }) => {
-            const on = days.includes(id);
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => toggleDay(id)}
-                style={dayChipStyle(on)}
-              >
-                {label}
-              </button>
-            );
-          })}
+      <div className="space-y-2">
+        <Label>Days</Label>
+        <div className="flex flex-wrap gap-2">
+          {WEEKDAY_OPTIONS.map(({ id, label }) => (
+            <label
+              key={id}
+              className="flex items-center gap-1.5 text-sm border border-border rounded-md px-2.5 py-1.5 cursor-pointer hover:bg-accent/50"
+            >
+              <Checkbox
+                checked={days.includes(id)}
+                onCheckedChange={(c) => toggleDay(id, c === true)}
+              />
+              {label}
+            </label>
+          ))}
         </div>
       </div>
 
-      <div style={{ ...F.row, marginBottom: 16 }}>
-        <label style={{ ...F.label, flex: 1, minWidth: 120, marginBottom: 0 }}>
-          From
-          <input
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="time-from">Start</Label>
+          <Input
+            id="time-from"
             type="time"
-            style={F.input}
             value={timeFrom}
             onChange={(e) => setTimeFrom(e.target.value)}
           />
-        </label>
-        <label style={{ ...F.label, flex: 1, minWidth: 120, marginBottom: 0 }}>
-          To
-          <input
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="time-to">End</Label>
+          <Input
+            id="time-to"
             type="time"
-            style={F.input}
             value={timeTo}
             onChange={(e) => setTimeTo(e.target.value)}
           />
-        </label>
+        </div>
       </div>
 
-      <label style={F.label}>
-        Capacity
-        <input
+      <div className="space-y-2">
+        <Label htmlFor="capacity">Capacity</Label>
+        <Input
+          id="capacity"
           type="number"
           min={1}
           step={1}
           inputMode="numeric"
-          style={F.input}
           value={capacityInput}
           onChange={(e) => setCapacityInput(e.target.value)}
           placeholder="e.g. 40"
         />
-      </label>
+      </div>
 
-      {error ? (
-        <p style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 600, color: dash.danger }}>{error}</p>
-      ) : null}
+      {error ? <p className="text-sm font-medium text-destructive m-0">{error}</p> : null}
 
-      <div style={F.actions}>
-        <button type="button" onClick={onCancel} style={F.secondaryBtn}>
+      <div className="flex justify-end gap-2 pt-1">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
           Cancel
-        </button>
-        <button type="submit" style={F.primaryBtn}>
-          Add section
-        </button>
+        </Button>
+        <Button type="submit" disabled={submitting}>
+          {submitting ? "Creating…" : "Create section"}
+        </Button>
       </div>
     </form>
   );
@@ -205,93 +186,3 @@ export function formatSectionSchedule(days: string[], timeFrom: string, timeTo: 
   if (!timeFrom || !timeTo) return daysPart;
   return `${daysPart} · ${formatTimeLabel(timeFrom)} – ${formatTimeLabel(timeTo)}`;
 }
-
-function dayChipStyle(selected: boolean): CSSProperties {
-  return {
-    padding: "8px 14px",
-    borderRadius: 10,
-    border: `1.5px solid ${selected ? dash.accent : dash.border}`,
-    background: selected ? dash.accentMuted : dash.surface,
-    color: selected ? dash.accent : dash.muted,
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: "pointer",
-    fontFamily: dash.font,
-  };
-}
-
-const F: Record<string, CSSProperties> = {
-  label: {
-    display: "block",
-    fontSize: 11,
-    fontWeight: 700,
-    color: dash.muted,
-    textTransform: "uppercase",
-    letterSpacing: "0.06em",
-    marginBottom: 16,
-  },
-  labelInline: {
-    display: "block",
-    fontSize: 11,
-    fontWeight: 700,
-    color: dash.muted,
-    textTransform: "uppercase",
-    letterSpacing: "0.06em",
-  },
-  input: {
-    width: "100%",
-    marginTop: 6,
-    padding: "11px 12px",
-    borderRadius: 10,
-    border: `1.5px solid ${dash.border}`,
-    fontSize: 14,
-    color: dash.text,
-    boxSizing: "border-box",
-    fontFamily: dash.font,
-    background: dash.surface,
-  },
-  row: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 16,
-    alignItems: "flex-end",
-  },
-  actions: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 10,
-    marginTop: 8,
-    paddingTop: 4,
-  },
-  primaryBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    padding: "10px 18px",
-    borderRadius: 10,
-    border: "none",
-    background: `linear-gradient(135deg,${dash.accent},#7c3aed)`,
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: "pointer",
-    fontFamily: dash.font,
-    boxShadow: "0 4px 16px rgba(79,70,229,0.3)",
-  },
-  secondaryBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    padding: "8px 14px",
-    borderRadius: 9,
-    border: `1px solid ${dash.border}`,
-    background: dash.surface,
-    color: dash.muted,
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: "pointer",
-    fontFamily: dash.font,
-  },
-};

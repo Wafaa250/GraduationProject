@@ -14,7 +14,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import {
   fetchCourseNotifications,
@@ -32,6 +32,7 @@ import {
 } from "../../../api/notificationsApi";
 import { useToast } from "../../../context/ToastContext";
 import { getNotificationsHubUrl } from "../../../utils/notificationsHubUrl";
+import { navigateFromDoctorNotification } from "./notificationPresentation";
 
 type Props = {
   /** Outer wrapper (typically `position: relative`); defaults to relatively positioned block. */
@@ -337,7 +338,7 @@ export function GradProjectNotificationBell({
   const onRowClick = (n: GraduationNotificationDto) => {
     setOpen(false);
     if (theme === "doctor") {
-      navigate("/doctor-dashboard");
+      navigateFromDoctorNotification(navigate, n);
       return;
     }
     if (n.category === ORGANIZATION_EVENT_CATEGORY && n.projectId != null) {
@@ -619,6 +620,32 @@ export function GradProjectNotificationBell({
                 })()
               ))}
           </div>
+          {theme === "doctor" ? (
+            <div
+              style={{
+                padding: "10px 14px 12px",
+                borderTop: `1px solid ${palette.panelBorder}`,
+                background: palette.footerBg,
+              }}
+            >
+              <Link
+                to="/doctor/notifications"
+                onClick={() => setOpen(false)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "center",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#4f46e5",
+                  textDecoration: "none",
+                  padding: "8px 0",
+                }}
+              >
+                View all notifications
+              </Link>
+            </div>
+          ) : null}
         </div>
       )}
       <style>{`

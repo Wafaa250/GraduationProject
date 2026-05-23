@@ -1,10 +1,12 @@
 using System;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
@@ -21,17 +23,30 @@ namespace GraduationProject.API.Services
         Task<(AuthResponseDto? result, string? error)> RegisterStudentAssociationAsync(StudentAssociationRegisterDto dto);
         Task<(AuthResponseDto? result, string? error)> LoginAsync(LoginDto dto);
         Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto);
+        Task<string> ForgotPasswordAsync(ForgotPasswordDto dto);
+        Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto);
     }
 
     public class AuthService : IAuthService
     {
+        private const string ForgotPasswordSuccessMessage =
+            "If an account exists for that email, you will receive password reset instructions shortly.";
+
         private readonly ApplicationDbContext _db;
         private readonly IConfiguration _config;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(ApplicationDbContext db, IConfiguration config)
+        public AuthService(
+            ApplicationDbContext db,
+            IConfiguration config,
+            IEmailService emailService,
+            ILogger<AuthService> logger)
         {
             _db = db;
             _config = config;
+            _emailService = emailService;
+            _logger = logger;
         }
 
         // ===========================
@@ -333,6 +348,91 @@ namespace GraduationProject.API.Services
             // ── 3. ارجع الـ JWT ───────────────────────────────────────────────
             int profileId = await GetProfileIdAsync(user);
             return (BuildResponse(user, profileId), null);
+        }
+
+        // ===========================
+        // FORGOT PASSWORD
+        // ===========================
+        public async Task<string> ForgotPasswordAsync(ForgotPasswordDto dto)
+        {
+            var email = dto.Email.ToLower().Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user != null)
+            {
+                var now = DateTime.UtcNow;
+                var activeTokens = await _db.PasswordResetTokens
+                    .Where(t => t.UserId == user.Id && t.UsedAt == null && t.ExpiresAt > now)
+                    .ToListAsync();
+
+                foreach (var token in activeTokens)
+                    token.UsedAt = now;
+
+                var rawToken = PasswordResetTokenHelper.GenerateRawToken();
+                var expirationMinutes = _config.GetValue<int>("PasswordReset:TokenExpirationMinutes", 60);
+
+                _db.PasswordResetTokens.Add(new PasswordResetToken
+                {
+                    UserId = user.Id,
+                    TokenHash = PasswordResetTokenHelper.HashToken(rawToken),
+                    ExpiresAt = now.AddMinutes(expirationMinutes),
+                    CreatedAt = now,
+                });
+                await _db.SaveChangesAsync();
+
+                var resetBaseUrl = (_config["PasswordReset:FrontendResetUrl"] ?? "http://localhost:5173/reset-password")
+                    .TrimEnd('/');
+                var resetUrl = $"{resetBaseUrl}?token={Uri.EscapeDataString(rawToken)}";
+
+                try
+                {
+                    await _emailService.SendPasswordResetEmailAsync(user.Email, resetUrl);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send password reset email for user {UserId}", user.Id);
+                }
+            }
+
+            return ForgotPasswordSuccessMessage;
+        }
+
+        // ===========================
+        // RESET PASSWORD
+        // ===========================
+        public async Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            if (dto.Password != dto.ConfirmPassword)
+                return (false, "Passwords do not match.");
+
+            if (string.IsNullOrWhiteSpace(dto.Token))
+                return (false, "Invalid or expired reset link.");
+
+            var tokenHash = PasswordResetTokenHelper.HashToken(dto.Token.Trim());
+            var now = DateTime.UtcNow;
+
+            var resetToken = await _db.PasswordResetTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t =>
+                    t.TokenHash == tokenHash &&
+                    t.UsedAt == null &&
+                    t.ExpiresAt > now);
+
+            if (resetToken?.User == null)
+                return (false, "Invalid or expired reset link.");
+
+            resetToken.User.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            resetToken.UsedAt = now;
+
+            var otherActive = await _db.PasswordResetTokens
+                .Where(t => t.UserId == resetToken.UserId && t.Id != resetToken.Id && t.UsedAt == null)
+                .ToListAsync();
+
+            foreach (var t in otherActive)
+                t.UsedAt = now;
+
+            await _db.SaveChangesAsync();
+            return (true, null);
         }
 
     }

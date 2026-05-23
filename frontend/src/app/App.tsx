@@ -1,17 +1,22 @@
 // src/app/App.tsx
 import React, { type ReactNode } from "react";
 import { Toaster } from "react-hot-toast";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
 import { ToastProvider } from "../context/ToastContext";
 import { UserProvider } from '../context/UserContext';
 import { DoctorProvider } from './pages/doctor/DoctorContext';
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/auth/LoginPage";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import ProfilePage from "./pages/profile/ProfilePage";
 import EditProfilePage from "./pages/profile/EditProfilePage";
 import DoctorDashboardPage from "./pages/doctor/DoctorDashboardPage";
+import DoctorNotificationsPage from "./pages/doctor/DoctorNotificationsPage";
+import { DoctorHubShellLayoutRoute } from "./pages/doctor/DoctorHubShellLayout";
+import { DoctorAdaptiveShell } from "./components/doctor/hub/DoctorAdaptiveShell";
 import DoctorProfilePage from "./pages/doctor/DoctorProfilePage";
 import EditDoctorProfilePage from "./pages/doctor/EditDoctorProfilePage";
 import ChannelPageWrapper from "./pages/doctor/ChannelPageWrapper";
@@ -212,7 +217,7 @@ function EditDoctorProfileRoute() {
 function DoctorCoursesLegacyRedirect() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
     if (role === "student") return <Navigate to="/dashboard" replace />;
-    if (role === "doctor") return <Navigate to="/doctor-dashboard" replace />;
+    if (role === "doctor") return <Navigate to="/doctor-dashboard?section=courses" replace />;
     return <Navigate to="/" replace />;
 }
 
@@ -248,11 +253,26 @@ function ProjectTeamsDoctorRoute() {
     return <Navigate to="/" replace />;
 }
 
+/** Legacy `/doctor/projects/:id/teams` — requires `courseId` in location state. */
 function DoctorProjectTeamsRoute() {
     const role = (localStorage.getItem("role") ?? "").toLowerCase();
-    if (role === "doctor") return <DoctorProjectTeamsPage />;
-    if (role === "student") return <Navigate to="/dashboard" replace />;
-    return <Navigate to="/" replace />;
+    const { projectId } = useParams<{ projectId: string }>();
+    const location = useLocation();
+    const courseId = (location.state as { courseId?: number } | null)?.courseId;
+    if (role !== "doctor") {
+        if (role === "student") return <Navigate to="/dashboard" replace />;
+        return <Navigate to="/" replace />;
+    }
+    if (courseId && projectId) {
+        return (
+            <Navigate
+                to={`/courses/${courseId}/projects/${projectId}/teams`}
+                replace
+                state={location.state}
+            />
+        );
+    }
+    return <Navigate to="/doctor-dashboard?section=courses" replace />;
 }
 
 function TeamManagementDoctorRoute() {
@@ -314,6 +334,8 @@ export default function App() {
                     {/* Public */}
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/register/association" element={<StudentAssociationRegisterPage />} />
                     <Route path="/students/:studentId" element={<ProfilePage />} />
@@ -408,39 +430,50 @@ export default function App() {
 
                     {/* Protected – Doctor */}
                     <Route path="/doctor-dashboard" element={<ProtectedRoute><DoctorDashboardRoute /></ProtectedRoute>} />
-                    <Route path="/doctor/profile" element={<ProtectedRoute><DoctorProfileRoute /></ProtectedRoute>} />
-                    <Route path="/doctor/edit-profile" element={<ProtectedRoute><EditDoctorProfileRoute /></ProtectedRoute>} />
                     <Route path="/doctor/channels/:channelId" element={<ProtectedRoute><ChannelPageWrapper /></ProtectedRoute>} />
                     <Route path="/doctor/courses/:courseId" element={<ProtectedRoute><DoctorCoursesLegacyRedirect /></ProtectedRoute>} />
                     <Route path="/doctor/courses" element={<ProtectedRoute><DoctorCoursesLegacyRedirect /></ProtectedRoute>} />
-                    <Route path="/courses/create" element={<ProtectedRoute><CreateCourseDoctorRoute /></ProtectedRoute>} />
-                    <Route
-                        path="/courses/:courseId/sections/:sectionId/students"
-                        element={<ProtectedRoute><SectionStudentsDoctorRoute /></ProtectedRoute>}
-                    />
-                    <Route
-                        path="/courses/:courseId/projects/create"
-                        element={<ProtectedRoute><CourseProjectCreatePage /></ProtectedRoute>}
-                    />
-                    <Route
-                        path="/courses/:courseId/projects/:projectId/teams"
-                        element={<ProtectedRoute><ProjectTeamsDoctorRoute /></ProtectedRoute>}
-                    />
-                    <Route
-                        path="/doctor/projects/:projectId/teams"
-                        element={<ProtectedRoute><DoctorProjectTeamsRoute /></ProtectedRoute>}
-                    />
-                    <Route
-                        path="/doctor/projects/:projectId/teams/:teamId"
-                        element={<ProtectedRoute><TeamManagementDoctorRoute /></ProtectedRoute>}
-                    />
-                    <Route path="/courses/:courseId" element={<ProtectedRoute><CourseWorkspaceDoctorRoute /></ProtectedRoute>} />
 
-                    {/* ✅ التعديل تبعك */}
-                    <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
+                    {/* Doctor hub shell — sidebar + topbar on nested routes */}
+                    <Route element={<ProtectedRoute><DoctorHubShellLayoutRoute /></ProtectedRoute>}>
+                        <Route path="/doctor/notifications" element={<DoctorNotificationsPage />} />
+                        <Route path="/doctor/profile" element={<DoctorProfileRoute />} />
+                        <Route path="/doctor/edit-profile" element={<EditDoctorProfileRoute />} />
+                        <Route path="/courses/create" element={<CreateCoursePage />} />
+                        <Route
+                            path="/courses/:courseId/sections/:sectionId/students"
+                            element={<SectionStudentsPage />}
+                        />
+                        <Route path="/courses/:courseId/projects/create" element={<CourseProjectCreatePage />} />
+                        <Route
+                            path="/courses/:courseId/projects/:projectId/teams"
+                            element={<ProjectTeamsPage />}
+                        />
+                        <Route path="/doctor/projects/:projectId/teams" element={<DoctorProjectTeamsRoute />} />
+                        <Route path="/doctor/projects/:projectId/teams/:teamId" element={<TeamManagementPage />} />
+                        <Route path="/courses/:courseId" element={<CourseWorkspacePage />} />
+                    </Route>
+
+                    {/* Shared with students — doctor gets hub shell via adaptive wrapper */}
+                    <Route
+                        path="/students"
+                        element={
+                            <ProtectedRoute>
+                                <DoctorAdaptiveShell>
+                                    <StudentsPage />
+                                </DoctorAdaptiveShell>
+                            </ProtectedRoute>
+                        }
+                    />
                     <Route
                         path="/students/profile/:userId"
-                        element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>}
+                        element={
+                            <ProtectedRoute>
+                                <DoctorAdaptiveShell>
+                                    <StudentProfilePage />
+                                </DoctorAdaptiveShell>
+                            </ProtectedRoute>
+                        }
                     />
                     <Route path="/doctors" element={<ProtectedRoute><DoctorsPage /></ProtectedRoute>} />
                     <Route path="/project/:projectId" element={<ProjectWorkspacePage />} />

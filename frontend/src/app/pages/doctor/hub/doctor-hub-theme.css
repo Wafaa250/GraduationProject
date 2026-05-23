@@ -1,0 +1,76 @@
+/**
+ * Lovable doctor-hub design tokens (HSL), scoped to .doctor-hub only.
+ * Does not override global :root — student/company UIs unchanged.
+ */
+.doctor-hub {
+  --background: 210 40% 99%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --primary: 221 83% 45%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 217 91% 95%;
+  --accent-foreground: 221 83% 35%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 45%;
+  --radius: 0.65rem;
+  --gradient-primary: linear-gradient(135deg, hsl(221 83% 45%), hsl(221 90% 60%));
+  --gradient-subtle: linear-gradient(180deg, hsl(210 40% 99%), hsl(210 40% 96%));
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 222 30% 25%;
+  --sidebar-primary: 221 83% 45%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 217 91% 95%;
+  --sidebar-accent-foreground: 221 83% 35%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 221 83% 45%;
+}
+
+.doctor-hub {
+  background: var(--gradient-subtle);
+  color: hsl(var(--foreground));
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.doctor-hub .bg-background {
+  background-color: hsl(var(--background));
+}
+
+.doctor-hub .text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+
+.doctor-hub .text-primary {
+  color: hsl(var(--primary));
+}
+
+.doctor-hub .border-border {
+  border-color: hsl(var(--border));
+}
+
+.doctor-hub .bg-card {
+  background-color: hsl(var(--card));
+}
+
+.doctor-hub .bg-accent {
+  background-color: hsl(var(--accent));
+}
+
+.doctor-hub .bg-secondary {
+  background-color: hsl(var(--secondary));
+}
+
+.doctor-hub .bg-primary {
+  background-color: hsl(var(--primary));
+}
+
+.doctor-hub .text-primary-foreground {
+  color: hsl(var(--primary-foreground));
+}

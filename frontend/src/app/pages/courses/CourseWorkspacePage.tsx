@@ -1,23 +1,17 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import {
-    ArrowLeft,
-    BookOpen,
-    Copy,
-    FolderKanban,
-    Layers,
-    Plus,
-    Save,
-    Settings2,
-    Users,
-} from "lucide-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Copy, FolderKanban, Layers, Save, Settings2 } from "lucide-react";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { dash, card } from "../doctor/dashboard/doctorDashTokens";
-import {
-    CreateSectionForm,
-    formatSectionSchedule,
-    type NewSectionPayload,
-} from "./CreateSectionForm";
+import { DoctorHubPageHeader } from "../../components/doctor/hub/DoctorHubPageHeader";
+import { DoctorSubpageLayout } from "../../components/doctor/hub/DoctorSubpageLayout";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import type { NewSectionPayload } from "./CreateSectionForm";
+import { CourseWorkspaceSectionsPanel } from "./CourseWorkspaceSectionsPanel";
+import { CourseWorkspaceProjectsPanel } from "./CourseWorkspaceProjectsPanel";
 import type { CourseWorkspaceLocationState, NewWorkspaceProjectPayload } from "./courseProjectTypes";
+import { parseBackendCourseId } from "./courseProjectUtils";
 import {
     createDoctorCourseSection,
     getDoctorCourseSections,
@@ -149,20 +143,6 @@ function courseHeaderMetaKey(cid: string | undefined) {
     return cid ? `cw-ui-course-meta-${cid}` : null;
 }
 
-/**
- * Returns the numeric backend course id when courseId is a real course,
- * or null for local draft ids (e.g. "temp-1234..."). We only hit the API
- * for numeric ids — temp courses stay session-local.
- */
-function parseBackendCourseId(cid: string | undefined): number | null {
-    if (!cid) return null;
-    if (/^\d+$/.test(cid.trim())) {
-        const n = Number(cid);
-        return Number.isFinite(n) && n > 0 ? n : null;
-    }
-    return null;
-}
-
 type CourseHeaderMeta = { name: string; code: string };
 
 function readCourseHeaderMeta(cid: string | undefined): CourseHeaderMeta {
@@ -214,23 +194,22 @@ function normalizeSectionStudents(raw: unknown): SectionStudent[] {
         .filter((student): student is SectionStudent => student !== null);
 }
 
-function doctorProjectSectionDisplayLabel(project: DoctorCourseProject): string {
-    if (project.applyToAllSections) {
-        return "All sections";
-    }
-    const names = project.sections
-        .map((s) => s.sectionName.trim())
-        .filter((n) => n.length > 0);
-    return names.length > 0 ? names.join(", ") : "Section";
-}
-
 export default function CourseWorkspacePage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { courseId } = useParams<{ courseId: string }>();
-    const [activeTab, setActiveTab] = useState<WorkspaceTab>("sections");
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab: WorkspaceTab = (() => {
+        const t = searchParams.get("tab");
+        if (t === "projects" || t === "settings") return t;
+        return "sections";
+    })();
+    const setActiveTab = (tab: WorkspaceTab) => {
+        const next = new URLSearchParams(searchParams);
+        next.set("tab", tab);
+        setSearchParams(next, { replace: true });
+    };
     const [sections, setSections] = useState<WorkspaceSection[]>([]);
-    const [openedSectionId, setOpenedSectionId] = useState<string | null>(null);
     const [projects, setProjects] = useState<WorkspaceProject[]>([]);
     const [apiProjects, setApiProjects] = useState<DoctorCourseProject[]>([]);
     const [projectTeamCounts, setProjectTeamCounts] = useState<Record<number, number>>({});
@@ -477,609 +456,80 @@ export default function CourseWorkspacePage() {
     };
 
     return (
-        <div
-            style={{
-                minHeight: "100vh",
-                background: dash.bg,
-                fontFamily: dash.font,
-                color: dash.text,
-                padding: "24px 28px 40px",
-            }}
+        <DoctorSubpageLayout
+            wide
+            backTo="/doctor-dashboard?section=courses"
+            backLabel="All courses"
         >
-            <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-                <button
-                    type="button"
-                    onClick={() => navigate("/doctor-dashboard?tab=my-courses")}
-                    style={S.backBtn}
-                >
-                    <ArrowLeft size={18} />
-                    Back to courses
-                </button>
-
-                <header style={{ ...card, padding: "22px 24px", marginTop: 20 }}>
-                    <div
-                        style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            alignItems: "flex-start",
-                            justifyContent: "space-between",
-                            gap: 16,
-                        }}
-                    >
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                            <p
-                                style={{
-                                    margin: "0 0 6px",
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    color: dash.subtle,
-                                    letterSpacing: "0.08em",
-                                    textTransform: "uppercase",
-                                }}
-                            >
-                                Course workspace
-                            </p>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    flexWrap: "wrap",
-                                    alignItems: "center",
-                                    gap: 8,
-                                    rowGap: 10,
-                                }}
-                            >
-                                <h1
-                                    style={{
-                                        margin: 0,
-                                        fontSize: 22,
-                                        fontWeight: 800,
-                                        fontFamily: dash.fontDisplay,
-                                        color: dash.text,
-                                        lineHeight: 1.25,
-                                    }}
-                                >
-                                    {courseHeader.name}
-                                </h1>
-                                <span style={S.codeBadge} title="Course code">
-                                    {courseHeader.code}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => void copyCourseCode()}
-                                    style={S.copyIconBtn}
-                                    aria-label={`Copy course code ${courseHeader.code}`}
-                                >
-                                    <Copy size={16} strokeWidth={2.25} aria-hidden />
-                                </button>
-                                {copiedCode ? (
-                                    <span
-                                        style={{
-                                            fontSize: 12,
-                                            fontWeight: 700,
-                                            color: dash.accent,
-                                            letterSpacing: "0.02em",
-                                        }}
-                                    >
-                                        Copied!
-                                    </span>
-                                ) : null}
-                            </div>
-                        </div>
+            <DoctorHubPageHeader
+                eyebrow={courseHeader.code}
+                title={courseHeader.name}
+                description="Manage sections, projects, and course settings from this workspace."
+                actions={
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="font-mono text-xs">
+                            {courseHeader.code}
+                        </Badge>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => void copyCourseCode()}
+                            aria-label={`Copy course code ${courseHeader.code}`}
+                        >
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                        {copiedCode ? (
+                            <span className="text-xs font-medium text-primary">Copied</span>
+                        ) : null}
                     </div>
-                </header>
+                }
+            />
 
-                <div
-                    style={{
-                        marginTop: 20,
-                        borderBottom: `1px solid ${dash.border}`,
-                        display: "flex",
-                        gap: 4,
-                        flexWrap: "wrap",
-                    }}
-                    role="tablist"
-                    aria-label="Course workspace"
-                >
-                    {TABS.map(({ id, label, icon: Icon }) => {
-                        const active = activeTab === id;
-                        return (
-                            <button
-                                key={id}
-                                type="button"
-                                role="tab"
-                                aria-selected={active}
-                                onClick={() => setActiveTab(id)}
-                                style={tabButtonStyle(active)}
-                            >
-                                <Icon size={17} strokeWidth={active ? 2.25 : 2} />
-                                {label}
-                            </button>
-                        );
-                    })}
-                </div>
+            <Tabs
+                value={activeTab}
+                onValueChange={(v) => setActiveTab(v as WorkspaceTab)}
+                className="mt-2"
+            >
+                <TabsList>
+                    {TABS.map(({ id, label, icon: Icon }) => (
+                        <TabsTrigger key={id} value={id} className="gap-2">
+                            <Icon className="h-4 w-4" />
+                            {label}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
 
-                <div style={{ marginTop: 24 }}>
-                    {activeTab === "sections" ? (
-                        <section style={{ ...card, padding: 0, overflow: "hidden" }} aria-labelledby="cw-sections-title">
-                            <div
-                                style={{
-                                    padding: "16px 20px",
-                                    borderBottom: `1px solid ${dash.border}`,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    gap: 16,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                                    <BookOpen size={18} color={dash.accent} style={{ flexShrink: 0 }} />
-                                    <div>
-                                        <h2
-                                            id="cw-sections-title"
-                                            style={{
-                                                margin: 0,
-                                                fontSize: 15,
-                                                fontWeight: 800,
-                                                fontFamily: dash.fontDisplay,
-                                                color: dash.text,
-                                            }}
-                                        >
-                                            Sections
-                                        </h2>
-                                        <p style={{ margin: "4px 0 0", fontSize: 12, color: dash.muted, lineHeight: 1.45 }}>
-                                            Organize teaching groups for this course.
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    style={S.primaryBtn}
-                                    onClick={() => setShowCreateSection(true)}
-                                >
-                                    <Plus size={17} />
-                                    Create Section
-                                </button>
-                            </div>
+                <TabsContent value="sections" className="mt-6">
+                    <CourseWorkspaceSectionsPanel
+                        courseId={courseId}
+                        sections={sections}
+                        createOpen={showCreateSection}
+                        onCreateOpenChange={setShowCreateSection}
+                        creatingSection={creatingSection}
+                        onAddSection={(payload) => void handleAddSection(payload)}
+                    />
+                </TabsContent>
 
-                            {showCreateSection ? (
-                                <CreateSectionForm
-                                    onSubmit={handleAddSection}
-                                    onCancel={() => setShowCreateSection(false)}
-                                />
-                            ) : null}
+                <TabsContent value="projects" className="mt-6">
+                    <CourseWorkspaceProjectsPanel
+                        courseId={courseId}
+                        isDoctor={isDoctor}
+                        apiProjects={apiProjects}
+                        localProjects={projects}
+                        projectTeamCounts={projectTeamCounts}
+                        openedTeamProjectId={openedTeamProjectId}
+                        onOpenedTeamProjectIdChange={setOpenedTeamProjectId}
+                        teamMembers={teamMembers}
+                        teamMessages={teamMessages}
+                        teamChatInput={teamChatInput}
+                        onTeamChatInputChange={setTeamChatInput}
+                        onSendTeamMessage={handleSendTeamMessage}
+                        onCreateProject={openCreateProject}
+                    />
+                </TabsContent>
 
-                            {sections.length > 0 ? (
-                                <ul
-                                    style={{
-                                        listStyle: "none",
-                                        margin: 0,
-                                        padding: "8px 20px 24px",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 14,
-                                    }}
-                                >
-                                    {sections.map((s) => (
-                                        (() => {
-                                            const students = s.students ?? [];
-                                            const hasStudents = students.length > 0;
-                                            const isOpen = openedSectionId === s.id;
-                                            return (
-                                        <li
-                                            key={s.id}
-                                            style={{
-                                                ...card,
-                                                padding: "18px 18px 16px",
-                                                boxShadow: dash.shadow,
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                gap: 12,
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    display: "flex",
-                                                    flexWrap: "wrap",
-                                                    alignItems: "flex-start",
-                                                    justifyContent: "space-between",
-                                                    gap: 12,
-                                                }}
-                                            >
-                                                <div style={{ minWidth: 0, flex: 1 }}>
-                                                    <h3
-                                                        style={{
-                                                            margin: 0,
-                                                            fontSize: 16,
-                                                            fontWeight: 800,
-                                                            fontFamily: dash.fontDisplay,
-                                                            color: dash.text,
-                                                            lineHeight: 1.3,
-                                                        }}
-                                                    >
-                                                        {s.name}
-                                                    </h3>
-                                                    <p
-                                                        style={{
-                                                            margin: "8px 0 0",
-                                                            fontSize: 13,
-                                                            color: dash.muted,
-                                                            lineHeight: 1.45,
-                                                        }}
-                                                    >
-                                                        {formatSectionSchedule(s.days, s.timeFrom, s.timeTo)}
-                                                    </p>
-                                                    <p style={{ margin: "6px 0 0", fontSize: 12, color: dash.subtle }}>
-                                                        Capacity:{" "}
-                                                        <span style={{ fontWeight: 700, color: dash.text }}>{s.capacity}</span>{" "}
-                                                        students
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    style={S.secondaryBtn}
-                                                    onClick={() => {
-                                                        if (!courseId) return;
-                                                        navigate(`/courses/${courseId}/sections/${s.id}/students`);
-                                                    }}
-                                                >
-                                                    <Users size={16} />
-                                                    Manage Students
-                                                </button>
-                                                {hasStudents ? (
-                                                    <button
-                                                        type="button"
-                                                        style={S.secondaryBtn}
-                                                        onClick={() =>
-                                                            setOpenedSectionId((prev) => (prev === s.id ? null : s.id))
-                                                        }
-                                                    >
-                                                        <Users size={16} />
-                                                        {isOpen ? "Hide Students" : "View Students"}
-                                                    </button>
-                                                ) : null}
-                                            </div>
-                                            <div
-                                                style={{
-                                                    maxHeight: isOpen ? 1000 : 0,
-                                                    opacity: isOpen ? 1 : 0,
-                                                    overflow: "hidden",
-                                                    transition: "max-height 0.25s ease, opacity 0.2s ease",
-                                                }}
-                                            >
-                                                {hasStudents ? (
-                                                    <div
-                                                        style={{
-                                                            border: `1px solid ${dash.border}`,
-                                                            borderRadius: 12,
-                                                            background: dash.surface,
-                                                            padding: "10px 12px",
-                                                        }}
-                                                    >
-                                                        {students.map((student, index) => (
-                                                            <div
-                                                                key={student.id}
-                                                                style={{
-                                                                    padding: "10px 6px",
-                                                                    borderBottom:
-                                                                        index < students.length - 1
-                                                                            ? `1px solid ${dash.border}`
-                                                                            : "none",
-                                                                    display: "flex",
-                                                                    flexDirection: "column",
-                                                                    gap: 2,
-                                                                }}
-                                                            >
-                                                                <span style={{ fontSize: 13, fontWeight: 700, color: dash.text }}>
-                                                                    {student.name}
-                                                                </span>
-                                                                {student.email ? (
-                                                                    <span style={{ fontSize: 12, color: dash.subtle }}>
-                                                                        {student.email}
-                                                                    </span>
-                                                                ) : null}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        </li>
-                                            );
-                                        })()
-                                    ))}
-                                </ul>
-                            ) : !showCreateSection ? (
-                                <div style={{ padding: "48px 24px", textAlign: "center" }}>
-                                    <Layers size={40} color="#cbd5e1" style={{ marginBottom: 14 }} />
-                                    <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: dash.muted }}>
-                                        No sections yet
-                                    </p>
-                                    <p
-                                        style={{
-                                            margin: "10px auto 0",
-                                            fontSize: 13,
-                                            color: dash.subtle,
-                                            lineHeight: 1.55,
-                                            maxWidth: 400,
-                                        }}
-                                    >
-                                        Use <strong style={{ color: dash.text }}>Create Section</strong> to define
-                                        schedules and capacity for each teaching group.
-                                    </p>
-                                </div>
-                            ) : (
-                                <p
-                                    style={{
-                                        margin: "0 20px 24px",
-                                        padding: "0 4px",
-                                        fontSize: 13,
-                                        color: dash.subtle,
-                                        lineHeight: 1.5,
-                                    }}
-                                >
-                                    Fill in the form above, then choose <strong style={{ color: dash.text }}>Add section</strong>{" "}
-                                    to see it listed here.
-                                </p>
-                            )}
-                        </section>
-                    ) : null}
-
-                    {activeTab === "projects" ? (
-                        <section style={{ ...card, padding: 0, overflow: "hidden" }} aria-labelledby="cw-projects-title">
-                            <div
-                                style={{
-                                    padding: "16px 20px",
-                                    borderBottom: `1px solid ${dash.border}`,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    gap: 16,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                                    <FolderKanban size={18} color={dash.accent} style={{ flexShrink: 0 }} />
-                                    <div>
-                                        <h2
-                                            id="cw-projects-title"
-                                            style={{
-                                                margin: 0,
-                                                fontSize: 15,
-                                                fontWeight: 800,
-                                                fontFamily: dash.fontDisplay,
-                                                color: dash.text,
-                                            }}
-                                        >
-                                            Projects
-                                        </h2>
-                                        <p style={{ margin: "4px 0 0", fontSize: 12, color: dash.muted, lineHeight: 1.45 }}>
-                                            Course projects and team formation settings.
-                                        </p>
-                                    </div>
-                                </div>
-                                <button type="button" style={S.primaryBtn} onClick={openCreateProject}>
-                                    <Plus size={17} />
-                                    Create Project
-                                </button>
-                            </div>
-
-                            {(() => {
-                                const isReal = parseBackendCourseId(courseId) != null;
-                                const displayProjects = isReal ? apiProjects : projects;
-                                if (displayProjects.length > 0) {
-                                    return (
-                                        <ul style={{ listStyle: "none", margin: 0, padding: "16px 20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
-                                            {isReal
-                                                ? (apiProjects as DoctorCourseProject[]).map((project) => {
-                                                    console.log("RENDER PROJECT", project);
-                                                    const isDoctorAssignedProject = isDoctor && project.aiMode === "doctor";
-                                                    return (
-                                                    <li key={project.id}>
-                                                        <div
-                                                            style={{ ...card, width: "100%", padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8, textAlign: "left", cursor: isDoctorAssignedProject ? "pointer" : "default", fontFamily: "inherit", border: `1px solid ${dash.border}`, transition: "transform 0.12s ease, box-shadow 0.12s ease" }}
-                                                            className="dd-course-card-btn"
-                                                            onClick={() => {
-                                                                if (isDoctorAssignedProject) {
-                                                                    navigate(`/courses/${courseId}/projects/${project.id}/teams`);
-                                                                }
-                                                            }}
-                                                        >
-                                                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text, lineHeight: 1.3 }}>
-                                                                {project.title}
-                                                            </h3>
-                                                            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                                <span style={{ fontWeight: 700, color: dash.text }}>Section:</span>{" "}
-                                                                {doctorProjectSectionDisplayLabel(project)}
-                                                            </p>
-                                                            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                                <span style={{ fontWeight: 700, color: dash.text }}>Team size:</span> {project.teamSize}
-                                                            </p>
-                                                            <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                                <span style={{ fontWeight: 700, color: dash.text }}>Teams:</span> {projectTeamCounts[project.id] ?? "—"}
-                                                            </p>
-                                                            {project.description ? (
-                                                                <p style={{ margin: 0, fontSize: 12, color: dash.subtle, lineHeight: 1.45 }}>{project.description}</p>
-                                                            ) : null}
-                                                            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
-                                                                {isDoctor ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            navigate(`/courses/${courseId}/projects/${project.id}/teams`)
-                                                                        }
-                                                                        style={S.primaryBtn}
-                                                                    >
-                                                                        Assign Teams
-                                                                    </button>
-                                                                ) : (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            setOpenedTeamProjectId((prev) =>
-                                                                                prev === project.id ? null : project.id,
-                                                                            )
-                                                                        }
-                                                                        style={S.secondaryBtn}
-                                                                    >
-                                                                        View My Team
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                            {!isDoctor ? (
-                                                                <div
-                                                                    style={{
-                                                                        maxHeight: openedTeamProjectId === project.id ? 420 : 0,
-                                                                        opacity: openedTeamProjectId === project.id ? 1 : 0,
-                                                                        overflow: "hidden",
-                                                                        transition: "max-height 0.25s ease, opacity 0.2s ease",
-                                                                    }}
-                                                                >
-                                                                    <div
-                                                                        style={{
-                                                                            marginTop: 8,
-                                                                            border: `1px solid ${dash.border}`,
-                                                                            borderRadius: 12,
-                                                                            padding: 12,
-                                                                            background: "#f8fafc",
-                                                                            display: "flex",
-                                                                            flexDirection: "column",
-                                                                            gap: 12,
-                                                                        }}
-                                                                    >
-                                                                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                                                            {teamMembers.map((member) => (
-                                                                                <div
-                                                                                    key={member.id}
-                                                                                    style={{ display: "flex", alignItems: "center", gap: 10 }}
-                                                                                >
-                                                                                    <div
-                                                                                        style={{
-                                                                                            width: 32,
-                                                                                            height: 32,
-                                                                                            borderRadius: "50%",
-                                                                                            background: "#ddd6fe",
-                                                                                            color: "#6d28d9",
-                                                                                            display: "inline-flex",
-                                                                                            alignItems: "center",
-                                                                                            justifyContent: "center",
-                                                                                            fontSize: 12,
-                                                                                            fontWeight: 800,
-                                                                                        }}
-                                                                                    >
-                                                                                        {member.name.charAt(0)}
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: dash.text }}>
-                                                                                            {member.name}
-                                                                                        </p>
-                                                                                        <p style={{ margin: "2px 0 0", fontSize: 11, color: dash.subtle }}>
-                                                                                            {member.role}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                        <div style={{ borderTop: `1px solid ${dash.border}`, paddingTop: 10 }}>
-                                                                            <div
-                                                                                style={{
-                                                                                    maxHeight: 120,
-                                                                                    overflowY: "auto",
-                                                                                    display: "flex",
-                                                                                    flexDirection: "column",
-                                                                                    gap: 6,
-                                                                                    marginBottom: 8,
-                                                                                }}
-                                                                            >
-                                                                                {teamMessages.map((m) => (
-                                                                                    <div
-                                                                                        key={m.id}
-                                                                                        style={{
-                                                                                            alignSelf: m.sender === "You" ? "flex-end" : "flex-start",
-                                                                                            background: m.sender === "You" ? dash.accent : "#e5e7eb",
-                                                                                            color: m.sender === "You" ? "#fff" : "#1f2937",
-                                                                                            borderRadius: 12,
-                                                                                            padding: "6px 10px",
-                                                                                            fontSize: 12,
-                                                                                            maxWidth: "85%",
-                                                                                        }}
-                                                                                    >
-                                                                                        {m.text}
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                                                <input
-                                                                                    value={teamChatInput}
-                                                                                    onChange={(e) => setTeamChatInput(e.target.value)}
-                                                                                    onKeyDown={(e) => {
-                                                                                        if (e.key === "Enter") {
-                                                                                            e.preventDefault();
-                                                                                            handleSendTeamMessage();
-                                                                                        }
-                                                                                    }}
-                                                                                    placeholder="Type a message..."
-                                                                                    style={{
-                                                                                        flex: 1,
-                                                                                        border: `1px solid ${dash.border}`,
-                                                                                        borderRadius: 999,
-                                                                                        padding: "8px 12px",
-                                                                                        fontSize: 12,
-                                                                                        fontFamily: dash.font,
-                                                                                    }}
-                                                                                />
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={handleSendTeamMessage}
-                                                                                    style={{
-                                                                                        width: 30,
-                                                                                        height: 30,
-                                                                                        borderRadius: "50%",
-                                                                                        border: "none",
-                                                                                        background: dash.accent,
-                                                                                        color: "#fff",
-                                                                                        fontWeight: 800,
-                                                                                        cursor: "pointer",
-                                                                                    }}
-                                                                                >
-                                                                                    ➤
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ) : null}
-                                                        </div>
-                                                    </li>
-                                                    );
-                                                })
-                                                : (projects as WorkspaceProject[]).map((p) => (
-                                                    <li key={p.id} style={{ ...card, padding: "18px 18px 16px", boxShadow: dash.shadow, display: "flex", flexDirection: "column", gap: 8 }}>
-                                                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, fontFamily: dash.fontDisplay, color: dash.text }}>{p.title}</h3>
-                                                        <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                            <span style={{ fontWeight: 700, color: dash.text }}>Section:</span> {p.sectionLabel}
-                                                        </p>
-                                                        <p style={{ margin: 0, fontSize: 13, color: dash.muted }}>
-                                                            <span style={{ fontWeight: 700, color: dash.text }}>Team size:</span> {p.teamSize}
-                                                        </p>
-                                                    </li>
-                                                ))
-                                            }
-                                        </ul>
-                                    );
-                                }
-                                return (
-                                    <div style={{ padding: "48px 24px", textAlign: "center" }}>
-                                        <FolderKanban size={40} color="#cbd5e1" style={{ marginBottom: 14 }} />
-                                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: dash.muted }}>No projects yet</p>
-                                        <p style={{ margin: "10px auto 0", fontSize: 13, color: dash.subtle, lineHeight: 1.55, maxWidth: 420 }}>
-                                            Use <strong style={{ color: dash.text }}>Create Project</strong> to define title, scope, and section targeting.
-                                        </p>
-                                    </div>
-                                );
-                            })()}
-                        </section>
-                    ) : null}
-
-                    {activeTab === "settings" ? (
+                <TabsContent value="settings" className="mt-6">
                         <section style={{ ...card, padding: 0, overflow: "hidden" }} aria-labelledby="cw-settings-title">
                             <div
                                 style={{
@@ -1208,10 +658,9 @@ export default function CourseWorkspacePage() {
                                 </article>
                             </div>
                         </section>
-                    ) : null}
-                </div>
-            </div>
-        </div>
+                </TabsContent>
+            </Tabs>
+        </DoctorSubpageLayout>
     );
 }
 

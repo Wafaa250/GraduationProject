@@ -1,0 +1,1 @@
+export { DoctorHubShellPage } from "./DoctorHubShellLayout";

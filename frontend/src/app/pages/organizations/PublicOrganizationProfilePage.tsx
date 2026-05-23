@@ -21,6 +21,7 @@ import {
 import { AssociationAvatar, CategoryBadge, VerifiedBadge } from '../../components/association/associationBrand'
 import { SocialLinksList } from '../../components/association/SocialLinksList'
 import { assocDash } from '../association/dashboard/associationDashTokens'
+import { PublicPageNavBrand } from '../../components/brand/PublicPageNavBrand'
 import { formatJoinedDate, publicOrgPage } from './publicOrgPageStyles'
 
 const isStudentRole = () => (localStorage.getItem('role') ?? '').toLowerCase() === 'student'
@@ -150,9 +151,7 @@ export default function PublicOrganizationProfilePage() {
             <ArrowLeft size={14} />
             Back
           </button>
-          <span style={publicOrgPage.logoText}>
-            Skill<span style={publicOrgPage.logoAccent}>Swap</span>
-          </span>
+          <PublicPageNavBrand />
           <span
             style={{
               marginLeft: 'auto',
