@@ -1,0 +1,33 @@
+---
+description: Enforce SkillSwap unified design system across all frontend work
+alwaysApply: true
+---
+
+# SkillSwap design system
+
+Before marking UI work complete, self-review as Product Designer, UX Designer, Frontend Engineer, and end user.
+
+## Source of truth
+
+- **Tokens**: `frontend/src/styles/globals.css` (`@theme` colors, radii)
+- **Form controls**: `frontend/src/shared/styles/formControls.ts` — all inputs, selects, textareas, combobox triggers use `controlInputClass()` / `controlTextareaClass()` at **h-10**, `rounded-lg`
+- **Typography**: `frontend/src/shared/styles/typography.ts` — page titles, section titles
+- **Layout**: `frontend/src/shared/styles/layout.ts` — auth back links, form stacks, callouts, cards
+- **Components**: `Button`, `TextArea`, `SearchableSelect`, `ChoiceChip*` in `shared/components/ui/`
+- **Logo**: Always use `AppLogo` from `@/shared/components/brand` (sparkles mark) on marketing, auth, and app shells
+
+## Rules
+
+1. Do not invent one-off input/button/chip styles on individual pages.
+2. Do not use `h-11` on fields unless the design system is intentionally updated everywhere.
+3. Primary actions: `<Button size="lg" className="w-full">` — do not duplicate `h-11`.
+4. Auth forms: `authFormStackClass`, `AuthBackLink`, `AuthField` / `TextArea` / `SearchableSelect`.
+5. Selection chips: `ChoiceChip` + `ChoiceChipGroup` — same selected/hover/focus as form ring tokens.
+6. Step indicators show progress only; page titles live in `AuthCard` or step content — avoid duplicate step labels.
+7. Minimize instructional copy; UI should be self-explanatory.
+8. Test responsive behavior: mobile, tablet, desktop.
+9. Fix inconsistencies proactively — do not wait for the user to report them.
+
+## When adding new surfaces (dashboard, messaging, etc.)
+
+Extend shared tokens and `shared/components/ui/` first, then compose feature pages.

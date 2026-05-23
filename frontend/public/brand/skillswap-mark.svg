@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" aria-label="SkillSwap">
+  <path
+    d="M16 10.75 L10.35 20.25 M16 10.75 L21.65 20.25 M12 22.25 L20 22.25"
+    stroke="#5B4FE8"
+    stroke-opacity="0.32"
+    stroke-width="2.25"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="16" cy="9" r="4" fill="#5B4FE8"/>
+  <circle cx="9" cy="22" r="4" fill="#5B4FE8"/>
+  <circle cx="23" cy="22" r="4" fill="#5B4FE8"/>
+  <circle cx="16" cy="16.25" r="2.25" fill="#5B4FE8"/>
+</svg>

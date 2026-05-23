@@ -171,6 +171,44 @@ namespace GraduationProject.API.DTOs
     // ===========================
     // GOOGLE LOGIN
     // ===========================
+    public class ForgotPasswordDto
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordDto
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Reset token is required")]
+        public string Token { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your password")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+
+    public class ForgotPasswordResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+
+        /// <summary>True when SMTP accepted the message. False when SMTP is missing or send failed.</summary>
+        public bool EmailSent { get; set; }
+
+        /// <summary>
+        /// Reset link returned only in Development when a token was created but email was not sent
+        /// (SMTP missing or failed) — for local testing. Never rely on this in production.
+        /// </summary>
+        public string? ResetUrl { get; set; }
+    }
+
     public class GoogleLoginDto
     {
         // الـ ID Token اللي بيرجع من Google Sign-In على الفرونت

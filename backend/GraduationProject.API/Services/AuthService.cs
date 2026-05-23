@@ -1,10 +1,12 @@
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
@@ -21,17 +23,27 @@ namespace GraduationProject.API.Services
         Task<(AuthResponseDto? result, string? error)> RegisterStudentAssociationAsync(StudentAssociationRegisterDto dto);
         Task<(AuthResponseDto? result, string? error)> LoginAsync(LoginDto dto);
         Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto);
+        Task<(ForgotPasswordResponseDto? result, string? error)> ForgotPasswordAsync(ForgotPasswordDto dto);
+        Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto);
     }
 
     public class AuthService : IAuthService
     {
         private readonly ApplicationDbContext _db;
         private readonly IConfiguration _config;
+        private readonly IHostEnvironment _env;
+        private readonly IPasswordResetEmailService _passwordResetEmail;
 
-        public AuthService(ApplicationDbContext db, IConfiguration config)
+        public AuthService(
+            ApplicationDbContext db,
+            IConfiguration config,
+            IHostEnvironment env,
+            IPasswordResetEmailService passwordResetEmail)
         {
             _db = db;
             _config = config;
+            _env = env;
+            _passwordResetEmail = passwordResetEmail;
         }
 
         // ===========================
@@ -334,6 +346,123 @@ namespace GraduationProject.API.Services
             int profileId = await GetProfileIdAsync(user);
             return (BuildResponse(user, profileId), null);
         }
+
+        // ===========================
+        // FORGOT / RESET PASSWORD
+        // ===========================
+        public async Task<(ForgotPasswordResponseDto? result, string? error)> ForgotPasswordAsync(ForgotPasswordDto dto)
+        {
+            const string genericMessage =
+                "If an account exists for this email, you will receive password reset instructions shortly.";
+
+            var email = dto.Email.ToLower().Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+            {
+                return (new ForgotPasswordResponseDto
+                {
+                    Message = genericMessage,
+                    EmailSent = false,
+                    ResetUrl = null,
+                }, null);
+            }
+
+            var rawToken = GenerateSecureToken();
+            var tokenHash = HashResetToken(rawToken);
+            var expiryMinutes = int.TryParse(_config["PasswordReset:TokenExpiryMinutes"], out var m) ? m : 60;
+
+            var existing = await _db.PasswordResetTokens
+                .Where(t => t.UserId == user.Id && t.UsedAt == null)
+                .ToListAsync();
+            foreach (var t in existing)
+                t.UsedAt = DateTime.UtcNow;
+
+            _db.PasswordResetTokens.Add(new PasswordResetToken
+            {
+                UserId = user.Id,
+                TokenHash = tokenHash,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(expiryMinutes),
+                CreatedAt = DateTime.UtcNow,
+            });
+            await _db.SaveChangesAsync();
+
+            var baseUrl = (_config["PasswordReset:FrontendBaseUrl"] ?? "http://localhost:5173").TrimEnd('/');
+            var resetUrl =
+                $"{baseUrl}/reset-password?token={Uri.EscapeDataString(rawToken)}&email={Uri.EscapeDataString(email)}";
+
+            var delivery = await _passwordResetEmail.SendPasswordResetAsync(email, resetUrl);
+            var emailSent = delivery.Outcome == PasswordResetDeliveryOutcome.Sent;
+
+            string? devResetUrl = null;
+            if (_env.IsDevelopment() && !emailSent)
+                devResetUrl = resetUrl;
+
+            var message = genericMessage;
+            if (_env.IsDevelopment() && devResetUrl != null)
+            {
+                message = delivery.Outcome switch
+                {
+                    PasswordResetDeliveryOutcome.NotConfigured =>
+                        "No email was sent — SMTP is not configured on the server. Use the reset link below to continue.",
+                    PasswordResetDeliveryOutcome.Failed =>
+                        "We could not send the email. Use the reset link below to continue, or try again later.",
+                    _ => genericMessage,
+                };
+            }
+
+            return (new ForgotPasswordResponseDto
+            {
+                Message = message,
+                EmailSent = emailSent,
+                ResetUrl = devResetUrl,
+            }, null);
+        }
+
+        public async Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            if (dto.Password != dto.ConfirmPassword)
+                return (false, "Passwords do not match.");
+
+            var email = dto.Email.ToLower().Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+                return (false, "Invalid or expired reset link.");
+
+            var tokenHash = HashResetToken(dto.Token.Trim());
+            var record = await _db.PasswordResetTokens
+                .Where(t => t.UserId == user.Id && t.TokenHash == tokenHash && t.UsedAt == null)
+                .OrderByDescending(t => t.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (record == null || record.ExpiresAt < DateTime.UtcNow)
+                return (false, "Invalid or expired reset link.");
+
+            user.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            record.UsedAt = DateTime.UtcNow;
+
+            var otherActive = await _db.PasswordResetTokens
+                .Where(t => t.UserId == user.Id && t.UsedAt == null && t.Id != record.Id)
+                .ToListAsync();
+            foreach (var t in otherActive)
+                t.UsedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            return (true, null);
+        }
+
+        private static string GenerateSecureToken()
+        {
+            var bytes = new byte[32];
+            RandomNumberGenerator.Fill(bytes);
+            return Convert.ToBase64String(bytes)
+                .Replace('+', '-')
+                .Replace('/', '_')
+                .TrimEnd('=');
+        }
+
+        private static string HashResetToken(string token) =>
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
 
     }
 }

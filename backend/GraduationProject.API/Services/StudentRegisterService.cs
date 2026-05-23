@@ -26,7 +26,7 @@ namespace GraduationProject.API.Services
         private readonly IConfiguration       _config;
 
         private static readonly string[] ValidYears =
-            { "First Year", "Second Year", "Third Year", "Fourth Year", "Fifth Year" };
+            { "First Year", "Second Year", "Third Year", "Fourth Year", "Fifth Year or Above" };
 
         public StudentRegisterService(ApplicationDbContext db, IConfiguration config)
         {

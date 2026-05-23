@@ -1,0 +1,282 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: hsl(240 20% 98%);
+  --color-foreground: hsl(240 10% 4%);
+  --color-muted: hsl(240 8% 94%);
+  --color-muted-foreground: hsl(240 5% 42%);
+  --color-border: hsl(240 8% 88%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(240 10% 4%);
+  --color-primary: hsl(245 72% 56%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-accent: hsl(245 100% 97%);
+  --color-accent-foreground: hsl(245 65% 42%);
+  --color-ring: hsl(245 72% 56%);
+  --color-glow: hsl(262 80% 62%);
+  --color-glow-secondary: hsl(220 90% 60%);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: hsl(245 72% 56% / 0.22);
+    color: var(--color-foreground);
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(240 10% 8%) 0%,
+      hsl(245 72% 48%) 45%,
+      hsl(262 70% 52%) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-hero {
+    background: linear-gradient(
+      180deg,
+      hsl(240 10% 6%) 0%,
+      hsl(240 10% 20%) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .mesh-gradient {
+    background:
+      radial-gradient(ellipse 90% 60% at 50% -30%, hsl(245 72% 56% / 0.22), transparent 55%),
+      radial-gradient(ellipse 50% 40% at 90% 10%, hsl(262 80% 62% / 0.14), transparent 50%),
+      radial-gradient(ellipse 45% 35% at 5% 40%, hsl(220 90% 60% / 0.1), transparent 50%);
+  }
+
+  .hero-spotlight {
+    background: radial-gradient(
+      ellipse 65% 45% at 50% 0%,
+      hsl(245 72% 56% / 0.14),
+      transparent 70%
+    );
+  }
+
+  .grid-pattern {
+    background-image:
+      linear-gradient(hsl(240 8% 88% / 0.45) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(240 8% 88% / 0.45) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 15%, transparent 75%);
+  }
+
+  .dot-pattern {
+    background-image: radial-gradient(hsl(240 8% 75% / 0.35) 1px, transparent 1px);
+    background-size: 20px 20px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 10%, transparent 70%);
+  }
+
+  .glass {
+    background: hsl(0 0% 100% / 0.65);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  }
+
+  .glass-card {
+    background: linear-gradient(
+      145deg,
+      hsl(0 0% 100% / 0.92) 0%,
+      hsl(0 0% 100% / 0.78) 100%
+    );
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    box-shadow:
+      0 0 0 1px hsl(0 0% 100% / 0.8) inset,
+      0 1px 2px hsl(240 10% 10% / 0.04),
+      0 8px 32px hsl(245 72% 56% / 0.08),
+      0 24px 48px hsl(240 10% 10% / 0.06);
+  }
+
+  .surface-elevated {
+    box-shadow:
+      0 0 0 1px hsl(240 8% 88% / 0.8),
+      0 2px 4px hsl(240 10% 10% / 0.03),
+      0 12px 40px hsl(245 72% 56% / 0.1);
+  }
+
+  .border-glow {
+    position: relative;
+  }
+
+  .border-glow::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      hsl(245 72% 56% / 0.5),
+      hsl(262 80% 62% / 0.2),
+      hsl(220 90% 60% / 0.35),
+      hsl(245 72% 56% / 0.15)
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.85;
+  }
+
+  .shimmer-line {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(245 72% 56% / 0.35) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2.8s ease-in-out infinite;
+  }
+
+  .noise-overlay {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    mix-blend-mode: overlay;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(0.5deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes scan {
+  0% {
+    top: -10%;
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.7;
+  }
+  92% {
+    opacity: 0.7;
+  }
+  100% {
+    top: 110%;
+    opacity: 0;
+  }
+}
+
+.scan-beam {
+  animation: scan 5s ease-in-out infinite;
+}
+
+@keyframes orbit {
+  0% {
+    transform: rotate(0deg) translateX(0);
+  }
+  100% {
+    transform: rotate(360deg) translateX(0);
+  }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+.animate-float-delay-1 {
+  animation: float 5.5s ease-in-out 0.8s infinite;
+}
+
+.animate-float-delay-2 {
+  animation: float-slow 6.5s ease-in-out 1.4s infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-delay-1,
+  .animate-float-delay-2,
+  .animate-pulse-glow,
+  .shimmer-line {
+    animation: none;
+  }
+}
