@@ -16,8 +16,10 @@ export type GradProject = {
   partnersCount: number;
   currentMembers: number;
   isFull: boolean;
+  isOwner?: boolean;
   requiredSkills?: string[];
   members: GradProjectMember[];
+  createdAt?: string;
 };
 
 export async function getGraduationProjectsMyEnvelope(): Promise<{

@@ -1,0 +1,285 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap");
+
+.skill-profile-hub {
+  --background: 220 30% 98%;
+  --foreground: 230 25% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 230 25% 12%;
+  --primary: 252 75% 58%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 270 85% 70%;
+  --secondary: 220 25% 96%;
+  --secondary-foreground: 230 25% 18%;
+  --muted: 220 20% 95%;
+  --muted-foreground: 230 12% 45%;
+  --accent: 195 90% 55%;
+  --accent-foreground: 0 0% 100%;
+  --success: 152 65% 45%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 55%;
+  --warning-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 20% 90%;
+  --input: 220 20% 90%;
+  --ring: 252 75% 58%;
+  --radius: 1rem;
+  --gradient-hero: linear-gradient(135deg, hsl(252 75% 58%) 0%, hsl(270 85% 70%) 50%, hsl(195 90% 55%) 100%);
+  --gradient-subtle: linear-gradient(180deg, hsl(220 30% 98%) 0%, hsl(220 25% 96%) 100%);
+  --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(220 30% 99%) 100%);
+  --gradient-accent: linear-gradient(135deg, hsl(252 75% 58% / 0.08), hsl(195 90% 55% / 0.08));
+  --gradient-chip: linear-gradient(135deg, hsl(252 75% 58% / 0.1), hsl(270 85% 70% / 0.1));
+  --shadow-sm: 0 1px 2px hsl(230 25% 12% / 0.04);
+  --shadow-md: 0 4px 16px -4px hsl(230 25% 12% / 0.08);
+  --shadow-lg: 0 12px 40px -12px hsl(252 75% 58% / 0.18);
+  --shadow-glow: 0 0 60px hsl(252 75% 58% / 0.25);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  min-height: 100vh;
+  background: var(--gradient-subtle);
+  color: hsl(var(--foreground));
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+}
+
+.skill-profile-hub h1,
+.skill-profile-hub h2,
+.skill-profile-hub h3,
+.skill-profile-hub h4 {
+  font-family: "Sora", "Inter", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.skill-profile-hub .glass-card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-smooth);
+}
+
+.skill-profile-hub .glass-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.skill-profile-hub .gradient-text {
+  background: var(--gradient-hero);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.skill-profile-hub .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid hsl(var(--border) / 0.6);
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  transition: var(--transition-smooth);
+}
+
+.skill-profile-hub .chip:hover {
+  background-color: hsl(var(--accent) / 0.1);
+  border-color: hsl(var(--accent) / 0.3);
+}
+
+.skill-profile-hub .chip-primary {
+  background: var(--gradient-chip);
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.2);
+}
+
+.skill-profile-hub .bg-\[var\(--gradient-subtle\)\] {
+  background: var(--gradient-subtle);
+}
+.skill-profile-hub .bg-\[var\(--gradient-hero\)\] {
+  background: var(--gradient-hero);
+}
+.skill-profile-hub .bg-\[var\(--gradient-accent\)\] {
+  background: var(--gradient-accent);
+}
+.skill-profile-hub .shadow-\[var\(--shadow-lg\)\] {
+  box-shadow: var(--shadow-lg);
+}
+.skill-profile-hub .shadow-\[var\(--shadow-md\)\] {
+  box-shadow: var(--shadow-md);
+}
+.skill-profile-hub .shadow-\[var\(--shadow-glow\)\] {
+  box-shadow: var(--shadow-glow);
+}
+
+.skill-profile-hub .bg-card {
+  background-color: hsl(var(--card));
+}
+.skill-profile-hub .bg-secondary {
+  background-color: hsl(var(--secondary));
+}
+.skill-profile-hub .bg-secondary\/50 {
+  background-color: hsl(var(--secondary) / 0.5);
+}
+.skill-profile-hub .bg-secondary\/40 {
+  background-color: hsl(var(--secondary) / 0.4);
+}
+.skill-profile-hub .bg-secondary\/30 {
+  background-color: hsl(var(--secondary) / 0.3);
+}
+.skill-profile-hub .bg-secondary\/20 {
+  background-color: hsl(var(--secondary) / 0.2);
+}
+.skill-profile-hub .bg-primary\/20 {
+  background-color: hsl(var(--primary) / 0.2);
+}
+.skill-profile-hub .bg-primary\/10 {
+  background-color: hsl(var(--primary) / 0.1);
+}
+.skill-profile-hub .bg-primary\/8 {
+  background-color: hsl(var(--primary) / 0.08);
+}
+.skill-profile-hub .bg-primary\/5 {
+  background-color: hsl(var(--primary) / 0.05);
+}
+.skill-profile-hub .bg-accent\/20 {
+  background-color: hsl(var(--accent) / 0.2);
+}
+.skill-profile-hub .bg-accent\/10 {
+  background-color: hsl(var(--accent) / 0.1);
+}
+.skill-profile-hub .bg-success {
+  background-color: hsl(var(--success));
+}
+.skill-profile-hub .bg-success\/5 {
+  background-color: hsl(var(--success) / 0.05);
+}
+.skill-profile-hub .bg-warning\/15 {
+  background-color: hsl(var(--warning) / 0.15);
+}
+.skill-profile-hub .text-foreground {
+  color: hsl(var(--foreground));
+}
+.skill-profile-hub .text-foreground\/90 {
+  color: hsl(var(--foreground) / 0.9);
+}
+.skill-profile-hub .text-foreground\/80 {
+  color: hsl(var(--foreground) / 0.8);
+}
+.skill-profile-hub .text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+.skill-profile-hub .text-primary {
+  color: hsl(var(--primary));
+}
+.skill-profile-hub .text-primary-foreground {
+  color: hsl(var(--primary-foreground));
+}
+.skill-profile-hub .text-success {
+  color: hsl(var(--success));
+}
+.skill-profile-hub .text-warning-foreground {
+  color: hsl(var(--warning-foreground));
+}
+.skill-profile-hub .border-border {
+  border-color: hsl(var(--border));
+}
+.skill-profile-hub .border-border\/60 {
+  border-color: hsl(var(--border) / 0.6);
+}
+.skill-profile-hub .border-border\/50 {
+  border-color: hsl(var(--border) / 0.5);
+}
+.skill-profile-hub .border-border\/40 {
+  border-color: hsl(var(--border) / 0.4);
+}
+.skill-profile-hub .border-card {
+  border-color: hsl(var(--card));
+}
+.skill-profile-hub .border-primary\/30 {
+  border-color: hsl(var(--primary) / 0.3);
+}
+.skill-profile-hub .border-primary\/40 {
+  border-color: hsl(var(--primary) / 0.4);
+}
+.skill-profile-hub .border-primary\/20 {
+  border-color: hsl(var(--primary) / 0.2);
+}
+.skill-profile-hub .border-accent\/30 {
+  border-color: hsl(var(--accent) / 0.3);
+}
+.skill-profile-hub .border-success\/20 {
+  border-color: hsl(var(--success) / 0.2);
+}
+.skill-profile-hub .border-warning\/30 {
+  border-color: hsl(var(--warning) / 0.3);
+}
+.skill-profile-hub .hover\:border-primary\/30:hover {
+  border-color: hsl(var(--primary) / 0.3);
+}
+.skill-profile-hub .hover\:border-primary\/40:hover {
+  border-color: hsl(var(--primary) / 0.4);
+}
+.skill-profile-hub .hover\:text-primary:hover {
+  color: hsl(var(--primary));
+}
+.skill-profile-hub .hover\:from-primary\/5:hover {
+  --tw-gradient-from: hsl(var(--primary) / 0.05);
+}
+.skill-profile-hub .hover\:to-accent\/5:hover {
+  --tw-gradient-to: hsl(var(--accent) / 0.05);
+}
+.skill-profile-hub .hover\:shadow-\[var\(--shadow-md\)\]:hover {
+  box-shadow: var(--shadow-md);
+}
+.skill-profile-hub .group-hover\:text-primary:hover {
+  color: hsl(var(--primary));
+}
+.skill-profile-hub .group-hover\:scale-110:hover {
+  transform: scale(1.1);
+}
+.skill-profile-hub .group-hover\:opacity-100:hover {
+  opacity: 1;
+}
+
+.skill-profile-hub .from-primary\/10 {
+  --tw-gradient-from: hsl(var(--primary) / 0.1);
+}
+.skill-profile-hub .to-primary\/5 {
+  --tw-gradient-to: hsl(var(--primary) / 0.05);
+}
+.skill-profile-hub .from-accent\/10 {
+  --tw-gradient-from: hsl(var(--accent) / 0.1);
+}
+.skill-profile-hub .to-accent\/5 {
+  --tw-gradient-to: hsl(var(--accent) / 0.05);
+}
+.skill-profile-hub .from-background {
+  --tw-gradient-from: hsl(var(--background));
+}
+.skill-profile-hub .to-secondary\/40 {
+  --tw-gradient-to: hsl(var(--secondary) / 0.4);
+}
+.skill-profile-hub .from-card {
+  --tw-gradient-from: hsl(var(--card));
+}
+.skill-profile-hub .to-secondary\/30 {
+  --tw-gradient-to: hsl(var(--secondary) / 0.3);
+}
+.skill-profile-hub .to-secondary\/20 {
+  --tw-gradient-to: hsl(var(--secondary) / 0.2);
+}
+
+.skill-profile-hub .bg-muted {
+  background-color: hsl(var(--muted));
+}
+
+.skill-profile-hub .profile-strength-progress {
+  background-color: hsl(var(--muted));
+}
+
+.skill-profile-hub .profile-strength-progress > div {
+  background: var(--gradient-hero);
+}
