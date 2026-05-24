@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
@@ -28,11 +29,16 @@ namespace GraduationProject.API.Controllers
 
         private readonly ApplicationDbContext _db;
         private readonly IAiStudentRecommendationService _aiService;
+        private readonly ILogger<AiController> _logger;
 
-        public AiController(ApplicationDbContext db, IAiStudentRecommendationService aiService)
+        public AiController(
+            ApplicationDbContext db,
+            IAiStudentRecommendationService aiService,
+            ILogger<AiController> logger)
         {
             _db = db;
             _aiService = aiService;
+            _logger = logger;
         }
 
         [HttpPost("recommend-students")]
@@ -47,6 +53,7 @@ namespace GraduationProject.API.Controllers
 
             var project = await _db.StudentProjects
                 .AsNoTracking()
+                .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.Id == request.ProjectId);
 
             if (project == null)
@@ -59,17 +66,15 @@ namespace GraduationProject.API.Controllers
             if (!isOwner && !isLeader)
                 return StatusCode(403, new { message = "Only the project owner or team leader can request AI recommendations." });
 
-            var memberIds = await _db.StudentProjectMembers
-                .AsNoTracking()
-                .Where(m => m.ProjectId == request.ProjectId)
-                .Select(m => m.StudentId)
-                .ToListAsync();
-
-            var graduationProjectOwnerIds = await _db.StudentProjects
-                .AsNoTracking()
-                .Select(p => p.OwnerId)
-                .ToListAsync();
-            var gpOwnerSet = graduationProjectOwnerIds.ToHashSet();
+            if (project.Members.Count >= project.PartnersCount)
+            {
+                _logger.LogInformation(
+                    "RecommendStudents projectId={ProjectId} returning empty: project is full ({Members}/{Capacity})",
+                    request.ProjectId,
+                    project.Members.Count,
+                    project.PartnersCount);
+                return Ok(new List<object>());
+            }
 
             var projectOwner = await _db.StudentProfiles
                 .AsNoTracking()
@@ -78,20 +83,50 @@ namespace GraduationProject.API.Controllers
             if (projectOwner == null)
                 return NotFound(new { message = "Project owner not found." });
 
-            var requiredSkillNames = SkillHelper.ParseStringList(project.RequiredSkills);
+            var requiredSkillNames = SkillHelper.GetProjectMatchingSkillNames(
+                project.RequiredSkills,
+                project.Technologies);
             var preferredRoleNames = SkillHelper.ParseStringList(project.PreferredRoles);
+            var requiredRoles = SkillHelper.ParseStringList(project.RequiredRoles);
             var requiredSkillIds = await ResolveRequiredSkillIdsAsync(requiredSkillNames);
 
+            _logger.LogInformation(
+                "RecommendStudents projectId={ProjectId} requiredSkills={Skills} preferredRoles={PreferredRoles} requiredRoles={RequiredRoles} resolvedSkillIds={SkillIdCount}",
+                request.ProjectId,
+                string.Join(", ", requiredSkillNames),
+                string.Join(", ", preferredRoleNames),
+                string.Join(", ", requiredRoles),
+                requiredSkillIds.Count);
+
+            var totalStudentsInDb = await _db.StudentProfiles.AsNoTracking().CountAsync();
+
             var ownerMajor = projectOwner.Major;
-            var students = await _db.StudentProfiles
+            var studentsSameMajor = await _db.StudentProfiles
                 .Include(s => s.User)
                 .AsNoTracking()
                 .Where(s => s.Major != null && ownerMajor != null &&
-                            s.Major.ToLower() == ownerMajor.ToLower() &&
-                            s.Id != project.OwnerId &&
-                            !memberIds.Contains(s.Id) &&
-                            !gpOwnerSet.Contains(s.Id))
+                            s.Major.ToLower() == ownerMajor.ToLower())
                 .ToListAsync();
+
+            var studentsBeforeEligibility = studentsSameMajor.Count;
+            var students = new List<StudentProfile>();
+            foreach (var student in studentsSameMajor)
+            {
+                if (await GraduationProjectInviteEligibilityHelper.CanBeInvitedToProjectAsync(
+                        _db, project, student.Id))
+                {
+                    students.Add(student);
+                }
+            }
+
+            var studentsAfterEligibility = students.Count;
+
+            _logger.LogInformation(
+                "RecommendStudents projectId={ProjectId} totalStudentsLoaded={Total} candidatesBeforeEligibilityFiltering={Before} candidatesAfterEligibilityFiltering={After}",
+                request.ProjectId,
+                totalStudentsInDb,
+                studentsBeforeEligibility,
+                studentsAfterEligibility);
 
             var allSkillIds = students
                 .SelectMany(GetStudentSkillIds)
@@ -133,14 +168,22 @@ namespace GraduationProject.API.Controllers
                         FallbackScore = fallbackScore
                     };
                 })
-                .Where(c => requiredSkillIds.Count == 0 || c.CommonSkills > 0)
                 .OrderByDescending(c => c.FallbackScore)
                 .ThenBy(c => c.StudentId)
                 .Take(MaxCandidates)
                 .ToList();
 
+            var candidatesBeforeRanking = candidates.Count;
+
             if (candidates.Count == 0)
+            {
+                _logger.LogWarning(
+                    "RecommendStudents projectId={ProjectId} returning empty: no inviteable students in major '{Major}'",
+                    request.ProjectId,
+                    ownerMajor);
+                LogRecommendStudentsEligibilityRules();
                 return Ok(new List<object>());
+            }
 
             var aiProject = new AiProjectInput
             {
@@ -166,31 +209,48 @@ namespace GraduationProject.API.Controllers
             {
                 var sanitized = aiResults
                     .Where(r => candidateMap.ContainsKey(r.StudentId))
-                    .Select(r => new
-                    {
-                        Candidate = candidateMap[r.StudentId],
-                        Score = Math.Clamp(r.MatchScore, 0, 100),
-                        r.Reason
-                    })
+                    .Select(r => (
+                        Candidate: candidateMap[r.StudentId],
+                        Score: Math.Clamp(r.MatchScore, 0, 100),
+                        Reason: r.Reason))
                     .Where(x => QualifiesAsTeammateRecommendation(x.Score))
                     .OrderByDescending(x => x.Score)
                     .ThenBy(x => x.Candidate.StudentId)
-                    .Select(x => MapStudentRecommendation(x.Candidate, x.Score, x.Reason))
                     .ToList();
 
                 if (sanitized.Count > 0)
-                    return Ok(sanitized);
+                {
+                    var finalAi = await MapInviteableStudentRecommendationsAsync(project, sanitized);
+                    LogRecommendStudentsSummary(
+                        request.ProjectId,
+                        totalStudentsInDb,
+                        studentsBeforeEligibility,
+                        studentsAfterEligibility,
+                        candidatesBeforeRanking,
+                        finalAi.Count,
+                        "ai");
+                    return Ok(finalAi);
+                }
             }
 
             // Fallback to rule-based skill overlap when OpenAI is unavailable or returns no qualifying rows.
-            var fallback = candidates
+            var fallbackRanked = candidates
                 .Where(c => QualifiesAsTeammateRecommendation(c.FallbackScore))
                 .OrderByDescending(c => c.FallbackScore)
                 .ThenBy(c => c.StudentId)
-                .Select(c => MapStudentRecommendation(c, c.FallbackScore, null))
-                .ToList();
+                .Select(c => (c, c.FallbackScore, (string?)null));
 
-            return Ok(fallback);
+            var finalFallback = await MapInviteableStudentRecommendationsAsync(project, fallbackRanked);
+            LogRecommendStudentsSummary(
+                request.ProjectId,
+                totalStudentsInDb,
+                studentsBeforeEligibility,
+                studentsAfterEligibility,
+                candidatesBeforeRanking,
+                finalFallback.Count,
+                aiResults != null && aiResults.Count > 0 ? "fallback-after-ai-filter" : "fallback-rule-based");
+
+            return Ok(finalFallback);
         }
 
         [HttpPost("recommend-supervisors")]
@@ -218,32 +278,55 @@ namespace GraduationProject.API.Controllers
             if (!isOwner && !isLeader)
                 return StatusCode(403, new { message = "Only project leader can request AI recommendations." });
 
-            var requiredSkillNames = SkillHelper.ParseStringList(project.RequiredSkills);
+            var requiredSkillNames = SkillHelper.GetProjectMatchingSkillNames(
+                project.RequiredSkills,
+                project.Technologies);
             var requiredSkillsNormalized = requiredSkillNames
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => s.Trim())
                 .ToList();
 
-            var student = caller; // already fetched above, no need for a second DB call
-
-
-            // Special case: Computer Engineering students also see Electrical Engineering supervisors.
-            var isComputerEngineeringStudent =
-                string.Equals(student.Major?.Trim(), "Computer Engineering", StringComparison.OrdinalIgnoreCase);
-
-            var doctors = await _db.DoctorProfiles
-                .Include(d => d.User)
-                .Where(d =>
-                    !string.IsNullOrEmpty(d.Department) &&
-                    !string.IsNullOrEmpty(student.Major) &&
-                    (
-                        d.Department.ToLower().Contains(student.Major.ToLower()) ||
-                        (isComputerEngineeringStudent &&
-                         d.Department.ToLower().Contains("electrical engineering"))
-                    )
-                )
+            var projectOwner = await _db.StudentProfiles
                 .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == project.OwnerId);
+
+            // Match supervisors to the project owner's major (not only the caller's).
+            var majorForMatch = projectOwner?.Major?.Trim() ?? caller.Major?.Trim();
+            var isComputerEngineeringStudent =
+                string.Equals(majorForMatch, "Computer Engineering", StringComparison.OrdinalIgnoreCase);
+
+            _logger.LogInformation(
+                "RecommendSupervisors route=POST /api/ai/recommend-supervisors projectId={ProjectId} majorForMatch={Major} callerMajor={CallerMajor}",
+                request.ProjectId,
+                majorForMatch ?? "(null)",
+                caller.Major ?? "(null)");
+
+            var allDoctorsInDb = await _db.DoctorProfiles
+                .Include(d => d.User)
+                .AsNoTracking()
+                .Where(d => !string.IsNullOrEmpty(d.Department))
                 .ToListAsync();
+
+            var doctors = string.IsNullOrWhiteSpace(majorForMatch)
+                ? new List<DoctorProfile>()
+                : allDoctorsInDb
+                    .Where(d => DepartmentMatchesStudentMajor(d.Department, majorForMatch, isComputerEngineeringStudent))
+                    .ToList();
+
+            if (doctors.Count == 0 && allDoctorsInDb.Count > 0)
+            {
+                _logger.LogWarning(
+                    "RecommendSupervisors projectId={ProjectId} no department match for major '{Major}'; using all doctors with a department ({Count})",
+                    request.ProjectId,
+                    majorForMatch,
+                    allDoctorsInDb.Count);
+                doctors = allDoctorsInDb;
+            }
+
+            _logger.LogInformation(
+                "RecommendSupervisors projectId={ProjectId} doctorsLoaded={DoctorCount}",
+                request.ProjectId,
+                doctors.Count);
 
             var candidates = doctors
                 .Select(d =>
@@ -280,7 +363,12 @@ namespace GraduationProject.API.Controllers
                 .ToList();
 
             if (candidates.Count == 0)
-                return NotFound(new { message = "No supervisors found in your department. Make sure doctors have their department set." });
+            {
+                _logger.LogWarning(
+                    "RecommendSupervisors projectId={ProjectId} returning empty: no doctors with Department set in database",
+                    request.ProjectId);
+                return Ok(new List<object>());
+            }
 
             var aiProject = new AiProjectInput
             {
@@ -298,31 +386,42 @@ namespace GraduationProject.API.Controllers
             }).ToList();
 
             var aiResults = await _aiService.RankSupervisorsAsync(aiProject, aiDoctors);
+            var candidateById = candidates.ToDictionary(c => c.DoctorId);
+
             if (aiResults != null && aiResults.Count > 0)
             {
-                var validIds = candidates.Select(c => c.DoctorId).ToHashSet();
+                var validIds = candidateById.Keys.ToHashSet();
                 var sanitized = aiResults
                     .Where(r => validIds.Contains(r.DoctorId))
-                    .Select(r => new
+                    .Select(r =>
                     {
-                        doctorId = r.DoctorId,
-                        matchScore = Math.Clamp(r.MatchScore, 0, 100),
-                        reason = r.Reason ?? string.Empty
+                        var row = candidateById[r.DoctorId];
+                        return MapSupervisorRecommendation(
+                            row,
+                            Math.Clamp(r.MatchScore, 0, 100),
+                            r.Reason);
                     })
                     .ToList();
 
                 if (sanitized.Count > 0)
+                {
+                    _logger.LogInformation(
+                        "RecommendSupervisors projectId={ProjectId} finalCount={Count} source=ai",
+                        request.ProjectId,
+                        sanitized.Count);
                     return Ok(sanitized);
+                }
             }
 
             var fallback = candidates
-                .Select(c => new
-                {
-                    doctorId = c.DoctorId,
-                    matchScore = c.FallbackScore,
-                    reason = (string?)null
-                })
+                .Select(c => MapSupervisorRecommendation(c, c.FallbackScore, null))
                 .ToList();
+
+            _logger.LogInformation(
+                "RecommendSupervisors projectId={ProjectId} finalCount={Count} source={Source}",
+                request.ProjectId,
+                fallback.Count,
+                aiResults != null && aiResults.Count > 0 ? "fallback-after-ai-filter" : "fallback-rule-based");
 
             return Ok(fallback);
         }
@@ -431,10 +530,88 @@ namespace GraduationProject.API.Controllers
         {
             if (requiredSkillNames.Count == 0) return new List<int>();
 
-            return await _db.Skills
-                .Where(s => requiredSkillNames.Contains(s.Name))
+            var normalized = requiredSkillNames
+                .Select(n => n.Trim().ToLowerInvariant())
+                .Where(n => n.Length > 0)
+                .ToHashSet();
+
+            var skills = await _db.Skills.AsNoTracking().ToListAsync();
+            return skills
+                .Where(s => normalized.Contains(s.Name.Trim().ToLowerInvariant()))
                 .Select(s => s.Id)
-                .ToListAsync();
+                .ToList();
+        }
+
+        private async Task<List<object>> MapInviteableStudentRecommendationsAsync(
+            StudentProject project,
+            IEnumerable<(CandidateRow Candidate, int Score, string? Reason)> ranked)
+        {
+            var projectForValidation = await _db.StudentProjects
+                .AsNoTracking()
+                .Include(p => p.Members)
+                .FirstAsync(p => p.Id == project.Id);
+
+            var output = new List<object>();
+            foreach (var (candidate, score, reason) in ranked)
+            {
+                if (!await GraduationProjectInviteEligibilityHelper.CanBeInvitedToProjectAsync(
+                        _db, projectForValidation, candidate.StudentId))
+                {
+                    continue;
+                }
+
+                output.Add(MapStudentRecommendation(candidate, score, reason));
+            }
+
+            return output;
+        }
+
+        private void LogRecommendStudentsSummary(
+            int projectId,
+            int totalStudentsLoaded,
+            int beforeEligibility,
+            int afterEligibility,
+            int candidatePoolForRanking,
+            int finalCount,
+            string source)
+        {
+            _logger.LogInformation(
+                "RecommendStudents projectId={ProjectId} totalStudentsLoaded={TotalLoaded} candidatesBeforeEligibilityFiltering={Before} candidatesAfterEligibilityFiltering={After} candidatePoolForRanking={Pool} finalRecommendationCount={Final} source={Source}",
+                projectId,
+                totalStudentsLoaded,
+                beforeEligibility,
+                afterEligibility,
+                candidatePoolForRanking,
+                finalCount,
+                source);
+            LogRecommendStudentsEligibilityRules();
+        }
+
+        private void LogRecommendStudentsEligibilityRules()
+        {
+            foreach (var rule in GraduationProjectInviteEligibilityHelper.EligibilityRuleDescriptions)
+                _logger.LogInformation("RecommendStudents eligibility rule: {Rule}", rule);
+        }
+
+        private static bool DepartmentMatchesStudentMajor(
+            string? department,
+            string major,
+            bool includeElectricalForComputerEngineering)
+        {
+            if (string.IsNullOrWhiteSpace(department) || string.IsNullOrWhiteSpace(major))
+                return false;
+
+            var dept = department.Trim().ToLowerInvariant();
+            var maj = major.Trim().ToLowerInvariant();
+
+            if (dept == maj || dept.Contains(maj, StringComparison.Ordinal) || maj.Contains(dept, StringComparison.Ordinal))
+                return true;
+
+            if (includeElectricalForComputerEngineering &&
+                dept.Contains("electrical engineering", StringComparison.Ordinal))
+                return true;
+
+            return false;
         }
 
         private static List<int> GetStudentSkillIds(StudentProfile student)
@@ -702,6 +879,21 @@ namespace GraduationProject.API.Controllers
                 major = candidate.Major,
                 university = candidate.University,
                 skills = candidate.Skills
+            };
+        }
+
+        private static object MapSupervisorRecommendation(
+            SupervisorCandidateRow candidate,
+            int matchScore,
+            string? reason)
+        {
+            return new
+            {
+                doctorId = candidate.DoctorId,
+                doctorName = candidate.Name,
+                specialization = candidate.Specialization ?? string.Empty,
+                matchScore,
+                reason = reason ?? string.Empty
             };
         }
 

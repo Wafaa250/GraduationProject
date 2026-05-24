@@ -189,24 +189,54 @@ export async function getRecommendedStudents(
   >("/ai/recommend-students", { projectId });
 
   const rows = Array.isArray(data) ? data : [];
-  return rows
-    .map((row) => ({
-      studentId: row.studentId,
-      name: row.name?.trim() || `Student #${row.studentId}`,
-      major: row.major?.trim() ?? "",
-      university: row.university?.trim() ?? "",
-      skills: Array.isArray(row.skills) ? row.skills : [],
-      matchScore: normalizeMatchScore(row.matchScore),
-      reason: row.reason?.trim() || undefined,
-    }))
-    .filter((row) => row.matchScore > 0);
+
+  // TEMP: debug recommend-students pipeline (remove after investigation)
+  console.log("[recommend-students] exact response body", data);
+
+  const mapped = rows.map((row) => ({
+    studentId: row.studentId,
+    name: row.name?.trim() || `Student #${row.studentId}`,
+    major: row.major?.trim() ?? "",
+    university: row.university?.trim() ?? "",
+    skills: Array.isArray(row.skills) ? row.skills : [],
+    matchScore: normalizeMatchScore(row.matchScore),
+    reason: row.reason?.trim() || undefined,
+  }));
+
+  console.log("[recommend-students] candidate count before filtering", mapped.length);
+
+  const filtered = mapped.filter((row) => row.matchScore > 0);
+
+  console.log("[recommend-students] candidate count after matchScore > 0 filter", filtered.length);
+  if (mapped.length > 0 && filtered.length === 0) {
+    console.warn(
+      "[recommend-students] matchScore > 0 filter removed all results",
+      mapped.map((r) => ({ studentId: r.studentId, matchScore: r.matchScore })),
+    );
+  }
+
+  return filtered;
 }
 
-function parseAiSupervisorRows(
-  data: unknown,
-): { doctorId: number; matchScore: number; reason?: string | null }[] {
+type ParsedAiSupervisorRow = {
+  doctorId: number;
+  matchScore: number;
+  reason?: string | null;
+  doctorName: string;
+  specialization: string;
+};
+
+function supervisorDisplayName(doctorId: number, ...candidates: (string | undefined)[]): string {
+  for (const value of candidates) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed;
+  }
+  return `Doctor #${doctorId}`;
+}
+
+function parseAiSupervisorRows(data: unknown): ParsedAiSupervisorRow[] {
   if (!Array.isArray(data)) return [];
-  const rows: { doctorId: number; matchScore: number; reason?: string | null }[] = [];
+  const rows: ParsedAiSupervisorRow[] = [];
   for (const raw of data) {
     if (!raw || typeof raw !== "object") continue;
     const r = raw as Record<string, unknown>;
@@ -217,6 +247,8 @@ function parseAiSupervisorRows(
       doctorId,
       matchScore: Number(r.matchScore ?? r.MatchScore ?? 0),
       reason: typeof reasonRaw === "string" ? reasonRaw : null,
+      doctorName: String(r.doctorName ?? r.DoctorName ?? r.name ?? r.Name ?? "").trim(),
+      specialization: String(r.specialization ?? r.Specialization ?? "").trim(),
     });
   }
   return rows;
@@ -279,8 +311,13 @@ export async function getRecommendedSupervisors(
         return {
           doctorId: row.doctorId,
           userId: meta?.userId,
-          name: meta?.name?.trim() ?? "",
-          specialization: meta?.specialization?.trim() ?? "",
+          name: supervisorDisplayName(
+            row.doctorId,
+            row.doctorName,
+            meta?.name,
+          ),
+          specialization:
+            row.specialization.trim() || meta?.specialization?.trim() || "",
           matchScore: normalizeMatchScore(row.matchScore),
           reason: row.reason?.trim() || undefined,
         };
@@ -288,7 +325,10 @@ export async function getRecommendedSupervisors(
   }
 
   return catalog
-    .filter((d) => d.name.length > 0)
+    .map((d) => ({
+      ...d,
+      name: supervisorDisplayName(d.doctorId, d.name),
+    }))
     .sort((a, b) => b.matchScore - a.matchScore);
 }
 

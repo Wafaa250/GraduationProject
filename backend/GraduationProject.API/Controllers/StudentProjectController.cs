@@ -1,10 +1,12 @@
 // Controllers/StudentProjectController.cs
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
@@ -35,15 +37,22 @@ namespace GraduationProject.API.Controllers
     [Authorize]
     public class StudentProjectController : ControllerBase
     {
+        private const string AbstractFileFolder = "uploads/graduation-projects/abstracts";
+        private static readonly string[] AbstractAllowedExtensions = { ".pdf", ".docx" };
+        private const long AbstractMaxBytes = 10 * 1024 * 1024;
+
         private readonly ApplicationDbContext _db;
         private readonly IGraduationProjectNotificationService _gpNotifications;
+        private readonly IFileStorageService _files;
 
         public StudentProjectController(
             ApplicationDbContext db,
-            IGraduationProjectNotificationService gpNotifications)
+            IGraduationProjectNotificationService gpNotifications,
+            IFileStorageService files)
         {
             _db = db;
             _gpNotifications = gpNotifications;
+            _files = files;
         }
 
         // =====================================================================
@@ -481,9 +490,9 @@ namespace GraduationProject.API.Controllers
                 Name = dto.Name.Trim(),
                 Abstract = dto.Abstract?.Trim(),
                 ProjectType = projectType,
-                RequiredSkills = dto.RequiredSkills.Count > 0
-                                    ? JsonSerializer.Serialize(dto.RequiredSkills)
-                                    : null,
+                RequiredSkills = SkillHelper.ToJsonOrNull(dto.RequiredSkills),
+                Technologies = SkillHelper.ToJsonOrNull(dto.Technologies),
+                Interests = SkillHelper.ToJsonOrNull(dto.Interests),
                 PreferredRoles = SkillHelper.ToJsonOrNull(dto.PreferredRoles),
                 RequiredRoles = SkillHelper.ToJsonOrNull(dto.RequiredRoles),
                 SkillPriorities = SkillHelper.ToJsonOrNull(dto.SkillPriorities),
@@ -560,9 +569,13 @@ namespace GraduationProject.API.Controllers
             }
 
             if (dto.RequiredSkills != null)
-                project.RequiredSkills = dto.RequiredSkills.Count > 0
-                    ? JsonSerializer.Serialize(dto.RequiredSkills)
-                    : null;
+                project.RequiredSkills = SkillHelper.ToJsonOrNull(dto.RequiredSkills);
+
+            if (dto.Technologies != null)
+                project.Technologies = SkillHelper.ToJsonOrNull(dto.Technologies);
+
+            if (dto.Interests != null)
+                project.Interests = SkillHelper.ToJsonOrNull(dto.Interests);
 
             if (dto.PreferredRoles != null)
                 project.PreferredRoles = SkillHelper.ToJsonOrNull(dto.PreferredRoles);
@@ -605,6 +618,8 @@ namespace GraduationProject.API.Controllers
 
             if (project.OwnerId != student.Id)
                 return Forbid();
+
+            await DeleteAbstractFileIfPresentAsync(project);
 
             var projectId = project.Id;
             var projectName = project.Name;
@@ -933,9 +948,141 @@ namespace GraduationProject.API.Controllers
                 .ToListAsync();
 
             var rows = doctors.Select(d => (d.Id, d.UserId, d.User?.Name ?? string.Empty, d.Specialization)).ToList();
-            var result = RecommendedSupervisorHelper.Build(rows, project.RequiredSkills);
+            var result = RecommendedSupervisorHelper.Build(rows, project.RequiredSkills, project.Technologies);
 
             return Ok(result);
+        }
+
+        // =====================================================================
+        // GET /api/graduation-projects/{projectId}/supervisor-requests
+        // GET /api/graduation-projects/{projectId}/supervisor-requests/{requestId}
+        // Project owner only — list or fetch supervision request statuses.
+        // =====================================================================
+        [HttpGet("{projectId:int}/supervisor-requests")]
+        public async Task<ActionResult<IReadOnlyList<SupervisorRequestStatusDto>>> GetSupervisorRequests(int projectId)
+        {
+            var ownerError = await EnsureProjectOwnerAsync(projectId);
+            if (ownerError != null) return ownerError;
+
+            var requests = await _db.SupervisorRequests
+                .AsNoTracking()
+                .Include(r => r.Doctor).ThenInclude(d => d.User)
+                .Where(r => r.ProjectId == projectId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return Ok(requests.Select(MapSupervisorRequestStatus).ToList());
+        }
+
+        [HttpGet("{projectId:int}/supervisor-requests/{requestId:int}")]
+        public async Task<ActionResult<SupervisorRequestStatusDto>> GetSupervisorRequestById(int projectId, int requestId)
+        {
+            var ownerError = await EnsureProjectOwnerAsync(projectId);
+            if (ownerError != null) return ownerError;
+
+            var request = await _db.SupervisorRequests
+                .AsNoTracking()
+                .Include(r => r.Doctor).ThenInclude(d => d.User)
+                .FirstOrDefaultAsync(r => r.Id == requestId && r.ProjectId == projectId);
+
+            if (request == null)
+                return NotFound(new { message = "Supervisor request not found." });
+
+            return Ok(MapSupervisorRequestStatus(request));
+        }
+
+        // =====================================================================
+        // POST /api/graduation-projects/{id}/abstract-file
+        // GET  /api/graduation-projects/{id}/abstract-file
+        // DELETE /api/graduation-projects/{id}/abstract-file
+        // Owner only — PDF/DOCX abstract document (max 10MB).
+        // =====================================================================
+        [HttpPost("{id:int}/abstract-file")]
+        [RequestSizeLimit(AbstractMaxBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = AbstractMaxBytes)]
+        public async Task<ActionResult<StudentProjectAbstractFileDto>> UploadAbstractFile(int id, [FromForm] IFormFile file)
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null) return Forbid();
+
+            var project = await _db.StudentProjects.FirstOrDefaultAsync(p => p.Id == id);
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            if (project.OwnerId != student.Id)
+                return Forbid();
+
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "A file is required." });
+
+            try
+            {
+                await DeleteAbstractFileIfPresentAsync(project);
+
+                var storedPath = await _files.SaveFormFileAsync(
+                    file,
+                    AbstractFileFolder,
+                    AbstractAllowedExtensions,
+                    AbstractMaxBytes);
+
+                project.AbstractFileName = Path.GetFileName(file.FileName);
+                project.AbstractFilePath = storedPath;
+                project.AbstractFileUploadedAt = DateTime.UtcNow;
+                project.UpdatedAt = DateTime.UtcNow;
+
+                await _db.SaveChangesAsync();
+
+                return Ok(MapAbstractFileDto(project));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("{id:int}/abstract-file")]
+        public async Task<ActionResult<StudentProjectAbstractFileDto>> GetAbstractFile(int id)
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null) return Forbid();
+
+            var project = await _db.StudentProjects
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            if (project.OwnerId != student.Id)
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(project.AbstractFilePath))
+                return NotFound(new { message = "No abstract file uploaded for this project." });
+
+            return Ok(MapAbstractFileDto(project));
+        }
+
+        [HttpDelete("{id:int}/abstract-file")]
+        public async Task<IActionResult> DeleteAbstractFile(int id)
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null) return Forbid();
+
+            var project = await _db.StudentProjects.FirstOrDefaultAsync(p => p.Id == id);
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            if (project.OwnerId != student.Id)
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(project.AbstractFilePath))
+                return NotFound(new { message = "No abstract file uploaded for this project." });
+
+            await DeleteAbstractFileIfPresentAsync(project);
+            project.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Abstract file deleted successfully." });
         }
 
         // =====================================================================
@@ -1339,9 +1486,9 @@ namespace GraduationProject.API.Controllers
                 Name = p.Name,
                 Abstract = p.Abstract,
                 ProjectType = p.ProjectType,
-                RequiredSkills = p.RequiredSkills != null
-                    ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new()
-                    : new(),
+                RequiredSkills = SkillHelper.ParseStringList(p.RequiredSkills),
+                Technologies = SkillHelper.ParseStringList(p.Technologies),
+                Interests = SkillHelper.ParseStringList(p.Interests),
                 PreferredRoles = SkillHelper.ParseStringList(p.PreferredRoles),
                 RequiredRoles = SkillHelper.ParseStringList(p.RequiredRoles),
                 SkillPriorities = SkillHelper.ParseStringList(p.SkillPriorities),
@@ -1377,6 +1524,74 @@ namespace GraduationProject.API.Controllers
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt,
             };
+        }
+
+        private StudentProjectAbstractFileDto MapAbstractFileDto(StudentProject project) =>
+            new()
+            {
+                FileName = project.AbstractFileName ?? string.Empty,
+                UploadedAt = project.AbstractFileUploadedAt ?? DateTime.UtcNow,
+                DownloadUrl = string.IsNullOrWhiteSpace(project.AbstractFilePath)
+                    ? string.Empty
+                    : _files.GetUrl(project.AbstractFilePath),
+            };
+
+        private async Task DeleteAbstractFileIfPresentAsync(StudentProject project)
+        {
+            if (!string.IsNullOrWhiteSpace(project.AbstractFilePath))
+            {
+                try
+                {
+                    await _files.DeleteAsync(project.AbstractFilePath);
+                }
+                catch
+                {
+                    // Best-effort cleanup; DB fields are cleared regardless.
+                }
+            }
+
+            project.AbstractFileName = null;
+            project.AbstractFilePath = null;
+            project.AbstractFileUploadedAt = null;
+        }
+
+        private static SupervisorRequestStatusDto MapSupervisorRequestStatus(SupervisorRequest request) =>
+            new()
+            {
+                RequestId = request.Id,
+                DoctorId = request.DoctorId,
+                DoctorName = request.Doctor?.User?.Name ?? string.Empty,
+                Status = FormatSupervisorRequestStatus(request.Status),
+                CreatedAt = request.CreatedAt,
+                RespondedAt = request.RespondedAt,
+            };
+
+        private static string FormatSupervisorRequestStatus(string? status) =>
+            (status ?? "pending").Trim().ToLowerInvariant() switch
+            {
+                "accepted" => "Accepted",
+                "rejected" => "Rejected",
+                "cancelled" or "canceled" => "Cancelled",
+                _ => "Pending",
+            };
+
+        private async Task<ActionResult?> EnsureProjectOwnerAsync(int projectId)
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null)
+                return Forbid();
+
+            var project = await _db.StudentProjects
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            if (project.OwnerId != student.Id)
+                return Forbid();
+
+            return null;
         }
     }
 }

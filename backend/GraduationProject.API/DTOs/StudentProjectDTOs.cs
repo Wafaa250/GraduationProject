@@ -23,6 +23,10 @@ namespace GraduationProject.API.DTOs
         // Skills كـ strings من الفرونت e.g. ["React", "Python"]
         public List<string> RequiredSkills { get; set; } = new();
 
+        public List<string> Technologies { get; set; } = new();
+
+        public List<string> Interests { get; set; } = new();
+
         // Teammate roles sought e.g. ["Frontend Developer", "Backend Developer"]
         public List<string> PreferredRoles { get; set; } = new();
 
@@ -47,6 +51,10 @@ namespace GraduationProject.API.DTOs
         public string? ProjectType { get; set; }
 
         public List<string>? RequiredSkills { get; set; }
+
+        public List<string>? Technologies { get; set; }
+
+        public List<string>? Interests { get; set; }
 
         public List<string>? PreferredRoles { get; set; }
 
@@ -122,6 +130,8 @@ namespace GraduationProject.API.DTOs
         public string ProjectType { get; set; } = "GP";
 
         public List<string> RequiredSkills { get; set; } = new();
+        public List<string> Technologies { get; set; } = new();
+        public List<string> Interests { get; set; } = new();
         public List<string> PreferredRoles { get; set; } = new();
         public List<string> RequiredRoles { get; set; } = new();
         public List<string> SkillPriorities { get; set; } = new();
@@ -187,5 +197,24 @@ namespace GraduationProject.API.DTOs
         /// and the student does not already own their own graduation project.
         /// </summary>
         public bool CanInvite { get; set; }
+    }
+
+    /// <summary>Metadata for an uploaded graduation project abstract document.</summary>
+    public class StudentProjectAbstractFileDto
+    {
+        public string FileName { get; set; } = string.Empty;
+        public DateTime UploadedAt { get; set; }
+        public string DownloadUrl { get; set; } = string.Empty;
+    }
+
+    /// <summary>Supervision request status for the project owner.</summary>
+    public class SupervisorRequestStatusDto
+    {
+        public int RequestId { get; set; }
+        public int DoctorId { get; set; }
+        public string DoctorName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? RespondedAt { get; set; }
     }
 }

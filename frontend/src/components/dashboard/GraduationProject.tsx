@@ -85,7 +85,7 @@ export const GraduationProject = ({ project, empty = false }: GraduationProjectP
                 className="hover:border-primary/50 hover:text-primary transition-smooth"
                 asChild
               >
-                <Link to={ROUTES.graduationProjectWorkspace}>View Project</Link>
+                <Link to={ROUTES.graduationProjectWorkspace}>Open Workspace</Link>
               </Button>
             </div>
           </div>

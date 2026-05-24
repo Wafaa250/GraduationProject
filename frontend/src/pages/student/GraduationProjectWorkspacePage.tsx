@@ -22,6 +22,8 @@ import {
   Award,
   Bell,
   Settings,
+  LogOut,
+  User,
   ChevronRight,
   Briefcase,
   Brain,
@@ -36,6 +38,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import "@/styles/project-workspace-hub.css";
 import { ROUTES } from "@/routes/paths";
+import { logout } from "@/utils/authSession";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
@@ -217,6 +220,9 @@ export default function GraduationProjectWorkspacePage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<GraduationNotification[]>([]);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
@@ -382,6 +388,47 @@ export default function GraduationProjectWorkspacePage() {
   useEffect(() => {
     void loadWorkspace();
   }, [loadWorkspace]);
+
+  useEffect(() => {
+    if (!profileMenuOpen && !notificationsOpen) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        profileMenuOpen &&
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(target)
+      ) {
+        setProfileMenuOpen(false);
+      }
+      if (
+        notificationsOpen &&
+        notificationsRef.current &&
+        !notificationsRef.current.contains(target)
+      ) {
+        setNotificationsOpen(false);
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setProfileMenuOpen(false);
+        setNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [profileMenuOpen, notificationsOpen]);
+
+  const handleLogout = useCallback(() => {
+    setProfileMenuOpen(false);
+    logout(navigate);
+  }, [navigate]);
 
   const refreshProject = async () => {
     const envelope = await getGraduationProjectsMyEnvelope();
@@ -559,13 +606,17 @@ export default function GraduationProjectWorkspacePage() {
             </button>
           </nav>
           <div className="relative flex items-center gap-2">
+            <div ref={notificationsRef} className="relative">
             <Button
               variant="ghost"
               size="icon"
               className="relative rounded-lg"
               aria-expanded={notificationsOpen}
               aria-label="Project notifications"
-              onClick={() => setNotificationsOpen((o) => !o)}
+              onClick={() => {
+                setNotificationsOpen((o) => !o);
+                setProfileMenuOpen(false);
+              }}
             >
               <Bell className="h-4 w-4" />
               {unreadNotificationCount > 0 && (
@@ -619,14 +670,59 @@ export default function GraduationProjectWorkspacePage() {
                 </CardContent>
               </Card>
             )}
-            <Button variant="ghost" size="icon" className="rounded-lg" disabled>
+            </div>
+            <Button variant="ghost" size="icon" className="rounded-lg" disabled aria-hidden>
               <Settings className="h-4 w-4" />
             </Button>
-            <Avatar className="h-9 w-9 ring-2 ring-primary/20">
-              <AvatarFallback className="bg-gradient-hero text-xs font-semibold text-primary-foreground">
-                {myInitials}
-              </AvatarFallback>
-            </Avatar>
+            <div ref={profileMenuRef} className="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0"
+                aria-expanded={profileMenuOpen}
+                aria-haspopup="menu"
+                aria-label="Account menu"
+                onClick={() => {
+                  setProfileMenuOpen((open) => !open);
+                  setNotificationsOpen(false);
+                }}
+              >
+                <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+                  <AvatarFallback className="bg-gradient-hero text-xs font-semibold text-primary-foreground">
+                    {myInitials}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+              {profileMenuOpen && (
+                <Card
+                  className="absolute right-0 top-12 z-40 w-[min(100vw-2rem,12rem)] border-border/60 shadow-elevated"
+                  role="menu"
+                  aria-label="Account"
+                >
+                  <CardContent className="p-1">
+                    <Link
+                      to={ROUTES.profile}
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      <User className="h-4 w-4 text-muted-foreground" aria-hidden />
+                      My Profile
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/10"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4" aria-hidden />
+                      Logout
+                    </button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -1287,7 +1383,7 @@ export default function GraduationProjectWorkspacePage() {
                 </CardContent>
               </Card>
             )}
-            {supervisors.filter((s) => s.name.trim().length > 0).length === 0 ? (
+            {supervisors.length === 0 ? (
               <Card className="border-2 border-dashed border-border bg-secondary/30 shadow-none">
                 <CardContent className="p-8 text-center">
                   <GraduationCap className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
@@ -1299,9 +1395,7 @@ export default function GraduationProjectWorkspacePage() {
               </Card>
             ) : (
               <div className="grid gap-4 lg:grid-cols-2">
-                {supervisors
-                  .filter((s) => s.name.trim().length > 0)
-                  .map((s, i) => {
+                {supervisors.map((s, i) => {
                   const specChips = splitSpecialization(s.specialization);
                   const requestPending = pendingSupervisorDoctorIds.has(s.doctorId);
                   return (

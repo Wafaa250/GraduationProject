@@ -19,6 +19,17 @@ namespace GraduationProject.API.Models
         // JSON array of strings e.g. ["React","Python"]
         [Column("required_skills")] public string? RequiredSkills { get; set; }
 
+        // JSON array of technology labels e.g. ["React","Docker"] (separate from required skills)
+        [Column("technologies")] public string? Technologies { get; set; }
+
+        // JSON array of interest labels e.g. ["Machine Learning","FinTech"]
+        [Column("interests")] public string? Interests { get; set; }
+
+        // Uploaded abstract document (PDF/DOCX) — metadata only; binary on disk
+        [Column("abstract_file_name")] public string? AbstractFileName { get; set; }
+        [Column("abstract_file_path")] public string? AbstractFilePath { get; set; }
+        [Column("abstract_file_uploaded_at")] public DateTime? AbstractFileUploadedAt { get; set; }
+
         // JSON array of teammate role labels e.g. ["Frontend Developer","Backend Developer"]
         [Column("preferred_roles")] public string? PreferredRoles { get; set; }
 

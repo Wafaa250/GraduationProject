@@ -104,5 +104,14 @@ namespace GraduationProject.API.Helpers
             var normalized = NormalizeUniqueStrings(items);
             return normalized.Count > 0 ? JsonSerializer.Serialize(normalized) : null;
         }
+
+        /// <summary>
+        /// Merges required skills and technologies for matching/scoring (does not mutate stored columns).
+        /// </summary>
+        public static List<string> GetProjectMatchingSkillNames(
+            string? requiredSkillsJson,
+            string? technologiesJson = null) =>
+            NormalizeUniqueStrings(
+                ParseStringList(requiredSkillsJson).Concat(ParseStringList(technologiesJson)));
     }
 }
