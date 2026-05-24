@@ -39,6 +39,9 @@ namespace GraduationProject.API.Services
         public string Abstract { get; set; } = string.Empty;
 
         public List<string> RequiredSkills { get; set; } = new();
+
+        /// <summary>Teammate roles the project owner is looking for.</summary>
+        public List<string> PreferredRoles { get; set; } = new();
     }
 
     public class AiStudentInput

@@ -4,6 +4,8 @@ import { ROUTES } from "@/routes/paths";
 import StudentDashboardPage from "@/pages/student/StudentDashboardPage";
 import StudentProfilePage from "@/pages/student/StudentProfilePage";
 import StudentProfileEditPage from "@/pages/student/StudentProfileEditPage";
+import CreateGraduationProjectPage from "@/pages/student/CreateGraduationProjectPage";
+import GraduationProjectWorkspacePage from "@/pages/student/GraduationProjectWorkspacePage";
 
 /** Student dashboard — other roles redirect away (legacy App.tsx). */
 export function StudentDashboardRoute() {
@@ -23,6 +25,20 @@ export function StudentProfileRoute() {
 export function StudentEditProfileRoute() {
   const role = (localStorage.getItem("role") ?? "").toLowerCase();
   if (role === "student") return <StudentProfileEditPage />;
+  return <Navigate to={ROUTES.home} replace />;
+}
+
+/** Create graduation project wizard — students only. */
+export function StudentCreateGraduationProjectRoute() {
+  const role = (localStorage.getItem("role") ?? "").toLowerCase();
+  if (role === "student") return <CreateGraduationProjectPage />;
+  return <Navigate to={ROUTES.home} replace />;
+}
+
+/** Graduation project workspace — students only. */
+export function StudentGraduationProjectWorkspaceRoute() {
+  const role = (localStorage.getItem("role") ?? "").toLowerCase();
+  if (role === "student") return <GraduationProjectWorkspacePage />;
   return <Navigate to={ROUTES.home} replace />;
 }
 

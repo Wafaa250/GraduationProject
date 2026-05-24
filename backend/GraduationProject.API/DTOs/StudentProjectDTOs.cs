@@ -23,6 +23,15 @@ namespace GraduationProject.API.DTOs
         // Skills كـ strings من الفرونت e.g. ["React", "Python"]
         public List<string> RequiredSkills { get; set; } = new();
 
+        // Teammate roles sought e.g. ["Frontend Developer", "Backend Developer"]
+        public List<string> PreferredRoles { get; set; } = new();
+
+        public List<string> RequiredRoles { get; set; } = new();
+
+        public List<string> SkillPriorities { get; set; } = new();
+
+        public bool LookingForTeammates { get; set; } = true;
+
         [Range(0, 10, ErrorMessage = "Partners count must be between 0 and 10")]
         public int PartnersCount { get; set; } = 0;
     }
@@ -38,6 +47,14 @@ namespace GraduationProject.API.DTOs
         public string? ProjectType { get; set; }
 
         public List<string>? RequiredSkills { get; set; }
+
+        public List<string>? PreferredRoles { get; set; }
+
+        public List<string>? RequiredRoles { get; set; }
+
+        public List<string>? SkillPriorities { get; set; }
+
+        public bool? LookingForTeammates { get; set; }
 
         [Range(0, 10, ErrorMessage = "Partners count must be between 0 and 10")]
         public int? PartnersCount { get; set; }
@@ -105,6 +122,10 @@ namespace GraduationProject.API.DTOs
         public string ProjectType { get; set; } = "GP";
 
         public List<string> RequiredSkills { get; set; } = new();
+        public List<string> PreferredRoles { get; set; } = new();
+        public List<string> RequiredRoles { get; set; } = new();
+        public List<string> SkillPriorities { get; set; } = new();
+        public bool LookingForTeammates { get; set; } = true;
         public int PartnersCount { get; set; }
         public int CurrentMembers { get; set; }
         public bool IsFull { get; set; }

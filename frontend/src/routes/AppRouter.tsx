@@ -3,8 +3,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { PublicLayout } from "@/layouts/PublicLayout";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import {
+  StudentCreateGraduationProjectRoute,
   StudentDashboardRoute,
   StudentEditProfileRoute,
+  StudentGraduationProjectWorkspaceRoute,
   StudentProfileRoute,
 } from "@/routes/studentRoutes";
 import { LandingPage } from "@/pages/LandingPage";
@@ -42,6 +44,22 @@ export function AppRouter() {
           element={
             <ProtectedRoute>
               <StudentEditProfileRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.createGraduationProject}
+          element={
+            <ProtectedRoute>
+              <StudentCreateGraduationProjectRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.graduationProjectWorkspace}
+          element={
+            <ProtectedRoute>
+              <StudentGraduationProjectWorkspaceRoute />
             </ProtectedRoute>
           }
         />

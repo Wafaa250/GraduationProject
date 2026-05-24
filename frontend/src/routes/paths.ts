@@ -10,4 +10,8 @@ export const ROUTES = {
   profile: "/profile",
   /** Student profile edit form. */
   editProfile: "/edit-profile",
+  /** Create graduation project wizard (student). */
+  createGraduationProject: "/graduation-projects/create",
+  /** Graduation project workspace (student owner/member). */
+  graduationProjectWorkspace: "/graduation-projects/workspace",
 } as const;

@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+@import "./theme-scoped-dark.css";
 
 @tailwind base;
 @tailwind components;
@@ -6,6 +7,66 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+
+    --background: 220 30% 98%;
+    --foreground: 224 40% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 40% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 40% 12%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 244 75% 57%;
+    --primary-glow: 239 84% 75%;
+
+    --secondary: 220 25% 96%;
+    --secondary-foreground: 224 40% 18%;
+
+    --accent: 258 90% 66%;
+    --accent-foreground: 0 0% 100%;
+
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 12% 46%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 18% 90%;
+    --input: 220 18% 90%;
+    --ring: 239 84% 67%;
+
+    --radius: 0.75rem;
+
+    --surface-1: 220 30% 97%;
+    --surface-2: 220 25% 95%;
+    --surface-3: 220 22% 92%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(258 90% 66%));
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(239 84% 67%) 0%,
+      hsl(258 90% 66%) 50%,
+      hsl(189 94% 43%) 100%
+    );
+    --gradient-radial: radial-gradient(ellipse at top, hsl(239 84% 67% / 0.15), transparent 60%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100% / 0.95), hsl(220 30% 99% / 0.9));
+    --gradient-text: linear-gradient(135deg, hsl(224 40% 12%), hsl(239 84% 55%));
+    --gradient-mesh: radial-gradient(at 20% 20%, hsl(239 84% 67% / 0.12) 0, transparent 50%),
+      radial-gradient(at 80% 0%, hsl(258 90% 66% / 0.1) 0, transparent 50%),
+      radial-gradient(at 0% 80%, hsl(189 94% 43% / 0.08) 0, transparent 50%);
+
+    --shadow-glow: 0 0 60px hsl(239 84% 67% / 0.2);
+    --shadow-elegant: 0 20px 60px -20px hsl(239 84% 67% / 0.18);
+    --shadow-card: 0 8px 32px -8px hsl(224 40% 12% / 0.08);
+  }
+
+  .dark {
+    color-scheme: dark;
+
     --background: 222 47% 5%;
     --foreground: 210 40% 98%;
 
@@ -35,8 +96,6 @@
     --border: 217 33% 17%;
     --input: 217 33% 17%;
     --ring: 239 84% 67%;
-
-    --radius: 0.75rem;
 
     --surface-1: 222 47% 7%;
     --surface-2: 222 40% 10%;
@@ -91,11 +150,19 @@
 
 @layer components {
   .glass {
-    @apply backdrop-blur-xl bg-card/40 border border-white/5;
+    @apply backdrop-blur-xl bg-card/40 border border-border/60;
+  }
+
+  .dark .glass {
+    @apply border-white/5;
   }
 
   .glass-strong {
-    @apply backdrop-blur-2xl bg-background/70 border-b border-white/10;
+    @apply backdrop-blur-2xl bg-background/70 border-b border-border/60;
+  }
+
+  .dark .glass-strong {
+    @apply border-white/10;
   }
 
   .text-gradient {
@@ -138,10 +205,15 @@
   }
 
   .grid-pattern {
-    background-image: linear-gradient(hsl(217 33% 17% / 0.5) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(217 33% 17% / 0.5) 1px, transparent 1px);
+    background-image: linear-gradient(hsl(220 18% 85% / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(220 18% 85% / 0.5) 1px, transparent 1px);
     background-size: 48px 48px;
     mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  .dark .grid-pattern {
+    background-image: linear-gradient(hsl(217 33% 17% / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(217 33% 17% / 0.5) 1px, transparent 1px);
   }
 }
 

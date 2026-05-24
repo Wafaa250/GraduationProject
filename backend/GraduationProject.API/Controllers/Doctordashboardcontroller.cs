@@ -69,15 +69,20 @@ namespace GraduationProject.API.Controllers
             var result = requests.Select(r =>
             {
                 List<string> skills;
+                List<string> preferredRoles;
                 try
                 {
                     skills = r.Project?.RequiredSkills is { } reqJson
                         ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(reqJson) ?? new List<string>()
                         : new List<string>();
+                    preferredRoles = r.Project?.PreferredRoles is { } rolesJson
+                        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(rolesJson) ?? new List<string>()
+                        : new List<string>();
                 }
                 catch
                 {
                     skills = new List<string>();
+                    preferredRoles = new List<string>();
                 }
 
                 var members = (r.Project?.Members ?? Enumerable.Empty<Models.StudentProjectMember>())
@@ -101,6 +106,7 @@ namespace GraduationProject.API.Controllers
                         name = r.Project?.Name ?? "",
                         description = r.Project?.Abstract,
                         requiredSkills = skills,
+                        preferredRoles = preferredRoles,
                         projectType = r.Project?.ProjectType ?? "GP",
                         partnersCount = r.Project?.PartnersCount ?? 0,
                         memberCount = r.Project?.Members.Count ?? 0,
@@ -158,15 +164,20 @@ namespace GraduationProject.API.Controllers
             var result = projects.Select(p =>
             {
                 List<string> skills;
+                List<string> preferredRoles;
                 try
                 {
                     skills = p.RequiredSkills != null
                         ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new List<string>()
                         : new List<string>();
+                    preferredRoles = p.PreferredRoles != null
+                        ? JsonSerializer.Deserialize<List<string>>(p.PreferredRoles) ?? new List<string>()
+                        : new List<string>();
                 }
                 catch
                 {
                     skills = new List<string>();
+                    preferredRoles = new List<string>();
                 }
 
                 return new
@@ -175,6 +186,7 @@ namespace GraduationProject.API.Controllers
                     name = p.Name,
                     description = p.Abstract,
                     requiredSkills = skills,
+                    preferredRoles = preferredRoles,
                     partnersCount = p.PartnersCount,
                     memberCount = p.Members.Count,
                     isFull = p.Members.Count >= p.PartnersCount,

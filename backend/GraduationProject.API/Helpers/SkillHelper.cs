@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -75,6 +76,33 @@ namespace GraduationProject.API.Helpers
             if (string.IsNullOrEmpty(json)) return new();
             try { return JsonSerializer.Deserialize<List<string>>(json) ?? new(); }
             catch { return new(); }
+        }
+
+        /// <summary>
+        /// Trims values, drops empties, and deduplicates case-insensitively (first casing wins).
+        /// </summary>
+        public static List<string> NormalizeUniqueStrings(IEnumerable<string>? items)
+        {
+            if (items == null) return new();
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var result = new List<string>();
+
+            foreach (var item in items)
+            {
+                if (string.IsNullOrWhiteSpace(item)) continue;
+                var trimmed = item.Trim();
+                if (!seen.Add(trimmed)) continue;
+                result.Add(trimmed);
+            }
+
+            return result;
+        }
+
+        public static string? ToJsonOrNull(IEnumerable<string>? items)
+        {
+            var normalized = NormalizeUniqueStrings(items);
+            return normalized.Count > 0 ? JsonSerializer.Serialize(normalized) : null;
         }
     }
 }

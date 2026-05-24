@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/routes/paths";
 import { Rocket, Plus, Users, CircleDot } from "lucide-react";
 
 export type GraduationProjectView = {
@@ -81,8 +83,9 @@ export const GraduationProject = ({ project, empty = false }: GraduationProjectP
                 variant="outline"
                 size="sm"
                 className="hover:border-primary/50 hover:text-primary transition-smooth"
+                asChild
               >
-                View Project
+                <Link to={ROUTES.graduationProjectWorkspace}>View Project</Link>
               </Button>
             </div>
           </div>
@@ -104,9 +107,14 @@ const EmptyGraduation = () => (
     <p className="text-sm text-muted-foreground mt-1 max-w-sm">
       You haven't created a graduation project yet. Define your idea and let SkillSwap help you find the perfect team.
     </p>
-    <Button className="mt-5 bg-gradient-primary hover:opacity-95 hover:shadow-glow transition-smooth gap-2">
-      <Plus className="w-4 h-4" />
-      Create Graduation Project
+    <Button
+      className="mt-5 bg-gradient-primary hover:opacity-95 hover:shadow-glow transition-smooth gap-2"
+      asChild
+    >
+      <Link to={ROUTES.createGraduationProject}>
+        <Plus className="w-4 h-4" />
+        Create Graduation Project
+      </Link>
     </Button>
   </div>
 );

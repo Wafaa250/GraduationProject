@@ -3,6 +3,7 @@ using System;
 using GraduationProject.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260524121053_AddGraduationProjectPreferredRoles")]
+    partial class AddGraduationProjectPreferredRoles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1510,10 +1513,6 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<bool>("LookingForTeammates")
-                        .HasColumnType("boolean")
-                        .HasColumnName("looking_for_teammates");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1536,17 +1535,9 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("project_type");
 
-                    b.Property<string>("RequiredRoles")
-                        .HasColumnType("text")
-                        .HasColumnName("required_roles");
-
                     b.Property<string>("RequiredSkills")
                         .HasColumnType("text")
                         .HasColumnName("required_skills");
-
-                    b.Property<string>("SkillPriorities")
-                        .HasColumnType("text")
-                        .HasColumnName("skill_priorities");
 
                     b.Property<int?>("SupervisorId")
                         .HasColumnType("integer")

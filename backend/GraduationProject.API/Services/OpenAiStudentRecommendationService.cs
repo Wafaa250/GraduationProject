@@ -46,7 +46,8 @@ namespace GraduationProject.API.Services
                     {
                         title = project.Title,
                         abstract_ = project.Abstract,
-                        requiredSkills = project.RequiredSkills
+                        requiredSkills = project.RequiredSkills,
+                        preferredRoles = project.PreferredRoles
                     },
                     students = students.Select(s => new
                     {
@@ -60,9 +61,9 @@ namespace GraduationProject.API.Services
 
                 var systemMessage =
                     "You are an AI assistant that ranks students for graduation projects. " +
-                    "Analyze the project title, abstract, and required skills together to understand " +
+                    "Analyze the project title, abstract, required skills, and preferred teammate roles together to understand " +
                     "the project domain and goals. Then rank each student by how well their skills, " +
-                    "major, and bio align with the project needs. " +
+                    "major, and bio align with the project needs and sought roles. " +
                     "Include ONLY students who are a meaningful fit (matchScore at least 1). " +
                     "Omit students with no relevant skills entirely — do not return them with score 0. " +
                     "Return ONLY valid JSON in this exact structure: " +
@@ -71,7 +72,7 @@ namespace GraduationProject.API.Services
 
                 var userMessage =
                     "Rank the following students from best to worst fit for this graduation project. " +
-                    "Use the project abstract (if provided) together with the required skills to understand " +
+                    "Use the project abstract (if provided) together with the required skills and preferred roles to understand " +
                     "what the project needs, then score each included student 1-100 accordingly. " +
                     "Skip any student who has no relevant skills for this project — do not list them. " +
                     "Return ONLY valid JSON in this exact structure: " +

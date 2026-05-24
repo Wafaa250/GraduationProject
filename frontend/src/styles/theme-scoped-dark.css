@@ -1,0 +1,117 @@
+/* Dark-mode token overrides for scoped page themes (login, student hubs, wizards) */
+
+html.dark .login-page {
+  --primary: #a78bfa;
+  --primary-foreground: #ffffff;
+  --ring: #8b5cf6;
+  --border: rgba(148, 163, 184, 0.2);
+  --muted-foreground: #94a3b8;
+  --foreground: #f1f5f9;
+  --card: #1e293b;
+  --destructive: #f87171;
+  --input-background: #0f172a;
+  --background: #0b1120;
+}
+
+html.dark .login-page .bg-gradient-soft {
+  background: linear-gradient(180deg, #0b1120 0%, #111827 45%, #0f172a 100%);
+}
+
+html.dark .login-page .bg-gradient-brand {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 52%, #9333ea 100%);
+}
+
+html.dark .login-page .bg-gradient-mesh {
+  background:
+    radial-gradient(ellipse at 18% 42%, rgba(99, 102, 241, 0.2) 0%, transparent 52%),
+    radial-gradient(ellipse at 82% 18%, rgba(124, 58, 237, 0.25) 0%, transparent 48%);
+}
+
+html.dark .login-page .text-primary-deep {
+  color: #c4b5fd;
+}
+
+html.dark .auth-shell .auth-shell-grid {
+  background-image:
+    linear-gradient(hsl(217 33% 17% / 0.65) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(217 33% 17% / 0.65) 1px, transparent 1px);
+}
+
+html.dark .student-hub {
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 40% 10%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 40% 10%;
+  --popover-foreground: 210 40% 98%;
+  --secondary: 217 33% 14%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 12%;
+  --muted-foreground: 215 20% 65%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --gradient-hero: radial-gradient(1200px 600px at 0% 0%, hsl(239 84% 67% / 0.12) 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, hsl(189 94% 43% / 0.1) 0%, transparent 55%),
+    linear-gradient(180deg, hsl(222 47% 7%), hsl(222 47% 5%));
+  --gradient-card: linear-gradient(180deg, hsl(222 40% 10%), hsl(217 33% 14%));
+  --gradient-mesh: radial-gradient(600px 300px at 80% 10%, hsl(258 90% 66% / 0.15), transparent 60%),
+    radial-gradient(500px 280px at 10% 90%, hsl(189 94% 43% / 0.12), transparent 60%);
+  --shadow-md: 0 4px 16px -4px hsl(222 47% 2% / 0.4);
+  --shadow-lg: 0 24px 48px -16px hsl(239 84% 67% / 0.2);
+}
+
+html.dark .profile-hub {
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 40% 10%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 40% 10%;
+  --popover-foreground: 210 40% 98%;
+  --secondary: 217 33% 14%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 12%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 250 40% 20%;
+  --accent-foreground: 250 75% 75%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --gradient-subtle: linear-gradient(180deg, hsl(222 47% 7%), hsl(222 47% 5%));
+  --gradient-hero: radial-gradient(ellipse at top, hsl(250 84% 67% / 0.2), transparent 70%);
+  --shadow-card: 0 8px 32px -8px hsl(222 47% 2% / 0.5);
+}
+
+html.dark .skill-profile-hub {
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 40% 10%;
+  --card-foreground: 210 40% 98%;
+  --secondary: 217 33% 14%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 12%;
+  --muted-foreground: 215 20% 65%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --gradient-subtle: linear-gradient(180deg, hsl(222 47% 7%) 0%, hsl(222 47% 5%) 100%);
+  --gradient-card: linear-gradient(135deg, hsl(222 40% 10%) 0%, hsl(217 33% 14%) 100%);
+  --gradient-accent: linear-gradient(135deg, hsl(252 75% 58% / 0.12), hsl(195 90% 55% / 0.12));
+  --gradient-chip: linear-gradient(135deg, hsl(252 75% 58% / 0.2), hsl(270 85% 70% / 0.15));
+  --shadow-md: 0 4px 16px -4px hsl(222 47% 2% / 0.45);
+  --shadow-lg: 0 12px 40px -12px hsl(252 75% 58% / 0.25);
+}
+
+html.dark .project-wizard-pro {
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 40% 10%;
+  --card-foreground: 210 40% 98%;
+  --secondary: 217 33% 14%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 12%;
+  --muted-foreground: 215 20% 65%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --gradient-surface: linear-gradient(180deg, hsl(222 40% 10%), hsl(217 33% 14%));
+  --gradient-hero: radial-gradient(ellipse at top, hsl(250 84% 58% / 0.22), transparent 60%);
+  --shadow-glow: 0 0 0 1px hsl(250 84% 58% / 0.25), 0 12px 40px -10px hsl(250 84% 58% / 0.35);
+  --shadow-lg: 0 24px 60px -20px hsl(250 84% 58% / 0.25);
+}

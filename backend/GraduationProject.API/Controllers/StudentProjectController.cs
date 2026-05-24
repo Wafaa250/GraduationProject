@@ -484,6 +484,10 @@ namespace GraduationProject.API.Controllers
                 RequiredSkills = dto.RequiredSkills.Count > 0
                                     ? JsonSerializer.Serialize(dto.RequiredSkills)
                                     : null,
+                PreferredRoles = SkillHelper.ToJsonOrNull(dto.PreferredRoles),
+                RequiredRoles = SkillHelper.ToJsonOrNull(dto.RequiredRoles),
+                SkillPriorities = SkillHelper.ToJsonOrNull(dto.SkillPriorities),
+                LookingForTeammates = dto.LookingForTeammates,
                 PartnersCount = dto.PartnersCount,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
@@ -559,6 +563,18 @@ namespace GraduationProject.API.Controllers
                 project.RequiredSkills = dto.RequiredSkills.Count > 0
                     ? JsonSerializer.Serialize(dto.RequiredSkills)
                     : null;
+
+            if (dto.PreferredRoles != null)
+                project.PreferredRoles = SkillHelper.ToJsonOrNull(dto.PreferredRoles);
+
+            if (dto.RequiredRoles != null)
+                project.RequiredRoles = SkillHelper.ToJsonOrNull(dto.RequiredRoles);
+
+            if (dto.SkillPriorities != null)
+                project.SkillPriorities = SkillHelper.ToJsonOrNull(dto.SkillPriorities);
+
+            if (dto.LookingForTeammates != null)
+                project.LookingForTeammates = dto.LookingForTeammates.Value;
 
             project.UpdatedAt = DateTime.UtcNow;
 
@@ -1326,6 +1342,10 @@ namespace GraduationProject.API.Controllers
                 RequiredSkills = p.RequiredSkills != null
                     ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new()
                     : new(),
+                PreferredRoles = SkillHelper.ParseStringList(p.PreferredRoles),
+                RequiredRoles = SkillHelper.ParseStringList(p.RequiredRoles),
+                SkillPriorities = SkillHelper.ParseStringList(p.SkillPriorities),
+                LookingForTeammates = p.LookingForTeammates,
                 PartnersCount = p.PartnersCount,
                 CurrentMembers = currentCount,
                 IsFull = currentCount >= totalCapacity,

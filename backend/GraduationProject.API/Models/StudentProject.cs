@@ -19,6 +19,18 @@ namespace GraduationProject.API.Models
         // JSON array of strings e.g. ["React","Python"]
         [Column("required_skills")] public string? RequiredSkills { get; set; }
 
+        // JSON array of teammate role labels e.g. ["Frontend Developer","Backend Developer"]
+        [Column("preferred_roles")] public string? PreferredRoles { get; set; }
+
+        // JSON array of required teammate roles e.g. ["ML Engineer","Backend Dev"]
+        [Column("required_roles")] public string? RequiredRoles { get; set; }
+
+        // JSON array of skill/quality priorities e.g. ["Communication","Technical depth"]
+        [Column("skill_priorities")] public string? SkillPriorities { get; set; }
+
+        // When true, project is visible on the teammate matching board
+        [Column("looking_for_teammates")] public bool LookingForTeammates { get; set; } = true;
+
         // عدد الشركاء المطلوبين (الأونر مشمول) — 0 يعني solo
         [Column("partners_count")] public int PartnersCount { get; set; } = 0;
 
