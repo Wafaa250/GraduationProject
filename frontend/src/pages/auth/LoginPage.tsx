@@ -96,7 +96,7 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
         )}
       >
         {!embedded && (
-          <aside className="hidden lg:flex relative flex-col justify-between p-12 xl:p-16 overflow-hidden">
+          <aside className="hidden lg:flex relative flex-col p-12 xl:p-16 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-brand opacity-[0.97]" />
             <div
               aria-hidden
@@ -109,8 +109,8 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
 
             <BrandLogo to="/" size="lg" onDark className="relative" />
 
-            <div className="relative space-y-10 text-primary-foreground">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
+            <div className="relative flex-1 flex flex-col justify-center space-y-10 text-primary-foreground -translate-y-7">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
                 <Sparkles className="h-3.5 w-3.5" />
                 AI-powered university collaboration
               </div>
@@ -141,11 +141,6 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
                 />
               </ul>
             </div>
-
-            <p className="relative text-xs text-primary-foreground/70">
-              Trusted by student teams at universities building research, startups, and capstone
-              projects.
-            </p>
           </aside>
         )}
 
@@ -292,20 +287,6 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
                 </Link>
               </p>
             </div>
-
-            {!embedded && (
-              <p className="mt-6 text-center text-xs text-muted-foreground">
-                By signing in you agree to SkillSwap&apos;s{' '}
-                <a href="#" className="underline-offset-2 hover:underline">
-                  Terms
-                </a>{' '}
-                &{' '}
-                <a href="#" className="underline-offset-2 hover:underline">
-                  Privacy
-                </a>
-                .
-              </p>
-            )}
           </div>
         </section>
       </div>

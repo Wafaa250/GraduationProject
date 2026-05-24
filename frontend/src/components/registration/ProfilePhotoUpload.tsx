@@ -35,11 +35,14 @@ export function ProfilePhotoUpload({
           )}
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-muted-foreground">{hint}</p>
+          {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 hover:bg-primary/15 transition"
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 hover:bg-primary/15 transition',
+              hint && 'mt-2'
+            )}
           >
             <UploadCloud className="h-3.5 w-3.5" />
             {preview ? 'Replace photo' : 'Upload photo'}

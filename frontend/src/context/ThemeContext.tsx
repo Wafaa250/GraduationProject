@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   applyTheme,
+  getStoredTheme,
   persistTheme,
   resolveTheme,
   type Theme,
@@ -27,15 +28,33 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     applyTheme(theme);
-    persistTheme(theme);
   }, [theme]);
 
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const handleChange = () => {
+      if (getStoredTheme() === null) {
+        const next = media.matches ? "dark" : "light";
+        setThemeState(next);
+      }
+    };
+
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
+
   const setTheme = useCallback((next: Theme) => {
+    persistTheme(next);
     setThemeState(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState((current) => (current === "dark" ? "light" : "dark"));
+    setThemeState((current) => {
+      const next = current === "dark" ? "light" : "dark";
+      persistTheme(next);
+      return next;
+    });
   }, []);
 
   const value = useMemo(
@@ -46,10 +65,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
-export function useTheme(): ThemeContextValue {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) {
+export function useTheme() {
+  const context = useContext(ThemeContext);
+  if (!context) {
     throw new Error("useTheme must be used within ThemeProvider");
   }
-  return ctx;
+  return context;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "@/styles/project-wizard-pro.css";
 import {
   fetchProjectMatchingPreview,
@@ -10,6 +10,9 @@ import {
   createGraduationProject,
   getGraduationProjectsMyEnvelope,
   partnersCountToTeamSize,
+  projectTypeToStage,
+  updateGraduationProject,
+  type GradProject,
 } from "@/api/gradProjectApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { ROUTES } from "@/routes/paths";
@@ -163,6 +166,38 @@ function stageToProjectType(stage: string): "GP1" | "GP2" | "GP" {
   return "GP";
 }
 
+function projectToFormData(project: GradProject): FormData {
+  const skills = project.requiredSkills ?? [];
+  return {
+    stage: projectTypeToStage(project.projectType),
+    title: project.name,
+    summary: (project.abstract ?? "").trim(),
+    abstractFileName: "",
+    skills: [...skills],
+    technologies: [],
+    preferredRoles: project.preferredRoles ?? [],
+    teamSize: partnersCountToTeamSize(project.partnersCount ?? 0),
+    requiredRoles: project.requiredRoles ?? [],
+    skillPriorities: project.skillPriorities ?? [],
+    lookingForTeammates: project.lookingForTeammates ?? true,
+    interests: [],
+  };
+}
+
+function buildProjectPayload(data: FormData) {
+  return {
+    name: data.title.trim(),
+    abstract: data.summary.trim() || null,
+    projectType: stageToProjectType(data.stage),
+    requiredSkills: uniqueStrings([...data.skills, ...data.technologies]),
+    preferredRoles: uniqueStrings(data.preferredRoles),
+    requiredRoles: uniqueStrings(data.requiredRoles),
+    skillPriorities: uniqueStrings(data.skillPriorities),
+    lookingForTeammates: data.lookingForTeammates,
+    partnersCount: Math.min(10, Math.max(0, data.teamSize - 1)),
+  };
+}
+
 const ABSTRACT_FILE_ACCEPT = ".pdf,.docx";
 
 function isAbstractFileAllowed(file: File): boolean {
@@ -207,20 +242,47 @@ function uniqueStrings(items: string[]): string[] {
 
 export default function CreateGraduationProjectPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const editProjectIdFromState = (location.state as { editProjectId?: number } | null)?.editProjectId;
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormData>(initialData);
   const [dir, setDir] = useState<"f" | "b">("f");
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [hasExistingProject, setHasExistingProject] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [abstractFile, setAbstractFile] = useState<File | null>(null);
+
+  const isEditMode = editingProjectId != null;
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { project } = await getGraduationProjectsMyEnvelope();
+        const envelope = await getGraduationProjectsMyEnvelope();
         if (cancelled) return;
+
+        const { role, project } = envelope;
+        const isOwner =
+          role === "owner" || project?.isOwner === true;
+
+        if (
+          editProjectIdFromState &&
+          project &&
+          project.id === editProjectIdFromState &&
+          isOwner
+        ) {
+          setEditingProjectId(project.id);
+          setData(projectToFormData(project));
+          setHasExistingProject(false);
+          return;
+        }
+
+        if (editProjectIdFromState) {
+          navigate(ROUTES.graduationProjectWorkspace, { replace: true });
+          return;
+        }
+
         if (project) {
           setHasExistingProject(true);
           setData((d) => ({
@@ -232,6 +294,7 @@ export default function CreateGraduationProjectPage() {
           }));
           return;
         }
+
         const saved = sessionStorage.getItem(WIZARD_DRAFT_KEY);
         if (saved) {
           try {
@@ -247,12 +310,12 @@ export default function CreateGraduationProjectPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [editProjectIdFromState, navigate]);
 
   useEffect(() => {
-    if (hasExistingProject) return;
+    if (hasExistingProject || isEditMode) return;
     sessionStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(data));
-  }, [data, hasExistingProject]);
+  }, [data, hasExistingProject, isEditMode]);
 
   const update = <K extends keyof FormData>(k: K, v: FormData[K]) =>
     setData((d) => ({ ...d, [k]: v }));
@@ -276,7 +339,7 @@ export default function CreateGraduationProjectPage() {
       case 4:
         return data.requiredRoles.length > 0;
       case 5:
-        return data.interests.length > 0;
+        return isEditMode || data.interests.length > 0;
       case 6:
         return true;
       default:
@@ -307,31 +370,32 @@ export default function CreateGraduationProjectPage() {
   const readyCount = readiness.filter((r) => r.done).length;
   const progressPct = Math.round(((step - 1) / 5) * 100);
 
-  const handleCreate = async () => {
-    if (submitting || hasExistingProject) return;
+  const handleSubmitProject = async () => {
+    if (submitting) return;
+    if (!isEditMode && hasExistingProject) return;
     setSubmitting(true);
     try {
-      // TODO: backend — upload abstractFile when provided and attach reference on create payload
-      await createGraduationProject({
-        name: data.title.trim(),
-        abstract: data.summary.trim() || null,
-        projectType: stageToProjectType(data.stage),
-        requiredSkills: uniqueStrings([...data.skills, ...data.technologies]),
-        preferredRoles: uniqueStrings(data.preferredRoles),
-        requiredRoles: uniqueStrings(data.requiredRoles),
-        skillPriorities: uniqueStrings(data.skillPriorities),
-        lookingForTeammates: data.lookingForTeammates,
-        partnersCount: Math.min(10, Math.max(0, data.teamSize - 1)),
-      });
-      sessionStorage.removeItem(WIZARD_DRAFT_KEY);
-      toast({
-        title: "Graduation project created!",
-        description: "Your project is live on SkillSwap.",
-      });
-      navigate(ROUTES.dashboard);
+      const payload = buildProjectPayload(data);
+      if (isEditMode && editingProjectId != null) {
+        await updateGraduationProject(editingProjectId, payload);
+        toast({
+          title: "Project updated",
+          description: "Your graduation project changes were saved.",
+        });
+        navigate(ROUTES.graduationProjectWorkspace, { replace: true });
+      } else {
+        // TODO: backend — upload abstractFile when provided and attach reference on create payload
+        await createGraduationProject(payload);
+        sessionStorage.removeItem(WIZARD_DRAFT_KEY);
+        toast({
+          title: "Graduation project created!",
+          description: "Your project is live on SkillSwap.",
+        });
+        navigate(ROUTES.dashboard);
+      }
     } catch (err) {
       toast({
-        title: "Could not create project",
+        title: isEditMode ? "Could not update project" : "Could not create project",
         description: parseApiErrorMessage(err),
         variant: "destructive",
       });
@@ -354,7 +418,9 @@ export default function CreateGraduationProjectPage() {
               <div className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                 SkillSwap
               </div>
-              <div className="font-bold text-foreground -mt-0.5">Create Graduation Project</div>
+              <div className="font-bold text-foreground -mt-0.5">
+                {isEditMode ? "Edit Graduation Project" : "Create Graduation Project"}
+              </div>
             </div>
           </div>
           <Badge
@@ -366,7 +432,7 @@ export default function CreateGraduationProjectPage() {
         </div>
       </header>
 
-      {hasExistingProject && (
+      {hasExistingProject && !isEditMode && (
         <div className="relative container max-w-7xl pt-4">
           <p className="rounded-xl border border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground">
             You already have a graduation project affiliation. Creating another project is not
@@ -514,10 +580,17 @@ export default function CreateGraduationProjectPage() {
                   size="lg"
                   className="rounded-xl bg-gradient-primary hover:opacity-95 text-primary-foreground shadow-glow"
                   type="button"
-                  onClick={handleCreate}
-                  disabled={submitting || hasExistingProject}
+                  onClick={() => void handleSubmitProject()}
+                  disabled={submitting || (!isEditMode && hasExistingProject)}
                 >
-                  <Rocket /> {submitting ? "Creating…" : "Create Graduation Project"}
+                  <Rocket />{" "}
+                  {submitting
+                    ? isEditMode
+                      ? "Saving…"
+                      : "Creating…"
+                    : isEditMode
+                      ? "Save Changes"
+                      : "Create Graduation Project"}
                 </Button>
               </>
             ) : (

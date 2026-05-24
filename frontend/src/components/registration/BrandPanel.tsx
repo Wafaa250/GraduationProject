@@ -5,7 +5,7 @@ import { ProgressStepper } from './ProgressStepper'
 import type { RegistrationStep } from './types'
 
 type Props = {
-  eyebrow: string
+  eyebrow?: string
   title: ReactNode
   description: string
   steps: RegistrationStep[]
@@ -31,10 +31,12 @@ export function BrandPanel({
       <div className="relative space-y-10">
         <BrandLogo size="md" onDark variant="full" />
 
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
-          <Sparkles className="h-3.5 w-3.5" />
-          {eyebrow}
-        </div>
+        {eyebrow ? (
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
+            <Sparkles className="h-3.5 w-3.5" />
+            {eyebrow}
+          </div>
+        ) : null}
 
         <div className="space-y-4 max-w-md">
           <h1 className="text-3xl xl:text-4xl font-bold leading-tight tracking-tight">{title}</h1>

@@ -9,20 +9,18 @@ export function getSystemTheme(): Theme {
 
 export function getStoredTheme(): Theme | null {
   if (typeof window === "undefined") return null;
-  const value = localStorage.getItem(THEME_STORAGE_KEY);
-  return value === "light" || value === "dark" ? value : null;
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  return stored === "light" || stored === "dark" ? stored : null;
 }
 
-export function resolveTheme(): Theme {
-  return getStoredTheme() ?? getSystemTheme();
+export function resolveTheme(stored: Theme | null = getStoredTheme()): Theme {
+  return stored ?? getSystemTheme();
 }
 
-export function applyTheme(theme: Theme): void {
-  const root = document.documentElement;
-  root.classList.toggle("dark", theme === "dark");
-  root.style.colorScheme = theme;
+export function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle("dark", theme === "dark");
 }
 
-export function persistTheme(theme: Theme): void {
+export function persistTheme(theme: Theme) {
   localStorage.setItem(THEME_STORAGE_KEY, theme);
 }

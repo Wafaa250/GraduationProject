@@ -23,7 +23,7 @@ export function RegistrationStepFooter({
   backLabel = 'Back',
 }: Props) {
   return (
-    <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 mt-6 border-t border-border">
+    <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 mt-6">
       <GhostButton type="button" onClick={onBack} className="w-full sm:w-auto">
         {backLabel}
       </GhostButton>

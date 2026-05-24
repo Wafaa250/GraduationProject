@@ -83,6 +83,22 @@ export async function updateGraduationProject(
   return data;
 }
 
+/** DELETE /api/graduation-projects/{id} — owner only. */
+export async function deleteGraduationProject(id: number): Promise<void> {
+  await api.delete(`/graduation-projects/${id}`);
+}
+
+export function projectTypeToStage(type?: string): string {
+  switch (type) {
+    case "GP1":
+      return "gp1";
+    case "GP2":
+      return "gp2";
+    default:
+      return "gp";
+  }
+}
+
 export async function getGraduationProjectsMyEnvelope(): Promise<{
   role: "owner" | "member" | null;
   project: GradProject | null;

@@ -18,6 +18,7 @@ import {
   ArrowUpRight,
   Lightbulb,
   FileText,
+  Trash2,
   Award,
   Bell,
   Settings,
@@ -38,6 +39,7 @@ import { ROUTES } from "@/routes/paths";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
+  deleteGraduationProject,
   deriveProjectStatus,
   getGraduationProjectsMyEnvelope,
   getRecommendedStudents,
@@ -212,6 +214,8 @@ export default function GraduationProjectWorkspacePage() {
     () => new Set(),
   );
   const [cancellingInvitationId, setCancellingInvitationId] = useState<number | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<GraduationNotification[]>([]);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
@@ -455,6 +459,28 @@ export default function GraduationProjectWorkspacePage() {
       });
     } finally {
       setCancellingInvitationId(null);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!project || !isOwner) return;
+    setDeletingProject(true);
+    try {
+      await deleteGraduationProject(project.id);
+      toast({
+        title: "Project deleted",
+        description: "Your graduation project has been removed.",
+      });
+      setDeleteDialogOpen(false);
+      navigate(ROUTES.dashboard, { replace: true });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Could not delete project",
+        description: parseApiErrorMessage(err),
+      });
+    } finally {
+      setDeletingProject(false);
     }
   };
 
@@ -738,11 +764,25 @@ export default function GraduationProjectWorkspacePage() {
                       </Button>
                     )}
                     {isOwner && (
-                      <Button size="lg" variant="ghost" className="rounded-xl" asChild>
-                        <Link to={ROUTES.createGraduationProject}>
-                          <FileText className="mr-2 h-4 w-4" /> Edit Project
-                        </Link>
-                      </Button>
+                      <>
+                        <Button size="lg" variant="ghost" className="rounded-xl" asChild>
+                          <Link
+                            to={ROUTES.createGraduationProject}
+                            state={{ editProjectId: project.id }}
+                          >
+                            <FileText className="mr-2 h-4 w-4" /> Edit Project
+                          </Link>
+                        </Button>
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10"
+                          type="button"
+                          onClick={() => setDeleteDialogOpen(true)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete Project
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1352,6 +1392,52 @@ export default function GraduationProjectWorkspacePage() {
           SkillSwap · Graduation Workspace · Designed for focused academic collaboration
         </footer>
       </main>
+
+      {deleteDialogOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-project-title"
+        >
+          <Card className="w-full max-w-md border-border/60 shadow-elevated">
+            <CardContent className="p-6">
+              <h2 id="delete-project-title" className="font-display text-lg font-bold text-foreground">
+                Delete graduation project?
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This will permanently delete &ldquo;{project.name}&rdquo; and its team data. This
+                action cannot be undone.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl"
+                  disabled={deletingProject}
+                  onClick={() => setDeleteDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="rounded-xl"
+                  disabled={deletingProject}
+                  onClick={() => void handleDeleteProject()}
+                >
+                  {deletingProject ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Delete project
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

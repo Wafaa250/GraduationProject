@@ -1,7 +1,7 @@
 import { useState, useEffect, type ReactNode, type ChangeEvent, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Mail, Lock, User, Sparkles, Users, GraduationCap } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react'
 import { useUser } from '@/context/UserContext'
 import { registerStudent } from '@/api/authApi'
 import { navigateHome } from '@/utils/homeNavigation'
@@ -54,12 +54,6 @@ const STEPS: RegistrationStep[] = [
 
 const ACADEMIC_YEARS = ['First Year', 'Second Year', 'Third Year', 'Fourth Year', 'Fifth Year']
 
-const STUDENT_HIGHLIGHTS = [
-  { icon: <Sparkles className="h-4 w-4" />, label: 'AI-powered matching', sub: 'Complementary skill suggestions' },
-  { icon: <GraduationCap className="h-4 w-4" />, label: 'Graduation project opportunities', sub: 'From faculty supervisors and industry partners' },
-  { icon: <Users className="h-4 w-4" />, label: 'Balanced team formation', sub: 'Roles, skills, and expertise' },
-]
-
 const SKILLS_COLLAPSE_MAX_PX = 560
 
 export default function StudentRegisterForm({ onBack = null }: { onBack?: (() => void) | null }) {
@@ -75,6 +69,8 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
     roles:[],technicalSkills:[],tools:[],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [stepSubmitted, setStepSubmitted] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [customDraft, setCustomDraft] = useState({ roles: '', technicalSkills: '', tools: '' })
@@ -101,12 +97,26 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
     })
   }, [step])
 
+  useEffect(() => {
+    setStepSubmitted(false)
+    setTouched({})
+    setErrors({})
+  }, [step])
+
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm(f => ({ ...f, [field]: value }))
     setErrors(e => ({ ...e, [field]: '' }))
   }
   const toggle = (field: 'roles' | 'technicalSkills' | 'tools', val: string) => {
-    setForm(f => { const arr = f[field] as string[]; return { ...f, [field]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] } })
+    setForm(f => {
+      const arr = f[field] as string[]
+      const next = arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+      if (field === 'roles' && next.length > 0) {
+        setErrors((e) => ({ ...e, roles: '' }))
+      }
+      return { ...f, [field]: next }
+    })
+    setTouched((t) => ({ ...t, [field]: true }))
   }
   const addCustomSkill = (field: 'roles' | 'technicalSkills' | 'tools') => {
     const v = normalizeCustomSkill(customDraft[field])
@@ -167,11 +177,26 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
     setErrors(e); return Object.keys(e).length === 0
   }
 
+  const touchField = (field: string) => {
+    setTouched((t) => ({ ...t, [field]: true }))
+    validate()
+  }
+
+  const fieldError = (field: string) => {
+    const msg = errors[field]
+    if (!msg) return undefined
+    if (stepSubmitted || touched[field]) return msg
+    return undefined
+  }
+
+  const fieldInvalid = (field: string) => Boolean(fieldError(field))
+
   const next = () => {
     if (step === STEPS.length - 1) {
       submit()
       return
     }
+    setStepSubmitted(true)
     if (validate()) setStep((s) => s + 1)
   }
   const back = () => {
@@ -182,6 +207,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
     if (i < step) setStep(i)
   }
   const submit = async () => {
+    setStepSubmitted(true)
     if (!validate()) return
     setIsLoading(true); setApiError(null)
     try {
@@ -228,9 +254,9 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
     'Review and confirm',
   ]
   const formSubtitles = [
-    'Enter your details as they appear on university records. A university email address is recommended.',
-    'Provide your program information so SkillSwap can tailor skills and project recommendations.',
-    'Select roles, skills, and tools that reflect how you contribute on graduation projects.',
+    '',
+    '',
+    'Select roles, skills, and tools that reflect how you contribute on your projects.',
     'Review your information before submitting your registration.',
   ]
 
@@ -272,7 +298,6 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
       steps={STEPS}
       current={step}
       onJump={goToStep}
-      brandEyebrow="Student onboarding"
       brandTitle={
         <>
           Find your team.
@@ -281,7 +306,6 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
         </>
       }
       brandDescription="Build your skill profile and discover compatible teammates, supervisors, and graduation project opportunities through AI-powered matching."
-      highlights={STUDENT_HIGHLIGHTS}
       formTitle={formTitles[step]}
       formSubtitle={formSubtitles[step]}
       changeRole={
@@ -314,44 +338,44 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
     >
       {step === 0 && (
         <>
-          <FormSection title="Personal information" description="As recorded by your university.">
+          <FormSection title="Personal information">
             <ProfilePhotoUpload
               preview={form.profilePicPreview}
               label="Profile photo"
-              hint="Optional · JPG or PNG · You can update this later in your profile"
+              hint=""
               onFile={(file) => handlePic({ target: { files: [file] } } as unknown as ChangeEvent<HTMLInputElement>)}
             />
-            <RegField label="Full name" htmlFor="fullName" required error={errors.fullName}>
+            <RegField label="Full name" htmlFor="fullName" required error={fieldError('fullName')}>
               <TextInput
                 id="fullName"
-                invalid={!!errors.fullName}
+                invalid={fieldInvalid('fullName')}
                 leading={<User className="h-4 w-4" />}
                 placeholder="Mohammad Abdullah"
                 value={form.fullName}
                 onChange={(e) => set('fullName', e.target.value)}
+                onBlur={() => touchField('fullName')}
               />
             </RegField>
-          </FormSection>
-          <FormSection title="Sign-in credentials" description="Used for account access and platform notifications.">
-            <RegField label="University email" htmlFor="email" required error={errors.email}>
+            <RegField label="Email" htmlFor="email" required error={fieldError('email')}>
               <TextInput
                 id="email"
                 type="email"
                 autoComplete="email"
-                invalid={!!errors.email}
+                invalid={fieldInvalid('email')}
                 leading={<Mail className="h-4 w-4" />}
-                placeholder="you@university.edu"
+                placeholder="you@example.com"
                 value={form.email}
                 onChange={(e) => set('email', e.target.value)}
+                onBlur={() => touchField('email')}
               />
             </RegField>
             <FieldGrid>
-              <RegField label="Password" htmlFor="password" required error={errors.password} hint="At least 8 characters, including a number and a symbol.">
+              <RegField label="Password" htmlFor="password" required error={fieldError('password')} hint="At least 8 characters, including a number and a symbol.">
                 <TextInput
                   id="password"
                   type={showPass ? 'text' : 'password'}
                   autoComplete="new-password"
-                  invalid={!!errors.password}
+                  invalid={fieldInvalid('password')}
                   leading={<Lock className="h-4 w-4" />}
                   trailing={
                     <button type="button" onClick={() => setShowPass((x) => !x)} className="text-muted-foreground">
@@ -361,13 +385,14 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                   placeholder="Enter password"
                   value={form.password}
                   onChange={(e) => set('password', e.target.value)}
+                  onBlur={() => touchField('password')}
                 />
               </RegField>
-              <RegField label="Confirm password" htmlFor="confirmPassword" required error={errors.confirmPassword}>
+              <RegField label="Confirm password" htmlFor="confirmPassword" required error={fieldError('confirmPassword')}>
                 <TextInput
                   id="confirmPassword"
                   type={showConfirm ? 'text' : 'password'}
-                  invalid={!!errors.confirmPassword}
+                  invalid={fieldInvalid('confirmPassword')}
                   leading={<Lock className="h-4 w-4" />}
                   trailing={
                     <button type="button" onClick={() => setShowConfirm((x) => !x)} className="text-muted-foreground">
@@ -377,6 +402,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                   placeholder="Confirm password"
                   value={form.confirmPassword}
                   onChange={(e) => set('confirmPassword', e.target.value)}
+                  onBlur={() => touchField('confirmPassword')}
                 />
               </RegField>
             </FieldGrid>
@@ -400,23 +426,25 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
 
       {step === 1 && (
         <>
-          <FormSection title="Student and program" description="Used to tailor your skills catalog and project recommendations.">
+          <FormSection title="Student and program">
             <FieldGrid>
-              <RegField label="Student ID" htmlFor="studentId" required error={errors.studentId}>
+              <RegField label="Student ID" htmlFor="studentId" required error={fieldError('studentId')}>
                 <TextInput
                   id="studentId"
-                  invalid={!!errors.studentId}
+                  invalid={fieldInvalid('studentId')}
                   placeholder="2021123456"
                   value={form.studentId}
                   onChange={(e) => set('studentId', e.target.value)}
+                  onBlur={() => touchField('studentId')}
                 />
               </RegField>
-              <RegField label="University" htmlFor="university" required error={errors.university}>
+              <RegField label="University" htmlFor="university" required error={fieldError('university')}>
                 <RegSelect
                   id="university"
-                  invalid={!!errors.university}
+                  invalid={fieldInvalid('university')}
                   value={form.university}
                   onChange={(e) => handleUniversity(e.target.value)}
+                  onBlur={() => touchField('university')}
                 >
                   <option value="">Select your university</option>
                   {UNIVERSITIES.map((u) => (
@@ -427,13 +455,14 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 </RegSelect>
               </RegField>
             </FieldGrid>
-            <RegField label="Faculty / college" htmlFor="faculty" required error={errors.faculty}>
+            <RegField label="Faculty / college" htmlFor="faculty" required error={fieldError('faculty')}>
               <RegSelect
                 id="faculty"
-                invalid={!!errors.faculty}
+                invalid={fieldInvalid('faculty')}
                 value={form.faculty}
                 disabled={!form.university}
                 onChange={(e) => handleFaculty(e.target.value)}
+                onBlur={() => touchField('faculty')}
               >
                 <option value="">{form.university ? 'Select faculty' : 'Select university first'}</option>
                 {availableFaculties.map((f) => (
@@ -443,13 +472,14 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 ))}
               </RegSelect>
             </RegField>
-            <RegField label="Major / department" htmlFor="major" required error={errors.major}>
+            <RegField label="Major / department" htmlFor="major" required error={fieldError('major')}>
               <RegSelect
                 id="major"
-                invalid={!!errors.major}
+                invalid={fieldInvalid('major')}
                 value={form.major}
                 disabled={!form.faculty}
                 onChange={(e) => handleMajor(e.target.value)}
+                onBlur={() => touchField('major')}
               >
                 <option value="">{form.faculty ? 'Select major' : 'Select faculty first'}</option>
                 {availableMajors.map((m) => (
@@ -459,15 +489,16 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 ))}
               </RegSelect>
             </RegField>
-          </FormSection>
-          <FormSection title="Academic standing">
-            <RegField label="Academic year" required error={errors.academicYear}>
+            <RegField label="Academic year" required error={fieldError('academicYear')}>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                 {ACADEMIC_YEARS.map((y) => (
                   <button
                     key={y}
                     type="button"
-                    onClick={() => set('academicYear', y)}
+                    onClick={() => {
+                      set('academicYear', y)
+                      setTouched((t) => ({ ...t, academicYear: true }))
+                    }}
                     className={`rounded-lg border px-2 py-2.5 text-xs font-semibold transition ${
                       form.academicYear === y
                         ? 'border-primary bg-primary/10 text-primary'
@@ -479,7 +510,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 ))}
               </div>
             </RegField>
-            <RegField label="GPA (optional)" htmlFor="gpa" hint="Scale 0.0 – 4.0" error={errors.gpa}>
+            <RegField label="GPA (optional)" htmlFor="gpa" error={fieldError('gpa')}>
               <TextInput
                 id="gpa"
                 placeholder="e.g. 3.50"
@@ -488,6 +519,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                   const val = e.target.value
                   if (val === '' || (/^\d*\.?\d*$/.test(val) && parseFloat(val) <= 4)) set('gpa', val)
                 }}
+                onBlur={() => touchField('gpa')}
               />
             </RegField>
           </FormSection>
@@ -495,7 +527,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
       )}
 
       {step === 2 && (
-        <FormSection title="Your skills" description="These selections inform AI teammate and graduation project recommendations.">
+        <FormSection title="Your skills">
           {!skillsData ? (
             <AlertError title="Complete your academic profile first">
               Select your faculty and major to view skills aligned with your program.
@@ -513,7 +545,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                   badge={`${form.roles.length} selected`}
                   hint="How you typically contribute on graduation projects (independent of your major)"
                   required
-                  error={errors.roles}
+                  error={fieldError('roles')}
                   collapsible={skillsNarrow}
                   expanded={skillPanelOpen.roles}
                   onToggle={() => setSkillPanelOpen(p => ({ ...p, roles: !p.roles }))}
