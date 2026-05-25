@@ -15,3 +15,21 @@ export const ROUTES = {
   /** Graduation project workspace (student owner/member). */
   graduationProjectWorkspace: "/graduation-projects/workspace",
 } as const;
+
+/** Company workspace (post-login, role === company). */
+export const COMPANY_ROUTES = {
+  root: "/company",
+  dashboard: "/company",
+  requests: "/company/requests",
+  requestDetail: (id: number | string) => `/company/requests/${id}`,
+  editRequest: (id: number | string) => `/company/requests/${id}/edit`,
+  requestRecommendations: (id: number | string) =>
+    `/company/requests/${id}/recommendations`,
+  newRequest: "/company/requests/new",
+  matches: "/company/matches",
+  discover: "/company/discover",
+  collaborations: "/company/collaborations",
+  messages: "/company/messages",
+  profile: "/company/profile",
+  settings: "/company/settings",
+} as const;

@@ -15,6 +15,9 @@ namespace GraduationProject.API.Data
         public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
         public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
         public DbSet<CompanyTalentRequest> CompanyTalentRequests => Set<CompanyTalentRequest>();
+        public DbSet<CompanyRequest> CompanyRequests => Set<CompanyRequest>();
+        public DbSet<CompanyRequestRole> CompanyRequestRoles => Set<CompanyRequestRole>();
+        public DbSet<CompanyRequestSkill> CompanyRequestSkills => Set<CompanyRequestSkill>();
         public DbSet<StudentAssociationProfile> StudentAssociationProfiles => Set<StudentAssociationProfile>();
         public DbSet<StudentOrganizationEvent> StudentOrganizationEvents => Set<StudentOrganizationEvent>();
         public DbSet<StudentOrganizationEventRegistrationForm> StudentOrganizationEventRegistrationForms =>
@@ -120,6 +123,49 @@ namespace GraduationProject.API.Data
                 e.HasOne(r => r.CompanyProfile)
                  .WithMany()
                  .HasForeignKey(r => r.CompanyProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── COMPANY PROJECT REQUESTS (wizard) ─────────────────────────────
+            modelBuilder.Entity<CompanyRequest>(e =>
+            {
+                e.ToTable("company_requests");
+                e.HasIndex(r => r.CompanyProfileId);
+                e.HasIndex(r => new { r.CompanyProfileId, r.Status });
+                e.HasIndex(r => r.CompanyProfileId)
+                    .HasFilter("\"status\" = 'draft'")
+                    .IsUnique();
+                e.Property(r => r.DurationUnit)
+                    .HasConversion(
+                        v => v.HasValue ? v.Value.ToString() : null,
+                        v => CompanyRequestEnumConverters.TryParseDurationUnit(v));
+                e.Property(r => r.CollaborationFormat)
+                    .HasConversion(
+                        v => v.HasValue ? CompanyRequestEnumConverters.ToWireValue(v.Value) : null,
+                        v => CompanyRequestEnumConverters.TryParseCollaborationFormat(v));
+                e.HasOne(r => r.CompanyProfile)
+                 .WithMany()
+                 .HasForeignKey(r => r.CompanyProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyRequestRole>(e =>
+            {
+                e.ToTable("company_request_roles");
+                e.HasIndex(r => r.CompanyRequestId);
+                e.HasOne(r => r.CompanyRequest)
+                 .WithMany(req => req.Roles)
+                 .HasForeignKey(r => r.CompanyRequestId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyRequestSkill>(e =>
+            {
+                e.ToTable("company_request_skills");
+                e.HasIndex(s => s.CompanyRequestRoleId);
+                e.HasOne(s => s.Role)
+                 .WithMany(r => r.Skills)
+                 .HasForeignKey(s => s.CompanyRequestRoleId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 

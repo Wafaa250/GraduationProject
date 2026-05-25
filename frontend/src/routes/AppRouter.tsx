@@ -1,7 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { PublicLayout } from "@/layouts/PublicLayout";
+import { CompanyWorkspaceLayout } from "@/layouts/CompanyWorkspaceLayout";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
+import { CompanyRoute } from "@/routes/companyRoutes";
 import {
   StudentCreateGraduationProjectRoute,
   StudentDashboardRoute,
@@ -13,7 +15,18 @@ import { LandingPage } from "@/pages/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import StudentAssociationRegisterPage from "@/pages/auth/StudentAssociationRegisterPage";
-import { ROUTES } from "@/routes/paths";
+import { CompanyDashboardPage } from "@/pages/company/CompanyDashboardPage";
+import { CompanyRequestsPage } from "@/pages/company/CompanyRequestsPage";
+import { CompanyRequestDetailPage } from "@/pages/company/CompanyRequestDetailPage";
+import { CompanyNewRequestPage } from "@/pages/company/CompanyNewRequestPage";
+import { CompanyRequestRecommendationsPage } from "@/pages/company/CompanyRequestRecommendationsPage";
+import { CompanyAiMatchesPage } from "@/pages/company/CompanyAiMatchesPage";
+import { CompanyDiscoverPage } from "@/pages/company/CompanyDiscoverPage";
+import { CompanyCollaborationsPage } from "@/pages/company/CompanyCollaborationsPage";
+import { CompanyMessagesPage } from "@/pages/company/CompanyMessagesPage";
+import { CompanyProfilePage } from "@/pages/company/CompanyProfilePage";
+import { CompanySettingsPage } from "@/pages/company/CompanySettingsPage";
+import { COMPANY_ROUTES, ROUTES } from "@/routes/paths";
 
 export function AppRouter() {
   return (
@@ -66,6 +79,30 @@ export function AppRouter() {
 
         {/* Legacy path from earlier integration */}
         <Route path="/student/profile" element={<Navigate to={ROUTES.editProfile} replace />} />
+
+        <Route
+          path={COMPANY_ROUTES.root}
+          element={
+            <ProtectedRoute>
+              <CompanyRoute>
+                <CompanyWorkspaceLayout />
+              </CompanyRoute>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<CompanyDashboardPage />} />
+          <Route path="requests" element={<CompanyRequestsPage />} />
+          <Route path="requests/new" element={<CompanyNewRequestPage />} />
+          <Route path="requests/:id/edit" element={<CompanyNewRequestPage />} />
+          <Route path="requests/:id/recommendations" element={<CompanyRequestRecommendationsPage />} />
+          <Route path="requests/:id" element={<CompanyRequestDetailPage />} />
+          <Route path="matches" element={<CompanyAiMatchesPage />} />
+          <Route path="discover" element={<CompanyDiscoverPage />} />
+          <Route path="collaborations" element={<CompanyCollaborationsPage />} />
+          <Route path="messages" element={<CompanyMessagesPage />} />
+          <Route path="profile" element={<CompanyProfilePage />} />
+          <Route path="settings" element={<CompanySettingsPage />} />
+        </Route>
 
         <Route element={<PublicLayout />}>
           <Route path={ROUTES.home} element={<LandingPage />} />

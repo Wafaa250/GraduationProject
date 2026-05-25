@@ -1,0 +1,360 @@
+/* Company workspace — scoped premium SaaS styling (reference-inspired) */
+.company-workspace {
+  --cw-success: 152 70% 42%;
+  --cw-warning: 38 95% 55%;
+  --cw-gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(258 90% 66%));
+  --cw-gradient-ai: linear-gradient(135deg, hsl(245 80% 60% / 0.95), hsl(190 90% 55% / 0.9));
+  --cw-gradient-hero: radial-gradient(1200px 500px at 10% -10%, hsl(245 90% 65% / 0.18), transparent 60%),
+    radial-gradient(900px 400px at 90% 0%, hsl(190 90% 55% / 0.15), transparent 60%);
+  --cw-shadow-md: 0 4px 16px -4px hsl(245 50% 30% / 0.1);
+  --cw-shadow-glow: 0 10px 40px -10px hsl(245 75% 58% / 0.35);
+}
+
+.company-workspace .cw-sidebar {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-right: 1px solid hsl(var(--border));
+  will-change: width;
+}
+
+.company-workspace .cw-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  transition: background 0.15s ease, color 0.15s ease, padding 0.3s ease;
+}
+
+.company-workspace .cw-sidebar-link--collapsed {
+  justify-content: center;
+  padding: 0.5rem;
+  gap: 0;
+}
+
+.company-workspace .cw-sidebar--collapsed [data-tooltip] {
+  position: relative;
+}
+
+.company-workspace .cw-sidebar--collapsed [data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 0.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: hsl(var(--popover-foreground));
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  box-shadow: var(--cw-shadow-md);
+  pointer-events: none;
+  animation: cw-tooltip-in 0.15s ease-out;
+}
+
+@keyframes cw-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+.company-workspace .cw-sidebar-link:hover {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+}
+
+.company-workspace .cw-sidebar-link.active {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+
+.company-workspace .cw-sidebar-sublink {
+  padding-left: 2rem;
+  font-size: 0.8125rem;
+}
+
+.company-workspace .cw-card-elevated {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  box-shadow: var(--cw-shadow-md);
+}
+
+.company-workspace .cw-hero-bg {
+  background: var(--cw-gradient-hero);
+}
+
+.company-workspace .cw-ai-panel {
+  background: var(--cw-gradient-ai);
+  color: white;
+  box-shadow: var(--cw-shadow-glow);
+}
+
+.company-workspace .cw-gradient-text {
+  background: var(--cw-gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.company-workspace .cw-btn-gradient {
+  background: var(--cw-gradient-primary);
+  color: white;
+  border: none;
+}
+
+.company-workspace .cw-btn-gradient:hover {
+  opacity: 0.92;
+}
+
+.company-workspace .cw-status-active {
+  background: hsl(var(--cw-success) / 0.15);
+  color: hsl(var(--cw-success));
+  border: none;
+}
+
+.company-workspace .cw-status-primary {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+  border: none;
+}
+
+/* —— Project request flow (visual polish) —— */
+
+.company-workspace .cw-shadow-glow {
+  box-shadow: var(--cw-shadow-glow);
+}
+
+.company-workspace .cw-request-step-indicator {
+  height: 2rem;
+  width: 2rem;
+  border-radius: 9999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  flex-shrink: 0;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
+}
+
+.company-workspace .cw-request-step-indicator.is-complete {
+  background: hsl(var(--cw-success));
+  color: white;
+}
+
+.company-workspace .cw-request-step-indicator.is-active {
+  background: var(--cw-gradient-primary);
+  color: white;
+  box-shadow: var(--cw-shadow-glow);
+}
+
+.company-workspace .cw-request-step-indicator.is-pending {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.company-workspace .cw-request-step-connector {
+  width: 2rem;
+  height: 1px;
+  background: hsl(var(--border));
+  flex-shrink: 0;
+}
+
+.company-workspace .cw-request-step-content {
+  animation: cw-request-fade-in 0.28s ease-out;
+}
+
+@keyframes cw-request-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.company-workspace .cw-request-type-icon {
+  height: 3rem;
+  width: 3rem;
+  border-radius: 0.75rem;
+  background: var(--cw-gradient-primary);
+  color: white;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--cw-shadow-md);
+}
+
+.company-workspace .cw-request-type-card {
+  text-align: left;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 2px solid hsl(var(--border));
+  background: hsl(var(--card));
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.company-workspace .cw-request-type-card:hover {
+  border-color: hsl(var(--primary) / 0.4);
+}
+
+.company-workspace .cw-request-type-card.is-selected {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.05);
+  box-shadow: var(--cw-shadow-glow);
+}
+
+.company-workspace .cw-request-role-card {
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  background: linear-gradient(
+    to bottom right,
+    hsl(var(--secondary) / 0.35),
+    hsl(var(--card))
+  );
+}
+
+.company-workspace .cw-request-review-hero {
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  background: linear-gradient(
+    135deg,
+    hsl(var(--secondary) / 0.45),
+    hsl(var(--card))
+  );
+}
+
+.company-workspace .cw-request-review-stat {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+}
+
+.company-workspace .cw-request-skill-badge {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  border: none;
+}
+
+.company-workspace .cw-request-list-card {
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.company-workspace .cw-request-list-card:hover {
+  box-shadow: var(--cw-shadow-glow);
+  border-color: hsl(var(--primary) / 0.2);
+}
+
+.company-workspace .cw-request-success-icon {
+  height: 4rem;
+  width: 4rem;
+  border-radius: 1rem;
+  background: var(--cw-gradient-primary);
+  color: white;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: var(--cw-shadow-glow);
+}
+
+.company-workspace .cw-request-review-ai-banner {
+  background: var(--cw-gradient-ai);
+  color: white;
+  box-shadow: var(--cw-shadow-glow);
+}
+
+.company-workspace .cw-request-review-ai-icon {
+  height: 2.5rem;
+  width: 2.5rem;
+  border-radius: 0.625rem;
+  background: rgb(255 255 255 / 0.15);
+  display: grid;
+  place-items: center;
+}
+
+.company-workspace .cw-request-review-section {
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+}
+
+.company-workspace .cw-request-review-section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 1rem;
+}
+
+/* Candidate recommendations */
+.company-workspace .cw-rec-summary-banner {
+  background: var(--cw-gradient-ai);
+  color: white;
+  box-shadow: var(--cw-shadow-glow);
+}
+
+.company-workspace .cw-rec-summary-icon {
+  height: 2.5rem;
+  width: 2.5rem;
+  border-radius: 0.625rem;
+  background: rgb(255 255 255 / 0.15);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.company-workspace .cw-rec-chip {
+  background: rgb(255 255 255 / 0.15);
+  color: white;
+}
+
+.company-workspace .cw-candidate-card {
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.company-workspace .cw-candidate-card:hover {
+  box-shadow: var(--cw-shadow-glow);
+  border-color: hsl(var(--primary) / 0.2);
+}
+
+.company-workspace .cw-candidate-avatar-fallback {
+  background: var(--cw-gradient-primary);
+  color: white;
+}
+
+.company-workspace .cw-candidate-skill-badge {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  border: none;
+}
