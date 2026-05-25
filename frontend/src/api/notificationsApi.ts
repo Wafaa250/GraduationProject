@@ -22,9 +22,45 @@ export async function getGraduationNotifications(
 }
 
 /** GET /api/notifications/unread-count */
-export async function getGraduationNotificationsUnreadCount(): Promise<number> {
-  const { data } = await api.get<{ count: number }>("/notifications/unread-count");
+export async function getGraduationNotificationsUnreadCount(
+  category?: string,
+): Promise<number> {
+  const { data } = await api.get<{ count: number }>("/notifications/unread-count", {
+    params: category ? { category } : undefined,
+  });
   return typeof data?.count === "number" ? data.count : 0;
+}
+
+const DOCTOR_ACTIVITY_CATEGORIES = ["graduation_project", "course", "chat"] as const;
+
+/** Unread notifications across categories used on the doctor hub. */
+export async function getDoctorNotificationsUnreadCount(): Promise<number> {
+  const counts = await Promise.all(
+    DOCTOR_ACTIVITY_CATEGORIES.map((category) =>
+      getGraduationNotificationsUnreadCount(category).catch(() => 0),
+    ),
+  );
+  return counts.reduce((sum, n) => sum + n, 0);
+}
+
+/** Recent notifications merged from graduation, course, and chat categories. */
+export async function getDoctorNotificationsForActivity(
+  takePerCategory = 15,
+): Promise<GraduationNotification[]> {
+  const batches = await Promise.all(
+    DOCTOR_ACTIVITY_CATEGORIES.map((category) =>
+      api
+        .get<GraduationNotification[]>("/notifications", {
+          params: { take: takePerCategory, category },
+        })
+        .then((res) => (Array.isArray(res.data) ? res.data : []))
+        .catch(() => [] as GraduationNotification[]),
+    ),
+  );
+  return batches
+    .flat()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 50);
 }
 
 /** POST /api/notifications/{id}/read */

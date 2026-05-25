@@ -166,6 +166,35 @@ export async function getGraduationProjectById(projectId: number): Promise<GradP
   return data;
 }
 
+export type GraduationProjectMember = {
+  studentId: number;
+  userId: number;
+  name: string;
+  email: string;
+  university: string;
+  major: string;
+  role: string;
+};
+
+export type GraduationProjectMembersResponse = {
+  projectId: number;
+  currentMembers: number;
+  totalCapacity: number;
+  remainingSeats: number;
+  isFull: boolean;
+  members: GraduationProjectMember[];
+};
+
+/** GET /api/graduation-projects/{id}/members */
+export async function getGraduationProjectMembers(
+  projectId: number,
+): Promise<GraduationProjectMembersResponse> {
+  const { data } = await api.get<GraduationProjectMembersResponse>(
+    `/graduation-projects/${projectId}/members`,
+  );
+  return data;
+}
+
 function normalizeMatchScore(score: number): number {
   if (!Number.isFinite(score)) return 0;
   if (score > 0 && score <= 1) return Math.round(score * 100);

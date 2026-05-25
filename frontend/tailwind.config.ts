@@ -24,7 +24,24 @@ export default {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
           dark: "hsl(var(--primary-dark))",
+          deep: "hsl(var(--primary-deep))",
           glow: "hsl(var(--primary-glow))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--danger))",
+          foreground: "hsl(var(--danger-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -67,6 +84,8 @@ export default {
       boxShadow: {
         elegant: "var(--shadow-elegant)",
         card: "var(--shadow-card)",
+        elevated: "var(--shadow-elevated)",
+        glow: "var(--shadow-glow)",
       },
       borderRadius: {
         lg: "var(--radius)",

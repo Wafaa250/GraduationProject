@@ -1092,7 +1092,9 @@ namespace GraduationProject.API.Controllers
         // =====================================================================
         [HttpPost("/api/supervisor-requests/{id:int}/accept")]
         [HttpPost("/api/student-projects/supervisor-requests/{id:int}/accept")]
-        public async Task<IActionResult> AcceptSupervisorRequest(int id)
+        public async Task<IActionResult> AcceptSupervisorRequest(
+            int id,
+            [FromBody] SupervisorRequestDecisionDto? body = null)
         {
             if (AuthorizationHelper.GetRole(User) != "doctor")
                 return StatusCode(403, new { message = "Only doctors can accept requests." });
@@ -1119,6 +1121,7 @@ namespace GraduationProject.API.Controllers
 
             request.Status = "accepted";
             request.RespondedAt = DateTime.UtcNow;
+            request.DoctorResponseNote = NormalizeDoctorResponseNote(body?.Feedback);
             if (request.Project != null)
                 request.Project.SupervisorId = request.DoctorId;
 
@@ -1162,7 +1165,9 @@ namespace GraduationProject.API.Controllers
         // =====================================================================
         [HttpPost("/api/supervisor-requests/{id:int}/reject")]
         [HttpPost("/api/student-projects/supervisor-requests/{id:int}/reject")]
-        public async Task<IActionResult> RejectSupervisorRequest(int id)
+        public async Task<IActionResult> RejectSupervisorRequest(
+            int id,
+            [FromBody] SupervisorRequestDecisionDto? body = null)
         {
             if (AuthorizationHelper.GetRole(User) != "doctor")
                 return StatusCode(403, new { message = "Only doctors can reject requests." });
@@ -1186,6 +1191,7 @@ namespace GraduationProject.API.Controllers
 
             request.Status = "rejected";
             request.RespondedAt = DateTime.UtcNow;
+            request.DoctorResponseNote = NormalizeDoctorResponseNote(body?.Feedback);
 
             await _db.SaveChangesAsync();
 
@@ -1592,6 +1598,14 @@ namespace GraduationProject.API.Controllers
                 return Forbid();
 
             return null;
+        }
+
+        private static string? NormalizeDoctorResponseNote(string? feedback)
+        {
+            if (string.IsNullOrWhiteSpace(feedback))
+                return null;
+            var trimmed = feedback.Trim();
+            return trimmed.Length > 2000 ? trimmed[..2000] : trimmed;
         }
     }
 }

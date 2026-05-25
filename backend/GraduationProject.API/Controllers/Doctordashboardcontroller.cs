@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
+using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Services;
 
@@ -45,20 +46,21 @@ namespace GraduationProject.API.Controllers
         //      so the frontend receives an empty list rather than an error.
         // =====================================================================
         [HttpGet("requests")]
-        public async Task<IActionResult> GetDoctorRequests()
+        public async Task<ActionResult<List<DoctorSupervisorRequestListItemDto>>> GetDoctorRequests()
         {
             if (AuthorizationHelper.GetRole(User) != "doctor")
                 return StatusCode(403, new { message = "Only doctors can access this endpoint." });
 
             var doctor = await GetCurrentDoctorProfileAsync();
             if (doctor == null)
-                return Ok(new List<object>()); // Bug 3 fix: graceful empty list
+                return Ok(new List<DoctorSupervisorRequestListItemDto>());
 
-            // ── Materialize first, then deserialize JSON in memory (Bug 2 fix) ──
             var requests = await _db.SupervisorRequests
                 .Where(r => r.DoctorId == doctor.Id)
                 .Include(r => r.Project)
-                    .ThenInclude(p => p.Members)
+                    .ThenInclude(p => p!.Owner)
+                .Include(r => r.Project)
+                    .ThenInclude(p => p!.Members)
                         .ThenInclude(m => m.Student)
                             .ThenInclude(s => s.User)
                 .Include(r => r.Sender).ThenInclude(s => s.User)
@@ -66,66 +68,40 @@ namespace GraduationProject.API.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            var result = requests.Select(r =>
-            {
-                List<string> skills;
-                List<string> preferredRoles;
-                try
-                {
-                    skills = r.Project?.RequiredSkills is { } reqJson
-                        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(reqJson) ?? new List<string>()
-                        : new List<string>();
-                    preferredRoles = r.Project?.PreferredRoles is { } rolesJson
-                        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(rolesJson) ?? new List<string>()
-                        : new List<string>();
-                }
-                catch
-                {
-                    skills = new List<string>();
-                    preferredRoles = new List<string>();
-                }
-
-                var members = (r.Project?.Members ?? Enumerable.Empty<Models.StudentProjectMember>())
-                    .OrderBy(m => m.Role == "leader" ? 0 : 1)
-                    .ThenBy(m => m.Student?.User?.Name ?? "")
-                    .Select(m => new
-                    {
-                        studentId = m.StudentId,
-                        name = m.Student?.User?.Name ?? "",
-                        role = m.Role,
-                        major = m.Student?.Major ?? ""
-                    })
-                    .ToList();
-
-                return new
-                {
-                    requestId = r.Id,
-                    project = new
-                    {
-                        projectId = r.ProjectId,
-                        name = r.Project?.Name ?? "",
-                        description = r.Project?.Abstract,
-                        requiredSkills = skills,
-                        preferredRoles = preferredRoles,
-                        projectType = r.Project?.ProjectType ?? "GP",
-                        partnersCount = r.Project?.PartnersCount ?? 0,
-                        memberCount = r.Project?.Members.Count ?? 0,
-                        members
-                    },
-                    sender = new
-                    {
-                        studentId = r.SenderId,
-                        name = r.Sender?.User?.Name ?? "",
-                        major = r.Sender?.Major ?? "",
-                        university = r.Sender?.University ?? ""
-                    },
-                    status = r.Status,
-                    createdAt = r.CreatedAt,
-                    respondedAt = r.RespondedAt
-                };
-            }).ToList();
+            var result = requests
+                .Select(r => DoctorSupervisorRequestMapper.MapListItem(r, doctor))
+                .ToList();
 
             return Ok(result);
+        }
+
+        // =====================================================================
+        // GET /api/doctors/me/requests-summary
+        // Counts for supervision request summary cards and status tabs.
+        // =====================================================================
+        [HttpGet("requests-summary")]
+        public async Task<ActionResult<DoctorSupervisorRequestsSummaryDto>> GetDoctorRequestsSummary()
+        {
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can access this endpoint." });
+
+            var doctor = await GetCurrentDoctorProfileAsync();
+            if (doctor == null)
+                return Ok(new DoctorSupervisorRequestsSummaryDto());
+
+            var rows = await _db.SupervisorRequests
+                .AsNoTracking()
+                .Where(r => r.DoctorId == doctor.Id)
+                .Select(r => r.Status)
+                .ToListAsync();
+
+            return Ok(new DoctorSupervisorRequestsSummaryDto
+            {
+                PendingCount = rows.Count(s => s == "pending"),
+                AcceptedCount = rows.Count(s => s == "accepted"),
+                RejectedCount = rows.Count(s => s == "rejected"),
+                TotalCount = rows.Count,
+            });
         }
 
         // =====================================================================

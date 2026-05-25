@@ -6,6 +6,9 @@ export function getHomePath(): string {
   if (role === "student") {
     return ROUTES.dashboard;
   }
+  if (role === "doctor") {
+    return ROUTES.doctorDashboard;
+  }
   return ROUTES.home;
 }
 

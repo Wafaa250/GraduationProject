@@ -1,0 +1,154 @@
+/**
+ * Doctor Hub (Lovable supervisor dashboard) — scoped design tokens.
+ * Matches skillswap-supervisor-hub index.css; only applies under .doctor-hub.
+ */
+.doctor-hub {
+  /* SkillSwap purple + deeper indigo accents (#7C3AED / #4F46E5) */
+  --background: 270 45% 98.5%;
+  --foreground: 240 25% 12%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 240 25% 12%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 25% 12%;
+
+  --primary: 263 84% 58%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 263 84% 66%;
+  --primary-deep: 243 75% 52%;
+
+  --secondary: 263 40% 96%;
+  --secondary-foreground: 240 25% 18%;
+
+  --muted: 270 35% 95.5%;
+  --muted-foreground: 240 10% 46%;
+
+  --accent: 263 55% 96%;
+  --accent-foreground: 263 84% 42%;
+
+  --success: 152 65% 42%;
+  --success-foreground: 0 0% 100%;
+  --warning: 32 95% 55%;
+  --warning-foreground: 0 0% 100%;
+  --danger: 0 78% 60%;
+  --danger-foreground: 0 0% 100%;
+  --info: 243 75% 58%;
+  --info-foreground: 0 0% 100%;
+
+  --destructive: 0 78% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 263 25% 91%;
+  --input: 263 25% 91%;
+  --ring: 263 84% 58%;
+
+  --radius: 0.85rem;
+
+  --sidebar-bg: 0 0% 100%;
+  --sidebar-bg-2: 270 45% 98.5%;
+  --sidebar-fg: 240 25% 12%;
+  --sidebar-muted: 240 10% 46%;
+  --sidebar-border: 263 25% 91%;
+  --sidebar-active: 263 84% 58%;
+
+  --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+  --gradient-soft: linear-gradient(135deg, hsl(270 90% 97%), hsl(263 60% 96%));
+  --gradient-sidebar: linear-gradient(180deg, hsl(0 0% 100%), hsl(270 45% 98.5%));
+  --gradient-mesh: radial-gradient(at 20% 0%, hsl(263 80% 92% / 0.45) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsl(243 75% 92% / 0.35) 0px, transparent 50%);
+
+  --shadow-sm: 0 1px 2px hsl(263 40% 30% / 0.05);
+  --shadow-card: 0 1px 3px hsl(263 30% 30% / 0.04), 0 8px 24px -8px hsl(263 40% 40% / 0.08);
+  --shadow-elevated: 0 10px 40px -10px hsl(263 60% 40% / 0.22);
+  --shadow-glow: 0 0 0 1px hsl(263 84% 58% / 0.12), 0 10px 30px -10px hsl(263 84% 58% / 0.28);
+
+  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+}
+
+.doctor-hub .glass {
+  background: hsl(0 0% 100% / 0.7);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+.doctor-hub .gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.doctor-hub .shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+.doctor-hub .shadow-elevated {
+  box-shadow: var(--shadow-elevated);
+}
+
+.doctor-hub .shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+.doctor-hub .bg-gradient-primary {
+  background: var(--gradient-primary);
+}
+
+.doctor-hub .bg-gradient-soft {
+  background: var(--gradient-soft);
+}
+
+.doctor-hub .bg-gradient-sidebar {
+  background: var(--gradient-sidebar);
+}
+
+.doctor-hub .bg-gradient-mesh {
+  background: var(--gradient-mesh);
+}
+
+.doctor-hub .transition-smooth {
+  transition: var(--transition-smooth);
+}
+
+/* App shell: fixed-height sidebar + independently scrolling main column */
+.doctor-hub.h-screen {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.doctor-hub__sidebar {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.doctor-hub__content {
+  -webkit-overflow-scrolling: touch;
+}
+
+.doctor-hub__sidebar-brand-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.doctor-hub__sidebar-brand-link > .inline-flex {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.doctor-hub__sidebar-brand-sub {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: hsl(var(--sidebar-muted));
+  line-height: 1.2;
+}

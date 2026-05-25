@@ -114,6 +114,9 @@ namespace GraduationProject.API.Models
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("responded_at")] public DateTime? RespondedAt { get; set; }
 
+        /// <summary>Optional note from the doctor when accepting or rejecting.</summary>
+        [Column("doctor_response_note")] public string? DoctorResponseNote { get; set; }
+
         // Navigation
         public StudentProject Project { get; set; } = null!;
         public DoctorProfile Doctor { get; set; } = null!;

@@ -1724,6 +1724,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("doctor_id");
 
+                    b.Property<string>("DoctorResponseNote")
+                        .HasColumnType("text")
+                        .HasColumnName("doctor_response_note");
+
                     b.Property<int>("ProjectId")
                         .HasColumnType("integer")
                         .HasColumnName("project_id");
