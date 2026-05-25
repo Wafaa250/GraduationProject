@@ -224,9 +224,8 @@ const StudentDashboardPage = () => {
   }
 
   return (
-    <div className="student-hub">
-      <main className="min-h-screen bg-hero">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+    <div className="student-hub min-h-full bg-hero">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 md:py-8">
           <DashboardHeader />
 
           <div className="space-y-6 md:space-y-8">
@@ -248,7 +247,6 @@ const StudentDashboardPage = () => {
             <CoursesArea enrolled={enrolledCount} partners={partnerActivity} />
           </div>
         </div>
-      </main>
     </div>
   );
 };

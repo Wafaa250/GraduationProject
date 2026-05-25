@@ -213,14 +213,10 @@ const StudentProfileEditPage = () => {
   }
 
   return (
-    <div className="profile-hub min-h-screen bg-gradient-subtle font-sans text-foreground">
+    <div className="profile-hub min-h-full bg-gradient-subtle font-sans text-foreground">
       <div className="bg-gradient-hero">
         <div className="mx-auto max-w-5xl px-4 pb-6 pt-10 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-display text-base font-bold tracking-tight text-foreground">
-              Skill<span className="text-primary">Swap</span>
-            </span>
-            <span className="text-muted-foreground/50">/</span>
             <span>Account</span>
             <span className="text-muted-foreground/50">/</span>
             <span className="text-foreground">Edit profile</span>

@@ -405,32 +405,8 @@ export default function CreateGraduationProjectPage() {
   };
 
   return (
-    <div className="project-wizard-pro min-h-screen bg-background">
+    <div className="project-wizard-pro min-h-full bg-background">
       <div className="absolute inset-x-0 top-0 h-[420px] bg-gradient-hero pointer-events-none" />
-
-      <header className="relative border-b border-border/60 bg-background/70 backdrop-blur-xl">
-        <div className="container max-w-7xl py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-gradient-primary grid place-items-center shadow-glow">
-              <Sparkles className="size-5 text-primary-foreground" />
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                SkillSwap
-              </div>
-              <div className="font-bold text-foreground -mt-0.5">
-                {isEditMode ? "Edit Graduation Project" : "Create Graduation Project"}
-              </div>
-            </div>
-          </div>
-          <Badge
-            variant="secondary"
-            className="hidden sm:inline-flex bg-secondary/70 text-foreground/80 font-medium"
-          >
-            Step {step} of 6 · {progressPct}%
-          </Badge>
-        </div>
-      </header>
 
       {hasExistingProject && !isEditMode && (
         <div className="relative container max-w-7xl pt-4">
@@ -443,6 +419,17 @@ export default function CreateGraduationProjectPage() {
 
       {/* Stepper */}
       <div className="relative container max-w-7xl pt-8">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-bold text-foreground text-lg sm:text-xl">
+            {isEditMode ? "Edit Graduation Project" : "Create Graduation Project"}
+          </h1>
+          <Badge
+            variant="secondary"
+            className="bg-secondary/70 text-foreground/80 font-medium"
+          >
+            Step {step} of 6 · {progressPct}%
+          </Badge>
+        </div>
         <div className="hidden md:flex items-center justify-between gap-2 mb-2">
           {STEPS.map((s, i) => {
             const active = step === s.n;

@@ -20,14 +20,11 @@ import {
   FileText,
   Trash2,
   Award,
-  Bell,
-  Settings,
-  LogOut,
-  User,
   ChevronRight,
   Briefcase,
   Brain,
   Loader2,
+  MoreVertical,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,7 +35,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import "@/styles/project-workspace-hub.css";
 import { ROUTES } from "@/routes/paths";
-import { logout } from "@/utils/authSession";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
@@ -60,12 +56,6 @@ import {
   getSentProjectInvitations,
   type SentProjectInvitation,
 } from "@/api/invitationsApi";
-import {
-  getGraduationNotifications,
-  getGraduationNotificationsUnreadCount,
-  markGraduationNotificationRead,
-  type GraduationNotification,
-} from "@/api/notificationsApi";
 import { toast } from "@/hooks/use-toast";
 
 /* ---------- small components ---------- */
@@ -218,14 +208,9 @@ export default function GraduationProjectWorkspacePage() {
   );
   const [cancellingInvitationId, setCancellingInvitationId] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [heroActionsMenuOpen, setHeroActionsMenuOpen] = useState(false);
+  const heroActionsMenuRef = useRef<HTMLDivElement>(null);
   const [deletingProject, setDeletingProject] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = useRef<HTMLDivElement>(null);
-  const [notifications, setNotifications] = useState<GraduationNotification[]>([]);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-
   const isOwner = Boolean(
     project?.isOwner ||
       envelopeRole === "owner" ||
@@ -256,7 +241,6 @@ export default function GraduationProjectWorkspacePage() {
   }, [project]);
 
   const ownerName = project?.ownerName?.trim() || ownerMember?.name || "—";
-  const myInitials = me?.name ? initials(me.name) : "—";
 
   const invitationsByStatus = useMemo(() => {
     const pending: SentProjectInvitation[] = [];
@@ -279,14 +263,6 @@ export default function GraduationProjectWorkspacePage() {
   const pendingInviteReceiverIds = useMemo(
     () => new Set(invitationsByStatus.pending.map((i) => i.receiverId)),
     [invitationsByStatus.pending],
-  );
-
-  const projectNotifications = useMemo(
-    () =>
-      project
-        ? notifications.filter((n) => n.projectId === project.id)
-        : [],
-    [notifications, project],
   );
 
   const invitationsUsed = sentInvitations.length;
@@ -364,15 +340,6 @@ export default function GraduationProjectWorkspacePage() {
         setSentInvitations([]);
       }
 
-      tasks.push(
-        getGraduationNotificationsUnreadCount().then((count) => {
-          setUnreadNotificationCount(count);
-        }),
-        getGraduationNotifications(30).then((rows) => {
-          setNotifications(rows);
-        }),
-      );
-
       await Promise.all(tasks);
     } catch (err) {
       toast({
@@ -390,30 +357,22 @@ export default function GraduationProjectWorkspacePage() {
   }, [loadWorkspace]);
 
   useEffect(() => {
-    if (!profileMenuOpen && !notificationsOpen) return;
+    if (!heroActionsMenuOpen) return;
 
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (
-        profileMenuOpen &&
-        profileMenuRef.current &&
-        !profileMenuRef.current.contains(target)
+        heroActionsMenuOpen &&
+        heroActionsMenuRef.current &&
+        !heroActionsMenuRef.current.contains(target)
       ) {
-        setProfileMenuOpen(false);
-      }
-      if (
-        notificationsOpen &&
-        notificationsRef.current &&
-        !notificationsRef.current.contains(target)
-      ) {
-        setNotificationsOpen(false);
+        setHeroActionsMenuOpen(false);
       }
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setProfileMenuOpen(false);
-        setNotificationsOpen(false);
+        setHeroActionsMenuOpen(false);
       }
     };
 
@@ -423,12 +382,7 @@ export default function GraduationProjectWorkspacePage() {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [profileMenuOpen, notificationsOpen]);
-
-  const handleLogout = useCallback(() => {
-    setProfileMenuOpen(false);
-    logout(navigate);
-  }, [navigate]);
+  }, [heroActionsMenuOpen]);
 
   const refreshProject = async () => {
     const envelope = await getGraduationProjectsMyEnvelope();
@@ -556,7 +510,7 @@ export default function GraduationProjectWorkspacePage() {
 
   if (loading || !project) {
     return (
-      <div className="project-workspace-hub flex min-h-screen items-center justify-center bg-gradient-subtle">
+      <div className="project-workspace-hub flex min-h-[50vh] items-center justify-center bg-gradient-subtle">
         <Loader2 className="h-10 w-10 animate-spin text-primary" aria-label="Loading workspace" />
       </div>
     );
@@ -567,167 +521,8 @@ export default function GraduationProjectWorkspacePage() {
   const requiredSkills = project.requiredSkills ?? [];
 
   return (
-    <div className="project-workspace-hub min-h-screen bg-gradient-subtle">
-      {/* App shell top bar (representative — not platform-wide) */}
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-        <div className="container flex h-16 items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-hero text-primary-foreground shadow-soft">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="font-display text-base font-bold tracking-tight">SkillSwap</span>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Workspace
-              </span>
-            </div>
-          </div>
-          <nav className="hidden items-center gap-1 md:flex">
-            <Link
-              to={ROUTES.dashboard}
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-            >
-              Dashboard
-            </Link>
-            {["Projects", "Mentors", "Community"].map((i) => (
-              <button
-                key={i}
-                type="button"
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                {i}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="rounded-lg bg-secondary px-3 py-1.5 text-sm font-semibold text-foreground"
-            >
-              My Graduation Project
-            </button>
-          </nav>
-          <div className="relative flex items-center gap-2">
-            <div ref={notificationsRef} className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative rounded-lg"
-              aria-expanded={notificationsOpen}
-              aria-label="Project notifications"
-              onClick={() => {
-                setNotificationsOpen((o) => !o);
-                setProfileMenuOpen(false);
-              }}
-            >
-              <Bell className="h-4 w-4" />
-              {unreadNotificationCount > 0 && (
-                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                  {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
-                </span>
-              )}
-            </Button>
-            {notificationsOpen && (
-              <Card className="absolute right-0 top-12 z-40 w-[min(100vw-2rem,22rem)] border-border/60 shadow-elevated">
-                <CardContent className="max-h-80 overflow-y-auto p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Project notifications
-                  </p>
-                  {projectNotifications.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-muted-foreground">
-                      No notifications for this project.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {projectNotifications.map((n) => (
-                        <li key={n.id}>
-                          <button
-                            type="button"
-                            className={`w-full rounded-lg border border-border/60 p-2.5 text-left text-sm transition hover:bg-secondary/50 ${n.readAt ? "opacity-70" : ""}`}
-                            onClick={() => {
-                              if (!n.readAt) {
-                                void markGraduationNotificationRead(n.id).then(() => {
-                                  setNotifications((prev) =>
-                                    prev.map((row) =>
-                                      row.id === n.id
-                                        ? { ...row, readAt: new Date().toISOString() }
-                                        : row,
-                                    ),
-                                  );
-                                  setUnreadNotificationCount((c) => Math.max(0, c - 1));
-                                });
-                              }
-                            }}
-                          >
-                            <p className="font-medium text-foreground">{n.title}</p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">{n.body}</p>
-                            <p className="mt-1 text-[10px] text-muted-foreground">
-                              {formatDate(n.createdAt)}
-                            </p>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-            </div>
-            <Button variant="ghost" size="icon" className="rounded-lg" disabled aria-hidden>
-              <Settings className="h-4 w-4" />
-            </Button>
-            <div ref={profileMenuRef} className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full p-0"
-                aria-expanded={profileMenuOpen}
-                aria-haspopup="menu"
-                aria-label="Account menu"
-                onClick={() => {
-                  setProfileMenuOpen((open) => !open);
-                  setNotificationsOpen(false);
-                }}
-              >
-                <Avatar className="h-9 w-9 ring-2 ring-primary/20">
-                  <AvatarFallback className="bg-gradient-hero text-xs font-semibold text-primary-foreground">
-                    {myInitials}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-              {profileMenuOpen && (
-                <Card
-                  className="absolute right-0 top-12 z-40 w-[min(100vw-2rem,12rem)] border-border/60 shadow-elevated"
-                  role="menu"
-                  aria-label="Account"
-                >
-                  <CardContent className="p-1">
-                    <Link
-                      to={ROUTES.profile}
-                      role="menuitem"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
-                      onClick={() => setProfileMenuOpen(false)}
-                    >
-                      <User className="h-4 w-4 text-muted-foreground" aria-hidden />
-                      My Profile
-                    </Link>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/10"
-                      onClick={handleLogout}
-                    >
-                      <LogOut className="h-4 w-4" aria-hidden />
-                      Logout
-                    </button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container space-y-12 py-8 md:py-12">
+    <div className="project-workspace-hub min-h-full bg-gradient-subtle">
+      <main className="container space-y-12 py-6 md:py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Link to={ROUTES.dashboard} className="hover:text-foreground">
@@ -748,25 +543,78 @@ export default function GraduationProjectWorkspacePage() {
             <CardContent className="relative p-6 md:p-10">
               <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="border-0 bg-primary/10 text-primary hover:bg-primary/15">
-                      <Sparkles className="mr-1 h-3 w-3" /> {stageLabel}
-                    </Badge>
-                    <Badge className="border-0 bg-success/10 text-success hover:bg-success/15">
-                      <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-success" /> {statusLabel}
-                    </Badge>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="border-0 bg-primary/10 text-primary hover:bg-primary/15">
+                        <Sparkles className="mr-1 h-3 w-3" /> {stageLabel}
+                      </Badge>
+                      <Badge className="border-0 bg-success/10 text-success hover:bg-success/15">
+                        <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-success" /> {statusLabel}
+                      </Badge>
+                      {isOwner && (
+                        <Badge variant="outline" className="border-border/70 bg-card/70">
+                          <Crown className="mr-1 h-3 w-3 text-warning" /> Owner
+                        </Badge>
+                      )}
+                      <Badge variant="outline" className="border-border/70 bg-card/70">
+                        <Calendar className="mr-1 h-3 w-3" /> {formatDate(project.createdAt)}
+                      </Badge>
+                      {project.lookingForTeammates !== false && (
+                        <Badge variant="outline" className="border-border/70 bg-card/70">
+                          <UserPlus className="mr-1 h-3 w-3" /> Looking for teammates
+                        </Badge>
+                      )}
+                    </div>
                     {isOwner && (
-                      <Badge variant="outline" className="border-border/70 bg-card/70">
-                        <Crown className="mr-1 h-3 w-3 text-warning" /> Owner
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className="border-border/70 bg-card/70">
-                      <Calendar className="mr-1 h-3 w-3" /> {formatDate(project.createdAt)}
-                    </Badge>
-                    {project.lookingForTeammates !== false && (
-                      <Badge variant="outline" className="border-border/70 bg-card/70">
-                        <UserPlus className="mr-1 h-3 w-3" /> Looking for teammates
-                      </Badge>
+                      <div ref={heroActionsMenuRef} className="relative shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg"
+                          aria-expanded={heroActionsMenuOpen}
+                          aria-haspopup="menu"
+                          aria-label="More actions"
+                          onClick={() => setHeroActionsMenuOpen((open) => !open)}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                        {heroActionsMenuOpen && (
+                          <Card
+                            className="absolute right-0 top-11 z-40 w-[min(100vw-2rem,11rem)] border-border/60 shadow-elevated"
+                            role="menu"
+                            aria-label="More actions"
+                          >
+                            <CardContent className="p-1">
+                              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                More Actions
+                              </p>
+                              <Link
+                                to={ROUTES.createGraduationProject}
+                                state={{ editProjectId: project.id }}
+                                role="menuitem"
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
+                                onClick={() => setHeroActionsMenuOpen(false)}
+                              >
+                                <FileText className="h-4 w-4 text-muted-foreground" aria-hidden />
+                                Edit Project
+                              </Link>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/10"
+                                onClick={() => {
+                                  setHeroActionsMenuOpen(false);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                                Delete Project
+                              </button>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -858,27 +706,6 @@ export default function GraduationProjectWorkspacePage() {
                       >
                         <Brain className="mr-2 h-4 w-4 text-primary" /> View AI Matches
                       </Button>
-                    )}
-                    {isOwner && (
-                      <>
-                        <Button size="lg" variant="ghost" className="rounded-xl" asChild>
-                          <Link
-                            to={ROUTES.createGraduationProject}
-                            state={{ editProjectId: project.id }}
-                          >
-                            <FileText className="mr-2 h-4 w-4" /> Edit Project
-                          </Link>
-                        </Button>
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          className="rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10"
-                          type="button"
-                          onClick={() => setDeleteDialogOpen(true)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete Project
-                        </Button>
-                      </>
                     )}
                   </div>
                 </div>

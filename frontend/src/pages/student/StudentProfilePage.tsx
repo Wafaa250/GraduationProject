@@ -394,7 +394,7 @@ export default function StudentProfilePage() {
 
   return (
     <div className="skill-profile-hub">
-      <main className="min-h-screen bg-[var(--gradient-subtle)]">
+      <main className="min-h-full bg-[var(--gradient-subtle)]">
         <div className="h-1.5 w-full bg-[var(--gradient-hero)]" />
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-8">
