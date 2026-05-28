@@ -5,9 +5,13 @@ export type UpdateDoctorProfilePayload = {
   department?: string;
   faculty?: string;
   specialization?: string;
+  university?: string;
+  academicRank?: string;
   yearsOfExperience?: number | null;
   linkedin?: string;
   officeHours?: string;
+  office?: string;
+  phone?: string;
   bio?: string;
   profilePictureBase64?: string | null;
   technicalSkills?: string[];

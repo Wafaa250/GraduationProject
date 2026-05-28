@@ -428,6 +428,10 @@ namespace GraduationProject.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AcademicRank")
+                        .HasColumnType("text")
+                        .HasColumnName("academic_rank");
+
                     b.Property<string>("Bio")
                         .HasColumnType("text")
                         .HasColumnName("bio");
@@ -445,9 +449,17 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("linkedin");
 
+                    b.Property<string>("Office")
+                        .HasColumnType("text")
+                        .HasColumnName("office");
+
                     b.Property<string>("OfficeHours")
                         .HasColumnType("text")
                         .HasColumnName("office_hours");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("text")
+                        .HasColumnName("phone");
 
                     b.Property<string>("ProfilePictureBase64")
                         .HasColumnType("text")

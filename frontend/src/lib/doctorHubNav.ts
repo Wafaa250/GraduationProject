@@ -6,7 +6,6 @@ export const DOCTOR_NAV_ROUTES: Record<string, string> = {
   projects: ROUTES.doctorProjects,
   courses: ROUTES.doctorCourses,
   messages: ROUTES.doctorMessages,
-  notifications: ROUTES.doctorNotifications,
   profile: ROUTES.doctorProfile,
   settings: ROUTES.doctorEditProfile,
 };
@@ -16,7 +15,6 @@ export function doctorNavKeyFromPath(pathname: string): string {
   if (pathname.startsWith("/doctor/projects")) return "projects";
   if (pathname.startsWith("/doctor/courses")) return "courses";
   if (pathname.startsWith("/doctor/messages")) return "messages";
-  if (pathname.startsWith(ROUTES.doctorNotifications)) return "notifications";
   if (pathname === ROUTES.doctorProfile) return "profile";
   if (pathname === ROUTES.doctorEditProfile) return "settings";
   if (pathname === ROUTES.doctorDashboard) return "dashboard";
@@ -27,7 +25,6 @@ export function doctorNavKeyFromPath(pathname: string): string {
 export function doctorHubShowsGlobalSearch(pathname: string): boolean {
   if (pathname === ROUTES.doctorProfile) return false;
   if (pathname === ROUTES.doctorEditProfile) return false;
-  if (pathname.startsWith(ROUTES.doctorNotifications)) return false;
   if (pathname.startsWith(ROUTES.doctorRequests)) return false;
   if (pathname === ROUTES.doctorDashboard) return true;
   if (pathname.startsWith("/doctor/students")) return true;

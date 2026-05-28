@@ -197,22 +197,61 @@ namespace GraduationProject.API.Controllers
 
             var doctor = await GetCurrentDoctorProfileAsync();
             if (doctor == null)
-                return Ok(new { pendingRequestsCount = 0, supervisedCount = 0, pendingCancelCount = 0 }); // Bug 3 fix
+                return Ok(new
+                {
+                    pendingRequestsCount = 0,
+                    supervisedCount = 0,
+                    pendingCancelCount = 0,
+                    supervisedStudentsCount = 0,
+                    completedSupervisionsCount = 0,
+                });
 
             var pendingRequests = await _db.SupervisorRequests
                 .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "pending");
 
-            var supervisedCount = await _db.StudentProjects
-                .CountAsync(p => p.SupervisorId == doctor.Id);
+            var activeProjectIds = await _db.StudentProjects
+                .AsNoTracking()
+                .Where(p => p.SupervisorId == doctor.Id)
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            var supervisedCount = activeProjectIds.Count;
 
             var pendingCancelRequests = await _db.SupervisorCancellationRequests
                 .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "pending");
+
+            var supervisedStudentIds = await _db.StudentProjects
+                .AsNoTracking()
+                .Where(p => p.SupervisorId == doctor.Id)
+                .Select(p => p.OwnerId)
+                .ToListAsync();
+
+            if (activeProjectIds.Count > 0)
+            {
+                var memberStudentIds = await _db.StudentProjectMembers
+                    .AsNoTracking()
+                    .Where(m => activeProjectIds.Contains(m.ProjectId))
+                    .Select(m => m.StudentId)
+                    .ToListAsync();
+                supervisedStudentIds.AddRange(memberStudentIds);
+            }
+
+            var supervisedStudentsCount = supervisedStudentIds.Distinct().Count();
+
+            var completedSupervisionsCount = await _db.SupervisorCancellationRequests
+                .AsNoTracking()
+                .Where(r => r.DoctorId == doctor.Id && r.Status == "accepted")
+                .Select(r => r.ProjectId)
+                .Distinct()
+                .CountAsync();
 
             return Ok(new
             {
                 pendingRequestsCount = pendingRequests,
                 supervisedCount,
-                pendingCancelCount = pendingCancelRequests
+                pendingCancelCount = pendingCancelRequests,
+                supervisedStudentsCount,
+                completedSupervisionsCount,
             });
         }
 

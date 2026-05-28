@@ -10,7 +10,6 @@ import {
   FolderKanban,
   BookOpen,
   MessageCircle,
-  Bell,
   User,
   Settings,
   LogOut,
@@ -20,7 +19,6 @@ import {
 import { getDoctorDashboardSummary } from "@/api/doctorDashboardApi";
 import { getDoctorCourses } from "@/api/doctorCoursesApi";
 import { getConversations, sumConversationUnseen } from "@/api/conversationsApi";
-import { getDoctorNotificationsUnreadCount } from "@/api/notificationsApi";
 import { useDoctorHubProfile } from "./DoctorHubProfileContext";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +28,6 @@ const nav = [
   { key: "projects", label: "Active Projects", icon: FolderKanban, badgeKey: "supervised" },
   { key: "courses", label: "Courses", icon: BookOpen, badgeKey: "courses" },
   { key: "messages", label: "Messages", icon: MessageCircle, badgeKey: "messages" },
-  { key: "notifications", label: "Notifications", icon: Bell, badgeKey: "notifications" },
 ];
 
 const footerNav = [
@@ -49,20 +46,14 @@ export function DoctorHubSidebar() {
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([
-      getDoctorDashboardSummary(),
-      getDoctorCourses(),
-      getConversations(),
-      getDoctorNotificationsUnreadCount(),
-    ])
-      .then(([summary, courses, conversations, notificationCount]) => {
+    void Promise.all([getDoctorDashboardSummary(), getDoctorCourses(), getConversations()])
+      .then(([summary, courses, conversations]) => {
         if (cancelled) return;
         setBadges({
           pendingRequests: summary.pendingRequestsCount,
           supervised: summary.supervisedCount,
           courses: courses.length,
           messages: sumConversationUnseen(conversations),
-          notifications: notificationCount,
         });
       })
       .catch(() => {

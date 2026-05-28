@@ -1,9 +1,6 @@
 import { Bell, MessageSquare } from "lucide-react";
 import { CourseWorkspaceEmptyState } from "@/components/doctor/course-workspace/CourseWorkspaceEmptyState";
 import type { CourseWorkspacePanelProps } from "@/components/doctor/course-workspace/types";
-import { Link } from "react-router-dom";
-import { ROUTES } from "@/routes/paths";
-
 export function CollaborationPanel({ bundle, bundleLoading }: CourseWorkspacePanelProps) {
   if (bundleLoading) {
     return (
@@ -29,15 +26,7 @@ export function CollaborationPanel({ bundle, bundleLoading }: CourseWorkspacePan
       <CourseWorkspaceEmptyState
         icon={MessageSquare}
         title="No recent collaboration activity"
-        description="Course and supervision notifications will appear here when students submit milestones, join teams, or update projects."
-        action={
-          <Link
-            to={ROUTES.doctorNotifications}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Open notifications
-          </Link>
-        }
+        description="Course and supervision updates appear in the notification bell when students submit milestones, join teams, or update projects."
       />
     );
   }
@@ -63,12 +52,6 @@ export function CollaborationPanel({ bundle, bundleLoading }: CourseWorkspacePan
           </li>
         ))}
       </ul>
-      <Link
-        to={ROUTES.doctorNotifications}
-        className="inline-block text-sm font-medium text-primary hover:underline"
-      >
-        View all notifications
-      </Link>
     </div>
   );
 }

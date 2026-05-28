@@ -44,9 +44,12 @@ export type DoctorMeResponse = {
     faculty: string;
     specialization: string;
     university: string;
+    academicRank: string | null;
     yearsOfExperience: number | null;
     linkedin: string | null;
     officeHours: string | null;
+    office: string | null;
+    phone: string | null;
     bio: string | null;
     profilePictureBase64: string | null;
     technicalSkills: string[];

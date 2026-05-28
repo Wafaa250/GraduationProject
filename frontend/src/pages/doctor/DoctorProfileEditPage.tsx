@@ -16,8 +16,12 @@ export default function DoctorProfileEditPage() {
   const [department, setDepartment] = useState("");
   const [faculty, setFaculty] = useState("");
   const [specialization, setSpecialization] = useState("");
+  const [university, setUniversity] = useState("");
+  const [academicRank, setAcademicRank] = useState("");
   const [bio, setBio] = useState("");
   const [linkedin, setLinkedin] = useState("");
+  const [office, setOffice] = useState("");
+  const [phone, setPhone] = useState("");
   const [officeHours, setOfficeHours] = useState("");
   const [yearsOfExperience, setYearsOfExperience] = useState("");
   const [technicalSkills, setTechnicalSkills] = useState("");
@@ -31,8 +35,12 @@ export default function DoctorProfileEditPage() {
         setDepartment(dp?.department ?? "");
         setFaculty(dp?.faculty ?? "");
         setSpecialization(dp?.specialization ?? "");
+        setUniversity(dp?.university ?? "");
+        setAcademicRank(dp?.academicRank ?? "");
         setBio(dp?.bio ?? "");
         setLinkedin(dp?.linkedin ?? "");
+        setOffice(dp?.office ?? "");
+        setPhone(dp?.phone ?? "");
         setOfficeHours(dp?.officeHours ?? "");
         setYearsOfExperience(
           dp?.yearsOfExperience != null ? String(dp.yearsOfExperience) : "",
@@ -64,8 +72,12 @@ export default function DoctorProfileEditPage() {
         department: department.trim(),
         faculty: faculty.trim(),
         specialization: specialization.trim(),
+        university: university.trim(),
+        academicRank: academicRank.trim(),
         bio: bio.trim(),
         linkedin: linkedin.trim() || undefined,
+        office: office.trim(),
+        phone: phone.trim(),
         officeHours: officeHours.trim() || undefined,
         yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : null,
         technicalSkills: split(technicalSkills),
@@ -108,7 +120,11 @@ export default function DoctorProfileEditPage() {
           <Field label="Department" value={department} onChange={setDepartment} />
           <Field label="Faculty" value={faculty} onChange={setFaculty} />
           <Field label="Specialization" value={specialization} onChange={setSpecialization} />
+          <Field label="University" value={university} onChange={setUniversity} />
+          <Field label="Academic rank" value={academicRank} onChange={setAcademicRank} />
           <Field label="Years of experience" value={yearsOfExperience} onChange={setYearsOfExperience} />
+          <Field label="Office" value={office} onChange={setOffice} />
+          <Field label="Phone" value={phone} onChange={setPhone} />
           <Field label="Office hours" value={officeHours} onChange={setOfficeHours} />
           <Field label="LinkedIn" value={linkedin} onChange={setLinkedin} />
           <div>

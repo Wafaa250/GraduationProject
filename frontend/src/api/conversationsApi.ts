@@ -1,10 +1,29 @@
 import api from "./axiosInstance";
 
+export type ConversationUser = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+export type ConversationMessage = {
+  id: number;
+  senderId: number;
+  text: string;
+  createdAt: string;
+  edited: boolean;
+  deleted: boolean;
+  seen: boolean;
+};
+
 export type ConversationListItem = {
   id: number;
   title: string | null;
   courseTeamId: number | null;
+  users: ConversationUser[];
   participantCount: number;
+  otherUser: ConversationUser | null;
+  lastMessage: ConversationMessage | null;
   unseenCount: number;
 };
 
@@ -17,20 +36,13 @@ export function sumConversationUnseen(conversations: ConversationListItem[]): nu
   return conversations.reduce((sum, c) => sum + (c.unseenCount ?? 0), 0);
 }
 
-export type ConversationMessage = {
-  id: number;
-  conversationId: number;
-  senderId: number;
-  text: string;
-  sentAt: string;
-  editedAt: string | null;
-  isMine: boolean;
-};
-
 export type ConversationDetails = {
   id: number;
   title: string | null;
-  users: { userId: number; name: string }[];
+  courseTeamId: number | null;
+  participantCount: number;
+  createdAt: string;
+  users: ConversationUser[];
   messages: ConversationMessage[];
 };
 

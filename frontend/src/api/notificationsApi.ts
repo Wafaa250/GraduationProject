@@ -7,6 +7,7 @@ export type GraduationNotification = {
   body: string;
   eventType: string;
   projectId: number | null;
+  dedupKey?: string | null;
   createdAt: string;
   readAt: string | null;
 };
@@ -66,4 +67,19 @@ export async function getDoctorNotificationsForActivity(
 /** POST /api/notifications/{id}/read */
 export async function markGraduationNotificationRead(id: number): Promise<void> {
   await api.post(`/notifications/${id}/read`);
+}
+
+/** POST /api/notifications/read-all — all doctor hub notification categories. */
+export async function markDoctorNotificationsAllRead(): Promise<number> {
+  const results = await Promise.all(
+    DOCTOR_ACTIVITY_CATEGORIES.map((category) =>
+      api
+        .post<{ marked: number }>("/notifications/read-all", null, {
+          params: { category },
+        })
+        .then((res) => (typeof res.data?.marked === "number" ? res.data.marked : 0))
+        .catch(() => 0),
+    ),
+  );
+  return results.reduce((sum, n) => sum + n, 0);
 }

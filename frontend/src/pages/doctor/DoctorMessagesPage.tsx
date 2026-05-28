@@ -1,23 +1,31 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { Loader2, Send } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   getConversations,
   getConversationById,
   sendMessage,
   markConversationSeen,
-  type ConversationListItem,
   type ConversationDetails,
+  type ConversationListItem,
 } from "@/api/conversationsApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
-import { DoctorHubPageHeader } from "@/components/doctor/hub/DoctorHubPageHeader";
 import { doctorMessageThreadPath } from "@/routes/paths";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { useDoctorHubProfile } from "@/components/doctor/hub/DoctorHubProfileContext";
+import {
+  DoctorMessagesConversationList,
+  type DoctorMessagesFilter,
+} from "@/components/doctor/messages/DoctorMessagesConversationList";
+import { DoctorMessagesThread } from "@/components/doctor/messages/DoctorMessagesThread";
+import {
+  getDoctorStudentProfilePath,
+  resolveDoctorTeamWorkspacePath,
+} from "@/lib/doctorMessagesNavigation";
 
 export default function DoctorMessagesPage() {
   const { conversationId: idParam } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
+  const profile = useDoctorHubProfile();
   const selectedId = idParam ? Number(idParam) : null;
 
   const [loadingList, setLoadingList] = useState(true);
@@ -26,6 +34,9 @@ export default function DoctorMessagesPage() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<DoctorMessagesFilter>("all");
+  const [resolvingTeamLink, setResolvingTeamLink] = useState(false);
 
   const loadList = useCallback(async () => {
     setLoadingList(true);
@@ -37,28 +48,33 @@ export default function DoctorMessagesPage() {
         title: "Could not load conversations",
         description: parseApiErrorMessage(err),
       });
+      setConversations([]);
     } finally {
       setLoadingList(false);
     }
   }, []);
 
-  const loadThread = useCallback(async (id: number) => {
-    setLoadingThread(true);
-    try {
-      const details = await getConversationById(id);
-      setThread(details);
-      await markConversationSeen(id).catch(() => undefined);
-      void loadList();
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Could not load conversation",
-        description: parseApiErrorMessage(err),
-      });
-    } finally {
-      setLoadingThread(false);
-    }
-  }, [loadList]);
+  const loadThread = useCallback(
+    async (id: number) => {
+      setLoadingThread(true);
+      try {
+        const details = await getConversationById(id);
+        setThread(details);
+        await markConversationSeen(id).catch(() => undefined);
+        void loadList();
+      } catch (err) {
+        setThread(null);
+        toast({
+          variant: "destructive",
+          title: "Could not load conversation",
+          description: parseApiErrorMessage(err),
+        });
+      } finally {
+        setLoadingThread(false);
+      }
+    },
+    [loadList],
+  );
 
   useEffect(() => {
     void loadList();
@@ -66,11 +82,16 @@ export default function DoctorMessagesPage() {
 
   useEffect(() => {
     if (selectedId && Number.isFinite(selectedId)) {
+      setThread(null);
       void loadThread(selectedId);
     } else {
       setThread(null);
     }
   }, [selectedId, loadThread]);
+
+  const handleSelectConversation = (id: number) => {
+    navigate(doctorMessageThreadPath(id));
+  };
 
   const handleSend = async () => {
     const text = draft.trim();
@@ -91,109 +112,73 @@ export default function DoctorMessagesPage() {
     }
   };
 
-  return (
-    <main className="flex-1 bg-gradient-mesh">
-      <div className="px-5 lg:px-8 py-5 max-w-5xl mx-auto">
-        <DoctorHubPageHeader title="Messages" description="Team and direct conversations" />
-        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 min-h-[480px]">
-          <div className="rounded-2xl border border-border bg-white shadow-card overflow-hidden">
-            {loadingList ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : conversations.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground text-center">No conversations yet.</p>
-            ) : (
-              <ul className="divide-y divide-border max-h-[520px] overflow-y-auto">
-                {conversations.map((c) => (
-                  <li key={c.id}>
-                    <Link
-                      to={doctorMessageThreadPath(c.id)}
-                      className={cn(
-                        "block px-4 py-3 hover:bg-primary/5 transition-smooth",
-                        selectedId === c.id && "bg-primary/10",
-                      )}
-                    >
-                      <div className="flex justify-between gap-2">
-                        <span className="text-sm font-semibold text-foreground truncate">
-                          {c.title || `Conversation #${c.id}`}
-                        </span>
-                        {c.unseenCount > 0 && (
-                          <span className="shrink-0 rounded-full bg-primary px-1.5 min-w-[20px] text-center text-[10px] font-bold text-primary-foreground">
-                            {c.unseenCount}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {c.participantCount} participants
-                      </p>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+  const handleViewTeam = async () => {
+    const teamId = thread?.courseTeamId;
+    if (teamId == null) return;
+    setResolvingTeamLink(true);
+    try {
+      const path = await resolveDoctorTeamWorkspacePath(teamId);
+      if (path) {
+        navigate(path);
+        return;
+      }
+      toast({
+        title: "Team workspace unavailable",
+        description: "Open this team from the course project workspace in Courses.",
+      });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Could not open team",
+        description: parseApiErrorMessage(err),
+      });
+    } finally {
+      setResolvingTeamLink(false);
+    }
+  };
 
-          <div className="rounded-2xl border border-border bg-white shadow-card flex flex-col min-h-[480px]">
-            {!selectedId ? (
-              <p className="m-auto text-sm text-muted-foreground p-8">Select a conversation</p>
-            ) : loadingThread ? (
-              <div className="flex justify-center items-center flex-1">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : thread ? (
-              <>
-                <div className="px-4 py-3 border-b border-border font-semibold text-foreground">
-                  {thread.title || `Conversation #${thread.id}`}
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[380px]">
-                  {(thread.messages ?? []).map((m) => (
-                    <div
-                      key={m.id}
-                      className={cn(
-                        "max-w-[85%] rounded-xl px-3 py-2 text-sm",
-                        m.isMine
-                          ? "ml-auto bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground",
-                      )}
-                    >
-                      {m.text}
-                    </div>
-                  ))}
-                </div>
-                <div className="p-3 border-t border-border flex gap-2">
-                  <input
-                    className="flex-1 h-10 rounded-lg border border-border px-3 text-sm"
-                    placeholder="Write a message…"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        void handleSend();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    disabled={sending || !draft.trim()}
-                    className="h-10 w-10 rounded-lg bg-primary text-primary-foreground grid place-items-center disabled:opacity-50"
-                    onClick={() => void handleSend()}
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                </div>
-              </>
-            ) : null}
-          </div>
-        </div>
-        {!idParam && conversations.length > 0 && (
-          <button
-            type="button"
-            className="sr-only"
-            onClick={() => navigate(doctorMessageThreadPath(conversations[0].id))}
+  const handleViewStudent = () => {
+    if (!thread) return;
+    const path = getDoctorStudentProfilePath(thread, profile.userId);
+    if (path) navigate(path);
+  };
+
+  return (
+    <main className="flex min-h-full flex-1 flex-col bg-gradient-mesh">
+      <div className="mx-auto flex w-full max-w-7xl min-h-0 flex-1 flex-col px-5 py-5 lg:px-8 lg:py-6">
+        <header className="mb-6 shrink-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Messages</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Communicate with supervised students and course teams.
+          </p>
+        </header>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-10 md:min-h-[calc(100vh-11rem)]">
+          <DoctorMessagesConversationList
+            loading={loadingList}
+            conversations={conversations}
+            selectedId={selectedId}
+            currentUserId={profile.userId}
+            query={query}
+            filter={filter}
+            onQueryChange={setQuery}
+            onFilterChange={setFilter}
+            onSelect={handleSelectConversation}
           />
-        )}
+
+          <DoctorMessagesThread
+            loading={loadingThread && selectedId != null}
+            thread={selectedId != null ? thread : null}
+            currentUserId={profile.userId}
+            draft={draft}
+            sending={sending}
+            resolvingTeamLink={resolvingTeamLink}
+            onDraftChange={setDraft}
+            onSend={() => void handleSend()}
+            onViewTeam={() => void handleViewTeam()}
+            onViewStudent={handleViewStudent}
+          />
+        </div>
       </div>
     </main>
   );

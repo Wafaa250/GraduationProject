@@ -1,11 +1,22 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Pencil, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getDoctorMe } from "@/api/meApi";
+import { getDoctorDashboardSummary } from "@/api/doctorDashboardApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
-import { DoctorHubPageHeader } from "@/components/doctor/hub/DoctorHubPageHeader";
-import { ROUTES } from "@/routes/paths";
+import { DoctorProfileHeader } from "@/components/doctor/profile/DoctorProfileHeader";
+import {
+  DoctorProfileField,
+  DoctorProfileSection,
+} from "@/components/doctor/profile/DoctorProfileSection";
+import { DoctorProfileSupervisionSummary } from "@/components/doctor/profile/DoctorProfileSupervisionSummary";
+import { DoctorProfileExpertiseTags } from "@/components/doctor/profile/DoctorProfileExpertiseTags";
 import { toast } from "@/hooks/use-toast";
+
+function profilePhotoUrl(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  return trimmed.startsWith("data:") ? trimmed : `data:image/jpeg;base64,${trimmed}`;
+}
 
 export default function DoctorProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -14,107 +25,114 @@ export default function DoctorProfilePage() {
   const [department, setDepartment] = useState("");
   const [faculty, setFaculty] = useState("");
   const [specialization, setSpecialization] = useState("");
-  const [bio, setBio] = useState("");
+  const [university, setUniversity] = useState("");
+  const [academicRank, setAcademicRank] = useState("");
+  const [office, setOffice] = useState("");
+  const [phone, setPhone] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [technicalSkills, setTechnicalSkills] = useState<string[]>([]);
   const [researchSkills, setResearchSkills] = useState<string[]>([]);
+  const [supervisedStudents, setSupervisedStudents] = useState(0);
+  const [activeProjects, setActiveProjects] = useState(0);
+  const [completedProjects, setCompletedProjects] = useState(0);
 
   useEffect(() => {
-    void getDoctorMe()
-      .then((me) => {
+    let cancelled = false;
+    setLoading(true);
+
+    void Promise.all([getDoctorMe(), getDoctorDashboardSummary()])
+      .then(([me, summary]) => {
+        if (cancelled) return;
         setName(me.user?.name ?? "");
         setEmail(me.user?.email ?? "");
         const dp = me.doctorProfile;
         setDepartment(dp?.department ?? "");
         setFaculty(dp?.faculty ?? "");
         setSpecialization(dp?.specialization ?? "");
-        setBio(dp?.bio ?? "");
+        setUniversity(dp?.university ?? "");
+        setAcademicRank(dp?.academicRank ?? "");
+        setOffice(dp?.office ?? "");
+        setPhone(dp?.phone ?? "");
         setTechnicalSkills(dp?.technicalSkills ?? []);
         setResearchSkills(dp?.researchSkills ?? []);
-        const raw = dp?.profilePictureBase64?.trim() || me.user?.profilePictureBase64?.trim();
-        if (raw) setPhoto(raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`);
+        setPhoto(
+          profilePhotoUrl(dp?.profilePictureBase64) ??
+            profilePhotoUrl(me.user?.profilePictureBase64),
+        );
+        setActiveProjects(summary.supervisedCount);
+        setSupervisedStudents(summary.supervisedStudentsCount);
+        setCompletedProjects(summary.completedSupervisionsCount);
       })
       .catch((err) => {
+        if (cancelled) return;
         toast({
           variant: "destructive",
           title: "Could not load profile",
           description: parseApiErrorMessage(err),
         });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
     return (
-      <main className="flex-1 flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <main className="flex min-h-[40vh] flex-1 items-center justify-center bg-gradient-mesh">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" aria-label="Loading profile" />
       </main>
     );
   }
 
   return (
     <main className="flex-1 bg-gradient-mesh">
-      <div className="px-5 lg:px-8 py-5 max-w-3xl mx-auto">
-        <DoctorHubPageHeader title="My Profile" description="Your SkillSwap faculty profile" />
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-card space-y-6">
-          <div className="flex items-start gap-4">
-            {photo ? (
-              <img src={photo} alt="" className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/20" />
-            ) : (
-              <div className="h-20 w-20 rounded-full bg-gradient-primary grid place-items-center text-lg font-bold text-primary-foreground">
-                {name.slice(0, 2).toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-bold text-foreground">{name}</h2>
-              <p className="text-sm text-muted-foreground">{email}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {specialization}
-                {department ? ` · ${department}` : ""}
-                {faculty ? ` · ${faculty}` : ""}
-              </p>
-            </div>
-            <Link
-              to={ROUTES.doctorEditProfile}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:brightness-110"
-            >
-              <Pencil className="h-4 w-4" /> Edit
-            </Link>
-          </div>
-          {bio && (
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                Bio
-              </h3>
-              <p className="text-sm text-foreground/90">{bio}</p>
-            </div>
-          )}
-          {technicalSkills.length > 0 && (
-            <SkillBlock title="Technical skills" skills={technicalSkills} />
-          )}
-          {researchSkills.length > 0 && <SkillBlock title="Research skills" skills={researchSkills} />}
-        </div>
+      <div className="mx-auto max-w-4xl space-y-6 px-5 py-5 lg:px-8 lg:py-6">
+        <header className="sr-only">
+          <h1>My Profile</h1>
+        </header>
+
+        <DoctorProfileHeader
+          name={name}
+          email={email}
+          faculty={faculty}
+          department={department}
+          specialization={specialization}
+          photoUrl={photo}
+        />
+
+        <DoctorProfileSection title="Academic Information">
+          <dl className="space-y-4">
+            <DoctorProfileField label="Faculty" value={faculty} />
+            <DoctorProfileField label="Department" value={department} />
+            <DoctorProfileField label="Academic rank" value={academicRank} />
+            <DoctorProfileField label="Specialization" value={specialization} />
+            <DoctorProfileField label="University" value={university} />
+          </dl>
+        </DoctorProfileSection>
+
+        <DoctorProfileSupervisionSummary
+          supervisedStudents={supervisedStudents}
+          activeProjects={activeProjects}
+          completedProjects={completedProjects}
+        />
+
+        <DoctorProfileExpertiseTags
+          technicalSkills={technicalSkills}
+          researchSkills={researchSkills}
+        />
+
+        <DoctorProfileSection title="Contact Information">
+          <dl className="space-y-4">
+            <DoctorProfileField label="Email" value={email} />
+            <DoctorProfileField label="Office" value={office} />
+            <DoctorProfileField label="Phone" value={phone} />
+          </dl>
+        </DoctorProfileSection>
       </div>
     </main>
-  );
-}
-
-function SkillBlock({ title, skills }: { title: string; skills: string[] }) {
-  return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-        {title}
-      </h3>
-      <div className="flex flex-wrap gap-1.5">
-        {skills.map((s) => (
-          <span
-            key={s}
-            className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium border border-border"
-          >
-            {s}
-          </span>
-        ))}
-      </div>
-    </div>
   );
 }

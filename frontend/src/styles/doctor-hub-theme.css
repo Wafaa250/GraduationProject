@@ -45,6 +45,10 @@
 
   --radius: 0.85rem;
 
+  --faculty-bubble: 263 55% 96%;
+  --announcement: 268 60% 97%;
+  --announcement-border: 263 50% 82%;
+
   --sidebar-bg: 0 0% 100%;
   --sidebar-bg-2: 270 45% 98.5%;
   --sidebar-fg: 240 25% 12%;

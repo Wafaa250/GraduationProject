@@ -12,7 +12,6 @@ import GraduationProjectWorkspacePage from "@/pages/student/GraduationProjectWor
 import DoctorDashboardPage from "@/pages/doctor/DoctorDashboardPage";
 import DoctorProfilePage from "@/pages/doctor/DoctorProfilePage";
 import DoctorProfileEditPage from "@/pages/doctor/DoctorProfileEditPage";
-import DoctorNotificationsPage from "@/pages/doctor/DoctorNotificationsPage";
 import DoctorMessagesPage from "@/pages/doctor/DoctorMessagesPage";
 import DoctorSupervisionRequestsPage from "@/pages/doctor/DoctorSupervisionRequestsPage";
 import DoctorProjectsPage from "@/pages/doctor/DoctorProjectsPage";
@@ -63,7 +62,7 @@ export function AppRouter() {
           <Route path={ROUTES.doctorDashboard} element={<DoctorDashboardPage />} />
           <Route path={ROUTES.doctorProfile} element={<DoctorProfilePage />} />
           <Route path={ROUTES.doctorEditProfile} element={<DoctorProfileEditPage />} />
-          <Route path={ROUTES.doctorNotifications} element={<DoctorNotificationsPage />} />
+          <Route path="/doctor/notifications" element={<Navigate to={ROUTES.doctorDashboard} replace />} />
           <Route path={ROUTES.doctorMessages} element={<DoctorMessagesPage />} />
           <Route path={ROUTES.doctorMessageThread} element={<DoctorMessagesPage />} />
           <Route path={ROUTES.doctorRequests} element={<DoctorSupervisionRequestsPage />} />

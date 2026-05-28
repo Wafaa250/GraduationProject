@@ -42,6 +42,7 @@ namespace GraduationProject.API.Controllers
                     n.Body,
                     n.EventType,
                     n.ProjectId,
+                    n.DedupKey,
                     n.CreatedAt,
                     n.ReadAt,
                 })

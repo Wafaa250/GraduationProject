@@ -65,6 +65,15 @@ namespace GraduationProject.API.Models
         [Column("office_hours")]
         public string? OfficeHours { get; set; }
 
+        [Column("office")]
+        public string? Office { get; set; }
+
+        [Column("phone")]
+        public string? Phone { get; set; }
+
+        [Column("academic_rank")]
+        public string? AcademicRank { get; set; }
+
         [Column("technical_skills")]
         public string? TechnicalSkills { get; set; }
 

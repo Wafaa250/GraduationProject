@@ -4,6 +4,8 @@ export type DoctorDashboardSummary = {
   pendingRequestsCount: number;
   supervisedCount: number;
   pendingCancelCount: number;
+  supervisedStudentsCount: number;
+  completedSupervisionsCount: number;
 };
 
 export type DoctorSupervisorRequestMember = {
@@ -94,6 +96,8 @@ export async function getDoctorDashboardSummary(): Promise<DoctorDashboardSummar
     pendingRequestsCount: data?.pendingRequestsCount ?? 0,
     supervisedCount: data?.supervisedCount ?? 0,
     pendingCancelCount: data?.pendingCancelCount ?? 0,
+    supervisedStudentsCount: data?.supervisedStudentsCount ?? 0,
+    completedSupervisionsCount: data?.completedSupervisionsCount ?? 0,
   };
 }
 

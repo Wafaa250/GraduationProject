@@ -64,10 +64,14 @@ namespace GraduationProject.API.DTOs
         public string? Department { get; set; }
         public string? Faculty { get; set; }
         public string? Specialization { get; set; }
+        public string? University { get; set; }
+        public string? AcademicRank { get; set; }
 
         public int? YearsOfExperience { get; set; }
         public string? Linkedin { get; set; }
         public string? OfficeHours { get; set; }
+        public string? Office { get; set; }
+        public string? Phone { get; set; }
 
         public string? Bio { get; set; }
         public string? ProfilePictureBase64 { get; set; }

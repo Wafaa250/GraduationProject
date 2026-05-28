@@ -94,11 +94,15 @@ namespace GraduationProject.API.Controllers
             if (dto.Department != null) profile.Department = dto.Department;
             if (dto.Faculty != null) profile.Faculty = dto.Faculty;
             if (dto.Specialization != null) profile.Specialization = dto.Specialization;
+            if (dto.University != null) profile.University = dto.University;
+            if (dto.AcademicRank != null) profile.AcademicRank = dto.AcademicRank;
 
             // New fields
             if (dto.YearsOfExperience != null) profile.YearsOfExperience = dto.YearsOfExperience;
             if (dto.Linkedin != null) profile.Linkedin = dto.Linkedin;
             if (dto.OfficeHours != null) profile.OfficeHours = dto.OfficeHours;
+            if (dto.Office != null) profile.Office = dto.Office;
+            if (dto.Phone != null) profile.Phone = dto.Phone;
 
             if (dto.Bio != null) profile.Bio = dto.Bio;
             if (dto.ProfilePictureBase64 != null)

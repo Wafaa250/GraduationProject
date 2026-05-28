@@ -18,7 +18,6 @@ export const ROUTES = {
   doctorDashboard: "/doctor/dashboard",
   doctorProfile: "/doctor/profile",
   doctorEditProfile: "/doctor/edit-profile",
-  doctorNotifications: "/doctor/notifications",
   doctorMessages: "/doctor/messages",
   doctorMessageThread: "/doctor/messages/:conversationId",
   doctorRequests: "/doctor/requests",
