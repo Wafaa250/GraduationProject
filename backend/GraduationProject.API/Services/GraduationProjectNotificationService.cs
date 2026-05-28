@@ -939,6 +939,90 @@ namespace GraduationProject.API.Services
             }
         }
 
+        public async Task NotifyMilestoneCreatedAsync(
+            int projectId,
+            string projectName,
+            int milestoneId,
+            string milestoneTitle,
+            int actorUserId,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetProjectMemberUserIdsAsync(projectId, ct);
+            recipients.Remove(actorUserId);
+
+            var title = "New project milestone";
+            var body = $"\"{milestoneTitle}\" was added to \"{projectName}\".";
+            await AddManyWithDedupAsync(
+                recipients,
+                "milestone_created",
+                projectId,
+                title,
+                body,
+                milestoneId,
+                "created",
+                ct);
+        }
+
+        public async Task NotifyMilestoneStatusChangedAsync(
+            int projectId,
+            string projectName,
+            int milestoneId,
+            string milestoneTitle,
+            string newStatus,
+            int actorUserId,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetProjectMemberUserIdsAsync(projectId, ct);
+            recipients.Remove(actorUserId);
+
+            var normalized = newStatus.Trim();
+            var eventType = normalized.Equals("Completed", StringComparison.OrdinalIgnoreCase)
+                ? "milestone_completed"
+                : "milestone_status_changed";
+
+            var title = normalized.Equals("Completed", StringComparison.OrdinalIgnoreCase)
+                ? "Milestone completed"
+                : "Milestone status updated";
+
+            var body = normalized.Equals("Completed", StringComparison.OrdinalIgnoreCase)
+                ? $"\"{milestoneTitle}\" on \"{projectName}\" was marked completed."
+                : $"\"{milestoneTitle}\" on \"{projectName}\" is now {normalized}.";
+
+            await AddManyWithDedupAsync(
+                recipients,
+                eventType,
+                projectId,
+                title,
+                body,
+                milestoneId,
+                normalized.ToLowerInvariant(),
+                ct);
+        }
+
+        public async Task NotifyMilestoneDeletedAsync(
+            int projectId,
+            string projectName,
+            int milestoneId,
+            string milestoneTitle,
+            int actorUserId,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetProjectMemberUserIdsAsync(projectId, ct);
+            recipients.Remove(actorUserId);
+
+            var title = "Milestone removed";
+            var body = $"\"{milestoneTitle}\" was removed from \"{projectName}\".";
+            await AddManyWithDedupAsync(
+                recipients,
+                "milestone_deleted",
+                projectId,
+                title,
+                body,
+                milestoneId,
+                "deleted",
+                ct);
+        }
+
         public async Task MarkChatScopeReadAsync(int userId, string scope, CancellationToken ct = default)
         {
             if (userId <= 0 || string.IsNullOrWhiteSpace(scope))
@@ -958,6 +1042,48 @@ namespace GraduationProject.API.Services
 
             await _db.SaveChangesAsync(ct);
         }
+        private async Task AddManyWithDedupAsync(
+            IEnumerable<int> userIds,
+            string eventType,
+            int? projectId,
+            string title,
+            string body,
+            int milestoneId,
+            string dedupSuffix,
+            CancellationToken ct)
+        {
+            var now = DateTime.UtcNow;
+            var list = userIds.Distinct().ToList();
+            if (list.Count == 0) return;
+
+            var toAdd = new List<UserNotification>(list.Count);
+            foreach (var userId in list)
+            {
+                var dedupKey = $"gp:milestone:{milestoneId}:{dedupSuffix}:{userId}";
+                if (await ShouldSkipDedupAsync(userId, dedupKey, ct))
+                    continue;
+
+                toAdd.Add(new UserNotification
+                {
+                    UserId = userId,
+                    Category = Category,
+                    EventType = eventType,
+                    ProjectId = projectId,
+                    Title = title,
+                    Body = body,
+                    DedupKey = dedupKey,
+                    CreatedAt = now,
+                    ReadAt = null,
+                });
+            }
+
+            if (toAdd.Count == 0) return;
+
+            _db.UserNotifications.AddRange(toAdd);
+            await _db.SaveChangesAsync(ct);
+            await PushRealtimeBatchAsync(toAdd, ct);
+        }
+
         private async Task TryAddAsync(
             int userId,
             string eventType,

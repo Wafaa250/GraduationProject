@@ -42,6 +42,7 @@ export type GradProject = {
   supervisor?: GradProjectSupervisor | null;
   members: GradProjectMember[];
   createdAt?: string;
+  updatedAt?: string;
 };
 
 export type CreateGraduationProjectPayload = {

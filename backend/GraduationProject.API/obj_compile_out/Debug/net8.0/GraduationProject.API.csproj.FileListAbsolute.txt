@@ -1,0 +1,8 @@
+C:\Users\Msys\GraduationProject\backend\GraduationProject.API\obj_compile_out\Debug\net8.0\GraduationProject.API.csproj.AssemblyReference.cache
+C:\Users\Msys\GraduationProject\backend\GraduationProject.API\obj_compile_out\Debug\net8.0\GraduationProject.API.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Msys\GraduationProject\backend\GraduationProject.API\obj_compile_out\Debug\net8.0\GraduationProject.API.AssemblyInfoInputs.cache
+C:\Users\Msys\GraduationProject\backend\GraduationProject.API\obj_compile_out\Debug\net8.0\GraduationProject.API.AssemblyInfo.cs
+C:\Users\Msys\GraduationProject\backend\GraduationProject.API\obj_compile_out\Debug\net8.0\GraduationProject.API.csproj.CoreCompileInputs.cache
+C:\Users\Msys\GraduationProject\backend\GraduationProject.API\obj_compile_out\Debug\net8.0\GraduationProject.API.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\Msys\GraduationProject\backend\GraduationProject.API\obj_compile_out\Debug\net8.0\GraduationProject.API.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\Msys\GraduationProject\backend\GraduationProject.API\obj_compile_out\Debug\net8.0\GraduationProject.API.sourcelink.json

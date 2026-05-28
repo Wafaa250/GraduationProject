@@ -64,6 +64,7 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICompanyTalentMatchService, CompanyTalentMatchService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddScoped<IRosterStudentIdExtractor, RosterStudentIdExtractor>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
 builder.Services.AddHttpClient<IRecruitmentApplicantAnalysisService, OpenAiRecruitmentApplicantAnalysisService>();
 builder.Services.AddScoped<IRecruitmentApplicationWorkflowService, RecruitmentApplicationWorkflowService>();

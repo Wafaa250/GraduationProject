@@ -19,6 +19,8 @@ import DoctorProjectsPage from "@/pages/doctor/DoctorProjectsPage";
 import DoctorProjectDetailPage from "@/pages/doctor/DoctorProjectDetailPage";
 import DoctorCoursesPage from "@/pages/doctor/DoctorCoursesPage";
 import DoctorCourseDetailPage from "@/pages/doctor/DoctorCourseDetailPage";
+import DoctorSectionDetailPage from "@/pages/doctor/DoctorSectionDetailPage";
+import DoctorCourseProjectDetailPage from "@/pages/doctor/DoctorCourseProjectDetailPage";
 import DoctorStudentProfilePage from "@/pages/doctor/DoctorStudentProfilePage";
 import { LandingPage } from "@/pages/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
@@ -69,6 +71,8 @@ export function AppRouter() {
           <Route path={ROUTES.doctorProjectDetail} element={<DoctorProjectDetailPage />} />
           <Route path={ROUTES.doctorCourses} element={<DoctorCoursesPage />} />
           <Route path={ROUTES.doctorCourseDetail} element={<DoctorCourseDetailPage />} />
+          <Route path={ROUTES.doctorSectionDetail} element={<DoctorSectionDetailPage />} />
+          <Route path={ROUTES.doctorCourseProjectDetail} element={<DoctorCourseProjectDetailPage />} />
           <Route path={ROUTES.doctorStudentProfile} element={<DoctorStudentProfilePage />} />
         </Route>
 

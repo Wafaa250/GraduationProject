@@ -6,12 +6,15 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const headers = AxiosHeaders.from(config.headers ?? {});
+  if (config.data instanceof FormData) {
+    headers.delete("Content-Type");
+  }
   const token = localStorage.getItem("token");
   if (token) {
-    const headers = AxiosHeaders.from(config.headers ?? {});
     headers.set("Authorization", `Bearer ${token}`);
-    config.headers = headers;
   }
+  config.headers = headers;
   return config;
 });
 

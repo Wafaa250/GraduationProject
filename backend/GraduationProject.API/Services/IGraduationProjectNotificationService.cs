@@ -272,6 +272,31 @@ namespace GraduationProject.API.Services
             int studentProfileId,
             string positionRoleTitle,
             CancellationToken ct = default);
+
+        Task NotifyMilestoneCreatedAsync(
+            int projectId,
+            string projectName,
+            int milestoneId,
+            string milestoneTitle,
+            int actorUserId,
+            CancellationToken ct = default);
+
+        Task NotifyMilestoneStatusChangedAsync(
+            int projectId,
+            string projectName,
+            int milestoneId,
+            string milestoneTitle,
+            string newStatus,
+            int actorUserId,
+            CancellationToken ct = default);
+
+        Task NotifyMilestoneDeletedAsync(
+            int projectId,
+            string projectName,
+            int milestoneId,
+            string milestoneTitle,
+            int actorUserId,
+            CancellationToken ct = default);
     }
 }
 

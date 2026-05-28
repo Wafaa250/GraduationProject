@@ -26,6 +26,9 @@ export const ROUTES = {
   doctorProjectDetail: "/doctor/projects/:projectId",
   doctorCourses: "/doctor/courses",
   doctorCourseDetail: "/doctor/courses/:courseId",
+  doctorSectionDetail: "/doctor/courses/:courseId/sections/:sectionId",
+  doctorCourseProjectDetail:
+    "/doctor/courses/:courseId/sections/:sectionId/projects/:projectId",
   doctorStudentProfile: "/doctor/students/:userId",
 } as const;
 
@@ -39,6 +42,18 @@ export function doctorProjectPath(projectId: number) {
 
 export function doctorCoursePath(courseId: number) {
   return `/doctor/courses/${courseId}`;
+}
+
+export function doctorSectionPath(courseId: number, sectionId: number) {
+  return `/doctor/courses/${courseId}/sections/${sectionId}`;
+}
+
+export function doctorCourseProjectPath(
+  courseId: number,
+  sectionId: number,
+  projectId: number,
+) {
+  return `/doctor/courses/${courseId}/sections/${sectionId}/projects/${projectId}`;
 }
 
 export function doctorMessageThreadPath(conversationId: number) {

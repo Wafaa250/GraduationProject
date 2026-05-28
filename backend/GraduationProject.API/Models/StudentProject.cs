@@ -59,6 +59,28 @@ namespace GraduationProject.API.Models
         public ICollection<ProjectInvitation> Invitations { get; set; } = new List<ProjectInvitation>();
         public ICollection<SupervisorRequest> SupervisorRequests { get; set; } = new List<SupervisorRequest>();
         public ICollection<SupervisorCancellationRequest> SupervisorCancellationRequests { get; set; } = new List<SupervisorCancellationRequest>();
+        public ICollection<ProjectMilestone> Milestones { get; set; } = new List<ProjectMilestone>();
+    }
+
+    public enum MilestoneStatus
+    {
+        Pending = 0,
+        InProgress = 1,
+        Completed = 2
+    }
+
+    [Table("graduation_project_milestones")]
+    public class ProjectMilestone
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("project_id")] public int ProjectId { get; set; }
+        [Column("title")] public string Title { get; set; } = string.Empty;
+        [Column("description")] public string? Description { get; set; }
+        [Column("due_date")] public DateTime? DueDate { get; set; }
+        [Column("status")] public MilestoneStatus Status { get; set; } = MilestoneStatus.Pending;
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public StudentProject Project { get; set; } = null!;
     }
 
     [Table("graduation_project_members")]

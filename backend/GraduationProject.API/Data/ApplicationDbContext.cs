@@ -42,6 +42,7 @@ namespace GraduationProject.API.Data
         // ── Student Graduation Projects ──────────────────────────────────────
         public DbSet<StudentProject> StudentProjects => Set<StudentProject>();
         public DbSet<StudentProjectMember> StudentProjectMembers => Set<StudentProjectMember>();
+        public DbSet<ProjectMilestone> ProjectMilestones => Set<ProjectMilestone>();
         public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
         public DbSet<SupervisorRequest> SupervisorRequests => Set<SupervisorRequest>();
         public DbSet<SupervisorCancellationRequest> SupervisorCancellationRequests => Set<SupervisorCancellationRequest>();
@@ -371,6 +372,25 @@ namespace GraduationProject.API.Data
                  .WithMany()
                  .HasForeignKey(m => m.StudentId)
                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ProjectMilestone>(e =>
+            {
+                e.ToTable("graduation_project_milestones");
+                e.HasKey(m => m.Id);
+                e.Property(m => m.Title).IsRequired().HasMaxLength(200);
+                e.Property(m => m.Description).HasMaxLength(2000);
+                e.Property(m => m.Status)
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .HasDefaultValue(MilestoneStatus.Pending)
+                    .IsRequired();
+                e.HasIndex(m => new { m.ProjectId, m.DueDate })
+                    .HasDatabaseName("ix_project_milestones_project_due_date");
+                e.HasOne(m => m.Project)
+                    .WithMany(p => p.Milestones)
+                    .HasForeignKey(m => m.ProjectId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ── PROJECT INVITATIONS ───────────────────────────────────────────
