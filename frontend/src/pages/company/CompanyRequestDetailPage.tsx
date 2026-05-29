@@ -20,8 +20,10 @@ import {
 } from "@/api/companyApi";
 import {
   formatRequestDuration,
-  requestStatusBadgeClass,
-  requestStatusLabel,
+  getRequestLifecycleStatus,
+  isRequestViewOnly,
+  requestLifecycleStatusBadgeClass,
+  requestLifecycleStatusLabel,
   requestTypeLabel,
 } from "@/lib/companyRequestDisplay";
 import { collaborationFormatLabel } from "@/constants/companyRequestCatalog";
@@ -72,9 +74,10 @@ export function CompanyRequestDetailPage() {
 
   const isIndividual = request?.requestType === "individual";
   const isTeam = request?.requestType === "ai-built-team";
-  const isArchived = request?.status?.toLowerCase() === "archived";
+  const lifecycleStatus = request ? getRequestLifecycleStatus(request) : "active";
+  const isViewOnly = isRequestViewOnly(lifecycleStatus);
 
-  const setStatus = async (status: string, successMessage: string) => {
+  const setLifecycleStatus = async (status: string, successMessage: string) => {
     if (!request) return;
     setStatusLoading(true);
     try {
@@ -113,10 +116,11 @@ export function CompanyRequestDetailPage() {
             {request && (
               <CompanyRequestActionsMenu
                 editHref={COMPANY_ROUTES.editRequest(request.id)}
-                isArchived={isArchived}
-                archiveLoading={statusLoading}
-                onArchive={() => setStatus("archived", "Request archived")}
-                onRestore={() => setStatus("submitted", "Request restored")}
+                lifecycleStatus={lifecycleStatus}
+                statusLoading={statusLoading}
+                onPause={() => setLifecycleStatus("Paused", "Request paused")}
+                onReactivate={() => setLifecycleStatus("Active", "Request reactivated")}
+                onClose={() => setLifecycleStatus("Closed", "Request closed")}
                 onDelete={() => setDeleteOpen(true)}
               />
             )}
@@ -161,10 +165,10 @@ export function CompanyRequestDetailPage() {
                     variant="outline"
                     className={cn(
                       "rounded-md text-xs font-normal capitalize",
-                      requestStatusBadgeClass(request.status),
+                      requestLifecycleStatusBadgeClass(lifecycleStatus),
                     )}
                   >
-                    {requestStatusLabel(request.status)}
+                    {requestLifecycleStatusLabel(lifecycleStatus)}
                   </Badge>
                 </div>
                 <h3 className="text-xl md:text-2xl font-semibold mt-2 tracking-tight">
@@ -260,8 +264,12 @@ export function CompanyRequestDetailPage() {
 
               <CompanyRequestAnalyzeCta
                 analyzeHref={COMPANY_ROUTES.requestRecommendations(request.id)}
-                disabled={isArchived}
-                disabledReason="Restore this request before running AI matching."
+                disabled={isViewOnly}
+                disabledReason={
+                  lifecycleStatus === "paused"
+                    ? "Reactivate this request before running AI matching."
+                    : "This request has been closed."
+                }
               />
             </div>
           </CardContent>

@@ -28,8 +28,16 @@ namespace GraduationProject.API.Services
             if (request == null)
                 throw new ArgumentException("Company request not found.");
 
-            if (request.Status is CompanyRequestStatus.Draft or CompanyRequestStatus.Archived)
-                throw new ArgumentException("Invitations are allowed only for active submitted requests.");
+            if (request.Status == CompanyRequestStatus.Draft)
+                throw new ArgumentException("Invitations are allowed only for submitted requests.");
+
+            if (CompanyRequestLifecycleStatus.IsModificationBlocked(request.RequestStatus))
+            {
+                var message = request.RequestStatus == CompanyRequestLifecycleStatus.Paused
+                    ? "This request is paused."
+                    : "This request has been closed.";
+                throw new ArgumentException(message);
+            }
 
             var student = await _db.StudentProfiles
                 .Include(s => s.User)

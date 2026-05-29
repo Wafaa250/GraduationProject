@@ -4,6 +4,20 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GraduationProject.API.Models
 {
+    public static class CompanyRequestLifecycleStatus
+    {
+        public const string Active = "active";
+        public const string Paused = "paused";
+        public const string Closed = "closed";
+
+        public static bool IsValid(string? value) =>
+            value is Active or Paused or Closed;
+
+        public static bool IsModificationBlocked(string? value) =>
+            string.Equals(value, Paused, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, Closed, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Lifecycle for company project requests. Matching states reserved for future AI integration.</summary>
     public static class CompanyRequestStatus
     {
@@ -35,6 +49,9 @@ namespace GraduationProject.API.Models
 
         [Column("status")] public string Status { get; set; } = CompanyRequestStatus.Draft;
 
+        /// <summary>Workspace lifecycle: active | paused | closed</summary>
+        [Column("request_status")] public string RequestStatus { get; set; } = CompanyRequestLifecycleStatus.Active;
+
         /// <summary>Wizard step index (0–4) while status is draft; null after submit.</summary>
         [Column("wizard_step")] public int? WizardStep { get; set; }
 
@@ -61,6 +78,8 @@ namespace GraduationProject.API.Models
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("updated_at")] public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         [Column("submitted_at")] public DateTime? SubmittedAt { get; set; }
+        [Column("created_by_user_id")] public int? CreatedByUserId { get; set; }
+        [Column("updated_by_user_id")] public int? UpdatedByUserId { get; set; }
 
         public CompanyProfile CompanyProfile { get; set; } = null!;
         public ICollection<CompanyRequestRole> Roles { get; set; } = new List<CompanyRequestRole>();

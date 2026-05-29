@@ -8,10 +8,10 @@ namespace GraduationProject.API.Services
     public interface ICompanyRequestService
     {
         Task<CompanyRequestDetailDto?> GetDraftAsync(int companyProfileId);
-        Task<CompanyRequestDetailDto> SaveDraftAsync(int companyProfileId, SaveCompanyRequestDraftDto dto);
+        Task<CompanyRequestDetailDto> SaveDraftAsync(int companyProfileId, SaveCompanyRequestDraftDto dto, int? actingUserId = null);
         Task DeleteDraftAsync(int companyProfileId);
 
-        Task<CompanyRequestDetailDto> SubmitAsync(int companyProfileId, CreateCompanyRequestDto dto);
+        Task<CompanyRequestDetailDto> SubmitAsync(int companyProfileId, CreateCompanyRequestDto dto, int? actingUserId = null);
 
         Task<IReadOnlyList<CompanyRequestSummaryDto>> ListAsync(
             int companyProfileId,
@@ -22,12 +22,14 @@ namespace GraduationProject.API.Services
         Task<CompanyRequestDetailDto?> UpdateStatusAsync(
             int companyProfileId,
             int requestId,
-            string status);
+            string status,
+            int? actingUserId = null);
 
         Task<CompanyRequestDetailDto?> UpdateAsync(
             int companyProfileId,
             int requestId,
-            CreateCompanyRequestDto dto);
+            CreateCompanyRequestDto dto,
+            int? actingUserId = null);
 
         Task<bool> DeleteAsync(int companyProfileId, int requestId);
     }

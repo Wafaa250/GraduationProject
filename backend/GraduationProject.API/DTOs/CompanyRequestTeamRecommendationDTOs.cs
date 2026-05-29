@@ -35,6 +35,10 @@ namespace GraduationProject.API.DTOs
         public double SemanticSimilarity { get; set; }
         public string AssignmentReason { get; set; } = string.Empty;
         public List<string> Highlights { get; set; } = new();
+        public string? Email { get; set; }
+        public string? Linkedin { get; set; }
+        public string? Github { get; set; }
+        public string? Portfolio { get; set; }
     }
 
     public class CompanyRequestTeamRecommendationDto

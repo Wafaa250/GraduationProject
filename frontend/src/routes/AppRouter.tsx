@@ -13,6 +13,7 @@ import {
 } from "@/routes/studentRoutes";
 import { LandingPage } from "@/pages/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
+import { ChangePasswordPage } from "@/pages/auth/ChangePasswordPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import StudentAssociationRegisterPage from "@/pages/auth/StudentAssociationRegisterPage";
 import { CompanyDashboardPage } from "@/pages/company/CompanyDashboardPage";
@@ -20,11 +21,11 @@ import { CompanyRequestsPage } from "@/pages/company/CompanyRequestsPage";
 import { CompanyRequestDetailPage } from "@/pages/company/CompanyRequestDetailPage";
 import { CompanyNewRequestPage } from "@/pages/company/CompanyNewRequestPage";
 import { CompanyRequestRecommendationsPage } from "@/pages/company/CompanyRequestRecommendationsPage";
-import { CompanyAiMatchesPage } from "@/pages/company/CompanyAiMatchesPage";
-import { CompanyDiscoverPage } from "@/pages/company/CompanyDiscoverPage";
-import { CompanyCollaborationsPage } from "@/pages/company/CompanyCollaborationsPage";
-import { CompanyMessagesPage } from "@/pages/company/CompanyMessagesPage";
+import { CompanyStudentDiscoveryProfilePage } from "@/pages/company/CompanyStudentDiscoveryProfilePage";
+import { CompanyTeamDiscoveryProfilePage } from "@/pages/company/CompanyTeamDiscoveryProfilePage";
 import { CompanyProfilePage } from "@/pages/company/CompanyProfilePage";
+import { CompanyMembersPage } from "@/pages/company/CompanyMembersPage";
+import { CompanySavedRecommendationsPage } from "@/pages/company/CompanySavedRecommendationsPage";
 import { CompanySettingsPage } from "@/pages/company/CompanySettingsPage";
 import { COMPANY_ROUTES, ROUTES } from "@/routes/paths";
 
@@ -33,6 +34,7 @@ export function AppRouter() {
     <BrowserRouter>
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
+        <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
         <Route path={ROUTES.register} element={<RegisterPage />} />
         <Route path={ROUTES.registerAssociation} element={<StudentAssociationRegisterPage />} />
 
@@ -95,12 +97,22 @@ export function AppRouter() {
           <Route path="requests/new" element={<CompanyNewRequestPage />} />
           <Route path="requests/:id/edit" element={<CompanyNewRequestPage />} />
           <Route path="requests/:id/recommendations" element={<CompanyRequestRecommendationsPage />} />
+          <Route
+            path="requests/:requestId/teams/:teamId"
+            element={<CompanyTeamDiscoveryProfilePage />}
+          />
+          <Route
+            path="requests/:requestId/students/:studentProfileId"
+            element={<CompanyStudentDiscoveryProfilePage />}
+          />
           <Route path="requests/:id" element={<CompanyRequestDetailPage />} />
-          <Route path="matches" element={<CompanyAiMatchesPage />} />
-          <Route path="discover" element={<CompanyDiscoverPage />} />
-          <Route path="collaborations" element={<CompanyCollaborationsPage />} />
-          <Route path="messages" element={<CompanyMessagesPage />} />
+          <Route path="matches" element={<Navigate to={COMPANY_ROUTES.requests} replace />} />
+          <Route path="discover" element={<Navigate to={COMPANY_ROUTES.requests} replace />} />
+          <Route path="collaborations" element={<Navigate to={COMPANY_ROUTES.dashboard} replace />} />
+          <Route path="messages" element={<Navigate to={COMPANY_ROUTES.dashboard} replace />} />
           <Route path="profile" element={<CompanyProfilePage />} />
+          <Route path="members" element={<CompanyMembersPage />} />
+          <Route path="saved" element={<CompanySavedRecommendationsPage />} />
           <Route path="settings" element={<CompanySettingsPage />} />
         </Route>
 

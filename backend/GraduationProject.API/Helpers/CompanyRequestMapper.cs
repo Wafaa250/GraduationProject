@@ -122,6 +122,7 @@ namespace GraduationProject.API.Helpers
                 Id = entity.Id,
                 RequestType = entity.RequestType,
                 Status = entity.Status,
+                RequestStatus = entity.RequestStatus,
                 WizardStep = entity.WizardStep,
                 Title = entity.Title,
                 Description = entity.Description,
@@ -175,6 +176,7 @@ namespace GraduationProject.API.Helpers
                 Id = entity.Id,
                 RequestType = entity.RequestType,
                 Status = entity.Status,
+                RequestStatus = entity.RequestStatus,
                 Title = entity.Title,
                 Category = entity.Category,
                 DurationLabel = entity.DurationLabel,
@@ -202,6 +204,19 @@ namespace GraduationProject.API.Helpers
                 .Where(s => s.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+        public static string BuildActivitySubject(CompanyRequest entity)
+        {
+            var role = entity.Roles?
+                .OrderBy(r => r.SortOrder)
+                .Select(r => r.RoleName?.Trim())
+                .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+
+            if (!string.IsNullOrWhiteSpace(role))
+                return role!;
+
+            return string.IsNullOrWhiteSpace(entity.Title) ? "Project request" : entity.Title.Trim();
+        }
 
         public sealed class RoleDraft
         {

@@ -17,19 +17,22 @@ namespace GraduationProject.API.Services
         private readonly IRecommendationScoringEngine _scoring;
         private readonly IRecommendationSemanticService _semantic;
         private readonly ILogger<CompanyRequestTeamRecommendationService> _logger;
+        private readonly IGraduationProjectNotificationService _notifications;
 
         public CompanyRequestTeamRecommendationService(
             ApplicationDbContext db,
             IRecommendationNormalizationService normalizer,
             IRecommendationScoringEngine scoring,
             IRecommendationSemanticService semantic,
-            ILogger<CompanyRequestTeamRecommendationService> logger)
+            ILogger<CompanyRequestTeamRecommendationService> logger,
+            IGraduationProjectNotificationService notifications)
         {
             _db = db;
             _normalizer = normalizer;
             _scoring = scoring;
             _semantic = semantic;
             _logger = logger;
+            _notifications = notifications;
         }
 
         public async Task<CompanyRequestTeamRecommendationResultDto> GenerateAsync(
@@ -109,8 +112,15 @@ namespace GraduationProject.API.Services
             if (request == null) throw new ArgumentException("Company request not found.");
             if (!string.Equals(request.RequestType, CompanyRequestType.AiBuiltTeam, StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Team recommendations require ai-built-team request type.");
-            if (request.Status is CompanyRequestStatus.Draft or CompanyRequestStatus.Archived)
-                throw new ArgumentException("Team recommendations are available only for active requests.");
+            if (request.Status == CompanyRequestStatus.Draft)
+                throw new ArgumentException("Team recommendations are available only for submitted requests.");
+            if (CompanyRequestLifecycleStatus.IsModificationBlocked(request.RequestStatus))
+            {
+                var message = request.RequestStatus == CompanyRequestLifecycleStatus.Paused
+                    ? "This request is paused."
+                    : "This request has been closed.";
+                throw new ArgumentException(message);
+            }
             if (request.Roles.Count == 0)
                 throw new ArgumentException("Team recommendations require at least one role.");
 
@@ -312,6 +322,13 @@ namespace GraduationProject.API.Services
             _db.CompanyRequestTeamRecommendationMembers.AddRange(memberEntities);
             await _db.SaveChangesAsync();
 
+            await _notifications.NotifyCompanyAiRecommendationsReadyAsync(
+                companyProfileId,
+                requestId,
+                CompanyRequestMapper.BuildActivitySubject(request),
+                run.Id,
+                isTeamRecommendations: true);
+
             return await LoadRunResultAsync(run);
         }
 
@@ -348,20 +365,28 @@ namespace GraduationProject.API.Services
                     SummaryReason = t.SummaryReason,
                     Strengths = SkillHelper.ParseStringList(t.StrengthsJson),
                     Risks = SkillHelper.ParseStringList(t.RisksJson),
-                    Members = m.Select(x => new CompanyRequestTeamRecommendationMemberDto
+                    Members = m.Select(x =>
                     {
-                        CompanyRequestRoleId = x.CompanyRequestRoleId,
-                        RoleName = x.CompanyRequestRole?.RoleName ?? string.Empty,
-                        StudentProfileId = x.StudentProfileId,
-                        UserId = x.StudentProfile.UserId,
-                        StudentName = x.StudentProfile.User?.Name ?? string.Empty,
-                        Major = x.StudentProfile.Major,
-                        Faculty = x.StudentProfile.Faculty,
-                        University = x.StudentProfile.University,
-                        RoleScore = x.RoleScore,
-                        SemanticSimilarity = x.SemanticSimilarity,
-                        AssignmentReason = x.AssignmentReason,
-                        Highlights = SkillHelper.ParseStringList(x.HighlightsJson),
+                        var contact = StudentDiscoveryContactMapper.Map(x.StudentProfile);
+                        return new CompanyRequestTeamRecommendationMemberDto
+                        {
+                            CompanyRequestRoleId = x.CompanyRequestRoleId,
+                            RoleName = x.CompanyRequestRole?.RoleName ?? string.Empty,
+                            StudentProfileId = x.StudentProfileId,
+                            UserId = x.StudentProfile.UserId,
+                            StudentName = x.StudentProfile.User?.Name ?? string.Empty,
+                            Major = x.StudentProfile.Major,
+                            Faculty = x.StudentProfile.Faculty,
+                            University = x.StudentProfile.University,
+                            RoleScore = x.RoleScore,
+                            SemanticSimilarity = x.SemanticSimilarity,
+                            AssignmentReason = x.AssignmentReason,
+                            Highlights = SkillHelper.ParseStringList(x.HighlightsJson),
+                            Email = contact.Email,
+                            Linkedin = contact.Linkedin,
+                            Github = contact.Github,
+                            Portfolio = contact.Portfolio,
+                        };
                     }).ToList(),
                 };
             }).ToList();

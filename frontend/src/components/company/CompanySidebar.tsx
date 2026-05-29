@@ -2,36 +2,31 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
-  Sparkles,
-  Compass,
-  Handshake,
-  MessageSquare,
   Building2,
   Settings,
   Plus,
   PanelLeftClose,
   PanelLeft,
+  Sparkles,
+  Users,
+  Bookmark,
 } from "lucide-react";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
 import { useCompanySidebarCollapsed } from "@/hooks/useCompanySidebarCollapsed";
+import { isCompanyOwner } from "@/lib/companyWorkspace";
 
 const workspaceNav = [
   { title: "Dashboard", to: COMPANY_ROUTES.dashboard, icon: LayoutDashboard },
-  { title: "Requests", to: COMPANY_ROUTES.requests, icon: FileText },
+  { title: "Project Requests", to: COMPANY_ROUTES.requests, icon: FileText },
 ];
 
-const intelligenceNav = [
-  { title: "AI Matches", to: COMPANY_ROUTES.matches, icon: Sparkles },
-  { title: "Discover", to: COMPANY_ROUTES.discover, icon: Compass },
-];
-
-const manageNav = [
-  { title: "Collaborations", to: COMPANY_ROUTES.collaborations, icon: Handshake },
-  { title: "Messages", to: COMPANY_ROUTES.messages, icon: MessageSquare },
+const accountNav = [
   { title: "Company Profile", to: COMPANY_ROUTES.profile, icon: Building2 },
   { title: "Settings", to: COMPANY_ROUTES.settings, icon: Settings },
 ];
+
+const ownerNav = [{ title: "Company Members", to: COMPANY_ROUTES.members, icon: Users }];
 
 type NavItemProps = {
   to: string;
@@ -85,6 +80,7 @@ function SectionLabel({ collapsed, children }: { collapsed: boolean; children: s
 
 export function CompanySidebar() {
   const { collapsed, toggle } = useCompanySidebarCollapsed();
+  const showMembers = isCompanyOwner();
 
   return (
     <aside
@@ -101,12 +97,7 @@ export function CompanySidebar() {
           collapsed ? "px-2 py-3" : "px-3 py-4",
         )}
       >
-        <div
-          className={cn(
-            "flex items-center gap-2",
-            collapsed ? "flex-col" : "flex-row",
-          )}
-        >
+        <div className={cn("flex items-center gap-2", collapsed ? "flex-col" : "flex-row")}>
           <div
             className={cn(
               "flex items-center gap-2 min-w-0",
@@ -124,7 +115,7 @@ export function CompanySidebar() {
             >
               <div className="font-semibold text-base truncate text-foreground">SkillSwap</div>
               <div className="text-[11px] text-muted-foreground whitespace-nowrap">
-                Company Workspace
+                AI Talent Discovery
               </div>
             </div>
           </div>
@@ -135,17 +126,13 @@ export function CompanySidebar() {
             className={cn(
               "shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary",
               "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              collapsed ? "h-8 w-8 grid place-items-center" : "h-8 w-8 grid place-items-center",
+              "h-8 w-8 grid place-items-center",
             )}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed ? (
-              <PanelLeft className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
+            {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
         </div>
       </div>
@@ -157,7 +144,7 @@ export function CompanySidebar() {
         )}
       >
         <div>
-          <SectionLabel collapsed={collapsed}>Workspace</SectionLabel>
+          <SectionLabel collapsed={collapsed}>Discovery</SectionLabel>
           <div className="space-y-0.5">
             {workspaceNav.map((item) => (
               <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
@@ -169,24 +156,26 @@ export function CompanySidebar() {
               collapsed={collapsed}
               sublink
             />
+            <SidebarNavItem
+              to={COMPANY_ROUTES.saved}
+              icon={Bookmark}
+              title="Saved Recommendations"
+              collapsed={collapsed}
+            />
           </div>
         </div>
 
         <div>
-          <SectionLabel collapsed={collapsed}>AI Intelligence</SectionLabel>
+          <SectionLabel collapsed={collapsed}>Account</SectionLabel>
           <div className="space-y-0.5">
-            {intelligenceNav.map((item) => (
+            {accountNav.map((item) => (
               <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
             ))}
-          </div>
-        </div>
-
-        <div>
-          <SectionLabel collapsed={collapsed}>Manage</SectionLabel>
-          <div className="space-y-0.5">
-            {manageNav.map((item) => (
-              <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
-            ))}
+            {showMembers
+              ? ownerNav.map((item) => (
+                  <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
+                ))
+              : null}
           </div>
         </div>
       </nav>

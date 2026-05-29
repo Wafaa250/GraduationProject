@@ -132,6 +132,18 @@
   border: none;
 }
 
+.company-workspace .cw-status-paused {
+  background: hsl(45 93% 47% / 0.15);
+  color: hsl(45 80% 32%);
+  border: none;
+}
+
+.company-workspace .cw-status-closed {
+  background: hsl(var(--muted-foreground) / 0.12);
+  color: hsl(var(--muted-foreground));
+  border: none;
+}
+
 /* —— Project request flow (visual polish) —— */
 
 .company-workspace .cw-shadow-glow {

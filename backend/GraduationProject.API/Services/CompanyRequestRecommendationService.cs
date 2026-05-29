@@ -26,6 +26,7 @@ namespace GraduationProject.API.Services
         private readonly IRecommendationScoringEngine _scoring;
         private readonly IRecommendationSemanticService _semantic;
         private readonly ILogger<CompanyRequestRecommendationService> _logger;
+        private readonly IGraduationProjectNotificationService _notifications;
         private readonly bool _diagnosticsEnabled;
         private static readonly TimeSpan FreshnessWindow = TimeSpan.FromHours(24);
 
@@ -35,6 +36,7 @@ namespace GraduationProject.API.Services
             IRecommendationScoringEngine scoring,
             IRecommendationSemanticService semantic,
             ILogger<CompanyRequestRecommendationService> logger,
+            IGraduationProjectNotificationService notifications,
             IConfiguration configuration,
             IHostEnvironment environment)
         {
@@ -43,6 +45,7 @@ namespace GraduationProject.API.Services
             _scoring = scoring;
             _semantic = semantic;
             _logger = logger;
+            _notifications = notifications;
             _diagnosticsEnabled =
                 environment.IsDevelopment() &&
                 configuration.GetValue<bool>("RecommendationDiagnostics:Enabled");
@@ -192,8 +195,16 @@ namespace GraduationProject.API.Services
             if (request == null)
                 throw new ArgumentException("Company request not found.");
 
-            if (request.Status is CompanyRequestStatus.Draft or CompanyRequestStatus.Archived)
-                throw new ArgumentException("Recommendations are available only for active requests.");
+            if (request.Status == CompanyRequestStatus.Draft)
+                throw new ArgumentException("Recommendations are available only for submitted requests.");
+
+            if (CompanyRequestLifecycleStatus.IsModificationBlocked(request.RequestStatus))
+            {
+                var message = request.RequestStatus == CompanyRequestLifecycleStatus.Paused
+                    ? "This request is paused."
+                    : "This request has been closed.";
+                throw new ArgumentException(message);
+            }
 
             var requestedSkillNames = _normalizer.NormalizeMany(
                 request.Roles.SelectMany(r => r.Skills).Select(s => s.SkillName));
@@ -341,6 +352,13 @@ namespace GraduationProject.API.Services
             _db.CompanyRequestRecommendations.AddRange(entities);
             await _db.SaveChangesAsync();
 
+            await _notifications.NotifyCompanyAiRecommendationsReadyAsync(
+                companyProfileId,
+                requestId,
+                CompanyRequestMapper.BuildActivitySubject(request),
+                run.Id,
+                isTeamRecommendations: false);
+
             return MapResult(run, entities, scored, generationSource, isStale: false, staleReason: null);
         }
 
@@ -464,18 +482,7 @@ namespace GraduationProject.API.Services
                     ScoreBreakdown = s.Score.Breakdown,
                     InvitationAlreadySent = s.InvitationStatus is CompanyRequestInvitationStatus.Pending or CompanyRequestInvitationStatus.Accepted,
                     InvitationStatus = s.InvitationStatus,
-                    Student = new CompanyRequestRecommendationStudentDto
-                    {
-                        StudentProfileId = s.Student.Id,
-                        UserId = s.Student.UserId,
-                        Name = s.Student.User.Name,
-                        AcademicYear = s.Student.AcademicYear,
-                        Bio = s.Student.Bio,
-                        Major = s.Student.Major,
-                        Faculty = s.Student.Faculty,
-                        University = s.Student.University,
-                        Skills = s.StudentSkills,
-                    },
+                    Student = MapStudentDto(s.Student, s.StudentSkills),
                 };
             }).ToList();
 
@@ -577,18 +584,30 @@ namespace GraduationProject.API.Services
                 ScoreBreakdown = breakdown,
                 InvitationAlreadySent = invitationStatus is CompanyRequestInvitationStatus.Pending or CompanyRequestInvitationStatus.Accepted,
                 InvitationStatus = invitationStatus,
-                Student = new CompanyRequestRecommendationStudentDto
-                {
-                    StudentProfileId = student.Id,
-                    UserId = student.UserId,
-                    Name = student.User?.Name ?? string.Empty,
-                    AcademicYear = student.AcademicYear,
-                    Bio = student.Bio,
-                    Major = student.Major,
-                    Faculty = student.Faculty,
-                    University = student.University,
-                    Skills = ResolveStudentSkills(student, skillIdMap),
-                },
+                Student = MapStudentDto(student, ResolveStudentSkills(student, skillIdMap)),
+            };
+        }
+
+        private static CompanyRequestRecommendationStudentDto MapStudentDto(
+            StudentProfile student,
+            List<string> skills)
+        {
+            var contact = StudentDiscoveryContactMapper.Map(student);
+            return new CompanyRequestRecommendationStudentDto
+            {
+                StudentProfileId = student.Id,
+                UserId = student.UserId,
+                Name = student.User?.Name ?? string.Empty,
+                AcademicYear = student.AcademicYear,
+                Bio = student.Bio,
+                Major = student.Major,
+                Faculty = student.Faculty,
+                University = student.University,
+                Skills = skills,
+                Email = contact.Email,
+                Linkedin = contact.Linkedin,
+                Github = contact.Github,
+                Portfolio = contact.Portfolio,
             };
         }
 

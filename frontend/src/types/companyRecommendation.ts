@@ -1,6 +1,4 @@
-/** UI-only placeholder types for candidate recommendations (pre–AI matching API). */
-
-export type RecommendationAvailability = "Available" | "Limited" | "Busy";
+import type { StudentDiscoveryContact } from "@/types/studentDiscoveryContact";
 
 export type RecommendationCandidate = {
   id: string;
@@ -12,9 +10,9 @@ export type RecommendationCandidate = {
   matchScore: number;
   matchingSkills: string[];
   insights: string[];
-  availability: RecommendationAvailability;
   bio: string;
   skills: string[];
   tools: string[];
   projectInterests: string[];
+  contact: StudentDiscoveryContact;
 };

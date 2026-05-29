@@ -272,6 +272,53 @@ namespace GraduationProject.API.Services
             int studentProfileId,
             string positionRoleTitle,
             CancellationToken ct = default);
+
+        Task NotifyCompanyAiRecommendationsReadyAsync(
+            int companyProfileId,
+            int requestId,
+            string requestLabel,
+            int runId,
+            bool isTeamRecommendations,
+            int? actorUserId = null,
+            CancellationToken ct = default);
+
+        Task NotifyCompanyStudentRecommendationSavedAsync(
+            int companyProfileId,
+            int requestId,
+            string requestLabel,
+            string actorName,
+            string studentName,
+            int? actorUserId = null,
+            CancellationToken ct = default);
+
+        Task NotifyCompanyTeamRecommendationSavedAsync(
+            int companyProfileId,
+            int requestId,
+            string requestLabel,
+            string actorName,
+            int teamRank,
+            int? actorUserId = null,
+            CancellationToken ct = default);
+
+        Task NotifyCompanyRequestStatusChangedAsync(
+            int companyProfileId,
+            int requestId,
+            string requestLabel,
+            string lifecycleStatus,
+            int? actorUserId = null,
+            CancellationToken ct = default);
+
+        Task NotifyCompanyMemberAddedAsync(
+            int companyProfileId,
+            string memberName,
+            int? actorUserId = null,
+            CancellationToken ct = default);
+
+        Task NotifyCompanyMemberRemovedAsync(
+            int companyProfileId,
+            string memberName,
+            int? actorUserId = null,
+            CancellationToken ct = default);
     }
 }
 

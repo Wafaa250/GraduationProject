@@ -1,4 +1,4 @@
-import { Bookmark, Check, Sparkles } from "lucide-react";
+import { Bookmark, Sparkles, Mail } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,29 +16,28 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-function availabilityDot(availability: RecommendationCandidate["availability"]): string {
-  if (availability === "Available") return "bg-emerald-500";
-  if (availability === "Limited") return "bg-amber-500";
-  return "bg-red-500";
-}
-
 type Props = {
   candidate: RecommendationCandidate;
   saved: boolean;
-  invitationSent: boolean;
+  saveDisabled?: boolean;
   onViewProfile: () => void;
-  onInvite: () => void;
   onToggleSave: () => void;
 };
 
 export function CompanyCandidateCard({
   candidate,
   saved,
-  invitationSent,
+  saveDisabled = false,
   onViewProfile,
-  onInvite,
   onToggleSave,
 }: Props) {
+  const hasContact = Boolean(
+    candidate.contact.email ||
+      candidate.contact.linkedin ||
+      candidate.contact.github ||
+      candidate.contact.portfolio,
+  );
+
   return (
     <Card className="cw-card-elevated cw-candidate-card h-full">
       <CardContent className="p-5 flex flex-col h-full">
@@ -58,14 +57,6 @@ export function CompanyCandidateCard({
             </div>
           </div>
           <CompatibilityRing value={candidate.matchScore} size={56} />
-        </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <span
-            className={cn("h-2 w-2 rounded-full shrink-0", availabilityDot(candidate.availability))}
-            aria-hidden
-          />
-          <span className="text-xs text-muted-foreground">{candidate.availability}</span>
         </div>
 
         <div className="mt-4">
@@ -97,32 +88,16 @@ export function CompanyCandidateCard({
           <Button
             type="button"
             size="sm"
-            variant="outline"
-            className="rounded-xl flex-1"
+            className="rounded-xl flex-1 cw-btn-gradient shadow-sm border-0"
             onClick={onViewProfile}
           >
-            View Profile
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={invitationSent ? "outline" : "default"}
-            className={cn(
-              "rounded-xl flex-1",
-              invitationSent
-                ? "text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300"
-                : "cw-btn-gradient shadow-sm border-0",
-            )}
-            disabled={invitationSent}
-            onClick={onInvite}
-          >
-            {invitationSent ? (
+            {hasContact ? (
               <>
-                <Check className="h-4 w-4 mr-1 shrink-0" aria-hidden />
-                Invitation Sent
+                <Mail className="h-3.5 w-3.5 mr-1 shrink-0" />
+                Profile & contact
               </>
             ) : (
-              "Invite"
+              "View profile"
             )}
           </Button>
           <Button
@@ -131,6 +106,7 @@ export function CompanyCandidateCard({
             variant="ghost"
             className={cn("rounded-xl shrink-0", saved && "text-primary bg-primary/10")}
             aria-label={saved ? "Unsave candidate" : "Save candidate"}
+            disabled={saveDisabled}
             onClick={onToggleSave}
           >
             <Bookmark className={cn("h-4 w-4", saved && "fill-current")} />

@@ -29,6 +29,8 @@ export type AuthResponse = {
   name: string;
   email: string;
   profileId: number;
+  companyRole?: string | null;
+  mustChangePassword?: boolean;
 };
 
 export async function analyzeCompany(payload: {
@@ -51,9 +53,28 @@ export type CompanyProfile = {
   industry?: string | null;
   description?: string | null;
   location?: string | null;
+  headquartersLocation?: string | null;
+  workingStyle?: string | null;
+  areasOfInterest: string[];
   websiteUrl?: string | null;
   linkedInUrl?: string | null;
   email: string;
+  contactEmail?: string | null;
+  optionalContactLink?: string | null;
+  workspaceRole?: string;
+};
+
+export type UpdateCompanyProfilePayload = {
+  companyName: string;
+  description?: string | null;
+  industry?: string | null;
+  headquartersLocation?: string | null;
+  workingStyle?: string | null;
+  areasOfInterest?: string[];
+  websiteUrl?: string | null;
+  linkedInUrl?: string | null;
+  contactEmail?: string | null;
+  optionalContactLink?: string | null;
 };
 
 export type CompanyTalentSearchPayload = {
@@ -98,6 +119,49 @@ export type CompanyTalentRequestSummary = {
 export async function getCompanyProfile(): Promise<CompanyProfile> {
   const { data } = await api.get<CompanyProfile>("/company/profile");
   return data;
+}
+
+export async function updateCompanyProfile(
+  payload: UpdateCompanyProfilePayload,
+): Promise<CompanyProfile> {
+  const { data } = await api.put<CompanyProfile>("/company/profile", payload);
+  return data;
+}
+
+export type CompanyMember = {
+  id: number;
+  userId: number;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+};
+
+export type AddCompanyMemberPayload = {
+  fullName: string;
+  email: string;
+  role: "owner" | "member";
+};
+
+export type AddCompanyMemberResponse = {
+  member: CompanyMember;
+  credentialsEmailSent: boolean;
+};
+
+export async function listCompanyMembers(): Promise<CompanyMember[]> {
+  const { data } = await api.get<CompanyMember[]>("/company/members");
+  return data;
+}
+
+export async function addCompanyMember(
+  payload: AddCompanyMemberPayload,
+): Promise<AddCompanyMemberResponse> {
+  const { data } = await api.post<AddCompanyMemberResponse>("/company/members", payload);
+  return data;
+}
+
+export async function removeCompanyMember(memberId: number): Promise<void> {
+  await api.delete(`/company/members/${memberId}`);
 }
 
 export async function searchCompanyTalent(
@@ -154,10 +218,13 @@ export type CreateCompanyProjectRequestPayload = SaveCompanyRequestDraftPayload 
   requestType: string;
 };
 
+export type CompanyRequestLifecycleStatus = "active" | "paused" | "closed";
+
 export type CompanyProjectRequestSummary = {
   id: number;
   requestType: CompanyRequestType | string;
   status: string;
+  requestStatus: string;
   title: string;
   category: string;
   durationLabel?: string | null;
@@ -228,6 +295,10 @@ export type CompanyRequestRecommendationStudent = {
   faculty?: string | null;
   university?: string | null;
   skills: string[];
+  email?: string | null;
+  linkedin?: string | null;
+  github?: string | null;
+  portfolio?: string | null;
 };
 
 export type CompanyRequestRecommendationItem = {
@@ -291,6 +362,10 @@ export type CompanyRequestTeamRecommendationMember = {
   semanticSimilarity: number;
   assignmentReason: string;
   highlights: string[];
+  email?: string | null;
+  linkedin?: string | null;
+  github?: string | null;
+  portfolio?: string | null;
 };
 
 export type CompanyRequestTeamRecommendation = {
@@ -476,6 +551,287 @@ export async function getCompanyRequestTeamRecommendationHistory(
   const { data } = await api.get<CompanyRequestTeamRecommendationRunHistory>(
     `/company/requests/${requestId}/team-recommendations/history`,
   );
+  return data;
+}
+
+export type CompanyStudentDiscoveryProfile = {
+  student: {
+    studentProfileId: number;
+    userId: number;
+    name: string;
+    email?: string | null;
+    bio?: string | null;
+    university?: string | null;
+    faculty?: string | null;
+    major?: string | null;
+    academicYear?: string | null;
+    availability?: string | null;
+    lookingFor?: string | null;
+    linkedin?: string | null;
+    github?: string | null;
+    portfolio?: string | null;
+    languages: string[];
+    roles: string[];
+    technicalSkills: string[];
+    tools: string[];
+    profilePictureBase64?: string | null;
+  };
+  request: {
+    id: number;
+    title: string;
+    roleNames: string[];
+    requiredSkills: string[];
+  };
+  recommendation: {
+    source: string;
+    matchScore: number;
+    reasonSummary: string;
+    highlights: string[];
+    strengths: string[];
+    gaps: string[];
+    alignedRoleName?: string | null;
+    relevantSkills: string[];
+    scoreBreakdown?: CompanyRequestRecommendationScoreBreakdown | null;
+    teamRecommendationId?: number | null;
+    rank?: number | null;
+  } | null;
+  projects: {
+    id: number;
+    title: string;
+    description?: string | null;
+    technologies: string[];
+    teamRole: string;
+    projectType?: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+};
+
+export async function getCompanyStudentDiscoveryProfile(
+  requestId: number,
+  studentProfileId: number,
+  teamId?: number,
+): Promise<CompanyStudentDiscoveryProfile> {
+  const { data } = await api.get<CompanyStudentDiscoveryProfile>(
+    `/company/requests/${requestId}/students/${studentProfileId}`,
+    { params: teamId != null ? { teamId } : undefined },
+  );
+  return data;
+}
+
+export type CompanySavedRecommendationIds = {
+  studentProfileIds: number[];
+  teamRecommendationIds: number[];
+};
+
+export type CompanySavedStudentRecommendation = {
+  id: number;
+  companyRequestId: number;
+  requestTitle: string;
+  studentProfileId: number;
+  studentName: string;
+  major?: string | null;
+  university?: string | null;
+  academicYear?: string | null;
+  matchScore?: number | null;
+  reasonSummary?: string | null;
+  highlights: string[];
+  email?: string | null;
+  linkedin?: string | null;
+  github?: string | null;
+  portfolio?: string | null;
+  savedByName: string;
+  savedAt: string;
+  note?: string | null;
+};
+
+export type CompanySavedTeamRecommendation = {
+  id: number;
+  companyRequestId: number;
+  requestTitle: string;
+  teamRecommendationId: number;
+  teamRank: number;
+  totalScore: number;
+  roleCoverageScore: number;
+  compatibilityScore: number;
+  memberCount: number;
+  summaryReason: string;
+  memberNames: string[];
+  savedByName: string;
+  savedAt: string;
+  note?: string | null;
+};
+
+export type CompanySavedRecommendationsPage = {
+  students: CompanySavedStudentRecommendation[];
+  teams: CompanySavedTeamRecommendation[];
+};
+
+export async function getCompanySavedRecommendations(): Promise<CompanySavedRecommendationsPage> {
+  const { data } = await api.get<CompanySavedRecommendationsPage>("/company/saved-recommendations");
+  return data;
+}
+
+export async function getSavedRecommendationIds(
+  requestId: number,
+): Promise<CompanySavedRecommendationIds> {
+  const { data } = await api.get<CompanySavedRecommendationIds>(
+    `/company/saved-recommendations/requests/${requestId}/ids`,
+  );
+  return data;
+}
+
+export async function saveStudentRecommendation(
+  requestId: number,
+  studentProfileId: number,
+): Promise<void> {
+  await api.put(`/company/saved-recommendations/requests/${requestId}/students/${studentProfileId}`);
+}
+
+export async function unsaveStudentRecommendation(
+  requestId: number,
+  studentProfileId: number,
+): Promise<void> {
+  await api.delete(
+    `/company/saved-recommendations/requests/${requestId}/students/${studentProfileId}`,
+  );
+}
+
+export async function saveTeamRecommendation(
+  requestId: number,
+  teamRecommendationId: number,
+): Promise<void> {
+  await api.put(
+    `/company/saved-recommendations/requests/${requestId}/teams/${teamRecommendationId}`,
+  );
+}
+
+export async function unsaveTeamRecommendation(
+  requestId: number,
+  teamRecommendationId: number,
+): Promise<void> {
+  await api.delete(
+    `/company/saved-recommendations/requests/${requestId}/teams/${teamRecommendationId}`,
+  );
+}
+
+export async function updateSavedStudentNote(
+  requestId: number,
+  studentProfileId: number,
+  note: string | null,
+): Promise<void> {
+  await api.patch(
+    `/company/saved-recommendations/requests/${requestId}/students/${studentProfileId}/note`,
+    { note },
+  );
+}
+
+export async function updateSavedTeamNote(
+  requestId: number,
+  teamRecommendationId: number,
+  note: string | null,
+): Promise<void> {
+  await api.patch(
+    `/company/saved-recommendations/requests/${requestId}/teams/${teamRecommendationId}/note`,
+    { note },
+  );
+}
+
+export type CompanyDashboardRequestPreview = {
+  id: number;
+  title: string;
+  requestedRole: string;
+  status: string;
+  savedStudentsCount: number;
+  savedTeamsCount: number;
+  createdAt: string;
+};
+
+export type CompanyDashboardActivityItem = {
+  id: number;
+  activityType: string;
+  description: string;
+  actorName: string;
+  createdAt: string;
+};
+
+export type CompanyDashboardSavedStudent = {
+  companyRequestId: number;
+  studentProfileId: number;
+  studentName: string;
+  university?: string | null;
+  major?: string | null;
+  matchScore?: number | null;
+  savedAt: string;
+};
+
+export type CompanyDashboardSavedTeam = {
+  companyRequestId: number;
+  teamRecommendationId: number;
+  teamName: string;
+  matchScore: number;
+  memberCount: number;
+  savedAt: string;
+};
+
+export type CompanyDashboard = {
+  companyName: string;
+  activeRequests: number;
+  savedStudents: number;
+  savedTeams: number;
+  workspaceMembers: number;
+  activeRequestsPreview: CompanyDashboardRequestPreview[];
+  recentActivity: CompanyDashboardActivityItem[];
+  recentSavedStudents: CompanyDashboardSavedStudent[];
+  recentSavedTeams: CompanyDashboardSavedTeam[];
+};
+
+export async function getCompanyDashboard(): Promise<CompanyDashboard> {
+  const { data } = await api.get<CompanyDashboard>("/company/dashboard");
+  return data;
+}
+
+export type CompanyNotificationPreferences = {
+  notifyAiRecommendations: boolean;
+  notifySavedRecommendationsActivity: boolean;
+  notifyRequestStatusUpdates: boolean;
+  notifyWorkspaceMemberChanges: boolean;
+};
+
+export type CompanyWorkspaceSummary = {
+  ownerName: string;
+  membersCount: number;
+  activeRequestsCount: number;
+};
+
+export type CompanySettings = {
+  notifications: CompanyNotificationPreferences;
+  workspace: CompanyWorkspaceSummary;
+};
+
+export type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+export async function getCompanySettings(): Promise<CompanySettings> {
+  const { data } = await api.get<CompanySettings>("/company/settings");
+  return data;
+}
+
+export async function updateCompanyNotificationPreferences(
+  payload: CompanyNotificationPreferences,
+): Promise<CompanyNotificationPreferences> {
+  const { data } = await api.put<CompanyNotificationPreferences>(
+    "/company/settings/notifications",
+    payload,
+  );
+  return data;
+}
+
+export async function changePassword(payload: ChangePasswordPayload): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>("/auth/change-password", payload);
   return data;
 }
 

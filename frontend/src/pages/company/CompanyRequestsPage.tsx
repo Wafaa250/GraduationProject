@@ -12,10 +12,12 @@ import {
 } from "@/api/companyApi";
 import {
   formatRequestDuration,
+  getRequestLifecycleStatus,
   getRequestRoleLabels,
   getRequestSkillLabels,
-  requestStatusBadgeClass,
-  requestStatusLabel,
+  isRequestViewOnly,
+  requestLifecycleStatusBadgeClass,
+  requestLifecycleStatusLabel,
   requestTypeLabel,
 } from "@/lib/companyRequestDisplay";
 import { cn } from "@/lib/utils";
@@ -41,6 +43,8 @@ function requestDetailPath(id: number): string {
 function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
   const roles = getRequestRoleLabels(request);
   const skills = getRequestSkillLabels(request);
+  const lifecycleStatus = getRequestLifecycleStatus(request);
+  const isViewOnly = isRequestViewOnly(lifecycleStatus);
 
   return (
     <Card className="cw-card-elevated cw-request-list-card">
@@ -63,10 +67,10 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
                 variant="outline"
                 className={cn(
                   "shrink-0 rounded-md text-xs font-normal capitalize",
-                  requestStatusBadgeClass(request.status),
+                  requestLifecycleStatusBadgeClass(lifecycleStatus),
                 )}
               >
-                {requestStatusLabel(request.status)}
+                {requestLifecycleStatusLabel(lifecycleStatus)}
               </Badge>
             </div>
 
@@ -122,28 +126,16 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
             >
               <Link to={requestDetailPath(request.id)}>View details</Link>
             </Button>
-            {request.status.toLowerCase() === "archived" ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-xl w-full lg:w-auto"
-                disabled
-                title="Restore this request before running AI matching."
-              >
-                Find Matches
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-xl w-full lg:w-auto"
-                asChild
-              >
-                <Link to={COMPANY_ROUTES.requestRecommendations(request.id)}>
-                  Analyze
-                </Link>
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl w-full lg:w-auto"
+              asChild
+            >
+              <Link to={COMPANY_ROUTES.requestRecommendations(request.id)}>
+                {isViewOnly ? "View recommendations" : "AI recommendations"}
+              </Link>
+            </Button>
           </div>
         </div>
       </CardContent>

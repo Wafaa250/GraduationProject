@@ -57,7 +57,12 @@ import {
   emptyTeamRole,
   type WizardTeamRole,
 } from "@/lib/companyRequestPayload";
-import { formatDraftSavedAt, requestTypeLabel } from "@/lib/companyRequestDisplay";
+import {
+  formatDraftSavedAt,
+  getRequestLifecycleStatus,
+  isRequestViewOnly,
+  requestTypeLabel,
+} from "@/lib/companyRequestDisplay";
 
 const steps = ["Request Type", "Project basics", "Roles & skills", "Scope", "Review"];
 
@@ -131,6 +136,11 @@ export function CompanyNewRequestPage() {
           if (detail.status === "draft") {
             toast.error("This request is still a draft. Continue from Create Request.");
             nav(COMPANY_ROUTES.newRequest);
+            return;
+          }
+          if (isRequestViewOnly(getRequestLifecycleStatus(detail))) {
+            toast.error("This request is read-only. Reactivate it before editing.");
+            nav(COMPANY_ROUTES.requestDetail(detail.id));
             return;
           }
           applyWizardState(applyDetailToWizardState(detail));

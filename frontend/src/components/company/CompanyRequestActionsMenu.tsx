@@ -1,30 +1,43 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Archive, ArchiveRestore, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import {
+  CirclePause,
+  CirclePlay,
+  CircleX,
+  MoreVertical,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { CompanyRequestLifecycleStatus } from "@/api/companyApi";
 
 type Props = {
   editHref: string;
-  isArchived: boolean;
-  onArchive: () => void;
-  onRestore: () => void;
+  lifecycleStatus: CompanyRequestLifecycleStatus;
+  onPause: () => void;
+  onReactivate: () => void;
+  onClose: () => void;
   onDelete: () => void;
-  archiveLoading?: boolean;
+  statusLoading?: boolean;
   deleteDisabled?: boolean;
 };
 
 export function CompanyRequestActionsMenu({
   editHref,
-  isArchived,
-  onArchive,
-  onRestore,
+  lifecycleStatus,
+  onPause,
+  onReactivate,
+  onClose,
   onDelete,
-  archiveLoading = false,
+  statusLoading = false,
   deleteDisabled = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const isClosed = lifecycleStatus === "closed";
+  const isPaused = lifecycleStatus === "paused";
+  const isViewOnly = isClosed || isPaused;
 
   useEffect(() => {
     if (!open) return;
@@ -64,46 +77,77 @@ export function CompanyRequestActionsMenu({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-50 mt-1.5 min-w-[200px] rounded-xl border bg-card py-1 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1.5 min-w-[220px] rounded-xl border bg-card py-1 shadow-lg"
         >
-          <Link
-            role="menuitem"
-            to={editHref}
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
-            onClick={close}
-          >
-            <Pencil className="h-4 w-4 text-muted-foreground" />
-            Edit Request
-          </Link>
-          {isArchived ? (
-            <button
-              type="button"
+          {!isViewOnly ? (
+            <Link
               role="menuitem"
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors disabled:opacity-50"
-              disabled={archiveLoading}
-              onClick={() => {
-                close();
-                onRestore();
-              }}
+              to={editHref}
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+              onClick={close}
             >
-              <ArchiveRestore className="h-4 w-4 text-muted-foreground" />
-              Restore Request
-            </button>
+              <Pencil className="h-4 w-4 text-muted-foreground" />
+              Edit Request
+            </Link>
           ) : (
+            <div
+              role="menuitem"
+              aria-disabled
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground opacity-50"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit Request
+            </div>
+          )}
+
+          {!isClosed && !isPaused && (
             <button
               type="button"
               role="menuitem"
               className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors disabled:opacity-50"
-              disabled={archiveLoading}
+              disabled={statusLoading}
               onClick={() => {
                 close();
-                onArchive();
+                onPause();
               }}
             >
-              <Archive className="h-4 w-4 text-muted-foreground" />
-              Archive Request
+              <CirclePause className="h-4 w-4 text-muted-foreground" />
+              Pause Request
             </button>
           )}
+
+          {isPaused && (
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors disabled:opacity-50"
+              disabled={statusLoading}
+              onClick={() => {
+                close();
+                onReactivate();
+              }}
+            >
+              <CirclePlay className="h-4 w-4 text-muted-foreground" />
+              Reactivate Request
+            </button>
+          )}
+
+          {!isClosed && (
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors disabled:opacity-50"
+              disabled={statusLoading}
+              onClick={() => {
+                close();
+                onClose();
+              }}
+            >
+              <CircleX className="h-4 w-4 text-muted-foreground" />
+              Close Request
+            </button>
+          )}
+
           <div className="my-1 border-t" />
           <button
             type="button"

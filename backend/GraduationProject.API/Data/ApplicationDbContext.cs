@@ -14,6 +14,14 @@ namespace GraduationProject.API.Data
         public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
         public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
         public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+        public DbSet<CompanyMember> CompanyMembers => Set<CompanyMember>();
+        public DbSet<CompanySavedStudentRecommendation> CompanySavedStudentRecommendations =>
+            Set<CompanySavedStudentRecommendation>();
+        public DbSet<CompanySavedTeamRecommendation> CompanySavedTeamRecommendations =>
+            Set<CompanySavedTeamRecommendation>();
+        public DbSet<CompanyActivityLog> CompanyActivityLogs => Set<CompanyActivityLog>();
+        public DbSet<CompanyMemberNotificationPreference> CompanyMemberNotificationPreferences =>
+            Set<CompanyMemberNotificationPreference>();
         public DbSet<CompanyTalentRequest> CompanyTalentRequests => Set<CompanyTalentRequest>();
         public DbSet<CompanyRequest> CompanyRequests => Set<CompanyRequest>();
         public DbSet<CompanyRequestRole> CompanyRequestRoles => Set<CompanyRequestRole>();
@@ -117,10 +125,106 @@ namespace GraduationProject.API.Data
             modelBuilder.Entity<CompanyProfile>(e =>
             {
                 e.ToTable("company_profiles");
+                e.HasIndex(c => c.NormalizedCompanyName).IsUnique();
+                e.HasIndex(c => c.PrimaryEmailDomain)
+                    .IsUnique()
+                    .HasFilter("\"primary_email_domain\" IS NOT NULL");
+                e.HasIndex(c => c.WebsiteDomain)
+                    .IsUnique()
+                    .HasFilter("\"website_domain\" IS NOT NULL");
                 e.HasOne(c => c.User)
                  .WithOne(u => u.CompanyProfile)
                  .HasForeignKey<CompanyProfile>(c => c.UserId)
                  .OnDelete(DeleteBehavior.Cascade);
+                e.HasMany(c => c.Members)
+                 .WithOne(m => m.CompanyProfile)
+                 .HasForeignKey(m => m.CompanyProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyMember>(e =>
+            {
+                e.ToTable("company_members");
+                e.HasIndex(m => m.UserId).IsUnique();
+                e.HasIndex(m => new { m.CompanyProfileId, m.UserId }).IsUnique();
+                e.HasOne(m => m.User)
+                 .WithOne(u => u.CompanyMembership)
+                 .HasForeignKey<CompanyMember>(m => m.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyMemberNotificationPreference>(e =>
+            {
+                e.ToTable("company_member_notification_preferences");
+                e.HasIndex(p => new { p.CompanyProfileId, p.UserId }).IsUnique();
+                e.HasOne(p => p.CompanyProfile)
+                 .WithMany()
+                 .HasForeignKey(p => p.CompanyProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(p => p.User)
+                 .WithMany()
+                 .HasForeignKey(p => p.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanySavedStudentRecommendation>(e =>
+            {
+                e.ToTable("company_saved_student_recommendations");
+                e.HasIndex(s => s.CompanyProfileId);
+                e.HasIndex(s => new { s.CompanyProfileId, s.CompanyRequestId, s.StudentProfileId }).IsUnique();
+                e.HasOne(s => s.CompanyProfile)
+                 .WithMany()
+                 .HasForeignKey(s => s.CompanyProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(s => s.CompanyRequest)
+                 .WithMany()
+                 .HasForeignKey(s => s.CompanyRequestId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(s => s.StudentProfile)
+                 .WithMany()
+                 .HasForeignKey(s => s.StudentProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(s => s.SavedByUser)
+                 .WithMany()
+                 .HasForeignKey(s => s.SavedByUserId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CompanySavedTeamRecommendation>(e =>
+            {
+                e.ToTable("company_saved_team_recommendations");
+                e.HasIndex(t => t.CompanyProfileId);
+                e.HasIndex(t => new { t.CompanyProfileId, t.CompanyRequestId, t.TeamRecommendationId }).IsUnique();
+                e.HasOne(t => t.CompanyProfile)
+                 .WithMany()
+                 .HasForeignKey(t => t.CompanyProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(t => t.CompanyRequest)
+                 .WithMany()
+                 .HasForeignKey(t => t.CompanyRequestId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(t => t.TeamRecommendation)
+                 .WithMany()
+                 .HasForeignKey(t => t.TeamRecommendationId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(t => t.SavedByUser)
+                 .WithMany()
+                 .HasForeignKey(t => t.SavedByUserId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CompanyActivityLog>(e =>
+            {
+                e.ToTable("company_activity_logs");
+                e.HasIndex(a => new { a.CompanyProfileId, a.CreatedAt });
+                e.HasOne(a => a.CompanyProfile)
+                 .WithMany()
+                 .HasForeignKey(a => a.CompanyProfileId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(a => a.User)
+                 .WithMany()
+                 .HasForeignKey(a => a.UserId)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<CompanyTalentRequest>(e =>

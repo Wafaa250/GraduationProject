@@ -1,4 +1,5 @@
 import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
+import { setMustChangePassword } from "@/lib/authSession";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5262/api",
@@ -15,9 +16,32 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error)) {
+      const data = error.response?.data as { code?: string } | undefined;
+      if (
+        error.response?.status === 403 &&
+        data?.code === "PASSWORD_CHANGE_REQUIRED" &&
+        typeof window !== "undefined"
+      ) {
+        setMustChangePassword(true);
+        if (!window.location.pathname.startsWith("/change-password")) {
+          window.location.assign("/change-password");
+        }
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
 export function parseApiErrorMessage(err: unknown): string {
-  if (axios.isAxiosError(err)) {
-    const data = err.response?.data as { message?: string } | undefined;
+    if (axios.isAxiosError(err)) {
+      const data = err.response?.data as { message?: string; code?: string } | undefined;
+      if (data?.code === "PASSWORD_CHANGE_REQUIRED") {
+        return data.message ?? "You must set a new password before continuing.";
+      }
     if (data && typeof data.message === "string" && data.message.trim() !== "") {
       return data.message;
     }

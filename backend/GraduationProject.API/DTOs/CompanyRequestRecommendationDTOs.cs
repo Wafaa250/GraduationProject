@@ -44,6 +44,10 @@ namespace GraduationProject.API.DTOs
         public string? Faculty { get; set; }
         public string? University { get; set; }
         public List<string> Skills { get; set; } = new();
+        public string? Email { get; set; }
+        public string? Linkedin { get; set; }
+        public string? Github { get; set; }
+        public string? Portfolio { get; set; }
     }
 
     public class CompanyRequestRecommendationItemDto

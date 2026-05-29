@@ -14,7 +14,7 @@ function CompaniesPanel() {
             </div>
             <div>
               <div className="font-semibold">NovaTech Labs</div>
-              <div className="text-xs text-muted-foreground">Hiring · Frontend Intern</div>
+              <div className="text-xs text-muted-foreground">Project request · Frontend</div>
             </div>
           </div>
           <div className="text-xs px-2 py-1 rounded-md bg-secondary/10 text-secondary border border-secondary/20">

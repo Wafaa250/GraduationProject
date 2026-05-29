@@ -1,10 +1,11 @@
 import { useEffect, type ReactNode } from "react";
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { CompatibilityRing } from "@/components/company/CompatibilityRing";
+import { CompanyStudentContactSection } from "@/components/company/CompanyStudentContactSection";
 import type { RecommendationCandidate } from "@/types/companyRecommendation";
 
 function initials(name: string): string {
@@ -18,9 +19,7 @@ function initials(name: string): string {
 
 type Props = {
   candidate: RecommendationCandidate | null;
-  invitationSent: boolean;
   onClose: () => void;
-  onInvite: () => void;
 };
 
 function ProfileSection({ title, children }: { title: string; children: ReactNode }) {
@@ -34,12 +33,7 @@ function ProfileSection({ title, children }: { title: string; children: ReactNod
   );
 }
 
-export function CompanyCandidateProfilePanel({
-  candidate,
-  invitationSent,
-  onClose,
-  onInvite,
-}: Props) {
+export function CompanyCandidateProfilePanel({ candidate, onClose }: Props) {
   useEffect(() => {
     if (!candidate) return;
     const onKey = (e: KeyboardEvent) => {
@@ -57,9 +51,9 @@ export function CompanyCandidateProfilePanel({
 
   const breakdown = [
     { label: "Skill fit", value: Math.min(98, candidate.matchScore) },
-    { label: "Project interest fit", value: Math.max(75, candidate.matchScore - 6) },
+    { label: "Project relevance", value: Math.max(75, candidate.matchScore - 6) },
     { label: "Experience fit", value: Math.max(70, candidate.matchScore - 10) },
-    { label: "Collaboration fit", value: Math.max(72, candidate.matchScore - 4) },
+    { label: "Profile quality", value: Math.max(72, candidate.matchScore - 4) },
   ];
 
   return (
@@ -102,17 +96,23 @@ export function CompanyCandidateProfilePanel({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          <ProfileSection title="Why this match">
+            <ul className="text-sm text-muted-foreground space-y-1.5 leading-relaxed">
+              {candidate.insights.map((line) => (
+                <li key={line}>• {line}</li>
+              ))}
+            </ul>
+          </ProfileSection>
+
+          <ProfileSection title="Contact">
+            <CompanyStudentContactSection contact={candidate.contact} />
+          </ProfileSection>
+
           <ProfileSection title="Bio">
             <p className="text-sm leading-relaxed text-muted-foreground">{candidate.bio}</p>
           </ProfileSection>
 
-          <ProfileSection title="Availability">
-            <Badge variant="outline" className="rounded-md font-normal">
-              {candidate.availability}
-            </Badge>
-          </ProfileSection>
-
-          <ProfileSection title="Compatibility breakdown">
+          <ProfileSection title="Match breakdown">
             <div className="space-y-3">
               {breakdown.map((row) => (
                 <div key={row.label}>
@@ -136,50 +136,34 @@ export function CompanyCandidateProfilePanel({
             </div>
           </ProfileSection>
 
-          <ProfileSection title="Tools">
-            <div className="flex flex-wrap gap-1.5">
-              {candidate.tools.map((tool) => (
-                <Badge key={tool} variant="secondary" className="rounded-md text-xs font-normal">
-                  {tool}
-                </Badge>
-              ))}
-            </div>
-          </ProfileSection>
+          {candidate.tools.length > 0 && (
+            <ProfileSection title="Tools">
+              <div className="flex flex-wrap gap-1.5">
+                {candidate.tools.map((tool) => (
+                  <Badge key={tool} variant="secondary" className="rounded-md text-xs font-normal">
+                    {tool}
+                  </Badge>
+                ))}
+              </div>
+            </ProfileSection>
+          )}
 
-          <ProfileSection title="Project interests">
-            <div className="flex flex-wrap gap-1.5">
-              {candidate.projectInterests.map((interest) => (
-                <Badge key={interest} variant="outline" className="rounded-md text-xs font-normal">
-                  {interest}
-                </Badge>
-              ))}
-            </div>
-          </ProfileSection>
+          {candidate.projectInterests.length > 0 && (
+            <ProfileSection title="Project interests">
+              <div className="flex flex-wrap gap-1.5">
+                {candidate.projectInterests.map((interest) => (
+                  <Badge key={interest} variant="outline" className="rounded-md text-xs font-normal">
+                    {interest}
+                  </Badge>
+                ))}
+              </div>
+            </ProfileSection>
+          )}
         </div>
 
-        <div className="p-5 border-t flex gap-2 shrink-0 bg-card">
-          <Button type="button" variant="outline" className="rounded-xl flex-1" onClick={onClose}>
-            Close
-          </Button>
-          <Button
-            type="button"
-            variant={invitationSent ? "outline" : "default"}
-            className={
-              invitationSent
-                ? "rounded-xl flex-1 text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300"
-                : "rounded-xl cw-btn-gradient shadow-sm flex-1 border-0"
-            }
-            disabled={invitationSent}
-            onClick={onInvite}
-          >
-            {invitationSent ? (
-              <>
-                <Check className="h-4 w-4 mr-1 shrink-0" aria-hidden />
-                Invitation Sent
-              </>
-            ) : (
-              "Invite"
-            )}
+        <div className="p-5 border-t shrink-0 bg-card">
+          <Button type="button" variant="outline" className="rounded-xl w-full" onClick={onClose}>
+            Close profile
           </Button>
         </div>
       </aside>

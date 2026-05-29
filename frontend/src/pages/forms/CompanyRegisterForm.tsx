@@ -14,6 +14,8 @@ import { AlertError, GhostButton, PrimaryButton } from '@/components/registratio
 import { RegistrationStepFooter } from '@/components/registration/RegistrationStepFooter'
 import { RegistrationSuccess } from '@/components/registration/RegistrationSuccess'
 import type { RegistrationStep } from '@/components/registration/types'
+import { persistAuthSession } from '@/lib/authSession'
+import { setStoredCompanyRole } from '@/lib/companyWorkspace'
 import './company-register-mobile.css'
 
 const STEPS: RegistrationStep[] = [
@@ -172,18 +174,20 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
         linkedInUrl: form.linkedInUrl.trim() || undefined,
       })
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('userId', data.userId.toString())
-      localStorage.setItem('role', data.role)
-      localStorage.setItem('name', data.name)
-      localStorage.setItem('email', data.email)
+      persistAuthSession(data)
+      setStoredCompanyRole(data.companyRole ?? 'owner')
 
       toast.success('Company account created!')
       setSubmitted(true)
     } catch (err) {
       const msg = parseApiErrorMessage(err)
-      setApiError(msg)
-      toast.error(msg)
+      const status = (err as { response?: { status?: number } })?.response?.status
+      const friendly =
+        status === 409 && msg.includes('workspace')
+          ? `${msg} Use Company Members after an owner adds your account.`
+          : msg
+      setApiError(friendly)
+      toast.error(friendly)
     } finally {
       setIsLoading(false)
     }

@@ -11,11 +11,13 @@ namespace GraduationProject.API.Models
         [Column("email")] public string Email { get; set; } = string.Empty;
         [Column("password")] public string Password { get; set; } = string.Empty;
         [Column("role")] public string Role { get; set; } = string.Empty;
+        [Column("must_change_password")] public bool MustChangePassword { get; set; }
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public StudentProfile? StudentProfile { get; set; }
         public DoctorProfile? DoctorProfile { get; set; }
         public CompanyProfile? CompanyProfile { get; set; }
+        public CompanyMember? CompanyMembership { get; set; }
         public StudentAssociationProfile? StudentAssociationProfile { get; set; }
     }
 }

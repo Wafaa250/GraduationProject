@@ -22,11 +22,11 @@ export function CompanyRequestAnalyzeCta({
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white leading-snug">
-              Analyze with SkillSwap AI
+              View AI recommendations
             </p>
             <p className="text-xs text-white/80 mt-1 leading-relaxed">
-              Run AI analysis on this request to surface ranked student recommendations by skills,
-              interests, and collaboration fit.
+              See ranked students or teams with explainable match scores, then contact them
+              directly outside SkillSwap.
             </p>
           </div>
         </div>
@@ -38,7 +38,7 @@ export function CompanyRequestAnalyzeCta({
             title={disabledReason}
           >
             <Sparkles className="h-4 w-4 mr-1" />
-            Analyze with SkillSwap AI
+            View AI recommendations
           </Button>
         ) : (
           <Button
@@ -48,7 +48,7 @@ export function CompanyRequestAnalyzeCta({
           >
             <Link to={analyzeHref}>
               <Sparkles className="h-4 w-4 mr-1" />
-              Analyze with SkillSwap AI
+              View AI recommendations
             </Link>
           </Button>
         )}

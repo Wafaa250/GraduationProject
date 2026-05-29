@@ -19,6 +19,7 @@ namespace GraduationProject.API.Services
         public const string CourseCategory = "course";
         public const string OrganizationEventCategory = "organization_event";
         public const string OrganizationRecruitmentCategory = "organization_recruitment";
+        public const string CompanyCategory = "company";
 
         private readonly ApplicationDbContext _db;
         private readonly IHubContext<NotificationsHub> _hubContext;
@@ -1186,6 +1187,296 @@ namespace GraduationProject.API.Services
                     notification.CreatedAt,
                     notification.ReadAt,
                 }, ct);
+        }
+
+        // ── COMPANY WORKSPACE ────────────────────────────────────────────────
+
+        public async Task NotifyCompanyAiRecommendationsReadyAsync(
+            int companyProfileId,
+            int requestId,
+            string requestLabel,
+            int runId,
+            bool isTeamRecommendations,
+            int? actorUserId = null,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetCompanyRecipientsAsync(
+                companyProfileId,
+                ownersOnly: false,
+                p => p?.NotifyAiRecommendations ?? true,
+                actorUserId,
+                ct: ct);
+
+            if (recipients.Count == 0)
+                return;
+
+            var title = "New AI recommendations";
+            var body = $"New AI recommendations are available for {requestLabel}.";
+            var eventType = isTeamRecommendations
+                ? "company_team_recommendations_ready"
+                : "company_ai_recommendations_ready";
+            var dedupSuffix = isTeamRecommendations
+                ? $"team_run:{runId}"
+                : $"student_run:{runId}";
+
+            await AddManyCompanyWithDedupAsync(
+                recipients,
+                eventType,
+                requestId,
+                title,
+                body,
+                dedupSuffix,
+                ct);
+        }
+
+        public async Task NotifyCompanyStudentRecommendationSavedAsync(
+            int companyProfileId,
+            int requestId,
+            string requestLabel,
+            string actorName,
+            string studentName,
+            int? actorUserId = null,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetCompanyRecipientsAsync(
+                companyProfileId,
+                ownersOnly: true,
+                p => p?.NotifySavedRecommendations ?? true,
+                actorUserId,
+                excludeActor: false,
+                ct: ct);
+
+            if (recipients.Count == 0)
+                return;
+
+            var title = "Recommendation saved";
+            var body = $"{actorName} saved {studentName} for {requestLabel}.";
+            await AddManyByCategoryAsync(
+                recipients,
+                CompanyCategory,
+                "company_student_recommendation_saved",
+                requestId,
+                title,
+                body,
+                ct);
+        }
+
+        public async Task NotifyCompanyTeamRecommendationSavedAsync(
+            int companyProfileId,
+            int requestId,
+            string requestLabel,
+            string actorName,
+            int teamRank,
+            int? actorUserId = null,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetCompanyRecipientsAsync(
+                companyProfileId,
+                ownersOnly: true,
+                p => p?.NotifySavedRecommendations ?? true,
+                actorUserId,
+                excludeActor: false,
+                ct: ct);
+
+            if (recipients.Count == 0)
+                return;
+
+            var title = "Team recommendation saved";
+            var body = $"{actorName} saved Team #{teamRank} for {requestLabel}.";
+            await AddManyByCategoryAsync(
+                recipients,
+                CompanyCategory,
+                "company_team_recommendation_saved",
+                requestId,
+                title,
+                body,
+                ct);
+        }
+
+        public async Task NotifyCompanyRequestStatusChangedAsync(
+            int companyProfileId,
+            int requestId,
+            string requestLabel,
+            string lifecycleStatus,
+            int? actorUserId = null,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetCompanyRecipientsAsync(
+                companyProfileId,
+                ownersOnly: false,
+                p => p?.NotifyRequestStatusUpdates ?? true,
+                actorUserId,
+                ct: ct);
+
+            if (recipients.Count == 0)
+                return;
+
+            var (title, body, eventType) = lifecycleStatus switch
+            {
+                CompanyRequestLifecycleStatus.Paused => (
+                    "Request paused",
+                    $"{requestLabel} request was paused.",
+                    "company_request_paused"),
+                CompanyRequestLifecycleStatus.Active => (
+                    "Request reactivated",
+                    $"{requestLabel} request was reactivated.",
+                    "company_request_reactivated"),
+                CompanyRequestLifecycleStatus.Closed => (
+                    "Request closed",
+                    $"{requestLabel} request was closed.",
+                    "company_request_closed"),
+                _ => (null, null, null),
+            };
+
+            if (title == null || body == null || eventType == null)
+                return;
+
+            await AddManyByCategoryAsync(
+                recipients,
+                CompanyCategory,
+                eventType,
+                requestId,
+                title,
+                body,
+                ct);
+        }
+
+        public async Task NotifyCompanyMemberAddedAsync(
+            int companyProfileId,
+            string memberName,
+            int? actorUserId = null,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetCompanyRecipientsAsync(
+                companyProfileId,
+                ownersOnly: true,
+                p => p?.NotifyWorkspaceMemberChanges ?? true,
+                actorUserId,
+                excludeActor: false,
+                ct: ct);
+
+            if (recipients.Count == 0)
+                return;
+
+            var title = "Workspace member added";
+            var body = $"{memberName} was added to the workspace.";
+            await AddManyByCategoryAsync(
+                recipients,
+                CompanyCategory,
+                "company_member_added",
+                companyProfileId,
+                title,
+                body,
+                ct);
+        }
+
+        public async Task NotifyCompanyMemberRemovedAsync(
+            int companyProfileId,
+            string memberName,
+            int? actorUserId = null,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetCompanyRecipientsAsync(
+                companyProfileId,
+                ownersOnly: true,
+                p => p?.NotifyWorkspaceMemberChanges ?? true,
+                actorUserId,
+                excludeActor: false,
+                ct: ct);
+
+            if (recipients.Count == 0)
+                return;
+
+            var title = "Workspace member removed";
+            var body = $"{memberName} was removed from the workspace.";
+            await AddManyByCategoryAsync(
+                recipients,
+                CompanyCategory,
+                "company_member_removed",
+                companyProfileId,
+                title,
+                body,
+                ct);
+        }
+
+        private async Task<List<int>> GetCompanyRecipientsAsync(
+            int companyProfileId,
+            bool ownersOnly,
+            Func<CompanyMemberNotificationPreference?, bool> isEnabled,
+            int? excludeUserId,
+            bool excludeActor = true,
+            CancellationToken ct = default)
+        {
+            var memberIds = new List<int>();
+
+            if (ownersOnly)
+            {
+                memberIds = await _db.CompanyMembers
+                    .AsNoTracking()
+                    .Where(m =>
+                        m.CompanyProfileId == companyProfileId &&
+                        m.Role == CompanyMemberRoles.Owner)
+                    .Select(m => m.UserId)
+                    .ToListAsync(ct);
+
+                var profileOwnerId = await _db.CompanyProfiles
+                    .AsNoTracking()
+                    .Where(p => p.Id == companyProfileId)
+                    .Select(p => (int?)p.UserId)
+                    .FirstOrDefaultAsync(ct);
+
+                if (profileOwnerId.HasValue && !memberIds.Contains(profileOwnerId.Value))
+                    memberIds.Add(profileOwnerId.Value);
+            }
+            else
+            {
+                memberIds = await _db.CompanyMembers
+                    .AsNoTracking()
+                    .Where(m => m.CompanyProfileId == companyProfileId)
+                    .Select(m => m.UserId)
+                    .ToListAsync(ct);
+            }
+
+            if (excludeActor && excludeUserId.HasValue)
+                memberIds = memberIds.Where(id => id != excludeUserId.Value).ToList();
+
+            if (memberIds.Count == 0)
+                return memberIds;
+
+            var prefs = await _db.CompanyMemberNotificationPreferences
+                .AsNoTracking()
+                .Where(p =>
+                    p.CompanyProfileId == companyProfileId &&
+                    memberIds.Contains(p.UserId))
+                .ToDictionaryAsync(p => p.UserId, ct);
+
+            return memberIds
+                .Where(userId => isEnabled(prefs.GetValueOrDefault(userId)))
+                .Distinct()
+                .ToList();
+        }
+
+        private async Task AddManyCompanyWithDedupAsync(
+            IEnumerable<int> userIds,
+            string eventType,
+            int? projectId,
+            string title,
+            string body,
+            string dedupSuffix,
+            CancellationToken ct)
+        {
+            foreach (var userId in userIds.Distinct())
+            {
+                await TryAddGenericAsync(
+                    userId,
+                    CompanyCategory,
+                    eventType,
+                    projectId,
+                    title,
+                    body,
+                    $"company:{dedupSuffix}:{userId}",
+                    ct);
+            }
         }
     }
 }

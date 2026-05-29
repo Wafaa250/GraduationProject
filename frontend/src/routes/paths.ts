@@ -2,6 +2,7 @@
 export const ROUTES = {
   home: "/",
   login: "/login",
+  changePassword: "/change-password",
   register: "/register",
   registerAssociation: "/register/association",
   /** Post-login landing for students (Student Dashboard). */
@@ -25,11 +26,26 @@ export const COMPANY_ROUTES = {
   editRequest: (id: number | string) => `/company/requests/${id}/edit`,
   requestRecommendations: (id: number | string) =>
     `/company/requests/${id}/recommendations`,
+  studentDiscoveryProfile: (
+    requestId: number | string,
+    studentProfileId: number | string,
+    teamId?: number | string,
+  ) => {
+    const base = `/company/requests/${requestId}/students/${studentProfileId}`;
+    if (teamId != null && teamId !== "") {
+      return `${base}?teamId=${teamId}`;
+    }
+    return base;
+  },
+  teamDiscoveryProfile: (requestId: number | string, teamId: number | string) =>
+    `/company/requests/${requestId}/teams/${teamId}`,
   newRequest: "/company/requests/new",
   matches: "/company/matches",
   discover: "/company/discover",
   collaborations: "/company/collaborations",
   messages: "/company/messages",
   profile: "/company/profile",
+  members: "/company/members",
+  saved: "/company/saved",
   settings: "/company/settings",
 } as const;

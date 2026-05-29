@@ -86,6 +86,7 @@ namespace GraduationProject.API.DTOs
         public int Id { get; set; }
         public string RequestType { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public string RequestStatus { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
         public string? DurationLabel { get; set; }
@@ -101,6 +102,7 @@ namespace GraduationProject.API.DTOs
         public int Id { get; set; }
         public string RequestType { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public string RequestStatus { get; set; } = string.Empty;
         public int? WizardStep { get; set; }
 
         public string Title { get; set; } = string.Empty;

@@ -1,14 +1,14 @@
 import { useMemo } from "react";
-import { Users } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Bookmark, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CompatibilityRing } from "@/components/company/CompatibilityRing";
-import type {
-  CompanyRequestInvitationStatus,
-  CompanyRequestTeamRecommendation,
-} from "@/api/companyApi";
+import type { CompanyRequestTeamRecommendation } from "@/api/companyApi";
+import { COMPANY_ROUTES } from "@/routes/paths";
+import { cn } from "@/lib/utils";
 
 const ROLE_CHIP_CLASSES = [
   "bg-primary/15 text-primary hover:bg-primary/15",
@@ -18,11 +18,11 @@ const ROLE_CHIP_CLASSES = [
 ] as const;
 
 type Props = {
+  requestId: number;
   team: CompanyRequestTeamRecommendation;
-  invitingTeamId?: number | null;
-  invitationStatusByStudentId: Map<number, CompanyRequestInvitationStatus>;
-  onViewTeam: (team: CompanyRequestTeamRecommendation) => void;
-  onInviteTeam: (team: CompanyRequestTeamRecommendation) => void;
+  saved?: boolean;
+  saveDisabled?: boolean;
+  onToggleSave?: () => void;
 };
 
 function initials(name: string): string {
@@ -54,21 +54,20 @@ function shortRoleLabel(roleName: string): string {
 }
 
 export function CompanyTeamRecommendationCard({
+  requestId,
   team,
-  invitingTeamId,
-  invitationStatusByStudentId,
-  onViewTeam,
-  onInviteTeam,
+  saved = false,
+  saveDisabled = false,
+  onToggleSave,
 }: Props) {
   const chemistry = useMemo(() => chemistryLabel(team.compatibilityScore), [team.compatibilityScore]);
 
-  const allInvited = team.members.every((m) => {
-    const status = invitationStatusByStudentId.get(m.studentProfileId);
-    return status === "pending" || status === "accepted";
-  });
-
-  const strength = team.strengths.find(Boolean);
-  const risk = team.risks.find(Boolean);
+  const teamSignalLabel =
+    team.roleCoverageScore >= 85
+      ? "High role coverage"
+      : team.roleCoverageScore >= 70
+        ? "Strong role coverage"
+        : "Balanced role coverage";
 
   return (
     <Card className="cw-card-elevated h-full transition-shadow hover:shadow-md border border-border/50">
@@ -78,6 +77,8 @@ export function CompanyTeamRecommendationCard({
             <h3 className="font-semibold text-base tracking-tight">Team #{team.teamRank}</h3>
             <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
               <span>{team.members.length} members</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span>{team.roleCoverageScore}% role coverage</span>
               {chemistry && (
                 <>
                   <span className="text-muted-foreground/50">·</span>
@@ -90,8 +91,8 @@ export function CompanyTeamRecommendationCard({
         </div>
 
         {team.summaryReason && (
-          <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-1">
-            {oneLine(team.summaryReason, 110)}
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-2">
+            {oneLine(team.summaryReason, 140)}
           </p>
         )}
 
@@ -121,47 +122,39 @@ export function CompanyTeamRecommendationCard({
           ))}
         </div>
 
-        {(strength || risk) && (
-          <div
-            className={`mt-3 grid gap-2 text-[11px] leading-snug ${strength && risk ? "grid-cols-2" : "grid-cols-1"}`}
-          >
-            {strength && (
-              <div className="px-2 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 line-clamp-2">
-                + {oneLine(strength, 48)}
-              </div>
-            )}
-            {risk && (
-              <div className="px-2 py-1.5 rounded-lg bg-amber-500/10 text-amber-900 dark:text-amber-200 line-clamp-2">
-                ! {oneLine(risk, 48)}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex gap-2 mt-auto pt-4">
-          <Button
-            type="button"
-            size="sm"
+        <div className="mt-3">
+          <Badge
             variant="outline"
-            className="flex-1 rounded-xl h-9"
-            onClick={() => onViewTeam(team)}
+            className="rounded-md text-[10px] font-medium border-emerald-200/80 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300"
           >
-            View team
-          </Button>
+            ✓ {teamSignalLabel}
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-2 mt-3">
           <Button
-            type="button"
+            asChild
             size="sm"
-            className="flex-1 rounded-xl h-9 cw-btn-gradient shadow-sm border-0"
-            onClick={() => onInviteTeam(team)}
-            disabled={allInvited || invitingTeamId === team.teamId}
+            className="rounded-xl h-9 cw-btn-gradient shadow-sm border-0 flex-1"
           >
-            <Users className="h-3.5 w-3.5 mr-1 shrink-0" />
-            {invitingTeamId === team.teamId
-              ? "Inviting…"
-              : allInvited
-                ? "Invited"
-                : "Invite team"}
+            <Link to={COMPANY_ROUTES.teamDiscoveryProfile(requestId, team.teamId)}>
+              <Sparkles className="h-3.5 w-3.5 mr-1 shrink-0" />
+              Review Team
+            </Link>
           </Button>
+          {onToggleSave ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className={cn("rounded-xl shrink-0 h-9", saved && "text-primary bg-primary/10")}
+              aria-label={saved ? "Unsave team" : "Save team"}
+              disabled={saveDisabled}
+              onClick={onToggleSave}
+            >
+              <Bookmark className={cn("h-4 w-4", saved && "fill-current")} />
+            </Button>
+          ) : null}
         </div>
       </CardContent>
     </Card>
