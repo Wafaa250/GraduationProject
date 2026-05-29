@@ -64,5 +64,14 @@ namespace GraduationProject.API.Models
 
         public CompanyProfile CompanyProfile { get; set; } = null!;
         public ICollection<CompanyRequestRole> Roles { get; set; } = new List<CompanyRequestRole>();
+        public ICollection<CompanyRequestInvitation> Invitations { get; set; } = new List<CompanyRequestInvitation>();
+        public ICollection<CompanyRequestRecommendationRun> RecommendationRuns { get; set; } =
+            new List<CompanyRequestRecommendationRun>();
+        public ICollection<CompanyRequestRecommendation> Recommendations { get; set; } =
+            new List<CompanyRequestRecommendation>();
+        public ICollection<CompanyRequestTeamRecommendationRun> TeamRecommendationRuns { get; set; } =
+            new List<CompanyRequestTeamRecommendationRun>();
+        public ICollection<CompanyRequestTeamRecommendation> TeamRecommendations { get; set; } =
+            new List<CompanyRequestTeamRecommendation>();
     }
 }

@@ -3,6 +3,7 @@ using System;
 using GraduationProject.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260528090351_AddCompanyRequestInvitations")]
+    partial class AddCompanyRequestInvitations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -259,134 +262,6 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("company_request_invitations", (string)null);
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CompanyRequestId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_request_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("HighlightsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("highlights_json");
-
-                    b.Property<int>("Rank")
-                        .HasColumnType("integer")
-                        .HasColumnName("rank");
-
-                    b.Property<string>("ReasonSummary")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("reason_summary");
-
-                    b.Property<int>("RunId")
-                        .HasColumnType("integer")
-                        .HasColumnName("run_id");
-
-                    b.Property<int>("Score")
-                        .HasColumnType("integer")
-                        .HasColumnName("score");
-
-                    b.Property<string>("ScoreBreakdownJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("score_breakdown_json");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasDefaultValue("deterministic")
-                        .HasColumnName("source");
-
-                    b.Property<int>("StudentProfileId")
-                        .HasColumnType("integer")
-                        .HasColumnName("student_profile_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyRequestId");
-
-                    b.HasIndex("RunId");
-
-                    b.HasIndex("StudentProfileId");
-
-                    b.HasIndex("CompanyRequestId", "StudentProfileId");
-
-                    b.HasIndex("RunId", "Rank")
-                        .IsUnique();
-
-                    b.ToTable("company_request_recommendations", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendationRun", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AlgorithmVersion")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("algorithm_version");
-
-                    b.Property<int>("CompanyProfileId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_profile_id");
-
-                    b.Property<int>("CompanyRequestId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_request_id");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("completed_at");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("error_message");
-
-                    b.Property<DateTime>("GeneratedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("generated_at");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(24)
-                        .HasColumnType("character varying(24)")
-                        .HasDefaultValue("completed")
-                        .HasColumnName("status");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyProfileId");
-
-                    b.HasIndex("CompanyRequestId");
-
-                    b.HasIndex("CompanyRequestId", "GeneratedAt");
-
-                    b.ToTable("company_request_recommendation_runs", (string)null);
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRole", b =>
                 {
                     b.Property<int>("Id")
@@ -451,194 +326,6 @@ namespace GraduationProject.API.Migrations
                     b.HasIndex("CompanyRequestRoleId");
 
                     b.ToTable("company_request_skills", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CompanyRequestId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_request_id");
-
-                    b.Property<int>("CompatibilityScore")
-                        .HasColumnType("integer")
-                        .HasColumnName("compatibility_score");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("RisksJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("risks_json");
-
-                    b.Property<int>("RoleCoverageScore")
-                        .HasColumnType("integer")
-                        .HasColumnName("role_coverage_score");
-
-                    b.Property<int>("RunId")
-                        .HasColumnType("integer")
-                        .HasColumnName("run_id");
-
-                    b.Property<string>("StrengthsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("strengths_json");
-
-                    b.Property<string>("SummaryReason")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("summary_reason");
-
-                    b.Property<int>("TeamRank")
-                        .HasColumnType("integer")
-                        .HasColumnName("team_rank");
-
-                    b.Property<int>("TotalScore")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_score");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyRequestId")
-                        .HasDatabaseName("IX_crtt_company_request");
-
-                    b.HasIndex("RunId")
-                        .HasDatabaseName("IX_crtt_run");
-
-                    b.HasIndex("RunId", "TeamRank")
-                        .IsUnique()
-                        .HasDatabaseName("IX_crtt_run_team_rank");
-
-                    b.ToTable("company_request_team_recommendations", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationMember", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AssignmentReason")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("assignment_reason");
-
-                    b.Property<int>("CompanyRequestRoleId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_request_role_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("HighlightsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("highlights_json");
-
-                    b.Property<int>("RoleScore")
-                        .HasColumnType("integer")
-                        .HasColumnName("role_score");
-
-                    b.Property<double>("SemanticSimilarity")
-                        .HasColumnType("double precision")
-                        .HasColumnName("semantic_similarity");
-
-                    b.Property<int>("StudentProfileId")
-                        .HasColumnType("integer")
-                        .HasColumnName("student_profile_id");
-
-                    b.Property<int>("TeamRecommendationId")
-                        .HasColumnType("integer")
-                        .HasColumnName("team_recommendation_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyRequestRoleId")
-                        .HasDatabaseName("IX_crtm_role_id");
-
-                    b.HasIndex("StudentProfileId")
-                        .HasDatabaseName("IX_crtm_student_id");
-
-                    b.HasIndex("TeamRecommendationId")
-                        .HasDatabaseName("IX_crtm_team_rec_id");
-
-                    b.HasIndex("TeamRecommendationId", "CompanyRequestRoleId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_crtm_team_rec_role");
-
-                    b.ToTable("company_request_team_recommendation_members", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationRun", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AlgorithmVersion")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("algorithm_version");
-
-                    b.Property<int>("CompanyProfileId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_profile_id");
-
-                    b.Property<int>("CompanyRequestId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_request_id");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("completed_at");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("error_message");
-
-                    b.Property<DateTime>("GeneratedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("generated_at");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(24)
-                        .HasColumnType("character varying(24)")
-                        .HasDefaultValue("completed")
-                        .HasColumnName("status");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyProfileId")
-                        .HasDatabaseName("IX_crtr_company_profile");
-
-                    b.HasIndex("CompanyRequestId")
-                        .HasDatabaseName("IX_crtr_company_request");
-
-                    b.HasIndex("CompanyRequestId", "GeneratedAt")
-                        .HasDatabaseName("IX_crtr_request_generated_at");
-
-                    b.ToTable("company_request_team_recommendation_runs", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.CompanyTalentRequest", b =>
@@ -1226,60 +913,6 @@ namespace GraduationProject.API.Migrations
                         .HasDatabaseName("ix_project_invitations_project_receiver");
 
                     b.ToTable("project_invitations", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.RecommendationSemanticEmbedding", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ContentHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("content_hash");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("EmbeddingJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("embedding_json");
-
-                    b.Property<string>("EmbeddingModel")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("embedding_model");
-
-                    b.Property<int>("ScopeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("scope_id");
-
-                    b.Property<string>("ScopeType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("scope_type");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ScopeType", "UpdatedAt");
-
-                    b.HasIndex("ScopeType", "ScopeId", "EmbeddingModel")
-                        .IsUnique();
-
-                    b.ToTable("recommendation_semantic_embeddings", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.SectionChatMessage", b =>
@@ -2536,52 +2169,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("StudentProfile");
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendation", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
-                        .WithMany("Recommendations")
-                        .HasForeignKey("CompanyRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.CompanyRequestRecommendationRun", "Run")
-                        .WithMany("Recommendations")
-                        .HasForeignKey("RunId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
-                        .WithMany()
-                        .HasForeignKey("StudentProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CompanyRequest");
-
-                    b.Navigation("Run");
-
-                    b.Navigation("StudentProfile");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendationRun", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
-                        .WithMany()
-                        .HasForeignKey("CompanyProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
-                        .WithMany("RecommendationRuns")
-                        .HasForeignKey("CompanyRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CompanyProfile");
-
-                    b.Navigation("CompanyRequest");
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRole", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
@@ -2602,78 +2189,6 @@ namespace GraduationProject.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendation", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
-                        .WithMany("TeamRecommendations")
-                        .HasForeignKey("CompanyRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_crtt_company_request");
-
-                    b.HasOne("GraduationProject.API.Models.CompanyRequestTeamRecommendationRun", "Run")
-                        .WithMany("Teams")
-                        .HasForeignKey("RunId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_crtt_run");
-
-                    b.Navigation("CompanyRequest");
-
-                    b.Navigation("Run");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationMember", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CompanyRequestRole", "CompanyRequestRole")
-                        .WithMany("TeamAssignments")
-                        .HasForeignKey("CompanyRequestRoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_crtm_role");
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
-                        .WithMany()
-                        .HasForeignKey("StudentProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_crtm_student");
-
-                    b.HasOne("GraduationProject.API.Models.CompanyRequestTeamRecommendation", "TeamRecommendation")
-                        .WithMany("Members")
-                        .HasForeignKey("TeamRecommendationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_crtm_team_rec");
-
-                    b.Navigation("CompanyRequestRole");
-
-                    b.Navigation("StudentProfile");
-
-                    b.Navigation("TeamRecommendation");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationRun", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
-                        .WithMany()
-                        .HasForeignKey("CompanyProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_crtr_company_profile");
-
-                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
-                        .WithMany("TeamRecommendationRuns")
-                        .HasForeignKey("CompanyRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_crtr_company_request");
-
-                    b.Navigation("CompanyProfile");
-
-                    b.Navigation("CompanyRequest");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.CompanyTalentRequest", b =>
@@ -3288,20 +2803,7 @@ namespace GraduationProject.API.Migrations
                 {
                     b.Navigation("Invitations");
 
-                    b.Navigation("RecommendationRuns");
-
-                    b.Navigation("Recommendations");
-
                     b.Navigation("Roles");
-
-                    b.Navigation("TeamRecommendationRuns");
-
-                    b.Navigation("TeamRecommendations");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendationRun", b =>
-                {
-                    b.Navigation("Recommendations");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRole", b =>
@@ -3309,18 +2811,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Invitations");
 
                     b.Navigation("Skills");
-
-                    b.Navigation("TeamAssignments");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendation", b =>
-                {
-                    b.Navigation("Members");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationRun", b =>
-                {
-                    b.Navigation("Teams");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.Conversation", b =>

@@ -7,11 +7,18 @@ import type { RecommendationCandidate } from "@/types/companyRecommendation";
 type Props = {
   candidate: RecommendationCandidate | null;
   open: boolean;
+  sending?: boolean;
   onClose: () => void;
-  onSent: () => void;
+  onSend: (message: string) => void;
 };
 
-export function CompanyCandidateInviteDialog({ candidate, open, onClose, onSent }: Props) {
+export function CompanyCandidateInviteDialog({
+  candidate,
+  open,
+  sending = false,
+  onClose,
+  onSend,
+}: Props) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -33,10 +40,7 @@ export function CompanyCandidateInviteDialog({ candidate, open, onClose, onSent 
 
   if (!open || !candidate) return null;
 
-  const handleSend = () => {
-    onSent();
-    onClose();
-  };
+  const handleSend = () => onSend(message.trim());
 
   return (
     <div
@@ -73,15 +77,16 @@ export function CompanyCandidateInviteDialog({ candidate, open, onClose, onSent 
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 mt-6">
-          <Button type="button" variant="outline" className="rounded-xl" onClick={onClose}>
+          <Button type="button" variant="outline" className="rounded-xl" onClick={onClose} disabled={sending}>
             Cancel
           </Button>
           <Button
             type="button"
             className="rounded-xl cw-btn-gradient shadow-sm border-0"
             onClick={handleSend}
+            disabled={sending}
           >
-            Send Invitation
+            {sending ? "Sending..." : "Send Invitation"}
           </Button>
         </div>
       </div>

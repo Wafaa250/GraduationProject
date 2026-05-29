@@ -1,9 +1,16 @@
 import type { RecommendationCandidate } from "@/types/companyRecommendation";
 
+/**
+ * TODO: Replace with real student profile IDs from database seed/users.
+ * Invitation API calls require a valid studentProfileId.
+ */
+const PLACEHOLDER_STUDENT_PROFILE_ID_MAP: Record<string, number | undefined> = {};
+
 /** Static pool for UI preview only — replaced by matching API later. */
 const CANDIDATE_POOL: RecommendationCandidate[] = [
   {
     id: "rec-1",
+    studentProfileId: PLACEHOLDER_STUDENT_PROFILE_ID_MAP["rec-1"] ?? 0,
     name: "Lana Khaled",
     university: "Birzeit University",
     year: "4th year",
@@ -24,6 +31,7 @@ const CANDIDATE_POOL: RecommendationCandidate[] = [
   },
   {
     id: "rec-2",
+    studentProfileId: PLACEHOLDER_STUDENT_PROFILE_ID_MAP["rec-2"] ?? 0,
     name: "Omar Nasser",
     university: "An-Najah National University",
     year: "3rd year",
@@ -44,6 +52,7 @@ const CANDIDATE_POOL: RecommendationCandidate[] = [
   },
   {
     id: "rec-3",
+    studentProfileId: PLACEHOLDER_STUDENT_PROFILE_ID_MAP["rec-3"] ?? 0,
     name: "Sara Mansour",
     university: "Bethlehem University",
     year: "Graduating",
@@ -64,6 +73,7 @@ const CANDIDATE_POOL: RecommendationCandidate[] = [
   },
   {
     id: "rec-4",
+    studentProfileId: PLACEHOLDER_STUDENT_PROFILE_ID_MAP["rec-4"] ?? 0,
     name: "Hadi Daoud",
     university: "Palestine Polytechnic University",
     year: "4th year",
@@ -84,6 +94,7 @@ const CANDIDATE_POOL: RecommendationCandidate[] = [
   },
   {
     id: "rec-5",
+    studentProfileId: PLACEHOLDER_STUDENT_PROFILE_ID_MAP["rec-5"] ?? 0,
     name: "Nour Al-Qadi",
     university: "Hebron University",
     year: "3rd year",
@@ -104,6 +115,7 @@ const CANDIDATE_POOL: RecommendationCandidate[] = [
   },
   {
     id: "rec-6",
+    studentProfileId: PLACEHOLDER_STUDENT_PROFILE_ID_MAP["rec-6"] ?? 0,
     name: "Karim Saleh",
     university: "Birzeit University",
     year: "4th year",
@@ -124,6 +136,7 @@ const CANDIDATE_POOL: RecommendationCandidate[] = [
   },
   {
     id: "rec-7",
+    studentProfileId: PLACEHOLDER_STUDENT_PROFILE_ID_MAP["rec-7"] ?? 0,
     name: "Maya Haddad",
     university: "An-Najah National University",
     year: "2nd year",
@@ -144,6 +157,7 @@ const CANDIDATE_POOL: RecommendationCandidate[] = [
   },
   {
     id: "rec-8",
+    studentProfileId: PLACEHOLDER_STUDENT_PROFILE_ID_MAP["rec-8"] ?? 0,
     name: "Yousef Abu Rahma",
     university: "An-Najah National University",
     year: "3rd year",

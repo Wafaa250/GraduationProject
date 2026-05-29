@@ -18,6 +18,13 @@ namespace GraduationProject.API.Data
         public DbSet<CompanyRequest> CompanyRequests => Set<CompanyRequest>();
         public DbSet<CompanyRequestRole> CompanyRequestRoles => Set<CompanyRequestRole>();
         public DbSet<CompanyRequestSkill> CompanyRequestSkills => Set<CompanyRequestSkill>();
+        public DbSet<CompanyRequestInvitation> CompanyRequestInvitations => Set<CompanyRequestInvitation>();
+        public DbSet<CompanyRequestRecommendationRun> CompanyRequestRecommendationRuns => Set<CompanyRequestRecommendationRun>();
+        public DbSet<CompanyRequestRecommendation> CompanyRequestRecommendations => Set<CompanyRequestRecommendation>();
+        public DbSet<CompanyRequestTeamRecommendationRun> CompanyRequestTeamRecommendationRuns => Set<CompanyRequestTeamRecommendationRun>();
+        public DbSet<CompanyRequestTeamRecommendation> CompanyRequestTeamRecommendations => Set<CompanyRequestTeamRecommendation>();
+        public DbSet<CompanyRequestTeamRecommendationMember> CompanyRequestTeamRecommendationMembers => Set<CompanyRequestTeamRecommendationMember>();
+        public DbSet<RecommendationSemanticEmbedding> RecommendationSemanticEmbeddings => Set<RecommendationSemanticEmbedding>();
         public DbSet<StudentAssociationProfile> StudentAssociationProfiles => Set<StudentAssociationProfile>();
         public DbSet<StudentOrganizationEvent> StudentOrganizationEvents => Set<StudentOrganizationEvent>();
         public DbSet<StudentOrganizationEventRegistrationForm> StudentOrganizationEventRegistrationForms =>
@@ -167,6 +174,192 @@ namespace GraduationProject.API.Data
                  .WithMany(r => r.Skills)
                  .HasForeignKey(s => s.CompanyRequestRoleId)
                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyRequestInvitation>(e =>
+            {
+                e.ToTable("company_request_invitations");
+                e.Property(i => i.Status)
+                    .HasMaxLength(24)
+                    .HasDefaultValue(CompanyRequestInvitationStatus.Pending)
+                    .IsRequired();
+                e.Property(i => i.Message).HasMaxLength(2000);
+                e.Property(i => i.Source).HasMaxLength(100);
+                e.Property(i => i.MatchScore).HasPrecision(5, 2);
+
+                e.HasIndex(i => i.CompanyRequestId);
+                e.HasIndex(i => i.CompanyProfileId);
+                e.HasIndex(i => i.StudentProfileId);
+                e.HasIndex(i => i.InvitedByUserId);
+                e.HasIndex(i => new { i.CompanyRequestId, i.StudentProfileId, i.Status });
+                e.HasIndex(i => new { i.CompanyRequestId, i.StudentProfileId })
+                    .HasFilter("status = 'pending'")
+                    .IsUnique();
+
+                e.HasOne(i => i.CompanyRequest)
+                    .WithMany(r => r.Invitations)
+                    .HasForeignKey(i => i.CompanyRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(i => i.CompanyProfile)
+                    .WithMany()
+                    .HasForeignKey(i => i.CompanyProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(i => i.StudentProfile)
+                    .WithMany()
+                    .HasForeignKey(i => i.StudentProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(i => i.InvitedByUser)
+                    .WithMany()
+                    .HasForeignKey(i => i.InvitedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(i => i.CompanyRequestRole)
+                    .WithMany(r => r.Invitations)
+                    .HasForeignKey(i => i.CompanyRequestRoleId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<CompanyRequestRecommendationRun>(e =>
+            {
+                e.ToTable("company_request_recommendation_runs");
+                e.Property(r => r.AlgorithmVersion)
+                    .HasMaxLength(64)
+                    .IsRequired();
+                e.Property(r => r.Status)
+                    .HasMaxLength(24)
+                    .HasDefaultValue(CompanyRequestRecommendationRunStatus.Completed)
+                    .IsRequired();
+                e.Property(r => r.ErrorMessage).HasMaxLength(2000);
+
+                e.HasIndex(r => r.CompanyRequestId);
+                e.HasIndex(r => r.CompanyProfileId);
+                e.HasIndex(r => new { r.CompanyRequestId, r.GeneratedAt });
+
+                e.HasOne(r => r.CompanyRequest)
+                    .WithMany(req => req.RecommendationRuns)
+                    .HasForeignKey(r => r.CompanyRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(r => r.CompanyProfile)
+                    .WithMany()
+                    .HasForeignKey(r => r.CompanyProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyRequestRecommendation>(e =>
+            {
+                e.ToTable("company_request_recommendations");
+                e.Property(r => r.ReasonSummary)
+                    .HasMaxLength(2000)
+                    .IsRequired();
+                e.Property(r => r.Source)
+                    .HasMaxLength(32)
+                    .HasDefaultValue("deterministic")
+                    .IsRequired();
+                e.Property(r => r.ScoreBreakdownJson).HasMaxLength(4000);
+                e.Property(r => r.HighlightsJson).HasMaxLength(4000);
+
+                e.HasIndex(r => r.RunId);
+                e.HasIndex(r => r.CompanyRequestId);
+                e.HasIndex(r => r.StudentProfileId);
+                e.HasIndex(r => new { r.RunId, r.Rank }).IsUnique();
+                e.HasIndex(r => new { r.CompanyRequestId, r.StudentProfileId });
+
+                e.HasOne(r => r.Run)
+                    .WithMany(run => run.Recommendations)
+                    .HasForeignKey(r => r.RunId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(r => r.CompanyRequest)
+                    .WithMany(req => req.Recommendations)
+                    .HasForeignKey(r => r.CompanyRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(r => r.StudentProfile)
+                    .WithMany()
+                    .HasForeignKey(r => r.StudentProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<RecommendationSemanticEmbedding>(e =>
+            {
+                e.ToTable("recommendation_semantic_embeddings");
+                e.Property(r => r.ScopeType)
+                    .HasMaxLength(64)
+                    .IsRequired();
+                e.Property(r => r.EmbeddingModel)
+                    .HasMaxLength(128)
+                    .IsRequired();
+                e.Property(r => r.ContentHash)
+                    .HasMaxLength(128)
+                    .IsRequired();
+                e.Property(r => r.EmbeddingJson).IsRequired();
+                e.HasIndex(r => new { r.ScopeType, r.ScopeId, r.EmbeddingModel }).IsUnique();
+                e.HasIndex(r => new { r.ScopeType, r.UpdatedAt });
+            });
+
+            modelBuilder.Entity<CompanyRequestTeamRecommendationRun>(e =>
+            {
+                e.ToTable("company_request_team_recommendation_runs");
+                e.Property(r => r.AlgorithmVersion).HasMaxLength(64).IsRequired();
+                e.Property(r => r.Status).HasMaxLength(24).HasDefaultValue(CompanyRequestTeamRecommendationRunStatus.Completed).IsRequired();
+                e.Property(r => r.ErrorMessage).HasMaxLength(2000);
+                e.HasIndex(r => r.CompanyRequestId).HasDatabaseName("IX_crtr_company_request");
+                e.HasIndex(r => r.CompanyProfileId).HasDatabaseName("IX_crtr_company_profile");
+                e.HasIndex(r => new { r.CompanyRequestId, r.GeneratedAt }).HasDatabaseName("IX_crtr_request_generated_at");
+                e.HasOne(r => r.CompanyRequest)
+                    .WithMany(req => req.TeamRecommendationRuns)
+                    .HasForeignKey(r => r.CompanyRequestId)
+                    .HasConstraintName("FK_crtr_company_request")
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(r => r.CompanyProfile)
+                    .WithMany()
+                    .HasForeignKey(r => r.CompanyProfileId)
+                    .HasConstraintName("FK_crtr_company_profile")
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyRequestTeamRecommendation>(e =>
+            {
+                e.ToTable("company_request_team_recommendations");
+                e.Property(t => t.SummaryReason).HasMaxLength(2000).IsRequired();
+                e.Property(t => t.StrengthsJson).HasMaxLength(4000);
+                e.Property(t => t.RisksJson).HasMaxLength(4000);
+                e.HasIndex(t => t.RunId).HasDatabaseName("IX_crtt_run");
+                e.HasIndex(t => t.CompanyRequestId).HasDatabaseName("IX_crtt_company_request");
+                e.HasIndex(t => new { t.RunId, t.TeamRank }).IsUnique().HasDatabaseName("IX_crtt_run_team_rank");
+                e.HasOne(t => t.Run)
+                    .WithMany(r => r.Teams)
+                    .HasForeignKey(t => t.RunId)
+                    .HasConstraintName("FK_crtt_run")
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(t => t.CompanyRequest)
+                    .WithMany(r => r.TeamRecommendations)
+                    .HasForeignKey(t => t.CompanyRequestId)
+                    .HasConstraintName("FK_crtt_company_request")
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyRequestTeamRecommendationMember>(e =>
+            {
+                e.ToTable("company_request_team_recommendation_members");
+                e.Property(m => m.AssignmentReason).HasMaxLength(2000).IsRequired();
+                e.Property(m => m.HighlightsJson).HasMaxLength(4000);
+                e.HasIndex(m => m.TeamRecommendationId).HasDatabaseName("IX_crtm_team_rec_id");
+                e.HasIndex(m => m.CompanyRequestRoleId).HasDatabaseName("IX_crtm_role_id");
+                e.HasIndex(m => m.StudentProfileId).HasDatabaseName("IX_crtm_student_id");
+                e.HasIndex(m => new { m.TeamRecommendationId, m.CompanyRequestRoleId }).IsUnique().HasDatabaseName("IX_crtm_team_rec_role");
+                e.HasOne(m => m.TeamRecommendation)
+                    .WithMany(t => t.Members)
+                    .HasForeignKey(m => m.TeamRecommendationId)
+                    .HasConstraintName("FK_crtm_team_rec")
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(m => m.CompanyRequestRole)
+                    .WithMany(r => r.TeamAssignments)
+                    .HasForeignKey(m => m.CompanyRequestRoleId)
+                    .HasConstraintName("FK_crtm_role")
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(m => m.StudentProfile)
+                    .WithMany()
+                    .HasForeignKey(m => m.StudentProfileId)
+                    .HasConstraintName("FK_crtm_student")
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ── STUDENT ASSOCIATION PROFILE ────────────────────────────────────

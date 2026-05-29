@@ -4,6 +4,7 @@ export type RecommendationAvailability = "Available" | "Limited" | "Busy";
 
 export type RecommendationCandidate = {
   id: string;
+  studentProfileId: number;
   name: string;
   university: string;
   year: string;

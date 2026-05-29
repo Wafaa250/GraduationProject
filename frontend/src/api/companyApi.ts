@@ -183,6 +183,139 @@ export type CompanyProjectRequestDetail = CompanyProjectRequestSummary & {
   updatedAt: string;
 };
 
+export type CompanyRequestInvitationStatus = "pending" | "accepted" | "rejected" | "cancelled";
+
+export type CompanyRequestInvitation = {
+  id: number;
+  companyRequestId: number;
+  companyProfileId: number;
+  studentProfileId: number;
+  invitedByUserId: number;
+  companyRequestRoleId?: number | null;
+  companyRequestRoleName?: string | null;
+  message?: string | null;
+  status: CompanyRequestInvitationStatus;
+  matchScore?: number | null;
+  source?: string | null;
+  createdAt: string;
+  respondedAt?: string | null;
+  cancelledAt?: string | null;
+};
+
+export type CreateCompanyRequestInvitationPayload = {
+  studentProfileId: number;
+  message?: string | null;
+  companyRequestRoleId?: number | null;
+  matchScore?: number | null;
+  source?: string | null;
+};
+
+export type CompanyRequestRecommendationScoreBreakdown = {
+  skillOverlap: number;
+  roleDisciplineAlignment: number;
+  profileRelevance: number;
+  collaborationFit: number;
+  profileQuality: number;
+};
+
+export type CompanyRequestRecommendationStudent = {
+  studentProfileId: number;
+  userId: number;
+  name: string;
+  academicYear?: string | null;
+  bio?: string | null;
+  major?: string | null;
+  faculty?: string | null;
+  university?: string | null;
+  skills: string[];
+};
+
+export type CompanyRequestRecommendationItem = {
+  id: number;
+  rank: number;
+  score: number;
+  reasonSummary: string;
+  highlights: string[];
+  source: string;
+  scoreBreakdown: CompanyRequestRecommendationScoreBreakdown;
+  invitationAlreadySent: boolean;
+  invitationStatus?: CompanyRequestInvitationStatus | null;
+  student: CompanyRequestRecommendationStudent;
+};
+
+export type CompanyRequestRecommendationRun = {
+  runId: number;
+  companyRequestId: number;
+  algorithmVersion: string;
+  status: string;
+  generatedAt: string;
+  completedAt?: string | null;
+  totalCandidates: number;
+};
+
+export type CompanyRequestRecommendationResult = {
+  run: CompanyRequestRecommendationRun;
+  items: CompanyRequestRecommendationItem[];
+};
+
+export type GenerateCompanyRequestRecommendationsPayload = {
+  limit?: number;
+};
+
+export type GenerateCompanyRequestTeamRecommendationsPayload = {
+  teamCount?: number;
+  candidatePoolPerRole?: number;
+  forceRegenerate?: boolean;
+};
+
+export type CompanyRequestTeamRecommendationRun = {
+  runId: number;
+  companyRequestId: number;
+  algorithmVersion: string;
+  status: string;
+  generatedAt: string;
+  completedAt?: string | null;
+  totalTeams: number;
+};
+
+export type CompanyRequestTeamRecommendationMember = {
+  companyRequestRoleId: number;
+  roleName: string;
+  studentProfileId: number;
+  userId: number;
+  studentName: string;
+  major?: string | null;
+  faculty?: string | null;
+  university?: string | null;
+  roleScore: number;
+  semanticSimilarity: number;
+  assignmentReason: string;
+  highlights: string[];
+};
+
+export type CompanyRequestTeamRecommendation = {
+  teamId: number;
+  teamRank: number;
+  totalScore: number;
+  roleCoverageScore: number;
+  compatibilityScore: number;
+  summaryReason: string;
+  strengths: string[];
+  risks: string[];
+  members: CompanyRequestTeamRecommendationMember[];
+};
+
+export type CompanyRequestTeamRecommendationResult = {
+  run: CompanyRequestTeamRecommendationRun;
+  teams: CompanyRequestTeamRecommendation[];
+};
+
+export type CompanyRequestTeamRecommendationRunHistory = {
+  companyRequestId: number;
+  totalRuns: number;
+  runs: CompanyRequestTeamRecommendationRun[];
+};
+
 export async function getCompanyRequestDraft(): Promise<CompanyProjectRequestDetail | null> {
   const { status, data } = await api.get<CompanyProjectRequestDetail>("/company/requests/draft", {
     validateStatus: (s) => s === 200 || s === 204,
@@ -249,6 +382,101 @@ export async function updateCompanyProjectRequest(
 
 export async function deleteCompanyProjectRequest(id: number): Promise<void> {
   await api.delete(`/company/requests/${id}`);
+}
+
+export async function createCompanyRequestInvitation(
+  requestId: number,
+  payload: CreateCompanyRequestInvitationPayload,
+): Promise<CompanyRequestInvitation> {
+  const { data } = await api.post<CompanyRequestInvitation>(
+    `/company/requests/${requestId}/invitations`,
+    payload,
+  );
+  return data;
+}
+
+export async function listCompanyRequestInvitations(
+  requestId: number,
+): Promise<CompanyRequestInvitation[]> {
+  const { data } = await api.get<CompanyRequestInvitation[]>(
+    `/company/requests/${requestId}/invitations`,
+  );
+  return data;
+}
+
+export async function listCompanyInvitations(): Promise<CompanyRequestInvitation[]> {
+  const { data } = await api.get<CompanyRequestInvitation[]>("/company/invitations");
+  return data;
+}
+
+export async function cancelCompanyRequestInvitation(
+  requestId: number,
+  invitationId: number,
+): Promise<CompanyRequestInvitation> {
+  const { data } = await api.post<CompanyRequestInvitation>(
+    `/company/requests/${requestId}/invitations/${invitationId}/cancel`,
+  );
+  return data;
+}
+
+export async function getCompanyRequestRecommendations(
+  requestId: number,
+): Promise<CompanyRequestRecommendationResult> {
+  const { data } = await api.get<CompanyRequestRecommendationResult>(
+    `/company/requests/${requestId}/recommendations`,
+  );
+  return data;
+}
+
+export async function generateCompanyRequestRecommendations(
+  requestId: number,
+  payload: GenerateCompanyRequestRecommendationsPayload = {},
+): Promise<CompanyRequestRecommendationResult> {
+  const { data } = await api.post<CompanyRequestRecommendationResult>(
+    `/company/requests/${requestId}/recommendations/generate`,
+    payload,
+  );
+  return data;
+}
+
+export async function getCompanyRequestTeamRecommendations(
+  requestId: number,
+): Promise<CompanyRequestTeamRecommendationResult> {
+  const { data } = await api.get<CompanyRequestTeamRecommendationResult>(
+    `/company/requests/${requestId}/team-recommendations`,
+  );
+  return data;
+}
+
+export async function generateCompanyRequestTeamRecommendations(
+  requestId: number,
+  payload: GenerateCompanyRequestTeamRecommendationsPayload = {},
+): Promise<CompanyRequestTeamRecommendationResult> {
+  const { data } = await api.post<CompanyRequestTeamRecommendationResult>(
+    `/company/requests/${requestId}/team-recommendations/generate`,
+    payload,
+  );
+  return data;
+}
+
+export async function regenerateCompanyRequestTeamRecommendations(
+  requestId: number,
+  payload: GenerateCompanyRequestTeamRecommendationsPayload = {},
+): Promise<CompanyRequestTeamRecommendationResult> {
+  const { data } = await api.post<CompanyRequestTeamRecommendationResult>(
+    `/company/requests/${requestId}/team-recommendations/regenerate`,
+    payload,
+  );
+  return data;
+}
+
+export async function getCompanyRequestTeamRecommendationHistory(
+  requestId: number,
+): Promise<CompanyRequestTeamRecommendationRunHistory> {
+  const { data } = await api.get<CompanyRequestTeamRecommendationRunHistory>(
+    `/company/requests/${requestId}/team-recommendations/history`,
+  );
+  return data;
 }
 
 export { parseApiErrorMessage };
