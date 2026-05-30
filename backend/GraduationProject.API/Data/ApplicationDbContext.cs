@@ -10,7 +10,6 @@ namespace GraduationProject.API.Data
 
         // ── Core Entities ────────────────────────────────────────────────────
         public DbSet<User> Users => Set<User>();
-        public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
         public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
         public DbSet<DoctorProfile> DoctorProfiles => Set<DoctorProfile>();
         public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
@@ -42,7 +41,6 @@ namespace GraduationProject.API.Data
         // ── Student Graduation Projects ──────────────────────────────────────
         public DbSet<StudentProject> StudentProjects => Set<StudentProject>();
         public DbSet<StudentProjectMember> StudentProjectMembers => Set<StudentProjectMember>();
-        public DbSet<ProjectMilestone> ProjectMilestones => Set<ProjectMilestone>();
         public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
         public DbSet<SupervisorRequest> SupervisorRequests => Set<SupervisorRequest>();
         public DbSet<SupervisorCancellationRequest> SupervisorCancellationRequests => Set<SupervisorCancellationRequest>();
@@ -70,18 +68,6 @@ namespace GraduationProject.API.Data
                 e.ToTable("users");
                 e.HasKey(u => u.Id);
                 e.HasIndex(u => u.Email).IsUnique();
-            });
-
-            modelBuilder.Entity<PasswordResetToken>(e =>
-            {
-                e.ToTable("password_reset_tokens");
-                e.HasKey(t => t.Id);
-                e.HasIndex(t => t.TokenHash);
-                e.HasIndex(t => new { t.UserId, t.UsedAt, t.ExpiresAt });
-                e.HasOne(t => t.User)
-                 .WithMany()
-                 .HasForeignKey(t => t.UserId)
-                 .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ── STUDENT PROFILE ──────────────────────────────────────────────
@@ -374,25 +360,6 @@ namespace GraduationProject.API.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<ProjectMilestone>(e =>
-            {
-                e.ToTable("graduation_project_milestones");
-                e.HasKey(m => m.Id);
-                e.Property(m => m.Title).IsRequired().HasMaxLength(200);
-                e.Property(m => m.Description).HasMaxLength(2000);
-                e.Property(m => m.Status)
-                    .HasConversion<string>()
-                    .HasMaxLength(20)
-                    .HasDefaultValue(MilestoneStatus.Pending)
-                    .IsRequired();
-                e.HasIndex(m => new { m.ProjectId, m.DueDate })
-                    .HasDatabaseName("ix_project_milestones_project_due_date");
-                e.HasOne(m => m.Project)
-                    .WithMany(p => p.Milestones)
-                    .HasForeignKey(m => m.ProjectId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
             // ── PROJECT INVITATIONS ───────────────────────────────────────────
             modelBuilder.Entity<ProjectInvitation>(e =>
             {
@@ -480,13 +447,6 @@ namespace GraduationProject.API.Data
                 e.Property(c => c.Name).IsRequired().HasMaxLength(200);
                 e.Property(c => c.Code).IsRequired().HasMaxLength(50);
                 e.Property(c => c.Semester).HasMaxLength(100);
-                e.Property(c => c.AcademicYear).HasMaxLength(100);
-                e.Property(c => c.Description).HasMaxLength(600);
-                e.Property(c => c.DefaultTeamFormationStrategy).IsRequired().HasMaxLength(20).HasDefaultValue("doctor");
-                e.Property(c => c.AllowCourseProjects).HasDefaultValue(true);
-                e.Property(c => c.AllowTeamFormation).HasDefaultValue(true);
-                e.Property(c => c.AllowAiTeamSuggestions).HasDefaultValue(true);
-                e.Property(c => c.AllowStudentCollaboration).HasDefaultValue(true);
                 e.HasIndex(c => c.DoctorId)
                  .HasDatabaseName("ix_courses_doctor");
                 e.HasOne(c => c.Doctor)

@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
-using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Services;
 
@@ -46,21 +45,20 @@ namespace GraduationProject.API.Controllers
         //      so the frontend receives an empty list rather than an error.
         // =====================================================================
         [HttpGet("requests")]
-        public async Task<ActionResult<List<DoctorSupervisorRequestListItemDto>>> GetDoctorRequests()
+        public async Task<IActionResult> GetDoctorRequests()
         {
             if (AuthorizationHelper.GetRole(User) != "doctor")
                 return StatusCode(403, new { message = "Only doctors can access this endpoint." });
 
             var doctor = await GetCurrentDoctorProfileAsync();
             if (doctor == null)
-                return Ok(new List<DoctorSupervisorRequestListItemDto>());
+                return Ok(new List<object>()); // Bug 3 fix: graceful empty list
 
+            // ── Materialize first, then deserialize JSON in memory (Bug 2 fix) ──
             var requests = await _db.SupervisorRequests
                 .Where(r => r.DoctorId == doctor.Id)
                 .Include(r => r.Project)
-                    .ThenInclude(p => p!.Owner)
-                .Include(r => r.Project)
-                    .ThenInclude(p => p!.Members)
+                    .ThenInclude(p => p.Members)
                         .ThenInclude(m => m.Student)
                             .ThenInclude(s => s.User)
                 .Include(r => r.Sender).ThenInclude(s => s.User)
@@ -68,40 +66,60 @@ namespace GraduationProject.API.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            var result = requests
-                .Select(r => DoctorSupervisorRequestMapper.MapListItem(r, doctor))
-                .ToList();
+            var result = requests.Select(r =>
+            {
+                List<string> skills;
+                try
+                {
+                    skills = r.Project?.RequiredSkills is { } reqJson
+                        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(reqJson) ?? new List<string>()
+                        : new List<string>();
+                }
+                catch
+                {
+                    skills = new List<string>();
+                }
+
+                var members = (r.Project?.Members ?? Enumerable.Empty<Models.StudentProjectMember>())
+                    .OrderBy(m => m.Role == "leader" ? 0 : 1)
+                    .ThenBy(m => m.Student?.User?.Name ?? "")
+                    .Select(m => new
+                    {
+                        studentId = m.StudentId,
+                        name = m.Student?.User?.Name ?? "",
+                        role = m.Role,
+                        major = m.Student?.Major ?? ""
+                    })
+                    .ToList();
+
+                return new
+                {
+                    requestId = r.Id,
+                    project = new
+                    {
+                        projectId = r.ProjectId,
+                        name = r.Project?.Name ?? "",
+                        description = r.Project?.Abstract,
+                        requiredSkills = skills,
+                        projectType = r.Project?.ProjectType ?? "GP",
+                        partnersCount = r.Project?.PartnersCount ?? 0,
+                        memberCount = r.Project?.Members.Count ?? 0,
+                        members
+                    },
+                    sender = new
+                    {
+                        studentId = r.SenderId,
+                        name = r.Sender?.User?.Name ?? "",
+                        major = r.Sender?.Major ?? "",
+                        university = r.Sender?.University ?? ""
+                    },
+                    status = r.Status,
+                    createdAt = r.CreatedAt,
+                    respondedAt = r.RespondedAt
+                };
+            }).ToList();
 
             return Ok(result);
-        }
-
-        // =====================================================================
-        // GET /api/doctors/me/requests-summary
-        // Counts for supervision request summary cards and status tabs.
-        // =====================================================================
-        [HttpGet("requests-summary")]
-        public async Task<ActionResult<DoctorSupervisorRequestsSummaryDto>> GetDoctorRequestsSummary()
-        {
-            if (AuthorizationHelper.GetRole(User) != "doctor")
-                return StatusCode(403, new { message = "Only doctors can access this endpoint." });
-
-            var doctor = await GetCurrentDoctorProfileAsync();
-            if (doctor == null)
-                return Ok(new DoctorSupervisorRequestsSummaryDto());
-
-            var rows = await _db.SupervisorRequests
-                .AsNoTracking()
-                .Where(r => r.DoctorId == doctor.Id)
-                .Select(r => r.Status)
-                .ToListAsync();
-
-            return Ok(new DoctorSupervisorRequestsSummaryDto
-            {
-                PendingCount = rows.Count(s => s == "pending"),
-                AcceptedCount = rows.Count(s => s == "accepted"),
-                RejectedCount = rows.Count(s => s == "rejected"),
-                TotalCount = rows.Count,
-            });
         }
 
         // =====================================================================
@@ -140,35 +158,23 @@ namespace GraduationProject.API.Controllers
             var result = projects.Select(p =>
             {
                 List<string> skills;
-                List<string> preferredRoles;
                 try
                 {
                     skills = p.RequiredSkills != null
                         ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new List<string>()
                         : new List<string>();
-                    preferredRoles = p.PreferredRoles != null
-                        ? JsonSerializer.Deserialize<List<string>>(p.PreferredRoles) ?? new List<string>()
-                        : new List<string>();
                 }
                 catch
                 {
                     skills = new List<string>();
-                    preferredRoles = new List<string>();
                 }
-
-                var ownerFaculty = p.Owner?.Faculty;
-                var ownerMajor = p.Owner?.Major;
 
                 return new
                 {
                     projectId = p.Id,
                     name = p.Name,
                     description = p.Abstract,
-                    projectType = p.ProjectType,
-                    projectTypeLabel = GraduationProjectTypeHelper.GetDisplayLabel(
-                        p.ProjectType, ownerFaculty, ownerMajor),
                     requiredSkills = skills,
-                    preferredRoles = preferredRoles,
                     partnersCount = p.PartnersCount,
                     memberCount = p.Members.Count,
                     isFull = p.Members.Count >= p.PartnersCount,
@@ -178,8 +184,7 @@ namespace GraduationProject.API.Controllers
                         userId = p.Owner?.UserId ?? 0,
                         name = p.Owner?.User?.Name ?? "",
                         university = p.Owner?.University ?? "",
-                        major = ownerMajor ?? "",
-                        faculty = ownerFaculty,
+                        major = p.Owner?.Major ?? ""
                     },
                     createdAt = p.CreatedAt
                 };
@@ -204,61 +209,22 @@ namespace GraduationProject.API.Controllers
 
             var doctor = await GetCurrentDoctorProfileAsync();
             if (doctor == null)
-                return Ok(new
-                {
-                    pendingRequestsCount = 0,
-                    supervisedCount = 0,
-                    pendingCancelCount = 0,
-                    supervisedStudentsCount = 0,
-                    completedSupervisionsCount = 0,
-                });
+                return Ok(new { pendingRequestsCount = 0, supervisedCount = 0, pendingCancelCount = 0 }); // Bug 3 fix
 
             var pendingRequests = await _db.SupervisorRequests
                 .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "pending");
 
-            var activeProjectIds = await _db.StudentProjects
-                .AsNoTracking()
-                .Where(p => p.SupervisorId == doctor.Id)
-                .Select(p => p.Id)
-                .ToListAsync();
-
-            var supervisedCount = activeProjectIds.Count;
+            var supervisedCount = await _db.StudentProjects
+                .CountAsync(p => p.SupervisorId == doctor.Id);
 
             var pendingCancelRequests = await _db.SupervisorCancellationRequests
                 .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "pending");
-
-            var supervisedStudentIds = await _db.StudentProjects
-                .AsNoTracking()
-                .Where(p => p.SupervisorId == doctor.Id)
-                .Select(p => p.OwnerId)
-                .ToListAsync();
-
-            if (activeProjectIds.Count > 0)
-            {
-                var memberStudentIds = await _db.StudentProjectMembers
-                    .AsNoTracking()
-                    .Where(m => activeProjectIds.Contains(m.ProjectId))
-                    .Select(m => m.StudentId)
-                    .ToListAsync();
-                supervisedStudentIds.AddRange(memberStudentIds);
-            }
-
-            var supervisedStudentsCount = supervisedStudentIds.Distinct().Count();
-
-            var completedSupervisionsCount = await _db.SupervisorCancellationRequests
-                .AsNoTracking()
-                .Where(r => r.DoctorId == doctor.Id && r.Status == "accepted")
-                .Select(r => r.ProjectId)
-                .Distinct()
-                .CountAsync();
 
             return Ok(new
             {
                 pendingRequestsCount = pendingRequests,
                 supervisedCount,
-                pendingCancelCount = pendingCancelRequests,
-                supervisedStudentsCount,
-                completedSupervisionsCount,
+                pendingCancelCount = pendingCancelRequests
             });
         }
 

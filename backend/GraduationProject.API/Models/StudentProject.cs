@@ -19,29 +19,6 @@ namespace GraduationProject.API.Models
         // JSON array of strings e.g. ["React","Python"]
         [Column("required_skills")] public string? RequiredSkills { get; set; }
 
-        // JSON array of technology labels e.g. ["React","Docker"] (separate from required skills)
-        [Column("technologies")] public string? Technologies { get; set; }
-
-        // JSON array of interest labels e.g. ["Machine Learning","FinTech"]
-        [Column("interests")] public string? Interests { get; set; }
-
-        // Uploaded abstract document (PDF/DOCX) — metadata only; binary on disk
-        [Column("abstract_file_name")] public string? AbstractFileName { get; set; }
-        [Column("abstract_file_path")] public string? AbstractFilePath { get; set; }
-        [Column("abstract_file_uploaded_at")] public DateTime? AbstractFileUploadedAt { get; set; }
-
-        // JSON array of teammate role labels e.g. ["Frontend Developer","Backend Developer"]
-        [Column("preferred_roles")] public string? PreferredRoles { get; set; }
-
-        // JSON array of required teammate roles e.g. ["ML Engineer","Backend Dev"]
-        [Column("required_roles")] public string? RequiredRoles { get; set; }
-
-        // JSON array of skill/quality priorities e.g. ["Communication","Technical depth"]
-        [Column("skill_priorities")] public string? SkillPriorities { get; set; }
-
-        // When true, project is visible on the teammate matching board
-        [Column("looking_for_teammates")] public bool LookingForTeammates { get; set; } = true;
-
         // عدد الشركاء المطلوبين (الأونر مشمول) — 0 يعني solo
         [Column("partners_count")] public int PartnersCount { get; set; } = 0;
 
@@ -59,28 +36,6 @@ namespace GraduationProject.API.Models
         public ICollection<ProjectInvitation> Invitations { get; set; } = new List<ProjectInvitation>();
         public ICollection<SupervisorRequest> SupervisorRequests { get; set; } = new List<SupervisorRequest>();
         public ICollection<SupervisorCancellationRequest> SupervisorCancellationRequests { get; set; } = new List<SupervisorCancellationRequest>();
-        public ICollection<ProjectMilestone> Milestones { get; set; } = new List<ProjectMilestone>();
-    }
-
-    public enum MilestoneStatus
-    {
-        Pending = 0,
-        InProgress = 1,
-        Completed = 2
-    }
-
-    [Table("graduation_project_milestones")]
-    public class ProjectMilestone
-    {
-        [Column("id")] public int Id { get; set; }
-        [Column("project_id")] public int ProjectId { get; set; }
-        [Column("title")] public string Title { get; set; } = string.Empty;
-        [Column("description")] public string? Description { get; set; }
-        [Column("due_date")] public DateTime? DueDate { get; set; }
-        [Column("status")] public MilestoneStatus Status { get; set; } = MilestoneStatus.Pending;
-        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        public StudentProject Project { get; set; } = null!;
     }
 
     [Table("graduation_project_members")]
@@ -135,9 +90,6 @@ namespace GraduationProject.API.Models
 
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("responded_at")] public DateTime? RespondedAt { get; set; }
-
-        /// <summary>Optional note from the doctor when accepting or rejecting.</summary>
-        [Column("doctor_response_note")] public string? DoctorResponseNote { get; set; }
 
         // Navigation
         public StudentProject Project { get; set; } = null!;

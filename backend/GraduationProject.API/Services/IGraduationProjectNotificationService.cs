@@ -246,50 +246,6 @@ namespace GraduationProject.API.Services
             IEnumerable<int> studentProfileIds,
             CancellationToken ct = default);
 
-        Task NotifyCourseTeammateInvitationReceivedAsync(
-            int receiverUserId,
-            int projectId,
-            string projectTitle,
-            string senderName,
-            string dedupKey,
-            CancellationToken ct = default);
-
-        Task NotifyCourseTeammateInvitationAcceptedAsync(
-            int senderUserId,
-            int projectId,
-            string projectTitle,
-            string accepterName,
-            CancellationToken ct = default);
-
-        Task NotifyCourseTeammateInvitationRejectedAsync(
-            int senderUserId,
-            int projectId,
-            string projectTitle,
-            string rejecterName,
-            CancellationToken ct = default);
-
-        Task NotifyDoctorCourseTeamsGenerationCompletedAsync(
-            int doctorUserId,
-            int courseProjectId,
-            string projectTitle,
-            int teamCount,
-            CancellationToken ct = default);
-
-        Task NotifyDoctorStudentsJoinedCourseAsync(
-            int doctorUserId,
-            int courseId,
-            string courseName,
-            int studentCount,
-            CancellationToken ct = default);
-
-        Task NotifyCourseTeamReachedCapacityAsync(
-            int courseProjectId,
-            string projectTitle,
-            int teamIndex,
-            IEnumerable<int> teamMemberUserIds,
-            int doctorUserId,
-            CancellationToken ct = default);
-
         Task MarkChatScopeReadAsync(
             int userId,
             string scope,
@@ -315,44 +271,6 @@ namespace GraduationProject.API.Services
             int applicationId,
             int studentProfileId,
             string positionRoleTitle,
-            CancellationToken ct = default);
-
-        Task NotifyMilestoneCreatedAsync(
-            int projectId,
-            string projectName,
-            int milestoneId,
-            string milestoneTitle,
-            int actorUserId,
-            CancellationToken ct = default);
-
-        Task NotifyMilestoneStatusChangedAsync(
-            int projectId,
-            string projectName,
-            int milestoneId,
-            string milestoneTitle,
-            string newStatus,
-            int actorUserId,
-            CancellationToken ct = default);
-
-        Task NotifyMilestoneDeletedAsync(
-            int projectId,
-            string projectName,
-            int milestoneId,
-            string milestoneTitle,
-            int actorUserId,
-            CancellationToken ct = default);
-
-        Task NotifyAiRecommendationsGeneratedAsync(
-            int userId,
-            int? projectId,
-            string projectTitle,
-            string context,
-            CancellationToken ct = default);
-
-        Task NotifyStudentsAiTeamGenerationCompletedAsync(
-            int courseProjectId,
-            string projectTitle,
-            IEnumerable<int> studentUserIds,
             CancellationToken ct = default);
     }
 }

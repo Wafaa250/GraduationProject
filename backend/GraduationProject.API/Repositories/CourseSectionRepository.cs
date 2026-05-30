@@ -37,27 +37,6 @@ namespace GraduationProject.API.Repositories
             return section;
         }
 
-        public async Task<CourseSection> UpdateAsync(CourseSection section)
-        {
-            _context.CourseSections.Update(section);
-            await _context.SaveChangesAsync();
-            return section;
-        }
-
-        public async Task<bool> DeleteAsync(int sectionId)
-        {
-            var hasEnrollments = await _context.SectionEnrollments
-                .AnyAsync(e => e.CourseSectionId == sectionId);
-            if (hasEnrollments) return false;
-
-            var section = await _context.CourseSections.FindAsync(sectionId);
-            if (section is null) return false;
-
-            _context.CourseSections.Remove(section);
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
         // ── Students ──────────────────────────────────────────────────────────
 
         public async Task<IEnumerable<SectionEnrollment>> GetStudentsAsync(int sectionId)
@@ -140,39 +119,6 @@ namespace GraduationProject.API.Repositories
                     .ThenInclude(s => s.User)
                 .OrderBy(e => e.EnrolledAt)
                 .ToListAsync();
-        }
-
-        public async Task<bool> RemoveEnrollmentAsync(int sectionId, int studentProfileId)
-        {
-            var enrollment = await _context.SectionEnrollments
-                .FirstOrDefaultAsync(e =>
-                    e.CourseSectionId == sectionId && e.StudentProfileId == studentProfileId);
-            if (enrollment is null) return false;
-
-            _context.SectionEnrollments.Remove(enrollment);
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
-        public async Task<SectionEnrollment?> MoveEnrollmentWithinCourseAsync(
-            int courseId,
-            int studentProfileId,
-            int targetSectionId)
-        {
-            var targetSection = await _context.CourseSections
-                .FirstOrDefaultAsync(s => s.Id == targetSectionId && s.CourseId == courseId);
-            if (targetSection is null) return null;
-
-            var enrollment = await _context.SectionEnrollments
-                .Include(e => e.Student).ThenInclude(s => s!.User)
-                .FirstOrDefaultAsync(e =>
-                    e.StudentProfileId == studentProfileId && e.Section.CourseId == courseId);
-
-            if (enrollment is null) return null;
-
-            enrollment.CourseSectionId = targetSectionId;
-            await _context.SaveChangesAsync();
-            return enrollment;
         }
     }
 }

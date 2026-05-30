@@ -7,10 +7,6 @@ namespace GraduationProject.API.Interfaces
         Task<IEnumerable<CourseSection>> GetByCourseIdAsync(int courseId);
         Task<CourseSection?> GetByIdAsync(int sectionId);
         Task<CourseSection> CreateAsync(CourseSection section);
-        Task<CourseSection> UpdateAsync(CourseSection section);
-
-        /// <returns>false if section has enrollments and cannot be deleted.</returns>
-        Task<bool> DeleteAsync(int sectionId);
 
         // ── Students ──────────────────────────────────────────────────────────
 
@@ -28,13 +24,5 @@ namespace GraduationProject.API.Interfaces
 
         /// <summary>Returns all enrollments for all sections of a course.</summary>
         Task<IEnumerable<SectionEnrollment>> GetAllEnrollmentsByCourseIdAsync(int courseId);
-
-        Task<bool> RemoveEnrollmentAsync(int sectionId, int studentProfileId);
-
-        /// <summary>Moves a student's enrollment within the same course to another section.</summary>
-        Task<SectionEnrollment?> MoveEnrollmentWithinCourseAsync(
-            int courseId,
-            int studentProfileId,
-            int targetSectionId);
     }
 }

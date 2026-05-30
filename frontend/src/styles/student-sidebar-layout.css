@@ -27,12 +27,6 @@
   --sl-nav-active-accent: var(--primary);
   --sl-badge-bg: var(--primary);
   --sl-badge-fg: var(--primary);
-  --sl-user-card-bg: 210 40% 98%;
-  --sl-user-card-border: 220 13% 93%;
-  --sl-user-name: 222 47% 11%;
-  --sl-role-fg: var(--primary);
-  --sl-role-bg: var(--primary);
-  --sl-role-border: var(--primary);
   --sl-logout: 0 72% 46%;
   --sl-logout-hover-bg: 0 72% 96%;
   --sl-logout-hover-fg: 0 72% 40%;
@@ -57,12 +51,6 @@
   --sl-nav-active-accent: var(--primary);
   --sl-badge-bg: 217 19% 17%;
   --sl-badge-fg: 220 9% 84%;
-  --sl-user-card-bg: 215 30% 22%;
-  --sl-user-card-border: 215 16% 27%;
-  --sl-user-name: 210 20% 98%;
-  --sl-role-fg: 220 9% 84%;
-  --sl-role-bg: 217 19% 17%;
-  --sl-role-border: 215 16% 27%;
   --sl-logout: 0 72% 55%;
   --sl-logout-hover-bg: 0 72% 55% / 0.1;
   --sl-logout-hover-fg: 0 72% 62%;
@@ -348,82 +336,12 @@
   margin-inline: 0.375rem;
 }
 
-/* User area — compact account footer with integrated logout */
+/* User area — logout footer */
 .student-sidebar-layout__user-area {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.375rem 0.125rem 0;
-}
-
-.student-sidebar-layout__user-card {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.5625rem;
-  border-radius: 0.625rem;
-  background: hsl(var(--sl-user-card-bg));
-  border: 1px solid hsl(var(--sl-user-card-border));
-}
-
-.student-sidebar-layout--collapsed .student-sidebar-layout__user-card {
-  justify-content: center;
-  padding: 0.5rem 0.375rem;
-}
-
-.student-sidebar-layout__user-avatar-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.student-sidebar-layout__user-avatar {
-  width: 2rem;
-  height: 2rem;
-  box-shadow: inset 0 0 0 2px hsl(var(--sl-nav-active-accent) / 0.15);
-}
-
-.student-sidebar-layout__status-dot {
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 0.5625rem;
-  height: 0.5625rem;
-  border-radius: 9999px;
-  background: hsl(142 72% 42%);
-  border: 2px solid hsl(var(--sl-sidebar-bg));
-  box-shadow: 0 0 0 1px hsl(142 72% 42% / 0.25);
-}
-
-.student-sidebar-layout__user-meta {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1875rem;
-}
-
-.student-sidebar-layout__user-name {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: hsl(var(--sl-user-name));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.student-sidebar-layout__user-role {
-  display: inline-flex;
-  align-self: flex-start;
-  padding: 0.0625rem 0.4375rem;
-  border-radius: 9999px;
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: hsl(var(--primary));
-  background: hsl(var(--primary) / 0.1);
-  border: 1px solid hsl(var(--primary) / 0.15);
 }
 
 .student-sidebar-layout__logout-btn {

@@ -180,30 +180,6 @@ namespace GraduationProject.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AcademicYear")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<bool>("AllowAiTeamSuggestions")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("AllowCourseProjects")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("AllowStudentCollaboration")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("AllowTeamFormation")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -211,17 +187,6 @@ namespace GraduationProject.API.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DefaultTeamFormationStrategy")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("doctor");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(600)
-                        .HasColumnType("character varying(600)");
 
                     b.Property<int>("DoctorId")
                         .HasColumnType("integer");
@@ -463,14 +428,6 @@ namespace GraduationProject.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AcademicRank")
-                        .HasColumnType("text")
-                        .HasColumnName("academic_rank");
-
-                    b.Property<bool>("AvailableForSupervision")
-                        .HasColumnType("boolean")
-                        .HasColumnName("available_for_supervision");
-
                     b.Property<string>("Bio")
                         .HasColumnType("text")
                         .HasColumnName("bio");
@@ -488,29 +445,13 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("linkedin");
 
-                    b.Property<string>("NotificationPreferences")
-                        .HasColumnType("text")
-                        .HasColumnName("notification_preferences");
-
                     b.Property<string>("OfficeHours")
                         .HasColumnType("text")
                         .HasColumnName("office_hours");
 
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("text")
-                        .HasColumnName("phone_number");
-
-                    b.Property<string>("PreferredProjectAreas")
-                        .HasColumnType("text")
-                        .HasColumnName("preferred_project_areas");
-
                     b.Property<string>("ProfilePictureBase64")
                         .HasColumnType("text")
                         .HasColumnName("profile_picture_base64");
-
-                    b.Property<string>("ResearchInterests")
-                        .HasColumnType("text")
-                        .HasColumnName("research_interests");
 
                     b.Property<string>("ResearchSkills")
                         .HasColumnType("text")
@@ -626,45 +567,6 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("organization_follows", (string)null);
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.PasswordResetToken", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("token_hash");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("used_at");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TokenHash");
-
-                    b.HasIndex("UserId", "UsedAt", "ExpiresAt");
-
-                    b.ToTable("password_reset_tokens", (string)null);
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.ProjectInvitation", b =>
                 {
                     b.Property<int>("Id")
@@ -712,54 +614,6 @@ namespace GraduationProject.API.Migrations
                         .HasDatabaseName("ix_project_invitations_project_receiver");
 
                     b.ToTable("project_invitations", (string)null);
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.ProjectMilestone", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("description");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("due_date");
-
-                    b.Property<int>("ProjectId")
-                        .HasColumnType("integer")
-                        .HasColumnName("project_id");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Pending")
-                        .HasColumnName("status");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("title");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId", "DueDate")
-                        .HasDatabaseName("ix_project_milestones_project_due_date");
-
-                    b.ToTable("graduation_project_milestones", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.SectionChatMessage", b =>
@@ -1524,10 +1378,6 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("academic_year");
 
-                    b.Property<string>("AiProjectInterests")
-                        .HasColumnType("text")
-                        .HasColumnName("ai_project_interests");
-
                     b.Property<string>("Availability")
                         .HasColumnType("text")
                         .HasColumnName("availability");
@@ -1563,10 +1413,6 @@ namespace GraduationProject.API.Migrations
                     b.Property<string>("Major")
                         .HasColumnType("text")
                         .HasColumnName("major");
-
-                    b.Property<string>("NotificationPreferences")
-                        .HasColumnType("text")
-                        .HasColumnName("notification_preferences");
 
                     b.Property<string>("Portfolio")
                         .HasColumnType("text")
@@ -1621,29 +1467,9 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("abstract");
 
-                    b.Property<string>("AbstractFileName")
-                        .HasColumnType("text")
-                        .HasColumnName("abstract_file_name");
-
-                    b.Property<string>("AbstractFilePath")
-                        .HasColumnType("text")
-                        .HasColumnName("abstract_file_path");
-
-                    b.Property<DateTime?>("AbstractFileUploadedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("abstract_file_uploaded_at");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<string>("Interests")
-                        .HasColumnType("text")
-                        .HasColumnName("interests");
-
-                    b.Property<bool>("LookingForTeammates")
-                        .HasColumnType("boolean")
-                        .HasColumnName("looking_for_teammates");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1658,34 +1484,18 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("partners_count");
 
-                    b.Property<string>("PreferredRoles")
-                        .HasColumnType("text")
-                        .HasColumnName("preferred_roles");
-
                     b.Property<string>("ProjectType")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("project_type");
 
-                    b.Property<string>("RequiredRoles")
-                        .HasColumnType("text")
-                        .HasColumnName("required_roles");
-
                     b.Property<string>("RequiredSkills")
                         .HasColumnType("text")
                         .HasColumnName("required_skills");
 
-                    b.Property<string>("SkillPriorities")
-                        .HasColumnType("text")
-                        .HasColumnName("skill_priorities");
-
                     b.Property<int?>("SupervisorId")
                         .HasColumnType("integer")
                         .HasColumnName("supervisor_id");
-
-                    b.Property<string>("Technologies")
-                        .HasColumnType("text")
-                        .HasColumnName("technologies");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1838,10 +1648,6 @@ namespace GraduationProject.API.Migrations
                     b.Property<int>("DoctorId")
                         .HasColumnType("integer")
                         .HasColumnName("doctor_id");
-
-                    b.Property<string>("DoctorResponseNote")
-                        .HasColumnType("text")
-                        .HasColumnName("doctor_response_note");
 
                     b.Property<int>("ProjectId")
                         .HasColumnType("integer")
@@ -2185,17 +1991,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("StudentProfile");
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.PasswordResetToken", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.ProjectInvitation", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.StudentProject", "Project")
@@ -2221,17 +2016,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Receiver");
 
                     b.Navigation("Sender");
-                });
-
-            modelBuilder.Entity("GraduationProject.API.Models.ProjectMilestone", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.StudentProject", "Project")
-                        .WithMany("Milestones")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.SectionChatMessage", b =>
@@ -2686,8 +2470,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Invitations");
 
                     b.Navigation("Members");
-
-                    b.Navigation("Milestones");
 
                     b.Navigation("SupervisorCancellationRequests");
 

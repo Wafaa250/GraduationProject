@@ -204,8 +204,9 @@
 
 .dark .doctor-hub .doctor-hub__header,
 .dark .doctor-hub .doctor-hub__topbar {
-  background: hsl(var(--card) / 0.95) !important;
-  border-color: hsl(var(--border));
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .dark .doctor-hub .doctor-hub__panel,
@@ -556,7 +557,8 @@
 }
 
 .dark .doctor-hub .doctor-messages-panel__header {
-  background: hsl(var(--card) / 0.96);
+  background: hsl(222 47% 8%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .dark .doctor-hub .doctor-messages-panel__title {

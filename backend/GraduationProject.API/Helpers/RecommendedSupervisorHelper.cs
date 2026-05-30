@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using GraduationProject.API.DTOs;
 
 namespace GraduationProject.API.Helpers
@@ -13,13 +14,9 @@ namespace GraduationProject.API.Helpers
         /// </summary>
         public static List<RecommendedSupervisorDto> Build(
             IEnumerable<(int Id, int UserId, string Name, string? Specialization)> doctors,
-            string? requiredSkillsJson,
-            string? technologiesJson = null)
+            string? requiredSkillsJson)
         {
-            var skills = SkillHelper
-                .GetProjectMatchingSkillNames(requiredSkillsJson, technologiesJson)
-                .Select(s => s.ToLowerInvariant())
-                .ToList();
+            var skills = ParseNormalizedProjectSkills(requiredSkillsJson);
             var total = skills.Count;
             var results = new List<RecommendedSupervisorDto>();
 
@@ -51,6 +48,30 @@ namespace GraduationProject.API.Helpers
             return results
                 .OrderByDescending(x => x.MatchScore)
                 .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static List<string> ParseNormalizedProjectSkills(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return new List<string>();
+
+            List<string>? list;
+            try
+            {
+                list = JsonSerializer.Deserialize<List<string>>(json);
+            }
+            catch
+            {
+                return new List<string>();
+            }
+
+            if (list == null)
+                return new List<string>();
+
+            return list
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim().ToLowerInvariant())
                 .ToList();
         }
     }

@@ -182,45 +182,4 @@ namespace GraduationProject.API.DTOs
         public string? Role { get; set; }
     }
 
-    // ===========================
-    // FORGOT / RESET PASSWORD
-    // ===========================
-    public class ForgotPasswordDto
-    {
-        [Required(ErrorMessage = "Email is required")]
-        [EmailAddress(ErrorMessage = "Invalid email format")]
-        public string Email { get; set; } = string.Empty;
-    }
-
-    public class ResetPasswordDto
-    {
-        [Required(ErrorMessage = "Reset token is required")]
-        public string Token { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Password is required")]
-        [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
-        public string Password { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Please confirm your password")]
-        public string ConfirmPassword { get; set; } = string.Empty;
-    }
-
-    public class ChangePasswordDto
-    {
-        [Required(ErrorMessage = "Current password is required")]
-        public string CurrentPassword { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "New password is required")]
-        [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
-        public string NewPassword { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Please confirm your new password")]
-        public string ConfirmNewPassword { get; set; } = string.Empty;
-    }
-
-    public class MessageResponseDto
-    {
-        public string Message { get; set; } = string.Empty;
-    }
-
 }

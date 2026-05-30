@@ -4,14 +4,6 @@ namespace GraduationProject.API.DTOs
 {
     // ── Request ───────────────────────────────────────────────────────────────
 
-    public class UpdateCourseSectionDto : CreateCourseSectionDto { }
-
-    public class MoveSectionEnrollmentDto
-    {
-        [Required]
-        public int TargetSectionId { get; set; }
-    }
-
     public class CreateCourseSectionDto
     {
         [Required(ErrorMessage = "Section name is required.")]

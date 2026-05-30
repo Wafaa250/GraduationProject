@@ -60,11 +60,9 @@ builder.Services.AddSignalR();
 // SERVICES
 // ===========================
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICompanyTalentMatchService, CompanyTalentMatchService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
-builder.Services.AddScoped<IRosterStudentIdExtractor, RosterStudentIdExtractor>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
 builder.Services.AddHttpClient<IRecruitmentApplicantAnalysisService, OpenAiRecruitmentApplicantAnalysisService>();
 builder.Services.AddScoped<IRecruitmentApplicationWorkflowService, RecruitmentApplicationWorkflowService>();
@@ -83,7 +81,6 @@ builder.Services.AddScoped<ISectionChatRepository, SectionChatRepository>();
 builder.Services.AddScoped<ICourseProjectRepository, CourseProjectRepository>();
 builder.Services.AddScoped<ICourseTeamRepository, CourseTeamRepository>();
 builder.Services.AddScoped<ICourseTeamChatRepository, CourseTeamChatRepository>();
-builder.Services.AddScoped<ICourseTeamConversationService, CourseTeamConversationService>();
 builder.Services.AddHttpClient<ITeamGenerationService, OpenAiTeamGenerationService>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IGraduationProjectNotificationService, GraduationProjectNotificationService>();

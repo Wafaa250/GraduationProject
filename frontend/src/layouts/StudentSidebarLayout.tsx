@@ -461,33 +461,6 @@ export function StudentSidebarLayout() {
               <div className="student-sidebar-layout__section-divider" aria-hidden />
 
               <div className="student-sidebar-layout__user-area">
-                <div className="student-sidebar-layout__user-card">
-                  <div className="student-sidebar-layout__user-avatar-wrap">
-                    <Avatar className="student-sidebar-layout__user-avatar">
-                      {profilePhoto && (
-                        <AvatarImage src={profilePhoto} alt="" />
-                      )}
-                      <AvatarFallback className="bg-gradient-hero text-xs font-semibold text-primary-foreground">
-                        {initials(displayName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span
-                      className="student-sidebar-layout__status-dot"
-                      title="Online"
-                      aria-label="Online"
-                    />
-                  </div>
-                  {!collapsed && (
-                    <div className="student-sidebar-layout__user-meta">
-                      <span className="student-sidebar-layout__user-name">
-                        {displayName}
-                      </span>
-                      <span className="student-sidebar-layout__user-role">
-                        Student
-                      </span>
-                    </div>
-                  )}
-                </div>
                 <button
                   type="button"
                   className="student-sidebar-layout__logout-btn"

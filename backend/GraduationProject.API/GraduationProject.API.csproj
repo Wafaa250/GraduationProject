@@ -6,22 +6,8 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 
-	<!-- Nested tools and alternate output folders must not be compiled into this project. -->
-	<ItemGroup>
-		<Compile Remove="Scripts/**" />
-		<Compile Remove="obj_compile_out/**" />
-		<Compile Remove="bin_compile_check_out/**" />
-		<Content Remove="obj_compile_out/**" />
-		<Content Remove="bin_compile_check_out/**" />
-		<EmbeddedResource Remove="obj_compile_out/**" />
-		<EmbeddedResource Remove="bin_compile_check_out/**" />
-		<None Remove="obj_compile_out/**" />
-		<None Remove="bin_compile_check_out/**" />
-	</ItemGroup>
-
 	<ItemGroup>
 		<PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
-		<PackageReference Include="MailKit" Version="4.11.0" />
 		<PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
@@ -30,11 +16,8 @@
 		</PackageReference>
 		<PackageReference Include="Microsoft.OpenApi" Version="1.6.14" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
-		<PackageReference Include="ClosedXML" Version="0.104.2" />
-		<PackageReference Include="DocumentFormat.OpenXml" Version="3.2.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
 		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.5.0" />
-		<PackageReference Include="PdfPig" Version="0.1.9" />
 	</ItemGroup>
 
 </Project>

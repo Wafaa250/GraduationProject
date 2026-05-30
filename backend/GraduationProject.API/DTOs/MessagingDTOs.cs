@@ -24,7 +24,6 @@ namespace GraduationProject.API.DTOs
     {
         public int Id { get; set; }
         public string? Title { get; set; }
-        public string Type { get; set; } = "Private";
         public int? CourseTeamId { get; set; }
         public List<ConversationUserDto> Users { get; set; } = new();
         public int ParticipantCount { get; set; }
@@ -37,7 +36,6 @@ namespace GraduationProject.API.DTOs
     {
         public int Id { get; set; }
         public string? Title { get; set; }
-        public string Type { get; set; } = "Private";
         public int? CourseTeamId { get; set; }
         public int ParticipantCount { get; set; }
         public DateTime CreatedAt { get; set; }

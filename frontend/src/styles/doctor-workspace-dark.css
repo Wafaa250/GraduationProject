@@ -1,0 +1,286 @@
+/**
+ * Doctor workspace — unified premium dark canvas (Linear / Vercel style).
+ * Scoped to .dark .doctor-hub only. Surfaces stay neutral; purple is accent-only.
+ */
+
+/* ── Design tokens ─────────────────────────────────────────────────────── */
+
+.dark .doctor-hub {
+  --background: 222 47% 8%;
+  --foreground: 210 20% 98%;
+  --secondary: 222 39% 11%;
+  --secondary-foreground: 220 9% 84%;
+  --muted: 222 39% 11%;
+  --muted-foreground: 220 9% 84%;
+  --card: 217 19% 17%;
+  --card-foreground: 210 20% 98%;
+  --popover: 217 19% 17%;
+  --popover-foreground: 210 20% 98%;
+  --accent: 222 39% 11%;
+  --accent-foreground: 210 20% 98%;
+  --border: 220 13% 22%;
+  --input: 220 13% 22%;
+  --input-background: 217 19% 17%;
+  --hover: 222 39% 13%;
+
+  --sidebar-bg: 222 47% 11%;
+  --sidebar-bg-2: 222 47% 11%;
+  --sidebar-fg: 210 20% 98%;
+  --sidebar-muted: 220 9% 84%;
+  --sidebar-border: 220 13% 22%;
+  --sidebar-active: 222 39% 13%;
+
+  --faculty-bubble: 217 19% 17%;
+  --announcement: 217 19% 17%;
+  --announcement-border: 220 13% 22%;
+
+  --gradient-soft: hsl(222 47% 8%);
+  --gradient-sidebar: hsl(222 47% 11%);
+  --gradient-hero: hsl(222 47% 8%);
+  --gradient-card: hsl(217 19% 17%);
+  --gradient-mesh: none;
+  --gradient-surface: hsl(222 39% 11%);
+  --gradient-subtle: hsl(222 39% 11%);
+
+  --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.25);
+  --shadow-elevated: 0 8px 30px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.22);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.25);
+  --shadow-glow: 0 1px 2px rgba(0, 0, 0, 0.2);
+
+  --radius: 1.25rem;
+
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground));
+}
+
+/* ── Continuous app shell (no layered grays) ───────────────────────────── */
+
+.dark body:has(.doctor-hub),
+.dark #root:has(.doctor-hub),
+.dark html:has(.doctor-hub) {
+  background-color: hsl(222 47% 8%) !important;
+  background-image: none !important;
+}
+
+.dark .doctor-hub,
+.dark .doctor-hub.doctor-hub,
+.dark .doctor-hub .doctor-hub__main,
+.dark .doctor-hub .doctor-hub__content,
+.dark .doctor-hub main,
+.dark .doctor-hub .bg-gradient-mesh,
+.dark .doctor-hub .bg-gradient-soft,
+.dark .doctor-hub .bg-gradient-surface,
+.dark .doctor-hub .bg-gradient-subtle,
+.dark .doctor-hub .bg-doctor-surface,
+.dark .doctor-hub .bg-doctor-accent-soft,
+.dark .doctor-hub .bg-doctor-accent-soft\/40 {
+  background-color: hsl(222 47% 8%) !important;
+  background-image: none !important;
+}
+
+.dark .doctor-hub .doctor-create-course {
+  background-color: hsl(222 47% 8%) !important;
+}
+
+/* ── Top navbar — blend into canvas ────────────────────────────────────── */
+
+.dark .doctor-hub header.glass,
+.dark .doctor-hub > .doctor-hub__main > header,
+.dark .doctor-hub > .doctor-hub__main > header.glass {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: none !important;
+}
+
+.dark .doctor-hub .doctor-hub__header,
+.dark .doctor-hub .doctor-hub__topbar {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark .doctor-hub .glass,
+.dark .doctor-hub .glass-strong {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────── */
+
+.dark .doctor-hub .doctor-hub__sidebar,
+.dark .doctor-hub__sidebar {
+  background: hsl(222 47% 11%) !important;
+  background-image: none !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Cards & floating surfaces ─────────────────────────────────────────── */
+
+.dark .doctor-hub .doctor-stat-card,
+.dark .doctor-hub .doctor-stat-card--success,
+.dark .doctor-hub .doctor-stat-card--warning,
+.dark .doctor-hub .doctor-stat-card--danger,
+.dark .doctor-hub .doctor-stat-card--info,
+.dark .doctor-hub .doctor-stat-card--indigo,
+.dark .doctor-hub .doctor-hub__panel,
+.dark .doctor-hub .doctor-hub__card-surface,
+.dark .doctor-hub .rounded-2xl.bg-card,
+.dark .doctor-hub .rounded-xl.bg-card,
+.dark .doctor-hub .cpw-hero {
+  background: hsl(217 19% 17%) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25) !important;
+}
+
+.dark .doctor-hub .doctor-stat-card {
+  border-left-width: 3px;
+}
+
+.dark .doctor-hub .doctor-stat-card--indigo,
+.dark .doctor-hub .doctor-stat-card--info {
+  border-left-color: hsl(var(--primary));
+}
+
+.dark .doctor-hub .doctor-stat-card--success {
+  border-left-color: hsl(var(--success));
+}
+
+.dark .doctor-hub .doctor-stat-card--warning {
+  border-left-color: hsl(var(--warning));
+}
+
+.dark .doctor-hub .doctor-stat-card--danger {
+  border-left-color: hsl(var(--danger));
+}
+
+.dark .doctor-hub .shadow-card {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25) !important;
+}
+
+.dark .doctor-hub .shadow-elevated {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* Secondary nested surfaces (stat tiles inside profile cards) */
+.dark .doctor-hub .bg-secondary\/30 {
+  background-color: hsl(222 39% 11%) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .doctor-hub .bg-white,
+.dark .doctor-hub .bg-white\/60,
+.dark .doctor-hub .bg-white\/80,
+.dark .doctor-hub .bg-white\/95 {
+  background-color: hsl(217 19% 17%) !important;
+}
+
+.dark .doctor-hub .bg-card,
+.dark .doctor-hub .bg-card\/60,
+.dark .doctor-hub .bg-card\/80 {
+  background-color: hsl(217 19% 17%) !important;
+}
+
+.dark .doctor-hub .bg-secondary,
+.dark .doctor-hub .bg-muted,
+.dark .doctor-hub .bg-secondary\/60 {
+  background-color: hsl(222 39% 11%) !important;
+}
+
+/* Form fields sit on secondary surface, not canvas */
+.dark .doctor-hub input:not([type="checkbox"]):not([type="radio"]),
+.dark .doctor-hub textarea,
+.dark .doctor-hub select,
+.dark .doctor-hub .bg-background:not(.doctor-hub) {
+  background-color: hsl(222 39% 11%) !important;
+}
+
+/* ── Profile / academic cards (student profile view) ───────────────────── */
+
+.dark .doctor-hub .doctor-student-profile__hero,
+.dark .doctor-hub .doctor-student-profile__section,
+.dark .doctor-hub .doctor-student-profile__stat,
+.dark .doctor-hub .doctor-student-profile__gp-card {
+  background: hsl(217 19% 17%) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25) !important;
+}
+
+.dark .doctor-hub .doctor-student-profile__avatar-fallback {
+  background: hsl(var(--primary)) !important;
+}
+
+.dark .doctor-hub .doctor-student-profile__stat-value {
+  color: hsl(var(--primary-glow));
+}
+
+.dark .doctor-hub .doctor-student-profile__badge,
+.dark .doctor-hub .doctor-student-profile__meta-pill {
+  background: hsl(222 39% 11%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: hsl(var(--primary-glow));
+}
+
+.dark .doctor-hub .doctor-icon-well {
+  background: hsl(222 39% 11%) !important;
+  color: hsl(var(--primary)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Tabs & workspace chrome ───────────────────────────────────────────── */
+
+.dark .doctor-hub .doctor-workspace-tabs {
+  background: hsl(222 39% 11%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 20px !important;
+}
+
+.dark .doctor-hub .doctor-tab--active {
+  background: hsl(217 19% 17%) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: inset 2px 0 0 hsl(var(--primary)) !important;
+}
+
+/* ── Messages ──────────────────────────────────────────────────────────── */
+
+.dark .doctor-hub .doctor-messages {
+  --dm-surface: hsl(217 19% 17%);
+  --dm-surface-muted: hsl(222 39% 11%);
+  --dm-border: rgba(255, 255, 255, 0.08);
+}
+
+.dark .doctor-hub .doctor-messages-sidebar {
+  background: hsl(222 39% 11%) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .doctor-hub .doctor-messages-panel,
+.dark .doctor-hub .doctor-messages-composer {
+  background: hsl(217 19% 17%) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .doctor-hub .doctor-messages-panel__header {
+  background: hsl(222 47% 8%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ── Active nav — purple accent only ─────────────────────────────────── */
+
+.dark .doctor-hub .doctor-nav-link--active {
+  background: hsl(var(--primary) / 0.12) !important;
+  color: hsl(var(--primary-glow)) !important;
+  box-shadow: inset 2px 0 0 hsl(var(--primary)) !important;
+}
+
+.dark .doctor-hub [class*="border-border"] {
+  border-color: rgba(255, 255, 255, 0.08);
+}

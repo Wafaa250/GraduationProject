@@ -23,19 +23,6 @@ namespace GraduationProject.API.DTOs
         // Skills كـ strings من الفرونت e.g. ["React", "Python"]
         public List<string> RequiredSkills { get; set; } = new();
 
-        public List<string> Technologies { get; set; } = new();
-
-        public List<string> Interests { get; set; } = new();
-
-        // Teammate roles sought e.g. ["Frontend Developer", "Backend Developer"]
-        public List<string> PreferredRoles { get; set; } = new();
-
-        public List<string> RequiredRoles { get; set; } = new();
-
-        public List<string> SkillPriorities { get; set; } = new();
-
-        public bool LookingForTeammates { get; set; } = true;
-
         [Range(0, 10, ErrorMessage = "Partners count must be between 0 and 10")]
         public int PartnersCount { get; set; } = 0;
     }
@@ -51,18 +38,6 @@ namespace GraduationProject.API.DTOs
         public string? ProjectType { get; set; }
 
         public List<string>? RequiredSkills { get; set; }
-
-        public List<string>? Technologies { get; set; }
-
-        public List<string>? Interests { get; set; }
-
-        public List<string>? PreferredRoles { get; set; }
-
-        public List<string>? RequiredRoles { get; set; }
-
-        public List<string>? SkillPriorities { get; set; }
-
-        public bool? LookingForTeammates { get; set; }
 
         [Range(0, 10, ErrorMessage = "Partners count must be between 0 and 10")]
         public int? PartnersCount { get; set; }
@@ -98,14 +73,8 @@ namespace GraduationProject.API.DTOs
         public int UserId { get; set; }
 
         public string Name { get; set; } = string.Empty;
-        public string? Email { get; set; }
-        public string? Faculty { get; set; }
-        public string? University { get; set; }
         public string? Specialization { get; set; }
         public string? Department { get; set; }
-        public string? ProfilePicture { get; set; }
-        /// <summary>When the accepted supervision request was confirmed.</summary>
-        public DateTime? AssignedAt { get; set; }
     }
 
     /// <summary>Recommended supervisors ranked by skill match.</summary>
@@ -129,24 +98,13 @@ namespace GraduationProject.API.DTOs
         public int OwnerId { get; set; }   // StudentProfile.Id
         public int OwnerUserId { get; set; }
         public string OwnerName { get; set; } = string.Empty;
-        public string? OwnerFaculty { get; set; }
-        public string? OwnerMajor { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Abstract { get; set; }
 
         /// <summary>"GP1" | "GP2" | "GP"</summary>
         public string ProjectType { get; set; } = "GP";
 
-        /// <summary>Human-readable label based on owner faculty/major.</summary>
-        public string ProjectTypeLabel { get; set; } = "Graduation Project";
-
         public List<string> RequiredSkills { get; set; } = new();
-        public List<string> Technologies { get; set; } = new();
-        public List<string> Interests { get; set; } = new();
-        public List<string> PreferredRoles { get; set; } = new();
-        public List<string> RequiredRoles { get; set; } = new();
-        public List<string> SkillPriorities { get; set; } = new();
-        public bool LookingForTeammates { get; set; } = true;
         public int PartnersCount { get; set; }
         public int CurrentMembers { get; set; }
         public bool IsFull { get; set; }
@@ -208,24 +166,5 @@ namespace GraduationProject.API.DTOs
         /// and the student does not already own their own graduation project.
         /// </summary>
         public bool CanInvite { get; set; }
-    }
-
-    /// <summary>Metadata for an uploaded graduation project abstract document.</summary>
-    public class StudentProjectAbstractFileDto
-    {
-        public string FileName { get; set; } = string.Empty;
-        public DateTime UploadedAt { get; set; }
-        public string DownloadUrl { get; set; } = string.Empty;
-    }
-
-    /// <summary>Supervision request status for the project owner.</summary>
-    public class SupervisorRequestStatusDto
-    {
-        public int RequestId { get; set; }
-        public int DoctorId { get; set; }
-        public string DoctorName { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
-        public DateTime? RespondedAt { get; set; }
     }
 }
