@@ -12,7 +12,7 @@ export function CompatibilityRing({ value, size = 56 }: Props) {
       ? "hsl(var(--cw-success))"
       : value >= 75
         ? "hsl(var(--primary))"
-        : "hsl(38 95% 55%)";
+        : "hsl(var(--cw-warning))";
 
   return (
     <div

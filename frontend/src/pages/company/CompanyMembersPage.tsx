@@ -3,7 +3,11 @@ import { Navigate } from "react-router-dom";
 import { CheckCircle2, Loader2, Mail, Plus, Trash2, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanyCardHeader } from "@/components/company/CompanyCardHeader";
+import { CompanyWorkspaceLoading } from "@/components/company/CompanyWorkspaceLoading";
+import { CompanyWorkspaceEmptyState } from "@/components/company/CompanyWorkspaceEmptyState";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +28,17 @@ import {
 } from "@/api/companyApi";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { formatCompanyRole, isCompanyOwner } from "@/lib/companyWorkspace";
+import { cn } from "@/lib/utils";
+
+function memberInitials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export function CompanyMembersPage() {
   const [members, setMembers] = useState<CompanyMember[]>([]);
@@ -110,7 +125,7 @@ export function CompanyMembersPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+    <CompanyPageShell narrow>
       <CompanyPageHeader
         title="Company Members"
         subtitle="Manage who can access your shared company workspace."
@@ -129,30 +144,29 @@ export function CompanyMembersPage() {
       />
 
       {showForm ? (
-        <Card className="cw-card-elevated mb-6">
-          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
-            <div>
-              <CardTitle className="text-base">Add workspace member</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                New users receive login credentials by email and must set a personal password on
-                first sign-in.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="rounded-lg shrink-0"
-              onClick={resetForm}
-              aria-label="Close add member form"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
+        <Card className="cw-card-elevated overflow-hidden">
+          <div className="h-0.5 cw-team-card-accent opacity-50" aria-hidden />
+          <CompanyCardHeader
+            icon={Plus}
+            title="Add workspace member"
+            description="New users receive login credentials by email and must set a personal password on first sign-in."
+            action={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-lg shrink-0"
+                onClick={resetForm}
+                aria-label="Close add member form"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            }
+          />
+          <CardContent className="cw-card-body cw-card-body--flush-top">
             {credentialsEmailed && addedMemberEmail ? (
               <div className="space-y-5 max-w-md">
-                <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-4 space-y-3">
+                <div className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" aria-hidden />
                     <p className="text-sm font-medium">Member added successfully.</p>
@@ -176,7 +190,7 @@ export function CompanyMembersPage() {
                     </a>
                   </span>
                 </div>
-                <Button type="button" onClick={resetForm} className="rounded-xl">
+                <Button type="button" onClick={resetForm} className="rounded-xl cw-btn-gradient border-0 shadow-sm">
                   Done
                 </Button>
               </div>
@@ -215,7 +229,7 @@ export function CompanyMembersPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" disabled={submitting} className="rounded-xl">
+                <Button type="submit" disabled={submitting} className="rounded-xl cw-btn-gradient border-0 shadow-sm">
                   {submitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -231,33 +245,46 @@ export function CompanyMembersPage() {
         </Card>
       ) : null}
 
-      <Card className="cw-card-elevated">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            Workspace access
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <Card className="cw-card-elevated">
+          <CompanyCardHeader
+            icon={Users}
+            title="Workspace access"
+            description={`${members.length} member${members.length === 1 ? "" : "s"} with access to this workspace`}
+          />
+          <CardContent className="cw-card-body cw-card-body--flush-top">
           {loading ? (
-            <div className="py-10 text-center text-muted-foreground text-sm">Loading members…</div>
+            <CompanyWorkspaceLoading message="Loading members…" />
           ) : members.length === 0 ? (
-            <div className="py-10 text-center text-muted-foreground text-sm">
-              No members yet. Add your first teammate to share this workspace.
-            </div>
+            <CompanyWorkspaceEmptyState
+              compact
+              icon={Users}
+              title="No members yet"
+              description="Add your first teammate to share this workspace and collaborate on project requests."
+              action={
+                !showForm
+                  ? { label: "Add member", onClick: () => setShowForm(true) }
+                  : undefined
+              }
+            />
           ) : (
-            <div className="divide-y divide-border/70">
+            <div className="cw-list-stack">
               {members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{member.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{member.email}</p>
+                <div key={member.id} className="cw-member-row">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="cw-member-avatar">{memberInitials(member.name)}</div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{member.name}</p>
+                      <p className="text-sm cw-text-secondary truncate">{member.email}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={member.role === "owner" ? "default" : "secondary"}>
+                    <Badge
+                      variant={member.role === "owner" ? "default" : "secondary"}
+                      className={cn(
+                        "rounded-md",
+                        member.role === "owner" && "cw-badge-premium border-0",
+                      )}
+                    >
                       {formatCompanyRole(member.role)}
                     </Badge>
                     {member.userId !== currentUserId ? (
@@ -284,6 +311,6 @@ export function CompanyMembersPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </CompanyPageShell>
   );
 }

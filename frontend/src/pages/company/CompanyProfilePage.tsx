@@ -10,6 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanyCardHeader } from "@/components/company/CompanyCardHeader";
+import { CompanyWorkspaceLoading } from "@/components/company/CompanyWorkspaceLoading";
+import { CompanyWorkspaceErrorState } from "@/components/company/CompanyWorkspaceErrorState";
 import {
   getCompanyProfile,
   parseApiErrorMessage,
@@ -37,7 +41,7 @@ function InfoRow({
   href?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 px-3 py-2.5 bg-background/40">
+    <div className="flex items-center justify-between gap-3 cw-info-row">
       <div className="flex items-center gap-2 min-w-0">
         <Icon className="h-4 w-4 text-primary shrink-0" aria-hidden />
         <div className="min-w-0">
@@ -48,7 +52,7 @@ function InfoRow({
         </div>
       </div>
       {href ? (
-        <Button asChild size="sm" variant="outline" className="rounded-lg shrink-0 h-8">
+        <Button asChild size="sm" variant="outline" className="rounded-lg shrink-0 h-8 cw-btn-outline">
           <a href={href} target="_blank" rel="noopener noreferrer">
             Open <ExternalLink className="h-3 w-3 ml-1" />
           </a>
@@ -222,7 +226,7 @@ export function CompanyProfilePage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Company Profile"
         subtitle={
@@ -234,42 +238,41 @@ export function CompanyProfilePage() {
 
       {loading ? (
         <Card className="cw-card-elevated">
-          <CardContent className="p-12 text-center text-muted-foreground">Loading profile…</CardContent>
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceLoading message="Loading profile…" />
+          </CardContent>
         </Card>
       ) : loadError ? (
         <Card className="cw-card-elevated">
-          <CardContent className="p-12 text-center">
-            <p className="text-sm text-muted-foreground">{loadError}</p>
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceErrorState message={loadError} onRetry={() => window.location.reload()} />
           </CardContent>
         </Card>
       ) : (
-        <div className="grid lg:grid-cols-3 gap-6 items-start">
+        <div className="grid lg:grid-cols-3 cw-grid-gap items-start">
           {/* Left — main profile */}
-          <Card className="cw-card-elevated lg:col-span-2 overflow-hidden">
-            <div className="h-24 cw-hero-bg relative opacity-95">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/10" />
-            </div>
-
-            <CardContent className="p-6 pt-0">
-              <div className="flex flex-col md:flex-row md:items-end gap-5 -mt-10">
-                <Avatar className="h-20 w-20 rounded-2xl ring-4 ring-card shadow-lg shrink-0">
-                  <AvatarFallback className="rounded-2xl bg-gradient-to-br from-primary to-accent text-white text-xl">
+          <Card className="cw-card-elevated cw-profile-panel lg:col-span-2 overflow-hidden">
+            <div className="cw-cover-strip" aria-hidden />
+            <CardContent className="cw-card-body cw-card-body--profile">
+              <div className="flex flex-col md:flex-row md:items-end gap-5 -mt-8">
+                <Avatar className="h-20 w-20 rounded-2xl ring-4 ring-card shadow-md shrink-0">
+                  <AvatarFallback className="rounded-2xl cw-candidate-avatar-fallback text-xl">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
 
                 <div className="flex-1 min-w-0 md:pb-1">
                   <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-                    <Building2 className="h-6 w-6 text-primary shrink-0" />
+                    <Building2 className="h-5 w-5 text-primary shrink-0" />
                     <span className="truncate">{name}</span>
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm cw-text-secondary mt-1">
                     {[industry, headquartersLocation].filter(Boolean).join(" · ") ||
                       "Profile from registration"}
                   </p>
                 </div>
 
-                <Badge className="cw-status-active shrink-0">Onboarded</Badge>
+                <Badge className="cw-status-active shrink-0 rounded-lg">Onboarded</Badge>
               </div>
 
               <form className="mt-6 space-y-5" onSubmit={onSave}>
@@ -351,7 +354,7 @@ export function CompanyProfilePage() {
                             key={tag}
                             variant="secondary"
                             className={cn(
-                              "rounded-md bg-primary/10 text-primary border-0",
+                              "rounded-md cw-request-skill-badge",
                               isOwner && "cursor-pointer hover:bg-primary/15",
                             )}
                             title={isOwner ? "Click to remove" : undefined}
@@ -384,7 +387,12 @@ export function CompanyProfilePage() {
 
           {/* Right — contact & visibility */}
           <Card className="cw-card-elevated">
-            <CardContent className="space-y-4 text-sm pt-6">
+            <CompanyCardHeader
+              icon={Mail}
+              title="Contact & visibility"
+              description="Information shared with students during discovery"
+            />
+            <CardContent className="cw-card-body cw-card-body--flush-top space-y-4 text-sm">
               <Field label="LinkedIn">
                 <Input
                   value={linkedInUrl}
@@ -439,7 +447,7 @@ export function CompanyProfilePage() {
                 ) : null}
               </div>
 
-              <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
+              <div className="cw-callout">
                 Discovery only — SkillSwap helps students discover companies, then they contact you
                 externally. No applications, pipelines, interviews, or recruitment workflows are
                 managed inside the platform.
@@ -448,6 +456,6 @@ export function CompanyProfilePage() {
           </Card>
         </div>
       )}
-    </div>
+    </CompanyPageShell>
   );
 }

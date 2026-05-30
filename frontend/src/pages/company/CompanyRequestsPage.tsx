@@ -5,6 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanyWorkspaceLoading } from "@/components/company/CompanyWorkspaceLoading";
+import { CompanyWorkspaceEmptyState } from "@/components/company/CompanyWorkspaceEmptyState";
+import { CompanyWorkspaceErrorState } from "@/components/company/CompanyWorkspaceErrorState";
 import {
   listCompanyProjectRequests,
   parseApiErrorMessage,
@@ -18,6 +22,7 @@ import {
   isRequestViewOnly,
   requestLifecycleStatusBadgeClass,
   requestLifecycleStatusLabel,
+  requestTypeBadgeClass,
   requestTypeLabel,
 } from "@/lib/companyRequestDisplay";
 import { cn } from "@/lib/utils";
@@ -48,11 +53,31 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
 
   return (
     <Card className="cw-card-elevated cw-request-list-card">
-      <CardContent className="p-5 md:p-6">
+      <CardContent className="cw-card-body">
         <div className="flex flex-col lg:flex-row lg:items-start gap-5">
           <div className="flex-1 min-w-0 space-y-4">
-            <div className="flex flex-wrap items-start gap-2">
-              <h3 className="font-semibold text-lg tracking-tight leading-snug">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "shrink-0 rounded-md text-[11px] font-medium",
+                    requestTypeBadgeClass(request.requestType),
+                  )}
+                >
+                  {requestTypeLabel(request.requestType)}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "shrink-0 rounded-md text-[11px] font-medium capitalize",
+                    requestLifecycleStatusBadgeClass(lifecycleStatus),
+                  )}
+                >
+                  {requestLifecycleStatusLabel(lifecycleStatus)}
+                </Badge>
+              </div>
+              <h3 className="cw-request-title">
                 <Link
                   to={requestDetailPath(request.id)}
                   className="hover:text-primary transition-colors"
@@ -60,32 +85,14 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
                   {request.title}
                 </Link>
               </h3>
-              <Badge variant="outline" className="shrink-0 rounded-md text-xs font-normal">
-                {requestTypeLabel(request.requestType)}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "shrink-0 rounded-md text-xs font-normal capitalize",
-                  requestLifecycleStatusBadgeClass(lifecycleStatus),
-                )}
-              >
-                {requestLifecycleStatusLabel(lifecycleStatus)}
-              </Badge>
             </div>
 
             {roles.length > 0 && (
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-1.5">
-                  Roles
-                </p>
+                <p className="cw-section-label mb-2">Roles</p>
                 <div className="flex flex-wrap gap-1.5">
                   {roles.map((role) => (
-                    <Badge
-                      key={role}
-                      variant="secondary"
-                      className="rounded-md text-xs font-normal"
-                    >
+                    <Badge key={role} className="cw-request-role-chip rounded-md">
                       {role}
                     </Badge>
                   ))}
@@ -95,9 +102,7 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
 
             {skills.length > 0 && (
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-1.5">
-                  Skills
-                </p>
+                <p className="cw-section-label mb-2">Skills</p>
                 <div className="flex flex-wrap gap-1.5">
                   {skills.map((skill) => (
                     <Badge key={skill} className="cw-request-skill-badge rounded-md text-xs">
@@ -108,7 +113,7 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
               </div>
             )}
 
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs cw-text-secondary pt-0.5">
               {formatRequestDuration(request)}
               {request.collaborationType &&
                 ` · ${collaborationFormatLabel(request.collaborationType)}`}
@@ -117,22 +122,22 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
             </p>
           </div>
 
-          <div className="shrink-0 flex flex-col gap-2 lg:pt-0.5">
+          <div className="shrink-0 flex flex-col gap-2.5 lg:min-w-[11rem] lg:pt-1">
             <Button
               size="sm"
               variant="outline"
-              className="rounded-xl w-full lg:w-auto"
+              className="rounded-xl w-full cw-btn-outline h-9"
               asChild
             >
               <Link to={requestDetailPath(request.id)}>View details</Link>
             </Button>
             <Button
               size="sm"
-              variant="outline"
-              className="rounded-xl w-full lg:w-auto"
+              className="rounded-xl w-full cw-btn-gradient border-0 shadow-sm h-9"
               asChild
             >
               <Link to={COMPANY_ROUTES.requestRecommendations(request.id)}>
+                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                 {isViewOnly ? "View recommendations" : "AI recommendations"}
               </Link>
             </Button>
@@ -171,12 +176,12 @@ export function CompanyRequestsPage() {
   }, []);
 
   return (
-    <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Project Requests"
         subtitle="Requests for AI matching — individual contributors or AI-built team compositions."
         actions={
-          <Button asChild className="rounded-xl cw-btn-gradient shadow-sm">
+          <Button asChild className="rounded-xl cw-btn-gradient shadow-sm border-0">
             <Link to={COMPANY_ROUTES.newRequest}>
               <Plus className="h-4 w-4 mr-1" /> Create Project Request
             </Link>
@@ -186,58 +191,49 @@ export function CompanyRequestsPage() {
 
       {loading && (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading requests…
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceLoading message="Loading requests…" />
           </CardContent>
         </Card>
       )}
 
       {!loading && error && (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center">
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button
-              variant="outline"
-              className="rounded-xl mt-4"
-              onClick={() => window.location.reload()}
-            >
-              Retry
-            </Button>
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceErrorState
+              message={error}
+              onRetry={() => window.location.reload()}
+            />
           </CardContent>
         </Card>
       )}
 
       {!loading && !error && requests.length === 0 && (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 md:py-20 px-6 text-center">
-            <div className="cw-request-success-icon mb-5">
-              <FileText className="h-8 w-8" aria-hidden />
-            </div>
-            <h2 className="text-lg font-semibold tracking-tight">No project requests yet</h2>
-            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
-              Create your first request and let SkillSwap AI recommend students that match your
-              requirements.
-            </p>
-            <Button asChild className="mt-8 rounded-xl cw-btn-gradient shadow-sm" size="lg">
-              <Link to={COMPANY_ROUTES.newRequest}>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Create Request
-              </Link>
-            </Button>
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceEmptyState
+              icon={FileText}
+              eyebrow="Project requests"
+              title="No project requests yet"
+              description="Create your first request and let SkillSwap AI recommend students and teams that match your requirements."
+              action={{ label: "Create request", to: COMPANY_ROUTES.newRequest }}
+            />
           </CardContent>
         </Card>
       )}
 
       {!loading && !error && requests.length > 0 && (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {requests.length} request{requests.length === 1 ? "" : "s"}
-          </p>
+        <div className="flex flex-col cw-grid-gap">
+          <div className="cw-page-meta">
+            <Badge variant="secondary" className="cw-badge-ai rounded-md px-2.5 py-0.5 text-xs">
+              {requests.length} request{requests.length === 1 ? "" : "s"}
+            </Badge>
+          </div>
           {requests.map((r) => (
             <RequestCard key={r.id} request={r} />
           ))}
         </div>
       )}
-    </div>
+    </CompanyPageShell>
   );
 }

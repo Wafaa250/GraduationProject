@@ -124,7 +124,6 @@ namespace GraduationProject.API.DTOs
         public string CompanyName { get; set; } = string.Empty;
         public string? Industry { get; set; }
         public string? Description { get; set; }
-        public string? Location { get; set; }
         public bool UsedAi { get; set; }
         public string? Message { get; set; }
     }

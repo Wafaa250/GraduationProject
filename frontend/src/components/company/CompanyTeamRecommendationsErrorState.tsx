@@ -17,7 +17,7 @@ export function CompanyTeamRecommendationsErrorState({
 }: Props) {
   return (
     <Card className="cw-card-elevated cw-team-state-panel overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-amber-400/80 via-primary/70 to-violet-500/80" aria-hidden />
+      <div className="h-1 bg-gradient-to-r from-amber-400/80 via-primary/70 to-accent/80" aria-hidden />
       <CardContent className="py-14 md:py-16 px-6 md:px-10">
         <div className="max-w-xl mx-auto text-center">
           <div className="cw-team-state-icon cw-team-state-icon-warning mb-6 mx-auto">

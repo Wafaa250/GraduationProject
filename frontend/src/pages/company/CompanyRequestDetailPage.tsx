@@ -6,6 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanyWorkspaceLoading } from "@/components/company/CompanyWorkspaceLoading";
+import { CompanyWorkspaceErrorState } from "@/components/company/CompanyWorkspaceErrorState";
 import { CompanyRequestReviewStat } from "@/components/company/CompanyRequestReviewStat";
 import { CompanyRequestAnalyzeCta } from "@/components/company/CompanyRequestAnalyzeCta";
 import { CompanyRequestActionsMenu } from "@/components/company/CompanyRequestActionsMenu";
@@ -107,7 +110,7 @@ export function CompanyRequestDetailPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+    <CompanyPageShell narrow>
       <CompanyPageHeader
         title="Request details"
         subtitle={request?.title}
@@ -124,7 +127,7 @@ export function CompanyRequestDetailPage() {
                 onDelete={() => setDeleteOpen(true)}
               />
             )}
-            <Button asChild variant="outline" className="rounded-xl">
+            <Button asChild variant="outline" className="rounded-xl cw-btn-outline">
               <Link to={COMPANY_ROUTES.requests}>
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back to requests
               </Link>
@@ -135,27 +138,28 @@ export function CompanyRequestDetailPage() {
 
       {loading && (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading request…
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceLoading message="Loading request…" />
           </CardContent>
         </Card>
       )}
 
       {!loading && error && (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center">
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button asChild variant="outline" className="rounded-xl mt-4">
-              <Link to={COMPANY_ROUTES.requests}>Back to requests</Link>
-            </Button>
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceErrorState
+              message={error}
+              retryLabel="Back to requests"
+              onRetry={() => nav(COMPANY_ROUTES.requests)}
+            />
           </CardContent>
         </Card>
       )}
 
       {!loading && request && (
         <Card className="cw-card-elevated">
-          <CardContent className="p-6 md:p-8 lg:p-10">
-            <div className="space-y-6">
+          <CardContent className="cw-card-body">
+            <div className="flex flex-col cw-grid-gap">
               <div className="cw-request-review-hero">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
@@ -177,7 +181,7 @@ export function CompanyRequestDetailPage() {
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-2xl">
                   {request.description.trim() || "No description provided."}
                 </p>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-5">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 cw-grid-gap-compact mt-4">
                   <CompanyRequestReviewStat
                     label="Type"
                     value={requestTypeLabel(request.requestType)}
@@ -286,6 +290,6 @@ export function CompanyRequestDetailPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}
       />
-    </div>
+    </CompanyPageShell>
   );
 }

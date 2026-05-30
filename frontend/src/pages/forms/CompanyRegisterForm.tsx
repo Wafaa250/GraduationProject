@@ -47,7 +47,6 @@ type FormState = {
   companyName: string
   industry: string
   description: string
-  location: string
 }
 
 export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() => void) | null }) {
@@ -73,7 +72,6 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
     companyName: '',
     industry: '',
     description: '',
-    location: '',
   })
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) => {
@@ -141,7 +139,6 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
         companyName: result.companyName || f.companyName,
         industry: result.industry ?? '',
         description: result.description ?? '',
-        location: result.location ?? '',
       }))
       if (result.message) setAnalysisNote(result.message)
       toast.success(result.usedAi ? 'Company profile analyzed with AI' : 'Profile draft ready — please review')
@@ -169,7 +166,6 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
         companyName: form.companyName.trim(),
         industry: form.industry.trim() || undefined,
         description: form.description.trim() || undefined,
-        location: form.location.trim() || undefined,
         websiteUrl: form.websiteUrl.trim() || undefined,
         linkedInUrl: form.linkedInUrl.trim() || undefined,
       })
@@ -386,24 +382,14 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
                 onChange={(e) => set('companyName', e.target.value)}
               />
             </RegField>
-            <FieldGrid>
-              <RegField label="Industry" htmlFor="co-industry">
-                <TextInput
-                  id="co-industry"
-                  placeholder="e.g. Software, FinTech"
-                  value={form.industry}
-                  onChange={(e) => set('industry', e.target.value)}
-                />
-              </RegField>
-              <RegField label="Location" htmlFor="co-loc">
-                <TextInput
-                  id="co-loc"
-                  placeholder="e.g. Nablus, Palestine"
-                  value={form.location}
-                  onChange={(e) => set('location', e.target.value)}
-                />
-              </RegField>
-            </FieldGrid>
+            <RegField label="Industry" htmlFor="co-industry">
+              <TextInput
+                id="co-industry"
+                placeholder="e.g. Software, FinTech"
+                value={form.industry}
+                onChange={(e) => set('industry', e.target.value)}
+              />
+            </RegField>
             <RegField label="About the company" htmlFor="co-desc" error={errors.description}>
               <Textarea
                 id="co-desc"

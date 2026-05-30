@@ -7,7 +7,6 @@ import {
   Plus,
   PanelLeftClose,
   PanelLeft,
-  Sparkles,
   Users,
   Bookmark,
 } from "lucide-react";
@@ -15,6 +14,8 @@ import { COMPANY_ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
 import { useCompanySidebarCollapsed } from "@/hooks/useCompanySidebarCollapsed";
 import { isCompanyOwner } from "@/lib/companyWorkspace";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import "@/components/brand/brand-logo.css";
 
 const workspaceNav = [
   { title: "Dashboard", to: COMPANY_ROUTES.dashboard, icon: LayoutDashboard },
@@ -69,7 +70,7 @@ function SectionLabel({ collapsed, children }: { collapsed: boolean; children: s
   return (
     <div
       className={cn(
-        "px-3 mb-2 text-[10px] uppercase tracking-wider text-muted-foreground font-medium overflow-hidden transition-[opacity,max-height] duration-300 ease-in-out",
+        "px-3 mb-2 text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-semibold overflow-hidden transition-[opacity,max-height] duration-300 ease-in-out",
         collapsed ? "max-h-0 opacity-0 mb-0" : "max-h-8 opacity-100",
       )}
     >
@@ -104,27 +105,28 @@ export function CompanySidebar() {
               collapsed ? "justify-center w-full" : "flex-1",
             )}
           >
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-accent grid place-items-center shadow-md shrink-0">
-              <Sparkles className="h-5 w-5 text-white" aria-hidden />
-            </div>
-            <div
-              className={cn(
-                "leading-tight min-w-0 overflow-hidden transition-[opacity,width] duration-300 ease-in-out",
-                collapsed ? "w-0 opacity-0" : "w-auto opacity-100",
-              )}
-            >
-              <div className="font-semibold text-base truncate text-foreground">SkillSwap</div>
-              <div className="text-[11px] text-muted-foreground whitespace-nowrap">
-                AI Talent Discovery
-              </div>
-            </div>
+            {collapsed ? (
+              <BrandLogo size="sm" variant="mark" />
+            ) : (
+              <>
+                <BrandLogo size="sm" variant="mark" />
+                <div className="leading-tight min-w-0 overflow-hidden">
+                  <span className="brand-logo__wordmark font-semibold text-base block truncate">
+                    SkillSwap
+                  </span>
+                  <div className="text-[11px] text-muted-foreground whitespace-nowrap">
+                    AI Talent Discovery
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <button
             type="button"
             onClick={toggle}
             className={cn(
-              "shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary",
+              "shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-primary/8",
               "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               "h-8 w-8 grid place-items-center",
             )}

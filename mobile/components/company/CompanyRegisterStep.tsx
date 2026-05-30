@@ -36,7 +36,6 @@ type FormState = {
   companyName: string;
   industry: string;
   description: string;
-  location: string;
 };
 
 export function CompanyRegisterStep({ onBack }: { onBack: () => void }) {
@@ -53,7 +52,6 @@ export function CompanyRegisterStep({ onBack }: { onBack: () => void }) {
     companyName: "",
     industry: "",
     description: "",
-    location: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPass, setShowPass] = useState(false);
@@ -125,7 +123,6 @@ export function CompanyRegisterStep({ onBack }: { onBack: () => void }) {
         companyName: result.companyName || f.companyName,
         industry: result.industry ?? "",
         description: result.description ?? "",
-        location: result.location ?? "",
       }));
       if (result.message) setAnalysisNote(result.message);
       setSkippedAi(false);
@@ -150,7 +147,6 @@ export function CompanyRegisterStep({ onBack }: { onBack: () => void }) {
         companyName: form.companyName.trim(),
         industry: form.industry.trim() || undefined,
         description: form.description.trim() || undefined,
-        location: form.location.trim() || undefined,
         websiteUrl: form.websiteUrl.trim() || undefined,
         linkedInUrl: form.linkedInUrl.trim() || undefined,
       });
@@ -329,12 +325,6 @@ export function CompanyRegisterStep({ onBack }: { onBack: () => void }) {
                   value={form.industry}
                   onChangeText={(t) => setField("industry", t)}
                   placeholder="e.g. Software, FinTech"
-                />
-                <FormField
-                  label="Location"
-                  value={form.location}
-                  onChangeText={(t) => setField("location", t)}
-                  placeholder="e.g. Nablus, Palestine"
                 />
                 <FormField
                   label="About the company"

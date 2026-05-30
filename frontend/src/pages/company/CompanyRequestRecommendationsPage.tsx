@@ -5,6 +5,9 @@ import toast from "react-hot-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanyWorkspaceLoading } from "@/components/company/CompanyWorkspaceLoading";
+import { CompanyWorkspaceErrorState } from "@/components/company/CompanyWorkspaceErrorState";
 import { CompanyRequestRecommendationSummary } from "@/components/company/CompanyRequestRecommendationSummary";
 import { CompanyCandidateCard } from "@/components/company/CompanyCandidateCard";
 import { CompanyTeamRecommendationCard } from "@/components/company/CompanyTeamRecommendationCard";
@@ -269,7 +272,7 @@ export function CompanyRequestRecommendationsPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1500px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title={isTeamRequest ? "AI Team Recommendations" : "AI Student Recommendations"}
         subtitle={
@@ -278,7 +281,7 @@ export function CompanyRequestRecommendationsPage() {
             : "Students ranked by skill fit, experience, and project alignment — open profiles to contact them directly."
         }
         actions={
-          <Button asChild variant="outline" className="rounded-xl">
+          <Button asChild variant="outline" className="rounded-xl cw-btn-outline">
             <Link to={detailHref}>
               <ArrowLeft className="h-4 w-4 mr-1" /> Back to request
             </Link>
@@ -288,42 +291,40 @@ export function CompanyRequestRecommendationsPage() {
 
       {loading && (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading request context…
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceLoading message="Loading request context…" />
           </CardContent>
         </Card>
       )}
 
       {!loading && pageError && (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center px-6">
-            <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              {pageError}
-            </p>
-            <Button asChild variant="outline" className="rounded-xl mt-6">
-              <Link to={detailHref}>Back to request</Link>
-            </Button>
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceErrorState
+              message={pageError}
+              retryLabel="Back to request"
+              onRetry={() => navigate(detailHref)}
+            />
           </CardContent>
         </Card>
       )}
 
       {!loading && !pageError && error && isIndividualRequest && (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center px-6">
-            <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              {error}
-            </p>
-            <Button asChild variant="outline" className="rounded-xl mt-6">
-              <Link to={detailHref}>Back to request</Link>
-            </Button>
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceErrorState
+              message={error}
+              retryLabel="Back to request"
+              onRetry={() => navigate(detailHref)}
+            />
           </CardContent>
         </Card>
       )}
 
       {!loading && !pageError && request && !(error && isIndividualRequest) && (
-        <>
+        <div className="flex flex-col cw-grid-gap">
           {isPaused && (
-            <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <p className="text-sm font-medium">Request Paused</p>
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -344,7 +345,7 @@ export function CompanyRequestRecommendationsPage() {
           )}
 
           {isClosed && (
-            <div className="mb-4 rounded-xl border border-muted-foreground/20 bg-muted/40 px-4 py-3">
+            <div className="rounded-xl border border-muted-foreground/20 bg-muted/40 px-4 py-3">
               <p className="text-sm font-medium">This request has been closed.</p>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Recommendations remain visible for reference. Saving new candidates or teams is
@@ -359,7 +360,7 @@ export function CompanyRequestRecommendationsPage() {
           />
 
           {isIndividualRequest && (
-            <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <Users className="h-4 w-4 shrink-0" />
                 <span>
@@ -383,7 +384,7 @@ export function CompanyRequestRecommendationsPage() {
           )}
 
           {isIndividualRequest && candidates.length > 0 ? (
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 cw-grid-gap-compact">
               {candidates.map((candidate) => (
                 <CompanyCandidateCard
                   key={candidate.id}
@@ -410,7 +411,7 @@ export function CompanyRequestRecommendationsPage() {
               onRegenerate={() => void regenerateTeams()}
             />
           ) : isTeamRequest && teamRecommendations.length > 0 ? (
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 cw-grid-gap-compact">
               {teamRecommendations.map((team) => (
                 <CompanyTeamRecommendationCard
                   key={team.teamId}
@@ -431,26 +432,28 @@ export function CompanyRequestRecommendationsPage() {
             />
           ) : (
             <Card className="cw-card-elevated cw-team-state-panel">
-              <CardContent className="py-16 md:py-20 px-6 text-center">
+              <CardContent className="cw-card-body">
                 <div className="cw-request-success-icon mb-5 mx-auto">
                   <UserRound className="h-8 w-8" aria-hidden />
                 </div>
-                <h2 className="text-lg font-semibold tracking-tight">No recommendations yet</h2>
-                <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
+                <h2 className="text-lg font-semibold tracking-tight text-center">No recommendations yet</h2>
+                <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed text-center">
                   {loadingRecommendations
                     ? "SkillSwap AI is analyzing your request against student profiles."
                     : "We could not surface matches right now. Refine roles or skills on your request and try again."}
                 </p>
-                <Button asChild variant="outline" className="rounded-xl mt-8">
-                  <Link to={detailHref}>Edit request</Link>
-                </Button>
+                <div className="flex justify-center mt-6">
+                  <Button asChild variant="outline" className="rounded-xl cw-btn-outline">
+                    <Link to={detailHref}>Edit request</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
-        </>
+        </div>
       )}
 
-    </div>
+    </CompanyPageShell>
   );
 }
 

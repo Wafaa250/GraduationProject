@@ -165,11 +165,11 @@ export function CompanyTeamDiscoveryProfilePage() {
       {/* Team header */}
       <Card className="cw-card-elevated overflow-hidden border-primary/20">
         <div className="h-24 cw-hero-bg relative opacity-95">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-violet-500/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/10" />
         </div>
         <CardContent className="p-6 pt-0">
           <div className="flex flex-col lg:flex-row lg:items-end gap-5 -mt-10">
-            <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-violet-600 text-primary-foreground grid place-items-center ring-4 ring-card shadow-lg shrink-0">
+            <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-secondary-foreground text-primary-foreground grid place-items-center ring-4 ring-card shadow-lg shrink-0">
               <Users className="h-9 w-9" aria-hidden />
             </div>
             <div className="flex-1 min-w-0 lg:pb-1">

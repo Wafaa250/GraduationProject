@@ -77,6 +77,10 @@ export function isRequestViewOnly(status: CompanyRequestLifecycleStatus): boolea
   return status === "paused" || status === "closed";
 }
 
+export function requestTypeBadgeClass(type: CompanyRequestType | string): string {
+  return type === "individual" ? "cw-badge-individual" : "cw-badge-team";
+}
+
 export function requestLifecycleStatusLabel(status: string): string {
   const s = status.toLowerCase();
   if (s === "paused") return "Paused";

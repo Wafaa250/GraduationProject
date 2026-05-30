@@ -10,9 +10,12 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanyCardHeader } from "@/components/company/CompanyCardHeader";
+import { CompanyWorkspaceLoading } from "@/components/company/CompanyWorkspaceLoading";
 import { CompanySavedRecommendationsEmptyState } from "@/components/company/CompanySavedRecommendationsEmptyState";
 import { CompanySavedRecommendationNoteField } from "@/components/company/CompanySavedRecommendationNoteField";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -118,7 +121,7 @@ function savedSummary(students: number, teams: number): string {
 function SavedAuditMeta({ savedByName, savedAt }: { savedByName: string; savedAt: string }) {
   const formatted = formatSavedAt(savedAt);
   return (
-    <p className="text-[11px] text-muted-foreground leading-snug">
+    <p className="text-[11px] cw-text-secondary leading-snug">
       Saved by {savedByName}
       {formatted ? <> · {formatted}</> : null}
     </p>
@@ -192,13 +195,13 @@ export function CompanySavedRecommendationsPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Saved Recommendations"
         subtitle="Your workspace shortlist — students and teams saved from AI recommendations, organised by project request. Add notes before contacting externally."
         actions={
           totalCount > 0 ? (
-            <Badge variant="secondary" className="rounded-lg px-3 py-1 text-xs font-medium">
+            <Badge variant="secondary" className="cw-badge-ai rounded-md px-3 py-1 text-xs">
               {totalCount} saved across {groups.length} request{groups.length === 1 ? "" : "s"}
             </Badge>
           ) : null
@@ -207,56 +210,52 @@ export function CompanySavedRecommendationsPage() {
 
       {loading ? (
         <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading your shortlist…
+          <CardContent className="cw-card-body">
+            <CompanyWorkspaceLoading message="Loading your shortlist…" />
           </CardContent>
         </Card>
       ) : totalCount === 0 ? (
         <CompanySavedRecommendationsEmptyState />
       ) : (
-        <div className="space-y-8">
+        <div className="flex flex-col cw-grid-gap">
           {groups.map((group) => (
-            <Card key={group.companyRequestId} className="cw-card-elevated overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-primary/5 to-violet-500/5 border-b border-border/60 py-5 px-6">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div className="min-w-0">
-                    <CardTitle className="text-lg font-semibold tracking-tight truncate">
-                      {group.requestTitle}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {savedSummary(group.students.length, group.teams.length)}
-                    </p>
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="rounded-xl shrink-0">
+            <Card key={group.companyRequestId} className="cw-card-elevated cw-saved-group-card overflow-hidden">
+              <CompanyCardHeader
+                icon={Bookmark}
+                title={group.requestTitle}
+                description={savedSummary(group.students.length, group.teams.length)}
+                action={
+                  <Button asChild variant="outline" size="sm" className="rounded-xl cw-btn-outline">
                     <Link to={COMPANY_ROUTES.requestRecommendations(group.companyRequestId)}>
                       Open matches
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Link>
                   </Button>
-                </div>
-              </CardHeader>
+                }
+              />
 
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="cw-card-body cw-card-body--flush-top">
+                <div className="flex flex-col cw-grid-gap">
                 {group.teams.length > 0 ? (
-                  <section>
-                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <section className="space-y-4">
+                    <div className="text-xs cw-section-label flex items-center gap-1.5">
                       <Users className="h-3.5 w-3.5" aria-hidden />
                       Saved teams
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 cw-grid-gap-compact">
                       {group.teams.map((item) => (
                         <div
                           key={item.id}
-                          className="rounded-xl border border-border/70 bg-background/40 p-4 hover:border-primary/30 transition-colors flex flex-col h-full"
+                          className="cw-saved-item-card flex flex-col h-full"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex gap-3 min-w-0">
-                              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-violet-600 text-primary-foreground grid place-items-center shrink-0">
+                              <div className="cw-icon-container shrink-0">
                                 <Users className="h-5 w-5" aria-hidden />
                               </div>
                               <div className="min-w-0">
-                                <h3 className="font-semibold">Team #{item.teamRank}</h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">
+                                <h3 className="font-semibold text-foreground">Team #{item.teamRank}</h3>
+                                <p className="text-xs cw-text-secondary mt-0.5">
                                   {item.memberCount} members · {item.roleCoverageScore}% role coverage
                                 </p>
                               </div>
@@ -265,7 +264,7 @@ export function CompanySavedRecommendationsPage() {
                           </div>
 
                           {item.summaryReason ? (
-                            <p className="text-xs text-muted-foreground mt-3 line-clamp-2 leading-relaxed">
+                            <p className="text-xs cw-text-secondary mt-3 line-clamp-2 leading-relaxed">
                               {item.summaryReason}
                             </p>
                           ) : null}
@@ -328,16 +327,16 @@ export function CompanySavedRecommendationsPage() {
                 ) : null}
 
                 {group.students.length > 0 ? (
-                  <section>
-                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <section className="space-y-4">
+                    <div className="text-xs cw-section-label flex items-center gap-1.5">
                       <Bookmark className="h-3.5 w-3.5" aria-hidden />
                       Saved students
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 cw-grid-gap-compact">
                       {group.students.map((item) => (
                         <div
                           key={item.id}
-                          className="rounded-xl border border-border/70 bg-background/40 p-4 hover:border-primary/30 transition-colors flex flex-col h-full"
+                          className="cw-saved-item-card flex flex-col h-full"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex gap-3 min-w-0">
@@ -347,8 +346,8 @@ export function CompanySavedRecommendationsPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div className="min-w-0">
-                                <h3 className="font-semibold truncate">{item.studentName}</h3>
-                                <p className="text-xs text-muted-foreground truncate">
+                                <h3 className="font-semibold truncate text-foreground">{item.studentName}</h3>
+                                <p className="text-xs cw-text-secondary truncate">
                                   {[item.major, item.university].filter(Boolean).join(" · ")}
                                 </p>
                               </div>
@@ -359,7 +358,7 @@ export function CompanySavedRecommendationsPage() {
                           </div>
 
                           {item.reasonSummary ? (
-                            <p className="text-xs text-muted-foreground mt-3 line-clamp-2 leading-relaxed">
+                            <p className="text-xs cw-text-secondary mt-3 line-clamp-2 leading-relaxed">
                               {item.reasonSummary}
                             </p>
                           ) : null}
@@ -419,11 +418,12 @@ export function CompanySavedRecommendationsPage() {
                     </div>
                   </section>
                 ) : null}
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
-    </div>
+    </CompanyPageShell>
   );
 }

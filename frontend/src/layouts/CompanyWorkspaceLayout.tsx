@@ -15,14 +15,14 @@ const mobileNav = [
 
 export function CompanyWorkspaceLayout() {
   return (
-    <div className="company-workspace min-h-screen flex w-full bg-background">
+    <div className="company-workspace cw-workspace-shell min-h-screen flex w-full">
       <CompanySidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <CompanyTopbar />
-        <main className="flex-1 min-w-0 pb-16 md:pb-0">
+        <main className="cw-workspace-main flex-1 min-w-0 pb-16 md:pb-0">
           <Outlet />
         </main>
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur flex justify-around py-2">
+        <nav className="cw-mobile-nav md:hidden fixed bottom-0 inset-x-0 z-40 border-t flex justify-around py-2">
           {mobileNav.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}

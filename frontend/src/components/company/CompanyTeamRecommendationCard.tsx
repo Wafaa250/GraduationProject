@@ -11,10 +11,10 @@ import { COMPANY_ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
 
 const ROLE_CHIP_CLASSES = [
-  "bg-primary/15 text-primary hover:bg-primary/15",
-  "bg-violet-500/10 text-violet-700 dark:text-violet-300 hover:bg-violet-500/10",
-  "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10",
-  "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/10",
+  "cw-badge-individual",
+  "cw-badge-team",
+  "bg-primary/10 text-primary border border-primary/15",
+  "bg-accent/15 text-primary border border-accent/20",
 ] as const;
 
 type Props = {
@@ -75,14 +75,14 @@ export function CompanyTeamRecommendationCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="font-semibold text-base tracking-tight">Team #{team.teamRank}</h3>
-            <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+            <p className="text-xs cw-text-secondary mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
               <span>{team.members.length} members</span>
-              <span className="text-muted-foreground/50">·</span>
+              <span className="text-muted-foreground/60">·</span>
               <span>{team.roleCoverageScore}% role coverage</span>
               {chemistry && (
                 <>
-                  <span className="text-muted-foreground/50">·</span>
-                  <span className="text-primary/90">{chemistry}</span>
+                  <span className="text-muted-foreground/60">·</span>
+                  <span className="text-primary">{chemistry}</span>
                 </>
               )}
             </p>
@@ -91,7 +91,7 @@ export function CompanyTeamRecommendationCard({
         </div>
 
         {team.summaryReason && (
-          <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-2">
+          <p className="text-xs cw-text-secondary mt-3 leading-relaxed line-clamp-2">
             {oneLine(team.summaryReason, 140)}
           </p>
         )}
@@ -123,10 +123,7 @@ export function CompanyTeamRecommendationCard({
         </div>
 
         <div className="mt-3">
-          <Badge
-            variant="outline"
-            className="rounded-md text-[10px] font-medium border-emerald-200/80 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300"
-          >
+          <Badge variant="outline" className="rounded-md text-[10px] font-medium cw-status-active">
             ✓ {teamSignalLabel}
           </Badge>
         </div>
