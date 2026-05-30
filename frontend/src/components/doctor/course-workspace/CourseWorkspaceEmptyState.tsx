@@ -20,12 +20,12 @@ export function CourseWorkspaceEmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-gradient-soft text-center shadow-card",
+        "flex flex-col items-center justify-center rounded-2xl border border-dashed border-doctor-accent/25 bg-gradient-soft text-center shadow-card",
         compact ? "px-6 py-10" : "px-8 py-16",
       )}
     >
-      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
-        <Icon className="h-5 w-5" />
+      <div className="doctor-empty-illustration">
+        <Icon className="h-6 w-6" aria-hidden />
       </div>
       <h3 className="mt-4 font-display text-base font-semibold text-foreground">{title}</h3>
       <p className="mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>

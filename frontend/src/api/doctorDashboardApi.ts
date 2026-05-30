@@ -75,6 +75,8 @@ export type DoctorSupervisedProject = {
   projectId: number;
   name: string;
   description: string | null;
+  projectType?: string;
+  projectTypeLabel?: string;
   requiredSkills: string[];
   preferredRoles: string[];
   partnersCount: number;
@@ -86,6 +88,7 @@ export type DoctorSupervisedProject = {
     name: string;
     university: string;
     major: string;
+    faculty?: string | null;
   };
   createdAt: string;
 };

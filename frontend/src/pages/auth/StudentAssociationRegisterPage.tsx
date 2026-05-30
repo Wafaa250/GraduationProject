@@ -9,6 +9,7 @@ import {
   uploadAssociationLogo,
   parseApiErrorMessage,
 } from '@/api/associationApi'
+import { applyRoleTheme } from '@/lib/roleTheme'
 import { RegistrationLayout } from '@/components/registration/RegistrationLayout'
 import { FormSection, FieldGrid, RegField } from '@/components/registration/FormSection'
 import { TextInput, Textarea, RegSelect } from '@/components/registration/Inputs'
@@ -146,6 +147,7 @@ export default function StudentAssociationRegisterPage() {
       localStorage.setItem('role', data.role)
       localStorage.setItem('name', data.name)
       localStorage.setItem('email', data.email)
+      applyRoleTheme(data.role)
 
       if (pendingLogoFile) {
         const uploadedUrl = await uploadAssociationLogo(pendingLogoFile)

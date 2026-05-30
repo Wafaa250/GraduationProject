@@ -16,7 +16,7 @@ export function ActionButton({
       "bg-gradient-primary text-primary-foreground shadow-glow hover:brightness-110 active:brightness-95",
     ghost: "text-foreground/70 hover:text-foreground hover:bg-muted",
     outline:
-      "border border-border bg-white text-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5",
+      "border border-border bg-card text-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5",
     success: "bg-success/10 text-success border border-success/25 hover:bg-success/15",
     danger: "bg-danger/10 text-danger border border-danger/25 hover:bg-danger/15",
   };

@@ -1,210 +1,612 @@
-/* Dark-mode token overrides for scoped page hubs (light tokens remain default). */
+/**
+ * Dark-mode token overrides for scoped page hubs.
+ * Light tokens remain the default in each hub CSS file.
+ * Global .dark tokens live in index.css; hubs inherit or override accent hues.
+ */
+
+/* ── Shared hub dark palette (maps to premium slate spec) ─────────────── */
+
+.dark .student-hub,
+.dark .profile-hub,
+.dark .skill-profile-hub,
+.dark .project-wizard-pro,
+.dark .project-workspace-hub,
+.dark .student-manage-courses,
+.dark .doctor-create-course,
+.dark .doctor-hub {
+  --background: 222 39% 11%;
+  --foreground: 210 20% 98%;
+  --card: 215 30% 22%;
+  --card-foreground: 210 20% 98%;
+  --popover: 215 30% 22%;
+  --popover-foreground: 210 20% 98%;
+  --secondary: 217 19% 17%;
+  --secondary-foreground: 220 9% 84%;
+  --muted: 217 19% 17%;
+  --muted-foreground: 220 9% 84%;
+  --border: 215 16% 27%;
+  --input: 215 16% 27%;
+  --input-background: 215 30% 22%;
+  --hover: 217 19% 20%;
+  --gradient-hero: hsl(222 39% 11%);
+  --gradient-card: hsl(215 30% 22%);
+  --gradient-mesh: none;
+  --gradient-soft: hsl(222 39% 11%);
+  --gradient-subtle: hsl(222 39% 11%);
+  --gradient-surface: hsl(222 39% 11%);
+  --gradient-accent: none;
+  --shadow-card: 0 1px 0 hsl(215 16% 27% / 0.8), 0 1px 3px hsl(222 47% 5% / 0.35);
+  --shadow-md: 0 1px 3px hsl(222 47% 5% / 0.35);
+  --shadow-lg: 0 8px 24px -8px hsl(222 47% 5% / 0.45);
+  --shadow-elevated: 0 4px 12px -2px hsl(222 47% 5% / 0.4), 0 0 0 1px hsl(215 16% 27% / 0.6);
+  --shadow-glow: 0 1px 2px hsl(222 47% 5% / 0.35);
+}
+
+/* ── Student hub ──────────────────────────────────────────────────────── */
 
 .dark .student-hub {
-  --background: 222 47% 5%;
-  --foreground: 210 40% 98%;
-  --card: 222 40% 8%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222 40% 8%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 239 84% 67%;
-  --primary-foreground: 0 0% 100%;
-  --primary-glow: 239 84% 75%;
-  --secondary: 217 33% 14%;
-  --secondary-foreground: 210 40% 95%;
-  --muted: 217 33% 12%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 189 94% 43%;
-  --accent-foreground: 222 47% 5%;
-  --success: 158 70% 42%;
+  --accent: 217 19% 17%;
+  --accent-foreground: 220 9% 84%;
+  --success: 158 64% 45%;
   --success-foreground: 0 0% 100%;
-  --warning: 35 95% 55%;
-  --warning-foreground: 30 60% 12%;
-  --destructive: 0 78% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 239 84% 67%;
-  --gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(258 90% 66%));
-  --gradient-accent: linear-gradient(135deg, hsl(239 84% 67%), hsl(189 94% 43%));
-  --gradient-hero: radial-gradient(1200px 600px at 0% 0%, hsl(239 84% 67% / 0.12) 0%, transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, hsl(189 94% 43% / 0.08) 0%, transparent 55%),
-    linear-gradient(180deg, hsl(222 47% 6%), hsl(222 47% 5%));
-  --gradient-card: linear-gradient(180deg, hsl(222 40% 10%), hsl(217 33% 14%));
-  --gradient-mesh: radial-gradient(600px 300px at 80% 10%, hsl(258 90% 66% / 0.15), transparent 60%),
-    radial-gradient(500px 280px at 10% 90%, hsl(189 94% 43% / 0.12), transparent 60%);
-  --shadow-md: 0 4px 16px -4px hsl(222 47% 2% / 0.4);
-  --shadow-lg: 0 24px 48px -16px hsl(239 84% 67% / 0.2);
-  --shadow-glow: 0 0 0 1px hsl(239 84% 67% / 0.2), 0 12px 40px -10px hsl(239 84% 67% / 0.35);
+  --warning: 38 92% 55%;
+  --warning-foreground: 222 39% 11%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 210 20% 98%;
 }
 
-.dark .student-hub .bg-white\/70 {
-  background-color: hsl(var(--card) / 0.7);
+.dark .student-hub .bg-white\/70,
+.dark .student-hub .bg-white\/80 {
+  background-color: hsl(var(--card) / 0.8);
 }
+
+/* ── Profile hubs ─────────────────────────────────────────────────────── */
 
 .dark .profile-hub {
-  --background: 222 47% 5%;
-  --foreground: 210 40% 98%;
-  --card: 222 40% 8%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222 40% 8%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 239 84% 67%;
-  --primary-foreground: 0 0% 100%;
-  --primary-glow: 239 84% 75%;
-  --secondary: 217 33% 14%;
-  --secondary-foreground: 210 40% 95%;
-  --muted: 217 33% 12%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 258 35% 18%;
-  --accent-foreground: 258 90% 75%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 239 84% 67%;
-  --gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(258 90% 66%));
-  --gradient-subtle: linear-gradient(180deg, hsl(222 47% 6%), hsl(222 47% 5%));
-  --gradient-hero: radial-gradient(ellipse at top, hsl(239 84% 67% / 0.2), transparent 70%);
-  --shadow-card: 0 1px 2px hsl(222 47% 2% / 0.4), 0 8px 24px -8px hsl(222 47% 2% / 0.5);
-  --shadow-elegant: 0 10px 40px -10px hsl(239 84% 67% / 0.3);
-  --shadow-focus: 0 0 0 4px hsl(239 84% 67% / 0.2);
+  --accent: 217 19% 17%;
+  --accent-foreground: 220 9% 84%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 210 20% 98%;
 }
 
 .dark .skill-profile-hub {
-  --background: 222 47% 5%;
-  --foreground: 210 40% 98%;
-  --card: 222 40% 8%;
-  --card-foreground: 210 40% 98%;
-  --primary: 239 84% 67%;
-  --primary-foreground: 0 0% 100%;
-  --primary-glow: 239 84% 75%;
-  --secondary: 217 33% 14%;
-  --secondary-foreground: 210 40% 95%;
-  --muted: 217 33% 12%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 189 94% 43%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 217 19% 17%;
+  --accent-foreground: 220 9% 84%;
   --success: 152 65% 45%;
   --success-foreground: 0 0% 100%;
   --warning: 38 92% 55%;
-  --warning-foreground: 0 0% 100%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 239 84% 67%;
-  --gradient-hero: linear-gradient(135deg, hsl(239 84% 67%) 0%, hsl(258 90% 66%) 50%, hsl(189 94% 43%) 100%);
-  --gradient-subtle: linear-gradient(180deg, hsl(222 47% 6%) 0%, hsl(222 47% 5%) 100%);
-  --gradient-card: linear-gradient(135deg, hsl(222 40% 10%) 0%, hsl(217 33% 14%) 100%);
-  --gradient-accent: linear-gradient(135deg, hsl(239 84% 67% / 0.12), hsl(189 94% 43% / 0.1));
-  --gradient-chip: linear-gradient(135deg, hsl(239 84% 67% / 0.15), hsl(258 90% 66% / 0.12));
-  --shadow-sm: 0 1px 2px hsl(222 47% 2% / 0.4);
-  --shadow-md: 0 4px 16px -4px hsl(222 47% 2% / 0.5);
-  --shadow-lg: 0 12px 40px -12px hsl(239 84% 67% / 0.25);
-  --shadow-glow: 0 0 60px hsl(239 84% 67% / 0.25);
+  --warning-foreground: 222 39% 11%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 210 20% 98%;
+  --gradient-chip: hsl(217 19% 17%);
+  --shadow-sm: 0 1px 2px hsl(222 47% 5% / 0.3);
 }
 
+/* ── Project wizard ───────────────────────────────────────────────────── */
+
+.dark .project-wizard-pro {
+  --accent: 217 19% 17%;
+  --accent-foreground: 220 9% 84%;
+  --success: 152 70% 42%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 0 72% 55%;
+}
+
+/* ── Project workspace hub ────────────────────────────────────────────── */
+
+.dark .project-workspace-hub {
+  --accent: 217 19% 17%;
+  --accent-foreground: 220 9% 84%;
+  --success: 152 65% 45%;
+  --warning: 38 95% 55%;
+  --destructive: 0 72% 55%;
+}
+
+/* ── Manage courses ───────────────────────────────────────────────────── */
+
+.dark .student-manage-courses {
+  --primary-soft: 243 40% 18%;
+  --info-soft: 199 40% 18%;
+  --success-soft: 158 40% 18%;
+  --warning-soft: 38 40% 18%;
+  --shadow-soft: 0 1px 2px 0 hsl(222 47% 5% / 0.3);
+  --shadow-elevated: 0 4px 12px -2px hsl(222 47% 5% / 0.4);
+}
+
+/* ── Doctor hub ───────────────────────────────────────────────────────── */
+
+.dark .doctor-hub {
+  --accent: 217 19% 17%;
+  --accent-foreground: 220 9% 84%;
+
+  --success: 152 64% 45%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 55%;
+  --warning-foreground: 222 39% 11%;
+  --danger: 0 72% 55%;
+  --danger-foreground: 210 20% 98%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 210 20% 98%;
+
+  --faculty-bubble: 217 19% 17%;
+  --announcement: 217 19% 17%;
+  --announcement-border: 215 16% 27%;
+
+  --sidebar-bg: 222 39% 11%;
+  --sidebar-bg-2: 217 19% 17%;
+  --sidebar-fg: 210 20% 98%;
+  --sidebar-muted: 220 9% 84%;
+  --sidebar-border: 215 16% 27%;
+  --sidebar-active: 217 19% 17%;
+
+  --gradient-soft: hsl(222 39% 11%);
+  --gradient-sidebar: hsl(222 39% 11%);
+  --gradient-mesh: none;
+
+  --shadow-sm: 0 1px 2px hsl(222 47% 5% / 0.3);
+  --shadow-elevated: 0 4px 12px -2px hsl(222 47% 5% / 0.4);
+
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground));
+}
+
+.dark .doctor-hub .doctor-hub__sidebar {
+  background: hsl(var(--sidebar-bg)) !important;
+  border-color: hsl(var(--sidebar-border));
+}
+
+.dark .doctor-hub .doctor-hub__sidebar-brand-sub {
+  color: hsl(var(--sidebar-icon));
+}
+
+.dark .doctor-hub .doctor-nav-link--active {
+  background-color: hsl(var(--primary) / 0.1) !important;
+  color: hsl(var(--primary)) !important;
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 hsl(var(--primary));
+}
+
+.dark .doctor-hub .text-primary:not(.text-primary-foreground):not(.ss-brand-cta) {
+  color: hsl(var(--primary));
+}
+
+.dark .doctor-hub .hover\:text-primary:hover:not(.ss-brand-cta) {
+  color: hsl(var(--primary));
+}
+
+.dark .doctor-hub .bg-primary:not(.bg-gradient-primary):not(.ss-brand-cta) {
+  background-color: hsl(var(--doctor-accent));
+}
+
+.dark .doctor-hub .bg-primary\/5:not(.ss-brand-cta) {
+  background-color: hsl(var(--doctor-accent) / 0.08);
+}
+
+.dark .doctor-hub .bg-primary\/10:not(.ss-brand-cta) {
+  background-color: hsl(var(--doctor-accent) / 0.12);
+}
+
+.dark .doctor-hub .bg-primary\/12:not(.ss-brand-cta) {
+  background-color: hsl(var(--doctor-accent) / 0.14);
+}
+
+.dark .doctor-hub .bg-primary\/15:not(.ss-brand-cta) {
+  background-color: hsl(var(--doctor-accent) / 0.16);
+}
+
+.dark .doctor-hub .bg-primary\/20:not(.ss-brand-cta) {
+  background-color: hsl(var(--doctor-accent) / 0.2);
+}
+
+.dark .doctor-hub .hover\:bg-primary\/5:hover:not(.ss-brand-cta) {
+  background-color: hsl(var(--doctor-accent) / 0.08);
+}
+
+.dark .doctor-hub .doctor-hub__header,
+.dark .doctor-hub .doctor-hub__topbar {
+  background: hsl(var(--card) / 0.95) !important;
+  border-color: hsl(var(--border));
+}
+
+.dark .doctor-hub .doctor-hub__panel,
+.dark .doctor-hub .doctor-hub__card-surface {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border));
+}
+
+/* Doctor messaging shell */
+.dark .doctor-hub .doctor-messages {
+  --dm-surface: hsl(215 30% 22%);
+  --dm-surface-muted: hsl(217 19% 17%);
+  --dm-border: hsl(215 16% 27% / 0.9);
+  --dm-border-strong: hsl(var(--primary) / 0.35);
+  --dm-shadow-shell: 0 1px 0 hsl(215 16% 27%), 0 1px 3px hsl(222 47% 5% / 0.35);
+  --dm-shadow-item: 0 1px 2px hsl(222 47% 5% / 0.25);
+}
+
+.dark .doctor-hub .doctor-messages-sidebar {
+  background: hsl(var(--secondary)) !important;
+}
+
+.dark .doctor-hub .doctor-messages-convo:hover {
+  background: hsl(var(--hover));
+  border-color: hsl(var(--border));
+}
+
+.dark .doctor-hub .doctor-messages-convo--selected {
+  background: hsl(var(--primary) / 0.1) !important;
+  border-color: hsl(var(--primary) / 0.25);
+  box-shadow: var(--dm-shadow-item), inset 2px 0 0 hsl(var(--primary));
+}
+
+.dark .doctor-hub .doctor-messages-convo--selected .doctor-messages-convo__name,
+.dark .doctor-hub .doctor-messages-convo--selected .doctor-messages-convo__preview,
+.dark .doctor-hub .doctor-messages-convo--selected .doctor-messages-convo__time {
+  color: hsl(var(--foreground));
+}
+
+.dark .doctor-hub .doctor-messages-convo--unread:not(.doctor-messages-convo--selected) {
+  background: hsl(var(--muted) / 0.5);
+}
+
+.dark .doctor-hub .doctor-messages-convo--unread .doctor-messages-convo__name {
+  color: hsl(var(--foreground));
+}
+
+.dark .doctor-hub .doctor-messages-convo--unread .doctor-messages-convo__preview {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .doctor-hub .doctor-messages-convo__name {
+  color: hsl(var(--foreground));
+}
+
+.dark .doctor-hub .doctor-messages-convo__preview,
+.dark .doctor-hub .doctor-messages-convo__time {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .doctor-hub .doctor-messages-convo--unread .doctor-messages-convo__time {
+  color: hsl(var(--primary));
+}
+
+.dark .doctor-hub .doctor-messages-avatar {
+  border-color: hsl(var(--card));
+}
+
+.dark .doctor-hub .doctor-messages-composer {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.dark .doctor-hub .doctor-messages-composer__inner {
+  background: hsl(var(--input-background));
+  border-color: hsl(var(--border));
+}
+
+.dark .doctor-hub .doctor-messages-composer__input {
+  background: transparent;
+  color: hsl(var(--foreground));
+}
+
+.dark .doctor-hub .doctor-messages-composer__input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Course project workspace heroes */
+.dark .doctor-hub .cpw-hero {
+  background: hsl(var(--card)) !important;
+}
+
+.dark .doctor-hub .doctor-student-profile__hero {
+  background: hsl(var(--card)) !important;
+}
+
+.dark .doctor-hub .doctor-stat-card,
+.dark .doctor-hub .doctor-stat-card--success,
+.dark .doctor-hub .doctor-stat-card--warning,
+.dark .doctor-hub .doctor-stat-card--danger,
+.dark .doctor-hub .doctor-stat-card--info {
+  background: hsl(var(--card)) !important;
+}
+
+.dark .student-hub .student-messages-conv--active {
+  background: hsl(var(--primary) / 0.1);
+  box-shadow: inset 2px 0 0 hsl(var(--primary));
+}
+
+.dark .student-hub .student-messages-conv--active .font-semibold,
+.dark .student-hub .student-messages-conv--active .text-foreground {
+  color: hsl(var(--foreground));
+}
+
+.dark .student-hub .student-messages-conv--active .text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+
+/* ── Doctor create course ─────────────────────────────────────────────── */
+
+.dark .doctor-create-course {
+  --dcc-surface: 215 30% 22%;
+  --dcc-surface-muted: 217 19% 17%;
+  --dcc-gradient-surface: hsl(222 39% 11%);
+  --dcc-gradient-subtle: hsl(222 39% 11%);
+  --dcc-shadow-sm: 0 1px 2px hsl(222 47% 5% / 0.3);
+  --dcc-shadow-md: 0 2px 6px hsl(222 47% 5% / 0.35);
+  --dcc-shadow-lg: 0 8px 24px -8px hsl(222 47% 5% / 0.45);
+}
+
+/* ── Auth: login ──────────────────────────────────────────────────────── */
+
 .dark .login-page {
-  --primary: #8b8cf8;
-  --primary-foreground: #ffffff;
-  --ring: #a78bfa;
-  --border: hsl(217 33% 17%);
-  --muted-foreground: #94a3b8;
-  --foreground: #f1f5f9;
-  --card: #1a1f2e;
-  --destructive: #f87171;
-  --input-background: #1a1f2e;
-  --background: #0b0f19;
+  --background: 222 39% 11%;
+  --foreground: 210 20% 98%;
+  --card: 215 30% 22%;
+  --card-foreground: 210 20% 98%;
+  --border: 215 16% 27%;
+  --input: 215 16% 27%;
+  --input-background: 215 30% 22%;
+  --muted-foreground: 220 9% 84%;
+  --destructive: 0 72% 55%;
 }
 
 .dark .login-page .bg-gradient-soft {
-  background: linear-gradient(180deg, #0b0f19 0%, #111827 45%, #0b0f19 100%);
+  background: hsl(222 39% 11%);
 }
 
 .dark .login-page .bg-gradient-brand {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 52%, #9333ea 100%);
+  background: hsl(var(--primary));
 }
 
 .dark .login-page .bg-gradient-mesh {
-  background:
-    radial-gradient(ellipse at 18% 42%, rgba(255, 255, 255, 0.08) 0%, transparent 52%),
-    radial-gradient(ellipse at 82% 18%, rgba(168, 85, 247, 0.2) 0%, transparent 48%);
+  background: none;
 }
 
 .dark .login-page .text-gradient-brand {
-  background: linear-gradient(135deg, #818cf8, #c084fc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-.dark .login-page .shadow-card {
-  box-shadow:
-    0 4px 24px -4px rgba(99, 102, 241, 0.2),
-    0 8px 32px -8px rgba(0, 0, 0, 0.4);
+  background: none;
+  -webkit-text-fill-color: unset;
+  color: hsl(var(--primary-glow));
 }
 
 .dark .login-page .shadow-glow {
-  box-shadow: 0 0 28px -6px rgba(99, 102, 241, 0.45);
+  box-shadow: var(--shadow-sm);
 }
 
 .dark .login-page .text-primary-deep {
-  color: #c4b5fd;
+  color: hsl(var(--primary-glow));
 }
 
 .dark .login-page a.text-primary:hover,
 .dark .login-page .hover\:text-primary-deep:hover {
-  color: #ddd6fe;
+  color: hsl(244 57% 58%);
 }
 
 .dark .login-page .bg-primary\/20 {
-  background-color: rgb(139 92 246 / 0.2);
+  background-color: hsl(var(--primary) / 0.12);
 }
 
 .dark .login-page .bg-primary-glow\/20 {
-  background-color: rgb(168 85 247 / 0.2);
+  background-color: hsl(var(--primary-glow) / 0.12);
 }
+
+/* ── Auth: shell & registration ───────────────────────────────────────── */
 
 .dark .auth-shell .auth-shell-grid {
   background-image:
-    linear-gradient(hsl(217 33% 17% / 0.65) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(217 33% 17% / 0.65) 1px, transparent 1px);
+    linear-gradient(hsl(215 25% 27% / 0.65) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(215 25% 27% / 0.65) 1px, transparent 1px);
 }
 
 .dark .auth-shell .text-primary {
-  color: #a78bfa;
+  color: hsl(var(--primary));
 }
 
 .dark .auth-shell a.text-primary:hover,
 .dark .auth-shell .hover\:text-primary-deep:hover {
-  color: #c4b5fd;
+  color: hsl(var(--primary-glow));
 }
 
 .dark .reg-page .bg-mesh {
-  background:
-    radial-gradient(ellipse at 12% 8%, rgba(99, 102, 241, 0.18) 0%, transparent 50%),
-    radial-gradient(ellipse at 88% 92%, rgba(168, 85, 247, 0.14) 0%, transparent 48%);
+  background: none;
 }
 
 .dark .reg-page .text-primary {
-  color: #a78bfa;
+  color: hsl(var(--primary));
 }
 
 .dark .reg-page .text-primary-deep,
 .dark .reg-page .hover\:text-primary-deep:hover {
-  color: #c4b5fd;
+  color: hsl(var(--primary-glow));
 }
 
 .dark .reg-page .bg-primary-soft {
-  background-color: rgb(139 92 246 / 0.15);
+  background-color: hsl(var(--primary) / 0.1);
 }
 
 .dark .reg-page .shadow-xs {
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shadow-sm);
 }
 
 .dark .reg-page .shadow-elevated {
-  box-shadow: 0 12px 40px -12px rgb(99 102 241 / 0.35);
+  box-shadow: var(--shadow-elevated);
+}
+
+/* ── Workspace utility fixes (cards that still use bg-white) ──────────── */
+
+.dark .student-hub .bg-white,
+.dark .doctor-hub .bg-white,
+.dark .profile-hub .bg-white,
+.dark .skill-profile-hub .bg-white,
+.dark .project-wizard-pro .bg-white,
+.dark .project-workspace-hub .bg-white {
+  background-color: hsl(var(--card));
+}
+
+.dark .student-hub .bg-white\/60,
+.dark .student-hub .bg-white\/80,
+.dark .doctor-hub .bg-white\/60,
+.dark .doctor-hub .bg-white\/80,
+.dark .project-workspace-hub .bg-white\/60,
+.dark .project-workspace-hub .bg-white\/80 {
+  background-color: hsl(var(--card) / 0.85);
+}
+
+.dark .student-hub .bg-white\/95,
+.dark .doctor-hub .bg-white\/95 {
+  background-color: hsl(var(--card) / 0.95);
+}
+
+/* ── SaaS dark refinements — flat hubs, subtle accents ──────────────── */
+
+.dark .student-hub,
+.dark .student-hub .bg-hero,
+.dark .student-hub .bg-mesh,
+.dark .doctor-hub .bg-gradient-mesh,
+.dark .profile-hub,
+.dark .skill-profile-hub,
+.dark .project-wizard-pro,
+.dark .project-workspace-hub {
+  background: hsl(var(--background)) !important;
+  background-image: none !important;
+}
+
+.dark .student-hub .student-ws-pill--active {
+  border-color: hsl(var(--primary) / 0.35);
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary-glow));
+  box-shadow: none;
+}
+
+.dark .student-hub .student-ws-pill:hover {
+  border-color: hsl(215 16% 27%);
+  background: hsl(var(--hover));
+}
+
+.dark .student-hub .hover\:shadow-glow:hover,
+.dark .doctor-hub .hover\:shadow-glow:hover,
+.dark .student-hub .shadow-glow,
+.dark .doctor-hub .shadow-glow {
+  box-shadow: var(--shadow-sm);
+}
+
+.dark .doctor-hub .bg-gradient-primary:not(.ss-brand-cta),
+.dark .student-hub .bg-gradient-primary:not(.ss-brand-cta) {
+  background: hsl(var(--primary));
+}
+
+.dark .ss-brand-cta,
+.dark .doctor-hub .ss-brand-cta {
+  background: hsl(var(--primary));
+  box-shadow: var(--shadow-sm);
+}
+
+.dark .ss-brand-cta:hover,
+.dark .doctor-hub .ss-brand-cta:hover {
+  background: hsl(var(--primary-dark));
+}
+
+/* ── Doctor hub — neutralize light purple chrome in dark mode ───────── */
+
+.dark .doctor-hub .doctor-workspace-tabs {
+  background-color: hsl(var(--secondary));
+  border-color: hsl(var(--border));
+}
+
+.dark .doctor-hub .doctor-tab:hover:not(.doctor-tab--active) {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--hover));
+}
+
+.dark .doctor-hub .doctor-tab--active {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--card));
+  box-shadow:
+    0 1px 2px hsl(222 47% 5% / 0.25),
+    inset 2px 0 0 hsl(var(--primary));
+}
+
+.dark .doctor-hub .doctor-tab-badge {
+  background-color: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary-glow));
+}
+
+.dark .doctor-hub .doctor-tab:not(.doctor-tab--active) .doctor-tab-badge {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .doctor-hub .doctor-tab-underline:hover {
+  color: hsl(var(--foreground));
+}
+
+.dark .doctor-hub .doctor-tab-underline--active {
+  color: hsl(var(--foreground));
+}
+
+.dark .doctor-hub .doctor-tab-underline--active::after {
+  background-color: hsl(var(--primary));
+}
+
+.dark .doctor-hub .doctor-nav-indicator {
+  background-color: hsl(var(--primary));
+}
+
+.dark .doctor-hub .doctor-messages-panel {
+  background: hsl(var(--card));
+}
+
+.dark .doctor-hub .doctor-messages-panel__header {
+  background: hsl(var(--card) / 0.96);
+}
+
+.dark .doctor-hub .doctor-messages-panel__title {
+  color: hsl(var(--foreground));
+}
+
+.dark .doctor-hub .doctor-messages-panel__meta {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .doctor-hub .doctor-messages-panel__actions .doctor-messages-action-btn {
+  border-color: hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.dark .doctor-hub .doctor-messages-panel__actions .doctor-messages-action-btn:hover:not(:disabled) {
+  background: hsl(var(--hover));
+  border-color: hsl(var(--primary) / 0.3);
+  box-shadow: none;
+}
+
+.dark .doctor-hub .doctor-messages-context-badge {
+  color: hsl(var(--primary-glow));
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.22);
+  box-shadow: none;
+}
+
+.dark .doctor-hub .doctor-messages-unread-badge {
+  background: hsl(var(--primary));
+  box-shadow: none;
+}
+
+.dark .doctor-hub .doctor-messages-avatar--team,
+.dark .doctor-hub .doctor-messages-avatar--student {
+  background: hsl(var(--primary));
+}
+
+.dark .doctor-hub .doctor-icon-well {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--primary-glow));
+  box-shadow: inset 0 0 0 1px hsl(var(--border));
+}
+
+/* Hide decorative purple blur orbs in workspace shells */
+.dark .student-hub [class*="bg-gradient-primary"][class*="blur"],
+.dark .doctor-hub [class*="bg-gradient-primary"][class*="blur"],
+.dark .project-wizard-pro [class*="bg-gradient-primary"][class*="blur"],
+.dark .project-workspace-hub [class*="bg-gradient-primary"][class*="blur"] {
+  display: none;
 }

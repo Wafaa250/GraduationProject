@@ -5,7 +5,6 @@ import { RequestCard } from "@/components/doctor/hub/RequestCard";
 import { ProjectCard } from "@/components/doctor/hub/ProjectCard";
 import { CourseCard } from "@/components/doctor/hub/CourseCard";
 import { DoctorHubSectionEmpty } from "@/components/doctor/hub/DoctorHubSectionEmpty";
-import { RequestDetailDialog } from "@/components/doctor/hub/RequestDetailDialog";
 import { DOCTOR_HUB_METRIC_SLOTS } from "@/lib/doctorHubConfig";
 import {
   acceptSupervisorRequest,
@@ -51,8 +50,6 @@ export default function DoctorDashboardPage() {
   const [messagesUnread, setMessagesUnread] = useState(0);
   const [busyRequestId, setBusyRequestId] = useState<number | null>(null);
   const [resigningId, setResigningId] = useState<number | null>(null);
-  const [detailId, setDetailId] = useState<number | null>(null);
-
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
@@ -107,16 +104,11 @@ export default function DoctorDashboardPage() {
     [courses],
   );
 
-  const detailRequest = useMemo(
-    () => requests.find((r) => r.requestId === detailId) ?? null,
-    [requests, detailId],
-  );
-
   const handleAccept = async (requestId: number) => {
     setBusyRequestId(requestId);
     try {
       await acceptSupervisorRequest(requestId);
-      toast({ title: "Request accepted", description: "You are now the project supervisor." });
+      toast({ title: "Request accepted", description: "The project is now in Active Projects." });
       await loadDashboard();
     } catch (err) {
       toast({
@@ -238,7 +230,6 @@ export default function DoctorDashboardPage() {
                   busyRequestId={busyRequestId}
                   onAccept={handleAccept}
                   onReject={handleReject}
-                  onDetails={setDetailId}
                 />
               ))}
             </div>
@@ -313,12 +304,6 @@ export default function DoctorDashboardPage() {
           )}
         </section>
       </div>
-
-      <RequestDetailDialog
-        request={detailRequest}
-        open={detailId != null}
-        onOpenChange={(open) => !open && setDetailId(null)}
-      />
     </main>
   );
 }

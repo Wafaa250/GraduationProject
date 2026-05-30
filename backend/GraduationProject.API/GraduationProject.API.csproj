@@ -6,8 +6,9 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 
-	<!-- Alternate build output folders must not be compiled (duplicate assembly attributes). -->
+	<!-- Nested tools and alternate output folders must not be compiled into this project. -->
 	<ItemGroup>
+		<Compile Remove="Scripts/**" />
 		<Compile Remove="obj_compile_out/**" />
 		<Compile Remove="bin_compile_check_out/**" />
 		<Content Remove="obj_compile_out/**" />

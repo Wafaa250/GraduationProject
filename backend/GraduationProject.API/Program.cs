@@ -83,6 +83,7 @@ builder.Services.AddScoped<ISectionChatRepository, SectionChatRepository>();
 builder.Services.AddScoped<ICourseProjectRepository, CourseProjectRepository>();
 builder.Services.AddScoped<ICourseTeamRepository, CourseTeamRepository>();
 builder.Services.AddScoped<ICourseTeamChatRepository, CourseTeamChatRepository>();
+builder.Services.AddScoped<ICourseTeamConversationService, CourseTeamConversationService>();
 builder.Services.AddHttpClient<ITeamGenerationService, OpenAiTeamGenerationService>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IGraduationProjectNotificationService, GraduationProjectNotificationService>();

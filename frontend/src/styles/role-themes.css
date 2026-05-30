@@ -1,0 +1,61 @@
+/**
+ * Role-based accent theming.
+ * Neutral surfaces & typography live in index.css — never overridden here.
+ * Role colors apply only to accents: buttons, links, nav, tabs, badges, charts, etc.
+ */
+
+/* ── Role accent definitions ───────────────────────────────────────────── */
+
+.role-student {
+  --role-primary: 217 91% 60%;
+  --role-primary-hover: 217 91% 53%;
+  --role-primary-soft: 217 91% 70%;
+  --role-accent-muted: 217 40% 18%;
+}
+
+.role-doctor {
+  --role-primary: 263 34% 55%;
+  --role-primary-hover: 270 44% 31%;
+  --role-primary-soft: 269 33% 66%;
+  --role-secondary: 269 33% 66%;
+  --role-accent-muted: 270 30% 18%;
+}
+
+.role-company {
+  --role-primary: 160 84% 39%;
+  --role-primary-hover: 161 94% 30%;
+  --role-primary-soft: 160 70% 45%;
+  --role-accent-muted: 160 30% 16%;
+}
+
+.role-association {
+  --role-primary: 38 92% 51%;
+  --role-primary-hover: 32 95% 44%;
+  --role-primary-soft: 38 92% 58%;
+  --role-accent-muted: 38 40% 16%;
+}
+
+/* ── Map accents → semantic tokens (inherits to all hubs) ─────────────── */
+
+.role-student,
+.role-doctor,
+.role-company,
+.role-association {
+  --primary: var(--role-primary);
+  --primary-foreground: 0 0% 100%;
+  --primary-dark: var(--role-primary-hover);
+  --primary-deep: var(--role-primary-hover);
+  --primary-glow: var(--role-primary-soft);
+  --ring: var(--role-primary);
+  --info: var(--role-primary);
+  --doctor-accent: var(--role-primary);
+  --doctor-accent-deep: var(--role-primary-hover);
+  --doctor-accent-soft: var(--role-accent-muted);
+  --gradient-primary: hsl(var(--role-primary));
+  --shadow-focus: 0 0 0 3px hsl(var(--role-primary) / 0.22);
+  --sidebar-active-fg: var(--role-primary);
+}
+
+.role-doctor {
+  --doctor-accent-secondary: var(--role-secondary);
+}

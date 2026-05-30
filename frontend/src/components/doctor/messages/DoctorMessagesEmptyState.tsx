@@ -1,24 +1,44 @@
 import type { LucideIcon } from "lucide-react";
 import { MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type DoctorMessagesEmptyStateProps = {
   icon?: LucideIcon;
   title: string;
   description: string;
+  variant?: "compact" | "hero";
 };
 
 export function DoctorMessagesEmptyState({
   icon: Icon = MessageSquare,
   title,
   description,
+  variant = "compact",
 }: DoctorMessagesEmptyStateProps) {
+  const isHero = variant === "hero";
+
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
-      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent">
-        <Icon className="h-5 w-5 text-primary" aria-hidden />
+    <div
+      className={cn(
+        "doctor-messages-empty",
+        isHero && "doctor-messages-empty--hero",
+      )}
+    >
+      <div
+        className={cn(
+          "doctor-messages-empty__art",
+          isHero && "doctor-messages-empty__art--hero",
+        )}
+        aria-hidden
+      >
+        <div className="doctor-messages-empty__ring doctor-messages-empty__ring--outer" />
+        <div className="doctor-messages-empty__ring" />
+        <div className="doctor-messages-empty__icon-wrap">
+          <Icon className={cn(isHero ? "h-8 w-8" : "h-6 w-6")} />
+        </div>
       </div>
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      <p className="mt-1 max-w-xs text-xs text-muted-foreground">{description}</p>
+      <p className="doctor-messages-empty__title">{title}</p>
+      <p className="doctor-messages-empty__desc">{description}</p>
     </div>
   );
 }

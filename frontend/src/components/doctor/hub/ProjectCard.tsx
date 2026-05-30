@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Users, ArrowUpRight, LogOut } from "lucide-react";
 import { ActionButton } from "./ActionButton";
-import { doctorProjectPath } from "@/routes/paths";
+import { doctorProjectChatPath, doctorProjectPath } from "@/routes/paths";
 import type { DoctorHubProjectCardModel } from "@/lib/doctorHubMappers";
 
 type ProjectCardProps = {
@@ -14,7 +14,7 @@ export function ProjectCard({ p, onResign, resigning }: ProjectCardProps) {
   const projectId = Number(p.id);
 
   return (
-    <div className="group rounded-2xl border border-border bg-white p-5 shadow-card hover:shadow-elevated hover:border-primary/30 transition-smooth flex flex-col">
+    <div className="group rounded-2xl border border-border bg-card p-5 shadow-card hover:shadow-elevated hover:border-primary/30 transition-smooth flex flex-col">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[10.5px] uppercase tracking-[0.12em] font-semibold text-muted-foreground">
@@ -52,10 +52,10 @@ export function ProjectCard({ p, onResign, resigning }: ProjectCardProps) {
         <span className="text-[11.5px] text-muted-foreground">{p.updated}</span>
         <div className="flex items-center gap-1.5">
           <Link
-            to={`${doctorProjectPath(projectId)}#team`}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold px-3.5 py-2 border border-border bg-white text-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-smooth"
+            to={doctorProjectChatPath(projectId)}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold px-3.5 py-2 border border-border bg-card text-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-smooth"
           >
-            View Team
+            Team Chat
           </Link>
           <Link
             to={doctorProjectPath(projectId)}

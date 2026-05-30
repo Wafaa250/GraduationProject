@@ -1,0 +1,225 @@
+/** Canonical graduation project type codes stored in the database. */
+export type GraduationProjectType = "GP1" | "GP2" | "GP";
+
+export type GraduationTrack = "general" | "engineering" | "computer-engineering";
+
+export type GraduationProjectTypeOption = {
+  type: GraduationProjectType;
+  stageId: "gp1" | "gp2" | "gp";
+  label: string;
+  shortLabel: string;
+  description: string;
+};
+
+export const GRADUATION_PROJECT_TYPE = {
+  GP1: "GP1",
+  GP2: "GP2",
+  GP: "GP",
+} as const satisfies Record<string, GraduationProjectType>;
+
+/** Any faculty whose name includes "Engineering". */
+export function isEngineeringFaculty(faculty: string | null | undefined): boolean {
+  if (!faculty?.trim()) return false;
+  return faculty.trim().toLowerCase().includes("engineering");
+}
+
+export function isComputerEngineeringMajor(majorOrDepartment: string | null | undefined): boolean {
+  if (!majorOrDepartment?.trim()) return false;
+  const m = majorOrDepartment.trim().toLowerCase();
+  return m === "computer engineering" || m.includes("computer engineering");
+}
+
+export function resolveGraduationTrack(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): GraduationTrack {
+  if (!isEngineeringFaculty(faculty)) return "general";
+  if (isComputerEngineeringMajor(major)) return "computer-engineering";
+  return "engineering";
+}
+
+export function normalizeProjectType(type: string | null | undefined): GraduationProjectType {
+  const t = (type ?? GRADUATION_PROJECT_TYPE.GP).trim().toUpperCase();
+  if (t === GRADUATION_PROJECT_TYPE.GP1) return GRADUATION_PROJECT_TYPE.GP1;
+  if (t === GRADUATION_PROJECT_TYPE.GP2) return GRADUATION_PROJECT_TYPE.GP2;
+  return GRADUATION_PROJECT_TYPE.GP;
+}
+
+export function getAllowedProjectTypes(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): GraduationProjectType[] {
+  return resolveGraduationTrack(faculty, major) === "general"
+    ? [GRADUATION_PROJECT_TYPE.GP]
+    : [GRADUATION_PROJECT_TYPE.GP1, GRADUATION_PROJECT_TYPE.GP2];
+}
+
+export function projectTypeForApi(
+  faculty: string | null | undefined,
+  selected: GraduationProjectType,
+): GraduationProjectType {
+  const allowed = getAllowedProjectTypes(faculty, null);
+  if (allowed.length === 1) return GRADUATION_PROJECT_TYPE.GP;
+  return selected === GRADUATION_PROJECT_TYPE.GP1 || selected === GRADUATION_PROJECT_TYPE.GP2
+    ? selected
+    : GRADUATION_PROJECT_TYPE.GP1;
+}
+
+export function resolveGraduationProjectLabel(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+  courseType: string | null | undefined,
+): string {
+  return projectTypeLabel(courseType, faculty, major);
+}
+
+export function getGraduationSectionTitle(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): string {
+  return resolveGraduationTrack(faculty, major) === "general"
+    ? "Graduation Project"
+    : "Graduation Projects";
+}
+
+export function projectTypeLabel(
+  type: string | null | undefined,
+  faculty?: string | null,
+  major?: string | null,
+): string {
+  return getGraduationProjectTypeOptions(faculty, major).find(
+    (o) => o.type === normalizeProjectType(type),
+  )?.label ?? getGraduationProjectTypeOptions(faculty, major)[0]?.label ?? "Graduation Project";
+}
+
+export function projectTypeShortLabel(
+  type: string | null | undefined,
+  faculty?: string | null,
+  major?: string | null,
+): string {
+  const normalized = normalizeProjectType(type);
+  const track = resolveGraduationTrack(faculty, major);
+  if (track === "computer-engineering") {
+    if (normalized === GRADUATION_PROJECT_TYPE.GP1) return "GP1 Software";
+    if (normalized === GRADUATION_PROJECT_TYPE.GP2) return "GP2 Hardware";
+    return "Graduation Project";
+  }
+  if (track === "engineering") {
+    if (normalized === GRADUATION_PROJECT_TYPE.GP1) return "Graduation Project 1";
+    if (normalized === GRADUATION_PROJECT_TYPE.GP2) return "Graduation Project 2";
+    return "Graduation Project";
+  }
+  return "Graduation Project";
+}
+
+export function projectTypeToStage(type: string | null | undefined): "gp1" | "gp2" | "gp" {
+  switch (normalizeProjectType(type)) {
+    case GRADUATION_PROJECT_TYPE.GP1:
+      return "gp1";
+    case GRADUATION_PROJECT_TYPE.GP2:
+      return "gp2";
+    default:
+      return "gp";
+  }
+}
+
+export function stageToProjectType(stage: string): GraduationProjectType {
+  if (stage === "gp1") return GRADUATION_PROJECT_TYPE.GP1;
+  if (stage === "gp2") return GRADUATION_PROJECT_TYPE.GP2;
+  return GRADUATION_PROJECT_TYPE.GP;
+}
+
+export function getGraduationProjectTypeOptions(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): GraduationProjectTypeOption[] {
+  const track = resolveGraduationTrack(faculty, major);
+
+  if (track === "general") {
+    return [
+      {
+        type: GRADUATION_PROJECT_TYPE.GP,
+        stageId: "gp",
+        label: "Graduation Project",
+        shortLabel: "Graduation Project",
+        description: "Single graduation project track for your faculty.",
+      },
+    ];
+  }
+
+  if (track === "computer-engineering") {
+    return [
+      {
+        type: GRADUATION_PROJECT_TYPE.GP1,
+        stageId: "gp1",
+        label: "Graduation Project 1 (Software)",
+        shortLabel: "GP1 Software",
+        description: "Software-focused graduation project — design, development, and implementation.",
+      },
+      {
+        type: GRADUATION_PROJECT_TYPE.GP2,
+        stageId: "gp2",
+        label: "Graduation Project 2 (Hardware)",
+        shortLabel: "GP2 Hardware",
+        description: "Hardware-focused graduation project — systems, embedded, and physical design.",
+      },
+    ];
+  }
+
+  return [
+    {
+      type: GRADUATION_PROJECT_TYPE.GP1,
+      stageId: "gp1",
+      label: "Graduation Project 1",
+      shortLabel: "Graduation Project 1",
+      description: "Foundational stage — research, scoping, and proposal.",
+    },
+    {
+      type: GRADUATION_PROJECT_TYPE.GP2,
+      stageId: "gp2",
+      label: "Graduation Project 2",
+      shortLabel: "Graduation Project 2",
+      description: "Implementation stage — building and delivering the project.",
+    },
+  ];
+}
+
+export function getBrowseProjectTypeFilters(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): { value: "All" | GraduationProjectType; label: string }[] {
+  const options = getGraduationProjectTypeOptions(faculty, major);
+  return [
+    { value: "All", label: "All" },
+    ...options.map((o) => ({ value: o.type, label: o.shortLabel })),
+  ];
+}
+
+export function isProjectVisibleToStudent(
+  projectType: string | null | undefined,
+  ownerFaculty: string | null | undefined,
+  ownerMajor: string | null | undefined,
+  viewerFaculty: string | null | undefined,
+  viewerMajor: string | null | undefined,
+): boolean {
+  const type = normalizeProjectType(projectType);
+  const ownerTrack = resolveGraduationTrack(ownerFaculty, ownerMajor);
+  const viewerTrack = resolveGraduationTrack(viewerFaculty, viewerMajor);
+
+  if (viewerTrack === "general") {
+    return type === GRADUATION_PROJECT_TYPE.GP && ownerTrack === "general";
+  }
+
+  return (
+    (type === GRADUATION_PROJECT_TYPE.GP1 || type === GRADUATION_PROJECT_TYPE.GP2) &&
+    ownerTrack !== "general"
+  );
+}
+
+/** Labels shown during registration after faculty/major selection. */
+export function getRegistrationGraduationCourses(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): string[] {
+  return getGraduationProjectTypeOptions(faculty, major).map((o) => o.label);
+}

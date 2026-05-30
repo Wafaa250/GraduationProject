@@ -3,7 +3,7 @@ import type { CourseWorkspacePanelProps } from "@/components/doctor/course-works
 
 export function SettingsPanel({ course }: CourseWorkspacePanelProps) {
   return (
-    <section className="max-w-2xl rounded-2xl border border-border/60 bg-white p-6 shadow-card">
+    <section className="max-w-2xl rounded-2xl border border-border/60 bg-card p-6 shadow-card">
       <header className="mb-5">
         <h3 className="font-display text-base font-semibold text-foreground">Course information</h3>
         <p className="text-xs text-muted-foreground">

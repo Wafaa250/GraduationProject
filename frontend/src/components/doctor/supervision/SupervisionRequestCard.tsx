@@ -1,13 +1,4 @@
-import {
-  Calendar,
-  Check,
-  Eye,
-  GraduationCap,
-  Loader2,
-  Sparkles,
-  Users,
-  X,
-} from "lucide-react";
+import { Calendar, Check, GraduationCap, Loader2, Sparkles, Users, X } from "lucide-react";
 import type { DoctorSupervisorRequest } from "@/api/doctorDashboardApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +17,6 @@ import { cn } from "@/lib/utils";
 type SupervisionRequestCardProps = {
   request: DoctorSupervisorRequest;
   busyRequestId?: number | null;
-  onView: (request: DoctorSupervisorRequest) => void;
   onAccept: (requestId: number) => void;
   onReject: (requestId: number) => void;
 };
@@ -59,7 +49,6 @@ function ScoreRing({ score }: { score: number }) {
 export function SupervisionRequestCard({
   request: r,
   busyRequestId,
-  onView,
   onAccept,
   onReject,
 }: SupervisionRequestCardProps) {
@@ -70,11 +59,13 @@ export function SupervisionRequestCard({
   const score = r.aiCompatibility?.score ?? 0;
   const skills = r.project.requiredSkills ?? [];
   const roles = r.project.preferredRoles ?? [];
-  const stage = r.project.stage?.trim() || formatProjectTypeLabel(r.project.projectType);
+  const stage =
+    r.project.stage?.trim() ||
+    formatProjectTypeLabel(r.project.projectType, r.sender.faculty, r.sender.major);
   const code = r.requestCode ?? `REQ-${String(r.requestId).padStart(5, "0")}`;
 
   return (
-    <article className="group rounded-2xl border border-border bg-white p-5 shadow-card hover:shadow-elevated hover:border-primary/20 transition-smooth animate-fade-in">
+    <article className="group rounded-2xl border border-border bg-card p-5 shadow-card hover:shadow-elevated hover:border-primary/20 transition-smooth animate-fade-in">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-start gap-3 min-w-0">
           <div
@@ -121,7 +112,7 @@ export function SupervisionRequestCard({
         </h4>
         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap mt-2">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium">
-            {formatProjectTypeLabel(r.project.projectType)}
+            {formatProjectTypeLabel(r.project.projectType, r.sender.faculty, r.sender.major)}
           </span>
           <span>·</span>
           <span>{stage} stage</span>
@@ -169,7 +160,7 @@ export function SupervisionRequestCard({
                 <span className="text-xs text-muted-foreground">None listed</span>
               ) : (
                 roles.map((s) => (
-                  <Badge key={s} variant="outline" className="font-medium text-muted-foreground bg-white">
+                  <Badge key={s} variant="outline" className="font-medium text-muted-foreground bg-card">
                     {s}
                   </Badge>
                 ))
@@ -190,15 +181,6 @@ export function SupervisionRequestCard({
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-3 border-t border-border flex-wrap">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-foreground"
-          onClick={() => onView(r)}
-        >
-          <Eye className="h-4 w-4 mr-1.5" aria-hidden />
-          View Details
-        </Button>
         {isPending ? (
           <>
             <Button

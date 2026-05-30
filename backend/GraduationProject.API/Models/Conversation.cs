@@ -14,6 +14,10 @@ namespace GraduationProject.API.Models
         public CourseTeam? CourseTeam { get; set; }
         public ICollection<ConversationUser> ConversationUsers { get; set; } = new List<ConversationUser>();
         public ICollection<Message> Messages { get; set; } = new List<Message>();
+
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public ConversationType Type =>
+            CourseTeamId.HasValue ? ConversationType.Team : ConversationType.Private;
     }
 
     public class ConversationUser

@@ -1,4 +1,4 @@
-import { Users2, Calendar, Eye, Check, X, Loader2 } from "lucide-react";
+import { Users2, Calendar, Check, X, Loader2 } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { ActionButton } from "./ActionButton";
 export type DoctorRequestCardModel = {
@@ -18,16 +18,15 @@ type RequestCardProps = {
   r: DoctorRequestCardModel;
   onAccept?: (requestId: number) => void;
   onReject?: (requestId: number) => void;
-  onDetails?: (requestId: number) => void;
   busyRequestId?: number | null;
 };
 
-export function RequestCard({ r, onAccept, onReject, onDetails, busyRequestId }: RequestCardProps) {
+export function RequestCard({ r, onAccept, onReject, busyRequestId }: RequestCardProps) {
   const isPending = r.status === "pending";
   const busy = busyRequestId === r.requestId;
 
   return (
-    <div className="group rounded-2xl border border-border bg-white p-4 sm:p-5 shadow-card hover:shadow-elevated hover:border-primary/30 transition-smooth">
+    <div className="group rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-card hover:shadow-elevated hover:border-primary/30 transition-smooth">
       <div className="flex items-start gap-3">
         <div
           className="h-11 w-11 rounded-full ring-2 ring-primary/10 bg-gradient-primary grid place-items-center text-xs font-bold text-primary-foreground shrink-0"
@@ -71,9 +70,6 @@ export function RequestCard({ r, onAccept, onReject, onDetails, busyRequestId }:
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <ActionButton variant="ghost" onClick={() => onDetails?.(r.requestId)}>
-                <Eye className="h-3.5 w-3.5" /> Details
-              </ActionButton>
               <ActionButton
                 variant="danger"
                 disabled={!isPending || busy}

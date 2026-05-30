@@ -29,6 +29,7 @@ import {
   changeProjectLeader,
   createGraduationProject,
   getGraduationProjectById,
+  getGraduationProjectTypeOptions,
   getRecommendedStudents,
   isEngineeringOrITFaculty,
   projectTypeForApi,
@@ -918,7 +919,7 @@ export function StudentDashboardScreen() {
     if (gradModalMode === "edit" && !gradProject) return;
     setGradSubmitting(true);
     try {
-      const projectType = projectTypeForApi(user?.faculty, gradForm.projectType);
+      const projectType = projectTypeForApi(user?.faculty, gradForm.projectType, user?.major);
       const abstractPayload = abstractForApi(gradForm.abstract);
       if (gradModalMode === "edit") {
         await updateGraduationProject(gradProject!.id, {
@@ -1935,15 +1936,17 @@ export function StudentDashboardScreen() {
                 <View style={{ marginBottom: spacing.md }}>
                   <Text style={styles.inputLabel}>Project type *</Text>
                   <View style={styles.row}>
-                    {(["GP1", "GP2", "GP"] as const).map((opt) => {
-                      const checked = gradForm.projectType === opt;
+                    {getGraduationProjectTypeOptions(user?.faculty, user?.major).map((opt) => {
+                      const checked = gradForm.projectType === opt.type;
                       return (
                         <Pressable
-                          key={opt}
-                          onPress={() => setGradForm((p) => ({ ...p, projectType: opt }))}
+                          key={opt.type}
+                          onPress={() => setGradForm((p) => ({ ...p, projectType: opt.type }))}
                           style={[styles.typeChip, checked && styles.typeChipOn]}
                         >
-                          <Text style={[styles.typeChipText, checked && styles.typeChipTextOn]}>{opt}</Text>
+                          <Text style={[styles.typeChipText, checked && styles.typeChipTextOn]}>
+                            {opt.shortLabel}
+                          </Text>
                         </Pressable>
                       );
                     })}
@@ -1951,7 +1954,12 @@ export function StudentDashboardScreen() {
                 </View>
               ) : (
                 <Text style={styles.muted}>
-                  Project type: <Text style={{ fontWeight: "700" }}>GP</Text> (required for your faculty)
+                  Project type:{" "}
+                  <Text style={{ fontWeight: "700" }}>
+                    {getGraduationProjectTypeOptions(user?.faculty, user?.major)[0]?.label ??
+                      "Graduation Project"}
+                  </Text>{" "}
+                  (required for your faculty)
                 </Text>
               )}
               <Text style={styles.inputLabel}>Required skills * (comma-separated)</Text>

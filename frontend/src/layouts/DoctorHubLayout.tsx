@@ -3,6 +3,7 @@ import { DoctorHubSidebar } from "@/components/doctor/hub/DoctorHubSidebar";
 import { DoctorHubHeader } from "@/components/doctor/hub/DoctorHubHeader";
 import { DoctorHubProfileProvider } from "@/components/doctor/hub/DoctorHubProfileContext";
 import "@/styles/doctor-hub-theme.css";
+import "@/styles/doctor-course-project-workspace.css";
 
 /** Lovable supervisor dashboard shell — sidebar + header + outlet. */
 export function DoctorHubLayout() {

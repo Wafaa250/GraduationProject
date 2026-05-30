@@ -38,9 +38,9 @@ const STATUS_UI: Record<
     cls: "bg-success/10 text-success border-success/20",
   },
   rejected: {
-    dot: "bg-destructive",
+    dot: "bg-danger",
     label: "Rejected",
-    cls: "bg-destructive/10 text-destructive border-destructive/20",
+    cls: "bg-danger/10 text-danger border-danger/25",
   },
 };
 
@@ -52,12 +52,14 @@ export function formatSupervisionSubmittedDate(iso: string): string {
   return formatDoctorHubDate(iso);
 }
 
-export function formatProjectTypeLabel(projectType: string): string {
-  const t = projectType.trim().toUpperCase();
-  if (t === "GP1") return "GP1";
-  if (t === "GP2") return "GP2";
-  if (t === "GP") return "Graduation Project";
-  return projectType;
+import { projectTypeLabel as resolveGraduationTypeLabel } from "@/lib/graduationProjectTypes";
+
+export function formatProjectTypeLabel(
+  projectType: string,
+  faculty?: string | null,
+  major?: string | null,
+): string {
+  return resolveGraduationTypeLabel(projectType, faculty, major);
 }
 
 export function teamSizeLabel(request: DoctorSupervisorRequest): number {

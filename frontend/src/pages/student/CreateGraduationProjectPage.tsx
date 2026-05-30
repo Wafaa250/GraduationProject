@@ -14,6 +14,12 @@ import {
   updateGraduationProject,
   type GradProject,
 } from "@/api/gradProjectApi";
+import { getMe } from "@/api/meApi";
+import {
+  getGraduationProjectTypeOptions,
+  stageToProjectType,
+  type GraduationProjectTypeOption,
+} from "@/lib/graduationProjectTypes";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { ROUTES } from "@/routes/paths";
 import { toast } from "@/hooks/use-toast";
@@ -84,12 +90,6 @@ const initialData: FormData = {
   interests: [],
 };
 
-const STAGES = [
-  { id: "gp1", title: "Graduation Project I", desc: "Foundational stage — research, scoping, and proposal." },
-  { id: "gp2", title: "Graduation Project II", desc: "Implementation stage — building and delivering the project." },
-  { id: "gp", title: "Graduation Project", desc: "Single-semester full graduation project track." },
-];
-
 const SKILL_SUGGESTIONS = [
   "Python",
   "Machine Learning",
@@ -159,12 +159,6 @@ const STEPS = [
   { n: 5, title: "Interests", icon: Layers },
   { n: 6, title: "Review", icon: Eye },
 ];
-
-function stageToProjectType(stage: string): "GP1" | "GP2" | "GP" {
-  if (stage === "gp1") return "GP1";
-  if (stage === "gp2") return "GP2";
-  return "GP";
-}
 
 function projectToFormData(project: GradProject): FormData {
   const skills = project.requiredSkills ?? [];
@@ -252,8 +246,22 @@ export default function CreateGraduationProjectPage() {
   const [hasExistingProject, setHasExistingProject] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [abstractFile, setAbstractFile] = useState<File | null>(null);
+  const [stageOptions, setStageOptions] = useState<GraduationProjectTypeOption[]>([]);
 
   const isEditMode = editingProjectId != null;
+
+  useEffect(() => {
+    void getMe()
+      .then((me) => setStageOptions(getGraduationProjectTypeOptions(me.faculty, me.major)))
+      .catch(() => setStageOptions(getGraduationProjectTypeOptions(null, null)));
+  }, []);
+
+  useEffect(() => {
+    if (stageOptions.length === 0) return;
+    if (!data.stage || !stageOptions.some((o) => o.stageId === data.stage)) {
+      setData((prev) => ({ ...prev, stage: stageOptions[0]!.stageId }));
+    }
+  }, [stageOptions, data.stage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -500,7 +508,7 @@ export default function CreateGraduationProjectPage() {
               dir === "f" ? "animate-slide-in-right" : "animate-slide-in-left",
             )}
           >
-            {step === 1 && <Step1 data={data} update={update} />}
+            {step === 1 && <Step1 data={data} update={update} stageOptions={stageOptions} />}
             {step === 2 && (
               <Step2
                 data={data}
@@ -515,7 +523,7 @@ export default function CreateGraduationProjectPage() {
             {step === 3 && <Step3 data={data} update={update} toggleArr={toggleArr} />}
             {step === 4 && <Step4 data={data} update={update} toggleArr={toggleArr} />}
             {step === 5 && <Step5 data={data} toggleArr={toggleArr} />}
-            {step === 6 && <Step6 data={data} />}
+            {step === 6 && <Step6 data={data} stageOptions={stageOptions} />}
           </div>
         </section>
 
@@ -533,7 +541,7 @@ export default function CreateGraduationProjectPage() {
             </button>
           </div>
           <div className={cn("space-y-4", !summaryOpen && "hidden lg:block")}>
-            <LiveSummary data={data} readiness={readiness} readyCount={readyCount} />
+            <LiveSummary data={data} readiness={readiness} readyCount={readyCount} stageOptions={stageOptions} />
           </div>
         </aside>
       </main>
@@ -621,9 +629,11 @@ function WizardStepTitleWithAmpersand({ before, after }: { before: string; after
 function Step1({
   data,
   update,
+  stageOptions,
 }: {
   data: FormData;
   update: <K extends keyof FormData>(k: K, v: FormData[K]) => void;
+  stageOptions: GraduationProjectTypeOption[];
 }) {
   return (
     <div className="animate-fade-in">
@@ -632,14 +642,19 @@ function Step1({
         title="Choose your graduation project stage"
         desc="Students should only collaborate with others in the same graduation project stage. Pick the one you're currently enrolled in."
       />
-      <div className="grid sm:grid-cols-3 gap-4">
-        {STAGES.map((s) => {
-          const sel = data.stage === s.id;
+      <div
+        className={cn(
+          "grid gap-4",
+          stageOptions.length <= 1 ? "sm:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3",
+        )}
+      >
+        {stageOptions.map((s) => {
+          const sel = data.stage === s.stageId;
           return (
             <button
-              key={s.id}
+              key={s.stageId}
               type="button"
-              onClick={() => update("stage", s.id)}
+              onClick={() => update("stage", s.stageId)}
               className={cn(
                 "text-left p-6 rounded-2xl border-2 transition-all group",
                 sel
@@ -664,8 +679,8 @@ function Step1({
                   </div>
                 )}
               </div>
-              <div className="font-bold text-base mb-1">{s.title}</div>
-              <div className="text-sm text-muted-foreground">{s.desc}</div>
+              <div className="font-bold text-base mb-1">{s.label}</div>
+              <div className="text-sm text-muted-foreground">{s.description}</div>
             </button>
           );
         })}
@@ -1046,8 +1061,14 @@ function Step5({
   );
 }
 
-function Step6({ data }: { data: FormData }) {
-  const stageLabel = STAGES.find((s) => s.id === data.stage)?.title ?? "—";
+function Step6({
+  data,
+  stageOptions,
+}: {
+  data: FormData;
+  stageOptions: GraduationProjectTypeOption[];
+}) {
+  const stageLabel = stageOptions.find((s) => s.stageId === data.stage)?.label ?? "—";
   const interestLabels = useMemo(
     () =>
       data.interests
@@ -1301,10 +1322,12 @@ function LiveSummary({
   data,
   readiness,
   readyCount,
+  stageOptions,
 }: {
   data: FormData;
   readiness: { label: string; done: unknown }[];
   readyCount: number;
+  stageOptions: GraduationProjectTypeOption[];
 }) {
   return (
     <>
@@ -1348,7 +1371,10 @@ function LiveSummary({
           Live summary
         </div>
         <div className="space-y-3 text-sm">
-          <SummaryRow label="Stage" value={STAGES.find((s) => s.id === data.stage)?.title} />
+          <SummaryRow
+            label="Stage"
+            value={stageOptions.find((s) => s.stageId === data.stage)?.label}
+          />
           <SummaryRow label="Title" value={data.title} />
           <SummaryRow label="Abstract" value={abstractLiveSummaryValue(data)} />
           <SummaryRow

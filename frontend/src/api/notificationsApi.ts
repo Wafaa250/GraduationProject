@@ -12,6 +12,39 @@ export type GraduationNotification = {
   readAt: string | null;
 };
 
+const ALL_CATEGORIES = [
+  "graduation_project",
+  "course",
+  "chat",
+  "ai",
+  "organization_event",
+  "organization_recruitment",
+] as const;
+
+/** GET /api/notifications — all categories for current user. */
+export async function getAllNotifications(take = 50): Promise<GraduationNotification[]> {
+  const { data } = await api.get<GraduationNotification[]>("/notifications", {
+    params: { take, category: "all" },
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+/** GET /api/notifications/unread-count — all categories. */
+export async function getAllNotificationsUnreadCount(): Promise<number> {
+  const { data } = await api.get<{ count: number }>("/notifications/unread-count", {
+    params: { category: "all" },
+  });
+  return typeof data?.count === "number" ? data.count : 0;
+}
+
+/** POST /api/notifications/read-all — all categories. */
+export async function markAllNotificationsRead(): Promise<number> {
+  const { data } = await api.post<{ marked: number }>("/notifications/read-all", null, {
+    params: { category: "all" },
+  });
+  return typeof data?.marked === "number" ? data.marked : 0;
+}
+
 /** GET /api/notifications — graduation project notifications for current user. */
 export async function getGraduationNotifications(
   take = 50,
@@ -27,24 +60,19 @@ export async function getGraduationNotificationsUnreadCount(
   category?: string,
 ): Promise<number> {
   const { data } = await api.get<{ count: number }>("/notifications/unread-count", {
-    params: category ? { category } : undefined,
+    params: category ? { category } : { category: "all" },
   });
   return typeof data?.count === "number" ? data.count : 0;
 }
 
-const DOCTOR_ACTIVITY_CATEGORIES = ["graduation_project", "course", "chat"] as const;
+const DOCTOR_ACTIVITY_CATEGORIES = ["graduation_project", "course", "chat", "ai"] as const;
 
 /** Unread notifications across categories used on the doctor hub. */
 export async function getDoctorNotificationsUnreadCount(): Promise<number> {
-  const counts = await Promise.all(
-    DOCTOR_ACTIVITY_CATEGORIES.map((category) =>
-      getGraduationNotificationsUnreadCount(category).catch(() => 0),
-    ),
-  );
-  return counts.reduce((sum, n) => sum + n, 0);
+  return getAllNotificationsUnreadCount();
 }
 
-/** Recent notifications merged from graduation, course, and chat categories. */
+/** Recent notifications merged from hub categories. */
 export async function getDoctorNotificationsForActivity(
   takePerCategory = 15,
 ): Promise<GraduationNotification[]> {
@@ -71,15 +99,7 @@ export async function markGraduationNotificationRead(id: number): Promise<void> 
 
 /** POST /api/notifications/read-all — all doctor hub notification categories. */
 export async function markDoctorNotificationsAllRead(): Promise<number> {
-  const results = await Promise.all(
-    DOCTOR_ACTIVITY_CATEGORIES.map((category) =>
-      api
-        .post<{ marked: number }>("/notifications/read-all", null, {
-          params: { category },
-        })
-        .then((res) => (typeof res.data?.marked === "number" ? res.data.marked : 0))
-        .catch(() => 0),
-    ),
-  );
-  return results.reduce((sum, n) => sum + n, 0);
+  return markAllNotificationsRead();
 }
+
+export { ALL_CATEGORIES };

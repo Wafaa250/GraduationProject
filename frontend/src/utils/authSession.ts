@@ -1,6 +1,8 @@
 import type { NavigateFunction } from "react-router-dom";
 import { ROUTES } from "@/routes/paths";
 
+import { clearRoleTheme } from "@/lib/roleTheme";
+
 /** Keys written on login — keep in sync with LoginPage and mobile `authStorage` SESSION_KEYS. */
 const AUTH_SESSION_KEYS = ["token", "userId", "role", "name", "email"] as const;
 
@@ -9,6 +11,7 @@ export function clearAuthSession(): void {
   for (const key of AUTH_SESSION_KEYS) {
     localStorage.removeItem(key);
   }
+  clearRoleTheme();
 }
 
 /** Signs the user out and redirects to the login page. */

@@ -105,17 +105,37 @@ namespace GraduationProject.API.Controllers
                     .OrderByDescending(p => p.CreatedAt)
                     .ToListAsync();
 
+                var applyTrackFilter = !studentId.HasValue && !doctorId.HasValue && callerProfileId.HasValue;
+                StudentProfile? viewerProfile = null;
+                if (applyTrackFilter)
+                {
+                    viewerProfile = await _db.StudentProfiles
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.Id == callerProfileId!.Value);
+                }
+
                 var result = new List<StudentProjectResponseDto>();
                 foreach (var project in projects)
                 {
                     if (project == null) continue;
+
+                    if (applyTrackFilter && viewerProfile != null &&
+                        !GraduationProjectTypeHelper.IsProjectVisibleToStudent(
+                            project.ProjectType,
+                            project.Owner?.Faculty,
+                            project.Owner?.Major,
+                            viewerProfile.Faculty,
+                            viewerProfile.Major))
+                    {
+                        continue;
+                    }
+
                     try
                     {
                         result.Add(MapToDto(project, callerProfileId));
                     }
                     catch
                     {
-                        // Skip malformed rows instead of failing whole request.
                         continue;
                     }
                 }
@@ -145,6 +165,7 @@ namespace GraduationProject.API.Controllers
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
                 .Include(p => p.Supervisor!).ThenInclude(s => s.User)
+                .Include(p => p.SupervisorRequests)
                 .FirstOrDefaultAsync(p => p.OwnerId == student.Id);
 
             if (ownedProject != null)
@@ -157,6 +178,8 @@ namespace GraduationProject.API.Controllers
                     .ThenInclude(p => p.Members).ThenInclude(mem => mem.Student).ThenInclude(s => s.User)
                 .Include(m => m.Project)
                     .ThenInclude(p => p.Supervisor!).ThenInclude(s => s.User)
+                .Include(m => m.Project)
+                    .ThenInclude(p => p.SupervisorRequests)
                 .FirstOrDefaultAsync(m => m.StudentId == student.Id);
 
             if (membership != null)
@@ -177,6 +200,7 @@ namespace GraduationProject.API.Controllers
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
                 .Include(p => p.Supervisor!).ThenInclude(s => s.User)
+                .Include(p => p.SupervisorRequests)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
@@ -468,21 +492,10 @@ namespace GraduationProject.API.Controllers
             var conflict = await CheckProjectConflict(student.Id);
             if (conflict != null) return conflict;
 
-            // Engineering & IT faculty → GP1 / GP2 / GP allowed; others → always "GP"
-            var isEngineeringOrIT = IsEngineeringOrIT(student.Faculty);
-            string projectType;
-
-            if (isEngineeringOrIT)
-            {
-                var validTypes = new[] { "GP1", "GP2", "GP" };
-                if (!validTypes.Contains(dto.ProjectType))
-                    return BadRequest(new { message = "Invalid project type. Must be GP1, GP2, or GP for Engineering & IT students." });
-                projectType = dto.ProjectType;
-            }
-            else
-            {
-                projectType = "GP";
-            }
+            // Engineering faculty → GP1 / GP2; others → always "GP"
+            if (!GraduationProjectTypeHelper.TryResolveProjectType(
+                    student.Faculty, student.Major, dto.ProjectType, out var projectType, out var typeError))
+                return BadRequest(new { message = typeError });
 
             var project = new StudentProject
             {
@@ -559,13 +572,12 @@ namespace GraduationProject.API.Controllers
             if (dto.Abstract != null) project.Abstract = dto.Abstract.Trim();
             if (dto.PartnersCount != null) project.PartnersCount = dto.PartnersCount.Value;
 
-            if (dto.ProjectType != null && IsEngineeringOrIT(student.Faculty))
+            if (dto.ProjectType != null)
             {
-                var validTypes = new[] { "GP1", "GP2", "GP" };
-                if (!validTypes.Contains(dto.ProjectType))
-                    return BadRequest(new { message = "Invalid project type. Must be GP1, GP2, or GP." });
-                project.ProjectType = dto.ProjectType;
-                // Non-engineering faculty: ProjectType changes are silently ignored.
+                if (!GraduationProjectTypeHelper.TryResolveProjectType(
+                        student.Faculty, student.Major, dto.ProjectType, out var resolvedType, out var typeError))
+                    return BadRequest(new { message = typeError });
+                project.ProjectType = resolvedType;
             }
 
             if (dto.RequiredSkills != null)
@@ -1043,9 +1055,6 @@ namespace GraduationProject.API.Controllers
         [HttpGet("{id:int}/abstract-file")]
         public async Task<ActionResult<StudentProjectAbstractFileDto>> GetAbstractFile(int id)
         {
-            var student = await GetStudentProfileAsync();
-            if (student == null) return Forbid();
-
             var project = await _db.StudentProjects
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -1053,13 +1062,18 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            if (project.OwnerId != student.Id)
-                return Forbid();
-
             if (string.IsNullOrWhiteSpace(project.AbstractFilePath))
                 return NotFound(new { message = "No abstract file uploaded for this project." });
 
-            return Ok(MapAbstractFileDto(project));
+            var student = await GetStudentProfileAsync();
+            if (student != null && project.OwnerId == student.Id)
+                return Ok(MapAbstractFileDto(project));
+
+            var doctor = await GetCurrentDoctorProfileAsync();
+            if (doctor != null && project.SupervisorId == doctor.Id)
+                return Ok(MapAbstractFileDto(project));
+
+            return Forbid();
         }
 
         [HttpDelete("{id:int}/abstract-file")]
@@ -1426,15 +1440,8 @@ namespace GraduationProject.API.Controllers
             return await _db.DoctorProfiles.FirstOrDefaultAsync(d => d.UserId == userId);
         }
 
-        private static bool IsEngineeringOrIT(string? faculty)
-        {
-            if (string.IsNullOrWhiteSpace(faculty)) return false;
-            var f = faculty.Trim();
-            return string.Equals(f, "Engineering and Information Technology", StringComparison.OrdinalIgnoreCase)
-                || (f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("IT", StringComparison.OrdinalIgnoreCase))
-                || (f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("Information Technology", StringComparison.OrdinalIgnoreCase))
-                || (f.Contains("Engineering", StringComparison.OrdinalIgnoreCase) && f.Contains("Technology", StringComparison.OrdinalIgnoreCase));
-        }
+        private static bool IsEngineeringOrIT(string? faculty) =>
+            GraduationProjectTypeHelper.IsEngineeringFaculty(faculty);
 
         private async Task<IActionResult?> CheckProjectConflict(int studentId)
         {
@@ -1489,9 +1496,13 @@ namespace GraduationProject.API.Controllers
                 OwnerId = p.OwnerId,
                 OwnerUserId = p.Owner?.UserId ?? 0,
                 OwnerName = p.Owner?.User?.Name ?? "",
+                OwnerFaculty = p.Owner?.Faculty,
+                OwnerMajor = p.Owner?.Major,
                 Name = p.Name,
                 Abstract = p.Abstract,
                 ProjectType = p.ProjectType,
+                ProjectTypeLabel = GraduationProjectTypeHelper.GetDisplayLabel(
+                    p.ProjectType, p.Owner?.Faculty, p.Owner?.Major),
                 RequiredSkills = SkillHelper.ParseStringList(p.RequiredSkills),
                 Technologies = SkillHelper.ParseStringList(p.Technologies),
                 Interests = SkillHelper.ParseStringList(p.Interests),
@@ -1505,14 +1516,7 @@ namespace GraduationProject.API.Controllers
                 IsOwner = callerProfileId.HasValue && p.OwnerId == callerProfileId.Value,
                 RemainingSeats = Math.Max(0, totalCapacity - currentCount),
 
-                Supervisor = p.Supervisor != null ? new SupervisorDto
-                {
-                    DoctorId = p.Supervisor.Id,
-                    UserId = p.Supervisor.UserId,
-                    Name = p.Supervisor.User?.Name ?? "",
-                    Specialization = p.Supervisor.Specialization ?? "",
-                    Department = p.Supervisor.Department
-                } : null,
+                Supervisor = MapSupervisorDto(p),
 
                 Members = members.Select(m => new StudentProjectMemberDto
                 {
@@ -1559,6 +1563,38 @@ namespace GraduationProject.API.Controllers
             project.AbstractFileName = null;
             project.AbstractFilePath = null;
             project.AbstractFileUploadedAt = null;
+        }
+
+        private static SupervisorDto? MapSupervisorDto(StudentProject project)
+        {
+            if (project.Supervisor == null)
+                return null;
+
+            var supervisor = project.Supervisor;
+            DateTime? assignedAt = null;
+            if (project.SupervisorId.HasValue)
+            {
+                assignedAt = project.SupervisorRequests?
+                    .Where(r =>
+                        r.DoctorId == project.SupervisorId.Value &&
+                        string.Equals(r.Status, "accepted", StringComparison.OrdinalIgnoreCase))
+                    .Select(r => r.RespondedAt)
+                    .FirstOrDefault();
+            }
+
+            return new SupervisorDto
+            {
+                DoctorId = supervisor.Id,
+                UserId = supervisor.UserId,
+                Name = supervisor.User?.Name ?? "",
+                Email = supervisor.User?.Email,
+                Faculty = supervisor.Faculty,
+                University = supervisor.University,
+                Specialization = supervisor.Specialization ?? "",
+                Department = supervisor.Department,
+                ProfilePicture = supervisor.ProfilePictureBase64,
+                AssignedAt = assignedAt,
+            };
         }
 
         private static SupervisorRequestStatusDto MapSupervisorRequestStatus(SupervisorRequest request) =>

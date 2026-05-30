@@ -480,6 +480,13 @@ namespace GraduationProject.API.Data
                 e.Property(c => c.Name).IsRequired().HasMaxLength(200);
                 e.Property(c => c.Code).IsRequired().HasMaxLength(50);
                 e.Property(c => c.Semester).HasMaxLength(100);
+                e.Property(c => c.AcademicYear).HasMaxLength(100);
+                e.Property(c => c.Description).HasMaxLength(600);
+                e.Property(c => c.DefaultTeamFormationStrategy).IsRequired().HasMaxLength(20).HasDefaultValue("doctor");
+                e.Property(c => c.AllowCourseProjects).HasDefaultValue(true);
+                e.Property(c => c.AllowTeamFormation).HasDefaultValue(true);
+                e.Property(c => c.AllowAiTeamSuggestions).HasDefaultValue(true);
+                e.Property(c => c.AllowStudentCollaboration).HasDefaultValue(true);
                 e.HasIndex(c => c.DoctorId)
                  .HasDatabaseName("ix_courses_doctor");
                 e.HasOne(c => c.Doctor)

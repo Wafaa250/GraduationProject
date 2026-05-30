@@ -1,0 +1,479 @@
+/* Browse Projects + Messages — scoped under .student-hub */
+
+.student-hub .student-ws-page-header {
+  margin-bottom: 2rem;
+}
+
+.student-hub .student-ws-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.student-hub .student-ws-title {
+  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.student-hub .student-ws-description {
+  margin-top: 0.5rem;
+  max-width: 42rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.student-hub .student-ws-surface {
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-md);
+}
+
+.student-hub .student-ws-card {
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+
+.student-hub .student-ws-card:hover {
+  border-color: hsl(var(--primary) / 0.25);
+  box-shadow: var(--shadow-lg);
+}
+
+.student-hub .student-ws-input {
+  height: 2.75rem;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--input));
+  background: hsl(var(--card));
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+}
+
+.student-hub .student-ws-input:focus {
+  outline: none;
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+}
+
+.student-hub .student-ws-select {
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--input));
+  background: hsl(var(--card));
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.student-hub .student-ws-select:focus {
+  outline: none;
+  border-color: hsl(var(--primary) / 0.4);
+}
+
+.student-hub .student-ws-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  transition: border-color 0.2s ease;
+}
+
+.student-hub .student-ws-btn-outline:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.student-hub .student-ws-btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.student-hub .student-ws-btn-primary {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: var(--gradient-primary);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--primary-foreground));
+  transition: opacity 0.2s ease;
+}
+
+.student-hub .student-ws-btn-primary:hover {
+  opacity: 0.95;
+}
+
+.student-hub .student-ws-filter-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.student-hub .student-ws-pill {
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  padding: 0.375rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.student-hub .student-ws-pill:hover {
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.student-hub .student-ws-pill--active {
+  border-color: transparent;
+  background: var(--gradient-primary);
+  color: hsl(var(--primary-foreground));
+  box-shadow: var(--shadow-md);
+}
+
+.student-hub .student-ws-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.student-hub .student-ws-chip--primary {
+  border-color: hsl(var(--primary) / 0.2);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+}
+
+.student-hub .student-ws-chip--success {
+  border-color: hsl(var(--success) / 0.25);
+  background: hsl(var(--success) / 0.1);
+  color: hsl(var(--success));
+}
+
+.student-hub .student-ws-chip--accent {
+  border-color: hsl(var(--accent) / 0.25);
+  background: hsl(var(--accent) / 0.1);
+  color: hsl(var(--accent));
+}
+
+.student-hub .student-ws-chip--warning {
+  border-color: hsl(var(--warning) / 0.35);
+  background: hsl(var(--warning) / 0.12);
+  color: hsl(var(--warning-foreground));
+}
+
+/* Messages layout */
+.student-hub .student-messages {
+  display: flex;
+  min-height: calc(100vh - 4rem);
+  flex: 1;
+  flex-direction: column;
+}
+
+.student-hub .student-messages__header {
+  flex-shrink: 0;
+  margin-bottom: 1.25rem;
+}
+
+.student-hub .student-messages__title {
+  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.student-hub .student-messages__subtitle {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.student-hub .student-messages-shell {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 1fr;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-md);
+}
+
+@media (min-width: 768px) {
+  .student-hub .student-messages-shell {
+    grid-template-columns: minmax(280px, 340px) 1fr;
+  }
+}
+
+.student-hub .student-messages-sidebar {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+@media (min-width: 768px) {
+  .student-hub .student-messages-sidebar {
+    border-bottom: none;
+    border-right: 1px solid hsl(var(--border));
+  }
+}
+
+.student-hub .student-messages-sidebar__head {
+  flex-shrink: 0;
+  padding: 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.student-hub .student-messages-sidebar__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.student-hub .student-messages-search {
+  position: relative;
+  margin-top: 0.75rem;
+}
+
+.student-hub .student-messages-search__icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  height: 1rem;
+  width: 1rem;
+  transform: translateY(-50%);
+  color: hsl(var(--muted-foreground));
+}
+
+.student-hub .student-messages-search__input {
+  height: 2.25rem;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--input));
+  background: hsl(var(--background));
+  padding-left: 2.25rem;
+  padding-right: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.student-hub .student-messages-search__input:focus {
+  outline: none;
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+}
+
+.student-hub .student-messages-user-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.375rem);
+  z-index: 30;
+  max-height: 16rem;
+  overflow-y: auto;
+  border-radius: 0.625rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-elevated, 0 10px 30px -10px hsl(var(--primary) / 0.18));
+}
+
+.student-hub .student-messages-user-results__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.student-hub .student-messages-user-results__item:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.06);
+}
+
+.student-hub .student-messages-user-results__item + .student-messages-user-results__item {
+  border-top: 1px solid hsl(var(--border) / 0.6);
+}
+
+.student-hub .student-messages-avatar img {
+  height: 100%;
+  width: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.student-hub .student-messages-conv {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.student-hub .student-messages-conv:hover {
+  background: hsl(var(--secondary));
+}
+
+.student-hub .student-messages-conv--active {
+  background: hsl(var(--primary) / 0.08);
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.2);
+}
+
+.student-hub .student-messages-avatar {
+  display: grid;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.1);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: hsl(var(--primary));
+}
+
+.student-hub .student-messages-avatar--team {
+  background: linear-gradient(145deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+}
+
+.student-hub .student-messages-panel {
+  display: flex;
+  min-height: 280px;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .student-hub .student-messages-panel {
+    min-height: calc(100vh - 12rem);
+  }
+}
+
+.student-hub .student-messages-panel__head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 1rem 1.5rem;
+}
+
+.student-hub .student-messages-feed {
+  flex: 1;
+  overflow-y: auto;
+  background: hsl(var(--secondary) / 0.35);
+  padding: 1.5rem;
+}
+
+.student-hub .student-messages-bubble {
+  max-width: 78%;
+  border-radius: 1rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  box-shadow: var(--shadow-md);
+}
+
+.student-hub .student-messages-bubble--mine {
+  border-bottom-right-radius: 0.25rem;
+  background: var(--gradient-primary);
+  color: hsl(var(--primary-foreground));
+}
+
+.student-hub .student-messages-bubble--theirs {
+  border-bottom-left-radius: 0.25rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.student-hub .student-messages-composer {
+  flex-shrink: 0;
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  padding: 1rem;
+}
+
+.student-hub .student-messages-composer__inner {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--input));
+  background: hsl(var(--background));
+  padding: 0.5rem 0.75rem;
+}
+
+.student-hub .student-messages-composer__inner:focus-within {
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+}
+
+.student-hub .student-messages-composer__input {
+  max-height: 8rem;
+  min-height: 1.5rem;
+  flex: 1;
+  resize: none;
+  border: 0;
+  background: transparent;
+  padding: 0.375rem 0;
+  font-size: 0.875rem;
+}
+
+.student-hub .student-messages-composer__input:focus {
+  outline: none;
+}
+
+.student-hub .student-messages-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.student-hub .student-messages-loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: hsl(var(--muted-foreground));
+}

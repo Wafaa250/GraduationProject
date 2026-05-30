@@ -7,15 +7,12 @@
   --card-foreground: 224 40% 14%;
   --popover: 0 0% 100%;
   --popover-foreground: 224 40% 14%;
-  --primary: 244 75% 58%;
-  --primary-foreground: 0 0% 100%;
-  --primary-glow: 264 85% 68%;
   --secondary: 220 25% 96%;
   --secondary-foreground: 224 40% 18%;
   --muted: 220 24% 96%;
   --muted-foreground: 220 12% 46%;
-  --accent: 188 88% 46%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 220 25% 96%;
+  --accent-foreground: 224 40% 18%;
   --success: 158 70% 42%;
   --success-foreground: 0 0% 100%;
   --warning: 35 95% 55%;
@@ -24,19 +21,14 @@
   --destructive-foreground: 0 0% 100%;
   --border: 220 22% 91%;
   --input: 220 22% 91%;
-  --ring: 244 75% 58%;
   --radius: 1rem;
-  --gradient-primary: linear-gradient(135deg, hsl(244 75% 58%), hsl(264 85% 68%));
-  --gradient-accent: linear-gradient(135deg, hsl(244 75% 58%), hsl(188 88% 56%));
-  --gradient-hero: radial-gradient(1200px 600px at 0% 0%, hsl(244 90% 96%) 0%, transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, hsl(188 90% 94%) 0%, transparent 55%),
-    linear-gradient(180deg, hsl(220 40% 99%), hsl(220 30% 98%));
+  --gradient-hero: linear-gradient(180deg, hsl(220 40% 99%), hsl(220 30% 98%));
   --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 30% 99%));
-  --gradient-mesh: radial-gradient(600px 300px at 80% 10%, hsl(264 90% 94% / 0.9), transparent 60%),
-    radial-gradient(500px 280px at 10% 90%, hsl(188 90% 92% / 0.8), transparent 60%);
+  --gradient-mesh: none;
+  --gradient-accent: hsl(var(--primary));
   --shadow-md: 0 4px 16px -4px hsl(224 40% 14% / 0.08), 0 2px 6px -2px hsl(224 40% 14% / 0.04);
-  --shadow-lg: 0 24px 48px -16px hsl(244 60% 30% / 0.18), 0 8px 20px -8px hsl(224 40% 14% / 0.08);
-  --shadow-glow: 0 0 0 1px hsl(244 75% 58% / 0.12), 0 12px 40px -10px hsl(244 75% 58% / 0.35);
+  --shadow-lg: 0 24px 48px -16px hsl(224 40% 14% / 0.12), 0 8px 20px -8px hsl(224 40% 14% / 0.08);
+  --shadow-glow: 0 1px 2px hsl(224 40% 14% / 0.06);
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 

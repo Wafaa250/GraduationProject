@@ -98,9 +98,12 @@ export const StudentOverview = ({ student }: StudentOverviewProps) => (
             <Button
               size="lg"
               className="bg-gradient-primary hover:opacity-95 hover:shadow-glow transition-smooth gap-2 font-semibold"
+              asChild
             >
-              <Compass className="w-4 h-4" />
-              Browse Projects
+              <Link to={ROUTES.browseProjects}>
+                <Compass className="w-4 h-4" />
+                Browse Projects
+              </Link>
             </Button>
             <Button
               size="lg"

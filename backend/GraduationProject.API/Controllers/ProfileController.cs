@@ -74,6 +74,51 @@ namespace GraduationProject.API.Controllers
             return Ok(new { message = "Profile updated successfully" });
         }
 
+        // GET /api/profile/settings
+        [HttpGet("settings")]
+        public async Task<IActionResult> GetStudentSettings()
+        {
+            var userId = AuthorizationHelper.GetUserId(User);
+            var profile = await _db.StudentProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (profile == null)
+                return NotFound(new { message = "Student profile not found." });
+
+            return Ok(new
+            {
+                notificationPreferences = StudentSettingsHelper.DeserializeNotificationPreferences(
+                    profile.NotificationPreferences),
+                aiProjectInterests = StudentSettingsHelper.DeserializeAiProjectInterests(
+                    profile.AiProjectInterests),
+            });
+        }
+
+        // PUT /api/profile/settings
+        [HttpPut("settings")]
+        public async Task<IActionResult> UpdateStudentSettings([FromBody] UpdateStudentSettingsDto dto)
+        {
+            var userId = AuthorizationHelper.GetUserId(User);
+            var profile = await _db.StudentProfiles
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (profile == null)
+                return NotFound(new { message = "Student profile not found." });
+
+            StudentSettingsHelper.ApplySettingsUpdate(profile, dto);
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Settings saved successfully",
+                notificationPreferences = StudentSettingsHelper.DeserializeNotificationPreferences(
+                    profile.NotificationPreferences),
+                aiProjectInterests = StudentSettingsHelper.DeserializeAiProjectInterests(
+                    profile.AiProjectInterests),
+            });
+        }
+
         [HttpPut("doctor")]
         public async Task<IActionResult> UpdateDoctorProfile([FromBody] UpdateDoctorProfileDto dto)
         {
@@ -91,30 +136,76 @@ namespace GraduationProject.API.Controllers
                 profile.User.Name = dto.FullName;
 
             // Basic
+            if (dto.PhoneNumber != null) profile.PhoneNumber = dto.PhoneNumber;
             if (dto.Department != null) profile.Department = dto.Department;
             if (dto.Faculty != null) profile.Faculty = dto.Faculty;
             if (dto.Specialization != null) profile.Specialization = dto.Specialization;
             if (dto.University != null) profile.University = dto.University;
             if (dto.AcademicRank != null) profile.AcademicRank = dto.AcademicRank;
 
-            // New fields
             if (dto.YearsOfExperience != null) profile.YearsOfExperience = dto.YearsOfExperience;
             if (dto.Linkedin != null) profile.Linkedin = dto.Linkedin;
             if (dto.OfficeHours != null) profile.OfficeHours = dto.OfficeHours;
-            if (dto.Office != null) profile.Office = dto.Office;
-            if (dto.Phone != null) profile.Phone = dto.Phone;
 
             if (dto.Bio != null) profile.Bio = dto.Bio;
             if (dto.ProfilePictureBase64 != null)
                 profile.ProfilePictureBase64 = dto.ProfilePictureBase64;
 
-            // Skills — DB columns are text (JSON string arrays)
-            profile.TechnicalSkills = JsonSerializer.Serialize(dto.TechnicalSkills ?? new List<string>());
-            profile.ResearchSkills = JsonSerializer.Serialize(dto.ResearchSkills ?? new List<string>());
+            if (dto.TechnicalSkills != null)
+                profile.TechnicalSkills = JsonSerializer.Serialize(dto.TechnicalSkills);
+            if (dto.ResearchSkills != null)
+                profile.ResearchSkills = JsonSerializer.Serialize(dto.ResearchSkills);
+            if (dto.ResearchInterests != null)
+                profile.ResearchInterests = DoctorSettingsHelper.SerializeStringList(dto.ResearchInterests);
+            if (dto.PreferredProjectAreas != null)
+                profile.PreferredProjectAreas = DoctorSettingsHelper.SerializeStringList(dto.PreferredProjectAreas);
 
             await _db.SaveChangesAsync();
 
             return Ok(new { message = "Doctor profile updated successfully" });
+        }
+
+        // GET /api/profile/doctor/settings
+        [HttpGet("doctor/settings")]
+        public async Task<IActionResult> GetDoctorSettings()
+        {
+            var userId = AuthorizationHelper.GetUserId(User);
+            var profile = await _db.DoctorProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            if (profile == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            return Ok(new
+            {
+                notificationPreferences = DoctorSettingsHelper.DeserializeNotificationPreferences(
+                    profile.NotificationPreferences),
+                supervisionPreferences = DoctorSettingsHelper.DefaultSupervisionPreferences(profile),
+            });
+        }
+
+        // PUT /api/profile/doctor/settings
+        [HttpPut("doctor/settings")]
+        public async Task<IActionResult> UpdateDoctorSettings([FromBody] UpdateDoctorSettingsDto dto)
+        {
+            var userId = AuthorizationHelper.GetUserId(User);
+            var profile = await _db.DoctorProfiles
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            if (profile == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            DoctorSettingsHelper.ApplySettingsUpdate(profile, dto);
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Settings saved successfully",
+                notificationPreferences = DoctorSettingsHelper.DeserializeNotificationPreferences(
+                    profile.NotificationPreferences),
+                supervisionPreferences = DoctorSettingsHelper.DefaultSupervisionPreferences(profile),
+            });
         }
     }
 }

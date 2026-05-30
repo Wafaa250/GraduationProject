@@ -7,7 +7,7 @@ export function AISuggestionsPanel({ bundle, bundleLoading }: CourseWorkspacePan
     return (
       <div className="grid gap-3 md:grid-cols-2">
         {Array.from({ length: 2 }, (_, index) => (
-          <div key={index} className="h-28 animate-pulse rounded-2xl border border-border/60 bg-white shadow-card" />
+          <div key={index} className="h-28 animate-pulse rounded-2xl border border-border/60 bg-card shadow-card" />
         ))}
       </div>
     );
@@ -36,7 +36,7 @@ export function AISuggestionsPanel({ bundle, bundleLoading }: CourseWorkspacePan
       </p>
 
       {projectsWithoutTeams.length > 0 ? (
-        <section className="rounded-2xl border border-border/60 bg-white p-4 shadow-card">
+        <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
             <FolderKanban className="h-4 w-4 text-primary" />
             Projects without teams
@@ -54,7 +54,7 @@ export function AISuggestionsPanel({ bundle, bundleLoading }: CourseWorkspacePan
       ) : null}
 
       {teamsNeedingMembers.length > 0 ? (
-        <section className="rounded-2xl border border-border/60 bg-white p-4 shadow-card">
+        <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
             <Users2 className="h-4 w-4 text-primary" />
             Empty team slots

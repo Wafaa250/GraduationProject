@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react'
 import { useUser } from '@/context/UserContext'
+import { applyRoleTheme } from '@/lib/roleTheme'
 import { registerStudent } from '@/api/authApi'
 import { navigateHome } from '@/utils/homeNavigation'
 import { RegistrationLayout } from '@/components/registration/RegistrationLayout'
@@ -13,6 +14,7 @@ import { RegistrationStepFooter } from '@/components/registration/RegistrationSt
 import { RegistrationSuccess } from '@/components/registration/RegistrationSuccess'
 import { ProfilePhotoUpload } from '@/components/registration/ProfilePhotoUpload'
 import { ReviewGroup, ReviewItem } from '@/components/registration/Review'
+import { getRegistrationGraduationCourses } from '@/lib/graduationProjectTypes'
 import type { RegistrationStep } from '@/components/registration/types'
 import {
   CUSTOM_SKILL_MAX_LENGTH,
@@ -150,6 +152,10 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
 
   const availableFaculties = form.university ? (UNIVERSITY_FACULTIES[form.university] ?? []) : []
   const availableMajors = MAJORS[form.faculty] ?? []
+  const graduationCourses = getRegistrationGraduationCourses(
+    form.faculty || null,
+    form.major || null,
+  )
   const skillsData = getSkillsPack(form.faculty, form.major)
 
   const validate = () => {
@@ -236,6 +242,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
 }
       const result = await registerStudent(payload)
       localStorage.setItem('token', result.token); localStorage.setItem('userId', result.userId.toString()); localStorage.setItem('role', result.role)
+      applyRoleTheme(result.role)
       updateProfile({ fullName:result.name, email:result.email, profilePic:form.profilePicPreview, studentId:form.studentId, university:result.university, faculty:result.faculty, major:result.major, academicYear:result.academicYear, gpa:form.gpa, roles:form.roles, technicalSkills:form.technicalSkills, tools:form.tools })
       sessionStorage.setItem('selectedRole','student'); setSubmitted(true)
     } catch (error: any) {
@@ -489,6 +496,18 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 ))}
               </RegSelect>
             </RegField>
+            {form.faculty && form.major ? (
+              <div className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Graduation project courses
+                </p>
+                <ul className="mt-2 space-y-1 text-sm text-foreground">
+                  {graduationCourses.map((course) => (
+                    <li key={course}>{course}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <RegField label="Academic year" required error={fieldError('academicYear')}>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                 {ACADEMIC_YEARS.map((y) => (
@@ -637,6 +656,7 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
             <ReviewItem label="University" value={form.university} />
             <ReviewItem label="Faculty" value={form.faculty} />
             <ReviewItem label="Major" value={form.major} />
+            <ReviewItem label="Graduation courses" value={graduationCourses.join(' · ') || '—'} />
             <ReviewItem label="Year" value={form.academicYear} />
             <ReviewItem label="GPA" value={form.gpa || '—'} />
           </ReviewGroup>

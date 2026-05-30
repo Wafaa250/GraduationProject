@@ -1,6 +1,7 @@
 import type { DoctorSupervisedProject, DoctorSupervisorRequest } from "@/api/doctorDashboardApi";
 import type { DoctorCourseWithStats } from "@/api/doctorCoursesApi";
 import type { DoctorMeResponse } from "@/api/meApi";
+import { resolveGraduationProjectLabel } from "@/lib/graduationProjectTypes";
 
 export function initialsFromName(name: string): string {
   return name
@@ -82,23 +83,26 @@ export type DoctorHubProjectCardModel = {
   memberCount: number;
   updated: string;
   progress: number | null;
-  milestone: string | null;
   risk: string | null;
 };
 
 export function mapSupervisedProjectToCard(p: DoctorSupervisedProject): DoctorHubProjectCardModel {
   const ownerName = p.owner.name || "—";
+  const category =
+    p.projectTypeLabel?.trim() ||
+    resolveGraduationProjectLabel(
+      p.owner.faculty,
+      p.owner.major,
+      p.projectType ?? "GP",
+    );
   return {
     id: String(p.projectId),
     title: p.name,
-    category: p.requiredSkills?.length
-      ? p.requiredSkills.slice(0, 2).join(" · ")
-      : "Graduation project",
+    category,
     members: [{ name: ownerName, initials: initialsFromName(ownerName) }],
     memberCount: p.memberCount,
     updated: `Created ${formatDoctorHubRelativeTime(p.createdAt)}`,
     progress: null,
-    milestone: null,
     risk: null,
   };
 }

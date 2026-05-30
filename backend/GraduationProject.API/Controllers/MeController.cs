@@ -99,6 +99,21 @@ namespace GraduationProject.API.Controllers
                 // للتوافق مع ProfilePage.tsx اللي بيستخدم generalSkills/majorSkills
                 generalSkills   = roles,
                 majorSkills     = technicalSkills,
+                notificationPreferences = StudentSettingsHelper.DeserializeNotificationPreferences(
+                    profile.NotificationPreferences),
+                aiProjectInterests = StudentSettingsHelper.DeserializeAiProjectInterests(
+                    profile.AiProjectInterests),
+                graduationProjectTrack = GraduationProjectTypeHelper.ResolveTrack(
+                    profile.Faculty, profile.Major) switch
+                {
+                    GraduationProjectTypeHelper.GraduationTrack.Engineering => "engineering",
+                    GraduationProjectTypeHelper.GraduationTrack.ComputerEngineering => "computer-engineering",
+                    _ => "general",
+                },
+                graduationProjectCourses = GraduationProjectTypeHelper
+                    .GetTypeOptions(profile.Faculty, profile.Major)
+                    .Select(o => o.Label)
+                    .ToList(),
             });
         }
 
@@ -138,16 +153,33 @@ namespace GraduationProject.API.Controllers
                     specialization = dp.Specialization,
                     university = dp.University,
                     academicRank = dp.AcademicRank,
+                    phoneNumber = dp.PhoneNumber,
                     yearsOfExperience = dp.YearsOfExperience,
                     linkedin = dp.Linkedin,
                     officeHours = dp.OfficeHours,
-                    office = dp.Office,
-                    phone = dp.Phone,
                     bio = dp.Bio,
                     profilePictureBase64 = dp.ProfilePictureBase64,
                     technicalSkills,
                     researchSkills,
+                    supervisionCapacity = dp.SupervisionCapacity,
+                    availableForSupervision = dp.AvailableForSupervision,
+                    researchInterests = DoctorSettingsHelper.DeserializeStringList(dp.ResearchInterests),
+                    preferredProjectAreas = DoctorSettingsHelper.DeserializeStringList(dp.PreferredProjectAreas),
+                    notificationPreferences = DoctorSettingsHelper.DeserializeNotificationPreferences(
+                        dp.NotificationPreferences),
+                    supervisionPreferences = DoctorSettingsHelper.DefaultSupervisionPreferences(dp),
                 },
+                graduationProjectTrack = GraduationProjectTypeHelper.ResolveTrack(
+                    dp.Faculty, dp.Department) switch
+                {
+                    GraduationProjectTypeHelper.GraduationTrack.Engineering => "engineering",
+                    GraduationProjectTypeHelper.GraduationTrack.ComputerEngineering => "computer-engineering",
+                    _ => "general",
+                },
+                graduationProjectCourses = GraduationProjectTypeHelper
+                    .GetTypeOptions(dp.Faculty, dp.Department)
+                    .Select(o => o.Label)
+                    .ToList(),
             });
         }
 

@@ -1,6 +1,8 @@
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GraduationProject.API.DTOs;
+using GraduationProject.API.Helpers;
 using GraduationProject.API.Services;
 
 namespace GraduationProject.API.Controllers
@@ -181,6 +183,28 @@ namespace GraduationProject.API.Controllers
             {
                 Message = "Your password has been reset successfully. You can sign in with your new password."
             });
+        }
+
+        // =====================================================
+        // POST /api/auth/change-password
+        // =====================================================
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = AuthorizationHelper.GetUserId(User);
+            if (userId <= 0)
+                return Unauthorized(new { message = "Invalid token" });
+
+            var (success, error) = await _authService.ChangePasswordAsync(userId, dto);
+
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new MessageResponseDto { Message = "Your password has been updated." });
         }
 
     }

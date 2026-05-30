@@ -59,6 +59,13 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        "doctor-accent": {
+          DEFAULT: "hsl(var(--doctor-accent) / <alpha-value>)",
+          foreground: "hsl(var(--doctor-accent-foreground) / <alpha-value>)",
+          deep: "hsl(var(--doctor-accent-deep) / <alpha-value>)",
+          soft: "hsl(var(--doctor-accent-soft) / <alpha-value>)",
+        },
+        "doctor-surface": "hsl(var(--doctor-surface) / <alpha-value>)",
         "input-background": "hsl(var(--input-background, 0 0% 100%))",
         popover: {
           DEFAULT: "hsl(var(--popover))",

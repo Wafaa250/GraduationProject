@@ -7,7 +7,7 @@ import { getGraduationProjectsMyEnvelope, type GradProject } from "@/api/gradPro
 import {
   acceptTeamInvitation,
   getEnrolledCourses,
-  getTeamInvitations,
+  getEligibleTeamInvitations,
   rejectTeamInvitation,
   type TeamInvitationItem,
 } from "@/api/studentCoursesApi";
@@ -22,6 +22,10 @@ import {
 } from "@/components/dashboard/GraduationProject";
 import { CoursesArea } from "@/components/dashboard/CoursesArea";
 import { toast } from "@/hooks/use-toast";
+import {
+  getGraduationSectionTitle,
+  projectTypeLabel,
+} from "@/lib/graduationProjectTypes";
 
 function initials(name: string): string {
   return name
@@ -63,7 +67,11 @@ function mapInvitations(items: TeamInvitationItem[]): TeamInvitationView[] {
   }));
 }
 
-function mapGradProject(project: GradProject): GraduationProjectView {
+function mapGradProject(
+  project: GradProject,
+  faculty?: string | null,
+  major?: string | null,
+): GraduationProjectView {
   const description =
     (project.abstract ?? project.description ?? "").trim() ||
     "No project description provided yet.";
@@ -73,6 +81,9 @@ function mapGradProject(project: GradProject): GraduationProjectView {
     status: "In Progress",
     skills: project.requiredSkills ?? [],
     teamSize: `${project.currentMembers} / ${project.partnersCount}`,
+    stageLabel:
+      project.projectTypeLabel ??
+      projectTypeLabel(project.projectType, faculty, major),
   };
 }
 
@@ -82,6 +93,8 @@ const StudentDashboardPage = () => {
   const [insights, setInsights] = useState<InsightMetric[]>([]);
   const [invitations, setInvitations] = useState<TeamInvitationView[]>([]);
   const [gradProject, setGradProject] = useState<GraduationProjectView | null>(null);
+  const [gradSectionTitle, setGradSectionTitle] = useState("Graduation Project");
+  const [gradCourseLabels, setGradCourseLabels] = useState<string[]>([]);
   const [enrolledCount, setEnrolledCount] = useState(0);
   const [partnerActivity, setPartnerActivity] = useState(0);
   const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
@@ -93,7 +106,7 @@ const StudentDashboardPage = () => {
         getMe(),
         getDashboardSummary(),
         getGraduationProjectsMyEnvelope(),
-        getTeamInvitations(),
+        getEligibleTeamInvitations(),
         getEnrolledCourses(),
       ]);
 
@@ -123,7 +136,7 @@ const StudentDashboardPage = () => {
         (summary.suggestedTeammates?.[0]?.matchScore != null
           ? summary.suggestedTeammates[0].matchScore
           : null);
-      const pendingInvites = summary.pendingTeamInvitationsCount ?? teamInvites.length;
+      const pendingInvites = teamInvites.length;
 
       setInsights([
         {
@@ -161,7 +174,13 @@ const StudentDashboardPage = () => {
       ]);
 
       setInvitations(mapInvitations(teamInvites));
-      setGradProject(gradEnvelope.project ? mapGradProject(gradEnvelope.project) : null);
+      setGradSectionTitle(getGraduationSectionTitle(me.faculty, me.major));
+      setGradCourseLabels(me.graduationProjectCourses ?? []);
+      setGradProject(
+        gradEnvelope.project
+          ? mapGradProject(gradEnvelope.project, me.faculty, me.major)
+          : null,
+      );
       setEnrolledCount(enrolled.length);
       setPartnerActivity(teammatesCount);
     } catch (err) {
@@ -241,7 +260,12 @@ const StudentDashboardPage = () => {
                 onAccept={handleAccept}
                 onDecline={handleDecline}
               />
-              <GraduationProject project={gradProject} empty={!gradProject} />
+              <GraduationProject
+                project={gradProject}
+                empty={!gradProject}
+                sectionTitle={gradSectionTitle}
+                courseLabels={gradCourseLabels}
+              />
             </div>
 
             <CoursesArea enrolled={enrolledCount} partners={partnerActivity} />

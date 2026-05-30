@@ -3,6 +3,7 @@ import { FolderKanban, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CourseWorkspaceEmptyState } from "@/components/doctor/course-workspace/CourseWorkspaceEmptyState";
 import { CourseProjectCard } from "@/components/doctor/course-workspace/CourseProjectCard";
+import { CourseProjectCreatePanel } from "@/components/doctor/course-workspace/CourseProjectCreatePanel";
 import { CourseProjectFormDialog } from "@/components/doctor/course-workspace/dialogs/CourseProjectFormDialog";
 import type { CourseProjectWithTeams } from "@/api/doctorCoursesApi";
 import type { SectionWorkspacePanelProps } from "@/components/doctor/course-workspace/types";
@@ -42,13 +43,22 @@ export function SectionProjectsPanel({ section, bundle, bundleLoading, onReload 
           <span className="font-medium tabular-nums text-foreground">{projects.length}</span> project
           {projects.length === 1 ? "" : "s"} assigned to this section
         </p>
-        <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+        <Button type="button" size="sm" onClick={() => setCreateOpen(true)} disabled={createOpen}>
           <Plus className="h-4 w-4" />
           Create project
         </Button>
       </div>
 
-      {projects.length === 0 ? (
+      <CourseProjectCreatePanel
+        open={createOpen}
+        courseId={section.courseId}
+        sections={allSections}
+        defaultSectionId={section.sectionId}
+        onClose={() => setCreateOpen(false)}
+        onSaved={onReload}
+      />
+
+      {projects.length === 0 && !createOpen ? (
         <CourseWorkspaceEmptyState
           icon={FolderKanban}
           title="No projects for this section"
@@ -60,7 +70,7 @@ export function SectionProjectsPanel({ section, bundle, bundleLoading, onReload 
             </Button>
           }
         />
-      ) : (
+      ) : projects.length > 0 ? (
         <div className="space-y-3">
           {projects.map((project) => (
             <CourseProjectCard
@@ -72,16 +82,7 @@ export function SectionProjectsPanel({ section, bundle, bundleLoading, onReload 
             />
           ))}
         </div>
-      )}
-
-      <CourseProjectFormDialog
-        open={createOpen}
-        courseId={section.courseId}
-        sections={allSections}
-        defaultSectionId={section.sectionId}
-        onClose={() => setCreateOpen(false)}
-        onSaved={onReload}
-      />
+      ) : null}
 
       <CourseProjectFormDialog
         open={editProject != null}

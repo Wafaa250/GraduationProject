@@ -8,30 +8,21 @@
 // The /my endpoint wraps the project in a role envelope — see MyProjectResponse.
 
 import api from './axiosInstance'
+import {
+  getGraduationProjectTypeOptions,
+  isEngineeringFaculty,
+  isEngineeringOrITFaculty,
+  projectTypeForApi as resolveProjectTypeForApi,
+  type GraduationProjectType,
+} from '../lib/graduationProjectTypes'
 
-/** Matches backend graduation project type values. */
-export type GraduationProjectType = 'GP1' | 'GP2' | 'GP'
-
-/** Same rules as `IsEngineeringOrIT` in StudentProjectController (plus explicit registration labels). */
-export function isEngineeringOrITFaculty(
-  faculty: string | undefined | null,
-): boolean {
-  if (!faculty?.trim()) return false
-  const f = faculty.trim()
-  if (
-    f === 'Engineering and Information Technology' ||
-    f === 'Information Technology'
-  ) {
-    return true
-  }
-  const fl = f.toLowerCase()
-  return (
-    fl === 'engineering and information technology' ||
-    (fl.includes('engineering') && fl.includes('it')) ||
-    (fl.includes('engineering') && fl.includes('information technology')) ||
-    (fl.includes('engineering') && fl.includes('technology'))
-  )
-}
+export type { GraduationProjectType } from '../lib/graduationProjectTypes'
+export {
+  getGraduationProjectTypeOptions,
+  isEngineeringFaculty,
+  isEngineeringOrITFaculty,
+  resolveGraduationProjectLabel,
+} from '../lib/graduationProjectTypes'
 
 /** Trims abstract; empty string becomes `null` for API JSON. */
 export function abstractForApi(raw: string): string | null {
@@ -40,14 +31,14 @@ export function abstractForApi(raw: string): string | null {
 }
 
 /**
- * Project type sent with create/update: Eng/IT students use their selection;
- * all other faculties must use GP (matches backend rules).
+ * Project type sent with create/update based on faculty/major rules.
  */
 export function projectTypeForApi(
   faculty: string | undefined | null,
   selected: GraduationProjectType,
+  major?: string | null,
 ): GraduationProjectType {
-  return isEngineeringOrITFaculty(faculty) ? selected : 'GP'
+  return resolveProjectTypeForApi(faculty, major ?? null, selected)
 }
 
 /** POST /api/graduation-projects body (camelCase JSON). */

@@ -25,6 +25,7 @@ namespace GraduationProject.API.Services
         Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto);
         Task<string> ForgotPasswordAsync(ForgotPasswordDto dto);
         Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto);
+        Task<(bool success, string? error)> ChangePasswordAsync(int userId, ChangePasswordDto dto);
     }
 
     public class AuthService : IAuthService
@@ -431,6 +432,27 @@ namespace GraduationProject.API.Services
             foreach (var t in otherActive)
                 t.UsedAt = now;
 
+            await _db.SaveChangesAsync();
+            return (true, null);
+        }
+
+        // ===========================
+        // CHANGE PASSWORD (authenticated)
+        // ===========================
+        public async Task<(bool success, string? error)> ChangePasswordAsync(int userId, ChangePasswordDto dto)
+        {
+            if (dto.NewPassword != dto.ConfirmNewPassword)
+                return (false, "New passwords do not match.");
+
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null)
+                return (false, "User not found.");
+
+            if (string.IsNullOrEmpty(user.Password) ||
+                !BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.Password))
+                return (false, "Current password is incorrect.");
+
+            user.Password = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
             await _db.SaveChangesAsync();
             return (true, null);
         }

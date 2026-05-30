@@ -1,0 +1,66 @@
+/**
+ * Create Course page — Lovable course-creator-studio tokens (scoped).
+ * Matches design folder index.css utilities without altering global theme.
+ */
+.doctor-create-course {
+  --dcc-surface: 0 0% 100%;
+  --dcc-surface-muted: 220 30% 96.5%;
+  --dcc-gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 30% 98.5%));
+  --dcc-gradient-subtle: linear-gradient(135deg, hsl(232 80% 97%), hsl(258 80% 97%));
+  --dcc-shadow-sm: 0 1px 3px hsl(222 39% 14% / 0.06), 0 1px 2px hsl(222 39% 14% / 0.04);
+  --dcc-shadow-md: 0 6px 18px -6px hsl(222 39% 14% / 0.08), 0 2px 6px hsl(222 39% 14% / 0.04);
+  --dcc-shadow-lg: 0 24px 48px -16px hsl(232 64% 30% / 0.18);
+  --dcc-shadow-primary: 0 10px 30px -10px hsl(232 64% 52% / 0.45);
+}
+
+.doctor-create-course .bg-surface {
+  background-color: hsl(var(--dcc-surface));
+}
+
+.doctor-create-course .bg-surface-muted {
+  background-color: hsl(var(--dcc-surface-muted));
+}
+
+.doctor-create-course .bg-surface-muted\/40 {
+  background-color: hsl(var(--dcc-surface-muted) / 0.4);
+}
+
+.doctor-create-course .bg-surface-muted\/50 {
+  background-color: hsl(var(--dcc-surface-muted) / 0.5);
+}
+
+.doctor-create-course .bg-surface-muted\/60 {
+  background-color: hsl(var(--dcc-surface-muted) / 0.6);
+}
+
+.doctor-create-course .bg-surface\/90 {
+  background-color: hsl(var(--dcc-surface) / 0.9);
+}
+
+.doctor-create-course .bg-gradient-surface {
+  background-image: var(--dcc-gradient-surface);
+}
+
+.doctor-create-course .bg-gradient-subtle {
+  background-image: var(--dcc-gradient-subtle);
+}
+
+.doctor-create-course .shadow-elev-sm {
+  box-shadow: var(--dcc-shadow-sm);
+}
+
+.doctor-create-course .shadow-elev-md {
+  box-shadow: var(--dcc-shadow-md);
+}
+
+.doctor-create-course .shadow-elev-lg {
+  box-shadow: var(--dcc-shadow-lg);
+}
+
+.doctor-create-course .shadow-primary {
+  box-shadow: var(--dcc-shadow-primary);
+}
+
+.doctor-create-course .text-balance {
+  text-wrap: balance;
+}

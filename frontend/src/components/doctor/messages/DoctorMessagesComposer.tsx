@@ -31,7 +31,7 @@ export function DoctorMessagesComposer({
   };
 
   return (
-    <div className="border-t border-border bg-card p-4">
+    <div className="doctor-messages-composer">
       <input
         ref={fileInputRef}
         type="file"
@@ -42,12 +42,12 @@ export function DoctorMessagesComposer({
           if (fileInputRef.current) fileInputRef.current.value = "";
         }}
       />
-      <div className="flex items-end gap-2">
+      <div className="doctor-messages-composer__inner">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
-          className="h-10 w-10 shrink-0 border-border"
+          className="doctor-messages-composer__attach"
           aria-label="Attach file"
           disabled={disabled || sending}
           onClick={handleAttachClick}
@@ -60,7 +60,7 @@ export function DoctorMessagesComposer({
           placeholder="Write a message…"
           rows={1}
           disabled={disabled || sending}
-          className="min-h-[40px] max-h-32 resize-none border-border bg-secondary/40"
+          className="doctor-messages-composer__input flex-1"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -72,7 +72,7 @@ export function DoctorMessagesComposer({
           type="button"
           onClick={onSend}
           disabled={disabled || sending || !value.trim()}
-          className="h-10 shrink-0"
+          className="doctor-messages-composer__send bg-gradient-primary text-primary-foreground hover:brightness-105"
         >
           {sending ? (
             <Loader2 className="h-4 w-4 animate-spin" />

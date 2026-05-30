@@ -1,5 +1,7 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Users, ArrowRight } from "lucide-react";
+import { ROUTES } from "@/routes/paths";
 
 type CoursesAreaProps = {
   enrolled: number;
@@ -51,9 +53,12 @@ export const CoursesArea = ({ enrolled, partners }: CoursesAreaProps) => (
         <Button
           size="lg"
           className="w-full lg:w-auto bg-gradient-primary hover:opacity-95 hover:shadow-glow transition-smooth gap-2 font-semibold"
+          asChild
         >
-          Manage My Courses
-          <ArrowRight className="w-4 h-4" />
+          <Link to={ROUTES.studentCourses}>
+            Manage My Courses
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </Button>
       </div>
     </div>

@@ -1,0 +1,83 @@
+/* Manage My Courses — tokens and utilities from skillswap-academic-hub design folder */
+
+.student-manage-courses {
+  --primary-soft: 243 100% 96%;
+  --primary-glow: 252 88% 72%;
+  --info: 199 89% 52%;
+  --info-soft: 199 95% 95%;
+  --success: 158 64% 42%;
+  --success-soft: 158 70% 95%;
+  --warning: 35 92% 55%;
+  --warning-soft: 38 100% 95%;
+  --gradient-soft: linear-gradient(135deg, hsl(243 100% 97%), hsl(252 100% 98%));
+  --shadow-soft: 0 1px 2px 0 hsl(224 32% 14% / 0.04);
+  --shadow-elevated: 0 10px 30px -10px hsl(var(--primary) / 0.18),
+    0 4px 12px -4px hsl(224 32% 14% / 0.06);
+  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.student-manage-courses .bg-primary-soft {
+  background-color: hsl(var(--primary-soft));
+}
+.student-manage-courses .text-primary-soft {
+  color: hsl(var(--primary-soft));
+}
+.student-manage-courses .bg-info-soft {
+  background-color: hsl(var(--info-soft));
+}
+.student-manage-courses .text-info {
+  color: hsl(var(--info));
+}
+.student-manage-courses .bg-success-soft {
+  background-color: hsl(var(--success-soft));
+}
+.student-manage-courses .text-success {
+  color: hsl(var(--success));
+}
+.student-manage-courses .bg-warning-soft {
+  background-color: hsl(var(--warning-soft));
+}
+.student-manage-courses .text-warning {
+  color: hsl(var(--warning));
+}
+.student-manage-courses .from-info {
+  --tw-gradient-from: hsl(var(--info));
+}
+.student-manage-courses .to-info\/70 {
+  --tw-gradient-to: hsl(var(--info) / 0.7);
+}
+.student-manage-courses .via-info\/80 {
+  --tw-gradient-via: hsl(var(--info) / 0.8);
+}
+.student-manage-courses .from-success {
+  --tw-gradient-from: hsl(var(--success));
+}
+.student-manage-courses .to-success\/70,
+.student-manage-courses .via-success\/80 {
+  --tw-gradient-to: hsl(var(--success) / 0.7);
+}
+.student-manage-courses .from-warning {
+  --tw-gradient-from: hsl(var(--warning));
+}
+.student-manage-courses .to-warning\/70,
+.student-manage-courses .via-warning\/80 {
+  --tw-gradient-to: hsl(var(--warning) / 0.7);
+}
+.student-manage-courses .bg-gradient-soft {
+  background: var(--gradient-soft);
+}
+.student-manage-courses .shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+.student-manage-courses .shadow-elevated {
+  box-shadow: var(--shadow-elevated);
+}
+.student-manage-courses .transition-smooth {
+  transition: var(--transition-smooth);
+}
+.student-manage-courses .bg-success {
+  background-color: hsl(var(--success));
+}
+.student-manage-courses .font-display {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+}

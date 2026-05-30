@@ -25,13 +25,18 @@ namespace GraduationProject.API.Controllers
         {
             var userId = AuthorizationHelper.GetUserId(User);
             take = Math.Clamp(take, 1, 100);
-            var cat = string.IsNullOrWhiteSpace(category)
-                ? GraduationProjectNotificationService.Category
-                : category.Trim();
 
-            var items = await _db.UserNotifications
+            var query = _db.UserNotifications
                 .AsNoTracking()
-                .Where(n => n.UserId == userId && n.Category == cat)
+                .Where(n => n.UserId == userId);
+
+            if (!string.IsNullOrWhiteSpace(category) &&
+                !string.Equals(category.Trim(), "all", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(n => n.Category == category.Trim());
+            }
+
+            var items = await query
                 .OrderByDescending(n => n.CreatedAt)
                 .Take(take)
                 .Select(n => new
@@ -92,13 +97,17 @@ namespace GraduationProject.API.Controllers
         public async Task<IActionResult> MarkAllRead([FromQuery] string? category = null)
         {
             var userId = AuthorizationHelper.GetUserId(User);
-            var cat = string.IsNullOrWhiteSpace(category)
-                ? GraduationProjectNotificationService.Category
-                : category.Trim();
 
-            var rows = await _db.UserNotifications
-                .Where(n => n.UserId == userId && n.Category == cat && n.ReadAt == null)
-                .ToListAsync();
+            var query = _db.UserNotifications
+                .Where(n => n.UserId == userId && n.ReadAt == null);
+
+            if (!string.IsNullOrWhiteSpace(category) &&
+                !string.Equals(category.Trim(), "all", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(n => n.Category == category.Trim());
+            }
+
+            var rows = await query.ToListAsync();
 
             var now = DateTime.UtcNow;
             foreach (var r in rows)

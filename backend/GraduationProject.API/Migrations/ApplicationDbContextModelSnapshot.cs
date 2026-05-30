@@ -180,6 +180,30 @@ namespace GraduationProject.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AcademicYear")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("AllowAiTeamSuggestions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("AllowCourseProjects")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("AllowStudentCollaboration")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("AllowTeamFormation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -187,6 +211,17 @@ namespace GraduationProject.API.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DefaultTeamFormationStrategy")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("doctor");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
 
                     b.Property<int>("DoctorId")
                         .HasColumnType("integer");
@@ -432,6 +467,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("academic_rank");
 
+                    b.Property<bool>("AvailableForSupervision")
+                        .HasColumnType("boolean")
+                        .HasColumnName("available_for_supervision");
+
                     b.Property<string>("Bio")
                         .HasColumnType("text")
                         .HasColumnName("bio");
@@ -449,21 +488,29 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("linkedin");
 
-                    b.Property<string>("Office")
+                    b.Property<string>("NotificationPreferences")
                         .HasColumnType("text")
-                        .HasColumnName("office");
+                        .HasColumnName("notification_preferences");
 
                     b.Property<string>("OfficeHours")
                         .HasColumnType("text")
                         .HasColumnName("office_hours");
 
-                    b.Property<string>("Phone")
+                    b.Property<string>("PhoneNumber")
                         .HasColumnType("text")
-                        .HasColumnName("phone");
+                        .HasColumnName("phone_number");
+
+                    b.Property<string>("PreferredProjectAreas")
+                        .HasColumnType("text")
+                        .HasColumnName("preferred_project_areas");
 
                     b.Property<string>("ProfilePictureBase64")
                         .HasColumnType("text")
                         .HasColumnName("profile_picture_base64");
+
+                    b.Property<string>("ResearchInterests")
+                        .HasColumnType("text")
+                        .HasColumnName("research_interests");
 
                     b.Property<string>("ResearchSkills")
                         .HasColumnType("text")
@@ -665,6 +712,54 @@ namespace GraduationProject.API.Migrations
                         .HasDatabaseName("ix_project_invitations_project_receiver");
 
                     b.ToTable("project_invitations", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.ProjectMilestone", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_date");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("integer")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pending")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "DueDate")
+                        .HasDatabaseName("ix_project_milestones_project_due_date");
+
+                    b.ToTable("graduation_project_milestones", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.SectionChatMessage", b =>
@@ -1429,6 +1524,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("academic_year");
 
+                    b.Property<string>("AiProjectInterests")
+                        .HasColumnType("text")
+                        .HasColumnName("ai_project_interests");
+
                     b.Property<string>("Availability")
                         .HasColumnType("text")
                         .HasColumnName("availability");
@@ -1464,6 +1563,10 @@ namespace GraduationProject.API.Migrations
                     b.Property<string>("Major")
                         .HasColumnType("text")
                         .HasColumnName("major");
+
+                    b.Property<string>("NotificationPreferences")
+                        .HasColumnType("text")
+                        .HasColumnName("notification_preferences");
 
                     b.Property<string>("Portfolio")
                         .HasColumnType("text")
@@ -2120,6 +2223,17 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.ProjectMilestone", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.StudentProject", "Project")
+                        .WithMany("Milestones")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.SectionChatMessage", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.CourseSection", "Section")
@@ -2572,6 +2686,8 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Invitations");
 
                     b.Navigation("Members");
+
+                    b.Navigation("Milestones");
 
                     b.Navigation("SupervisorCancellationRequests");
 

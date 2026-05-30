@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Sparkles, Eye, EyeOff, Mail, Lock, User, Building2, Link2, Briefcase } from 'lucide-react'
+import { applyRoleTheme } from '@/lib/roleTheme'
 import {
   analyzeCompany,
   registerCompany,
@@ -177,6 +178,7 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
       localStorage.setItem('role', data.role)
       localStorage.setItem('name', data.name)
       localStorage.setItem('email', data.email)
+      applyRoleTheme(data.role)
 
       toast.success('Company account created!')
       setSubmitted(true)

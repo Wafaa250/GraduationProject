@@ -24,6 +24,7 @@ namespace GraduationProject.API.Controllers
         private readonly ITeamGenerationService _teamService;
         private readonly ICourseTeamRepository _teamRepo;
         private readonly IGraduationProjectNotificationService _notifications;
+        private readonly ICourseTeamConversationService _teamConversations;
         private readonly ApplicationDbContext _db;
         private readonly IAiStudentRecommendationService _aiStudentRecommendations;
         private readonly IRosterStudentIdExtractor _rosterImport;
@@ -43,6 +44,7 @@ namespace GraduationProject.API.Controllers
             ITeamGenerationService teamService,
             ICourseTeamRepository teamRepo,
             IGraduationProjectNotificationService notifications,
+            ICourseTeamConversationService teamConversations,
             ApplicationDbContext db,
             IAiStudentRecommendationService aiStudentRecommendations,
             IRosterStudentIdExtractor rosterImport)
@@ -53,6 +55,7 @@ namespace GraduationProject.API.Controllers
             _teamService = teamService;
             _teamRepo = teamRepo;
             _notifications = notifications;
+            _teamConversations = teamConversations;
             _db = db;
             _aiStudentRecommendations = aiStudentRecommendations;
             _rosterImport = rosterImport;
@@ -110,15 +113,34 @@ namespace GraduationProject.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var validationError = CourseCreateHelper.ValidateCreateDto(dto);
+            if (validationError != null)
+                return BadRequest(new { message = validationError });
+
             var doctorId = await GetCurrentDoctorIdAsync();
             if (doctorId == null)
                 return Unauthorized(new { message = "Doctor profile not found." });
 
+            var normalizedCode = dto.Code.Trim().ToUpperInvariant();
+            var codeTaken = await _db.Courses.AnyAsync(c =>
+                c.DoctorId == doctorId.Value && c.Code == normalizedCode);
+            if (codeTaken)
+                return Conflict(new { message = "You already have a course with this code." });
+
+            var strategy = CourseCreateHelper.NormalizeTeamFormationStrategy(dto.DefaultTeamFormationStrategy);
+
             var course = new Course
             {
                 Name = dto.Name.Trim(),
-                Code = dto.Code.Trim().ToUpper(),
-                Semester = string.IsNullOrWhiteSpace(dto.Semester) ? null : dto.Semester.Trim(),
+                Code = normalizedCode,
+                Semester = dto.Semester.Trim(),
+                AcademicYear = dto.AcademicYear.Trim(),
+                Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+                AllowCourseProjects = dto.AllowCourseProjects,
+                AllowTeamFormation = dto.AllowTeamFormation,
+                AllowAiTeamSuggestions = dto.AllowAiTeamSuggestions,
+                AllowStudentCollaboration = dto.AllowStudentCollaboration,
+                DefaultTeamFormationStrategy = strategy,
                 DoctorId = doctorId.Value,
                 CreatedAt = DateTime.UtcNow,
             };
@@ -1110,6 +1132,15 @@ namespace GraduationProject.API.Controllers
                 availabilityReason = r.AvailabilityReason
             }).ToList();
 
+            if (ranked != null && ranked.Count > 0 && payload.Count > 0)
+            {
+                await _notifications.NotifyAiRecommendationsGeneratedAsync(
+                    myProfile.UserId,
+                    projectId,
+                    project.Title,
+                    "course");
+            }
+
             return Ok(payload);
         }
 
@@ -1322,20 +1353,13 @@ namespace GraduationProject.API.Controllers
                 return BadRequest(new { message = "Your team already reached the project team size limit." });
 
             var senderName = myEnrollment.Student?.User?.Name ?? "A student";
-            _db.UserNotifications.Add(new UserNotification
-            {
-                UserId = receiverEnrollment.Student.UserId,
-                Category = "course",
-                EventType = "course_teammate_invitation_pending",
-                ProjectId = projectId,
-                Title = "Team request received",
-                Body = $"{senderName} invited you to join their team for \"{project.Title}\".",
-                DedupKey = directDedup,
-                CreatedAt = DateTime.UtcNow,
-                ReadAt = null,
-            });
+            await _notifications.NotifyCourseTeammateInvitationReceivedAsync(
+                receiverEnrollment.Student.UserId,
+                projectId,
+                project.Title,
+                senderName,
+                directDedup);
 
-            await _db.SaveChangesAsync();
             return Ok(new { message = "Team request sent successfully." });
         }
 
@@ -1585,21 +1609,42 @@ namespace GraduationProject.API.Controllers
                 c.DedupKey = null;
             }
 
-            _db.UserNotifications.Add(new UserNotification
-            {
-                UserId = senderUserId,
-                Category = "course",
-                EventType = "course_teammate_invitation_accepted",
-                ProjectId = projectId,
-                Title = "Invitation accepted",
-                Body = "Your teammate invitation was accepted.",
-                DedupKey = $"course-team-invite-accepted:{invitation.Id}",
-                CreatedAt = DateTime.UtcNow,
-                ReadAt = null,
-            });
-
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+
+            var accepterName = await _db.Users.AsNoTracking()
+                .Where(u => u.Id == receiverUserId)
+                .Select(u => u.Name)
+                .FirstOrDefaultAsync() ?? "A student";
+            await _notifications.NotifyCourseTeammateInvitationAcceptedAsync(
+                senderUserId,
+                projectId,
+                project.Title,
+                accepterName);
+
+            await _teamConversations.EnsureTeamConversationAsync(trackedTeam.Id);
+
+            var memberCount = await _db.CourseTeamMembers.CountAsync(m => m.CourseTeamId == trackedTeam.Id);
+            if (memberCount >= project.TeamSize)
+            {
+                var memberUserIds = await _db.CourseTeamMembers
+                    .Where(m => m.CourseTeamId == trackedTeam.Id)
+                    .Select(m => m.UserId)
+                    .ToListAsync();
+                var doctorUserId = await _db.Courses
+                    .Where(c => c.Id == courseId)
+                    .Join(_db.DoctorProfiles, c => c.DoctorId, d => d.Id, (_, d) => d.UserId)
+                    .FirstOrDefaultAsync();
+                if (doctorUserId > 0)
+                {
+                    await _notifications.NotifyCourseTeamReachedCapacityAsync(
+                        projectId,
+                        project.Title,
+                        trackedTeam.TeamIndex,
+                        memberUserIds,
+                        doctorUserId);
+                }
+            }
 
             return Ok(new
             {
@@ -1629,23 +1674,23 @@ namespace GraduationProject.API.Controllers
             invitation.EventType = "course_teammate_invitation_rejected";
             invitation.ReadAt = DateTime.UtcNow;
             invitation.DedupKey = null;
-            if (parsed.HasValue)
+            if (parsed.HasValue && invitation.ProjectId.HasValue)
             {
-                var (_, senderId, _) = parsed.Value;
+                var (_, senderId, receiverId) = parsed.Value;
                 var senderUserId = await GetStudentUserId(senderId);
                 if (senderUserId > 0)
                 {
-                    _db.UserNotifications.Add(new UserNotification
-                    {
-                        UserId = senderUserId,
-                        Category = "course",
-                        EventType = "course_teammate_invitation_rejected",
-                        ProjectId = invitation.ProjectId,
-                        Title = "Invitation rejected",
-                        Body = "Your teammate invitation was rejected.",
-                        CreatedAt = DateTime.UtcNow,
-                        ReadAt = null,
-                    });
+                    var rejecterName = await _db.StudentProfiles
+                        .AsNoTracking()
+                        .Where(s => s.Id == receiverId)
+                        .Join(_db.Users.AsNoTracking(), s => s.UserId, u => u.Id, (_, u) => u.Name)
+                        .FirstOrDefaultAsync() ?? "A student";
+                    var projectTitle = await _projectRepo.GetByIdAsync(invitation.ProjectId.Value);
+                    await _notifications.NotifyCourseTeammateInvitationRejectedAsync(
+                        senderUserId,
+                        invitation.ProjectId.Value,
+                        projectTitle?.Title ?? "the project",
+                        rejecterName);
                 }
             }
             await _db.SaveChangesAsync();
@@ -1669,7 +1714,12 @@ namespace GraduationProject.API.Controllers
             if (course == null || course.DoctorId != doctorId.Value)
                 return NotFound(new { message = "Course not found." });
 
+            if (!course.AllowCourseProjects)
+                return BadRequest(new { message = "Course projects are disabled for this course." });
+
             var aiMode = dto.AiMode == "student" ? "student" : "doctor";
+            if (!course.AllowAiTeamSuggestions && aiMode == "doctor")
+                aiMode = "student";
 
             var project = new CourseProject
             {
@@ -1831,10 +1881,22 @@ namespace GraduationProject.API.Controllers
             }).ToList();
 
             var saved = await _teamRepo.SaveTeamsAsync(projectId, teamsToSave);
+            await _teamConversations.EnsureTeamConversationsForProjectAsync(projectId);
             await _notifications.NotifyCourseTeamsGeneratedAsync(
                 projectId,
                 prepared.Project.Title,
                 saved.SelectMany(t => t.Members.Select(m => m.UserId)));
+
+            var doctorUserId = AuthorizationHelper.GetUserId(User);
+            if (doctorUserId > 0)
+            {
+                await _notifications.NotifyDoctorCourseTeamsGenerationCompletedAsync(
+                    doctorUserId,
+                    projectId,
+                    prepared.Project.Title,
+                    saved.Count());
+            }
+
             return Ok(MapTeamsResponse(saved, prepared.Project, prepared.Students));
         }
 
@@ -1906,6 +1968,9 @@ namespace GraduationProject.API.Controllers
 
             var oldTeam = allTeamsBefore.FirstOrDefault(t => t.Members.Any(m => m.StudentProfileId == studentProfile.Id));
             await _teamRepo.AddMemberAsync(team.Id, studentProfile.Id, studentProfile.UserId);
+            await _teamConversations.SyncTeamConversationParticipantsAsync(team.Id);
+            if (oldTeam != null && oldTeam.Id != team.Id)
+                await _teamConversations.SyncTeamConversationParticipantsAsync(oldTeam.Id);
             var updated = await _teamRepo.GetTeamByIndexAsync(projectId, teamIndex);
             if (updated != null)
             {
@@ -1943,6 +2008,7 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Project not found." });
 
             await _teamRepo.RemoveMemberAsync(team.Id, studentProfileId);
+            await _teamConversations.SyncTeamConversationParticipantsAsync(team.Id);
             var updated = await _teamRepo.GetTeamByIndexAsync(projectId, teamIndex);
             await _notifications.NotifyCourseTeamMemberRemovedAsync(
                 projectId,
@@ -1973,6 +2039,13 @@ namespace GraduationProject.API.Controllers
             Name = c.Name,
             Code = c.Code,
             Semester = c.Semester,
+            AcademicYear = c.AcademicYear,
+            Description = c.Description,
+            AllowCourseProjects = c.AllowCourseProjects,
+            AllowTeamFormation = c.AllowTeamFormation,
+            AllowAiTeamSuggestions = c.AllowAiTeamSuggestions,
+            AllowStudentCollaboration = c.AllowStudentCollaboration,
+            DefaultTeamFormationStrategy = c.DefaultTeamFormationStrategy,
             CreatedAt = c.CreatedAt,
             DoctorId = c.DoctorId,
             DoctorName = doctorName,

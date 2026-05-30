@@ -11,12 +11,7 @@ import {
 import { DoctorProfileSupervisionSummary } from "@/components/doctor/profile/DoctorProfileSupervisionSummary";
 import { DoctorProfileExpertiseTags } from "@/components/doctor/profile/DoctorProfileExpertiseTags";
 import { toast } from "@/hooks/use-toast";
-
-function profilePhotoUrl(raw: string | null | undefined): string | null {
-  const trimmed = raw?.trim();
-  if (!trimmed) return null;
-  return trimmed.startsWith("data:") ? trimmed : `data:image/jpeg;base64,${trimmed}`;
-}
+import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
 
 export default function DoctorProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -27,11 +22,15 @@ export default function DoctorProfilePage() {
   const [specialization, setSpecialization] = useState("");
   const [university, setUniversity] = useState("");
   const [academicRank, setAcademicRank] = useState("");
-  const [office, setOffice] = useState("");
-  const [phone, setPhone] = useState("");
+  const [bio, setBio] = useState("");
+  const [yearsOfExperience, setYearsOfExperience] = useState<number | null>(null);
+  const [officeHours, setOfficeHours] = useState("");
+  const [linkedin, setLinkedin] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [technicalSkills, setTechnicalSkills] = useState<string[]>([]);
   const [researchSkills, setResearchSkills] = useState<string[]>([]);
+  const [researchInterests, setResearchInterests] = useState<string[]>([]);
+  const [preferredProjectAreas, setPreferredProjectAreas] = useState<string[]>([]);
   const [supervisedStudents, setSupervisedStudents] = useState(0);
   const [activeProjects, setActiveProjects] = useState(0);
   const [completedProjects, setCompletedProjects] = useState(0);
@@ -51,10 +50,14 @@ export default function DoctorProfilePage() {
         setSpecialization(dp?.specialization ?? "");
         setUniversity(dp?.university ?? "");
         setAcademicRank(dp?.academicRank ?? "");
-        setOffice(dp?.office ?? "");
-        setPhone(dp?.phone ?? "");
+        setBio(dp?.bio ?? "");
+        setYearsOfExperience(dp?.yearsOfExperience ?? null);
+        setOfficeHours(dp?.officeHours ?? "");
+        setLinkedin(dp?.linkedin ?? "");
         setTechnicalSkills(dp?.technicalSkills ?? []);
         setResearchSkills(dp?.researchSkills ?? []);
+        setResearchInterests(dp?.researchInterests ?? []);
+        setPreferredProjectAreas(dp?.preferredProjectAreas ?? []);
         setPhoto(
           profilePhotoUrl(dp?.profilePictureBase64) ??
             profilePhotoUrl(me.user?.profilePictureBase64),
@@ -104,6 +107,12 @@ export default function DoctorProfilePage() {
           photoUrl={photo}
         />
 
+        {bio.trim() ? (
+          <DoctorProfileSection title="About">
+            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{bio}</p>
+          </DoctorProfileSection>
+        ) : null}
+
         <DoctorProfileSection title="Academic Information">
           <dl className="space-y-4">
             <DoctorProfileField label="Faculty" value={faculty} />
@@ -111,6 +120,10 @@ export default function DoctorProfilePage() {
             <DoctorProfileField label="Academic rank" value={academicRank} />
             <DoctorProfileField label="Specialization" value={specialization} />
             <DoctorProfileField label="University" value={university} />
+            <DoctorProfileField
+              label="Years of experience"
+              value={yearsOfExperience != null ? String(yearsOfExperience) : ""}
+            />
           </dl>
         </DoctorProfileSection>
 
@@ -123,13 +136,15 @@ export default function DoctorProfilePage() {
         <DoctorProfileExpertiseTags
           technicalSkills={technicalSkills}
           researchSkills={researchSkills}
+          researchInterests={researchInterests}
+          preferredProjectAreas={preferredProjectAreas}
         />
 
         <DoctorProfileSection title="Contact Information">
           <dl className="space-y-4">
             <DoctorProfileField label="Email" value={email} />
-            <DoctorProfileField label="Office" value={office} />
-            <DoctorProfileField label="Phone" value={phone} />
+            <DoctorProfileField label="Office hours" value={officeHours} />
+            <DoctorProfileField label="LinkedIn" value={linkedin} />
           </dl>
         </DoctorProfileSection>
       </div>

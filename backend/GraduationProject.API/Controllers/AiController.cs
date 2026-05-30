@@ -29,15 +29,18 @@ namespace GraduationProject.API.Controllers
 
         private readonly ApplicationDbContext _db;
         private readonly IAiStudentRecommendationService _aiService;
+        private readonly IGraduationProjectNotificationService _notifications;
         private readonly ILogger<AiController> _logger;
 
         public AiController(
             ApplicationDbContext db,
             IAiStudentRecommendationService aiService,
+            IGraduationProjectNotificationService notifications,
             ILogger<AiController> logger)
         {
             _db = db;
             _aiService = aiService;
+            _notifications = notifications;
             _logger = logger;
         }
 
@@ -229,6 +232,7 @@ namespace GraduationProject.API.Controllers
                         candidatesBeforeRanking,
                         finalAi.Count,
                         "ai");
+                    await NotifyRecommendationsReadyAsync(caller.UserId, project.Id, project.Name, finalAi.Count);
                     return Ok(finalAi);
                 }
             }
@@ -250,6 +254,7 @@ namespace GraduationProject.API.Controllers
                 finalFallback.Count,
                 aiResults != null && aiResults.Count > 0 ? "fallback-after-ai-filter" : "fallback-rule-based");
 
+            await NotifyRecommendationsReadyAsync(caller.UserId, project.Id, project.Name, finalFallback.Count);
             return Ok(finalFallback);
         }
 
@@ -515,6 +520,16 @@ namespace GraduationProject.API.Controllers
                     })
                     .ToList(),
             });
+        }
+
+        private async Task NotifyRecommendationsReadyAsync(int userId, int projectId, string projectName, int resultCount)
+        {
+            if (userId <= 0 || resultCount <= 0) return;
+            await _notifications.NotifyAiRecommendationsGeneratedAsync(
+                userId,
+                projectId,
+                projectName,
+                "graduation");
         }
 
         private async Task<StudentProfile?> GetStudentProfileAsync()

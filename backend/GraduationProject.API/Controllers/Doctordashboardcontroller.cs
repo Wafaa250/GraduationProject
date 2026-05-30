@@ -156,11 +156,17 @@ namespace GraduationProject.API.Controllers
                     preferredRoles = new List<string>();
                 }
 
+                var ownerFaculty = p.Owner?.Faculty;
+                var ownerMajor = p.Owner?.Major;
+
                 return new
                 {
                     projectId = p.Id,
                     name = p.Name,
                     description = p.Abstract,
+                    projectType = p.ProjectType,
+                    projectTypeLabel = GraduationProjectTypeHelper.GetDisplayLabel(
+                        p.ProjectType, ownerFaculty, ownerMajor),
                     requiredSkills = skills,
                     preferredRoles = preferredRoles,
                     partnersCount = p.PartnersCount,
@@ -172,7 +178,8 @@ namespace GraduationProject.API.Controllers
                         userId = p.Owner?.UserId ?? 0,
                         name = p.Owner?.User?.Name ?? "",
                         university = p.Owner?.University ?? "",
-                        major = p.Owner?.Major ?? ""
+                        major = ownerMajor ?? "",
+                        faculty = ownerFaculty,
                     },
                     createdAt = p.CreatedAt
                 };

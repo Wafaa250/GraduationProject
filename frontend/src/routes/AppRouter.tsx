@@ -9,6 +9,11 @@ import StudentProfilePage from "@/pages/student/StudentProfilePage";
 import StudentProfileEditPage from "@/pages/student/StudentProfileEditPage";
 import CreateGraduationProjectPage from "@/pages/student/CreateGraduationProjectPage";
 import GraduationProjectWorkspacePage from "@/pages/student/GraduationProjectWorkspacePage";
+import StudentBrowseProjectsPage from "@/pages/student/StudentBrowseProjectsPage";
+import StudentMessagesPage from "@/pages/student/StudentMessagesPage";
+import StudentSettingsPage from "@/pages/student/StudentSettingsPage";
+import StudentManageCoursesPage from "@/pages/student/StudentManageCoursesPage";
+import StudentCourseProjectDetailsPage from "@/pages/student/StudentCourseProjectDetailsPage";
 import DoctorDashboardPage from "@/pages/doctor/DoctorDashboardPage";
 import DoctorProfilePage from "@/pages/doctor/DoctorProfilePage";
 import DoctorProfileEditPage from "@/pages/doctor/DoctorProfileEditPage";
@@ -16,22 +21,31 @@ import DoctorMessagesPage from "@/pages/doctor/DoctorMessagesPage";
 import DoctorSupervisionRequestsPage from "@/pages/doctor/DoctorSupervisionRequestsPage";
 import DoctorProjectsPage from "@/pages/doctor/DoctorProjectsPage";
 import DoctorProjectDetailPage from "@/pages/doctor/DoctorProjectDetailPage";
+import DoctorProjectTeamChatPage from "@/pages/doctor/DoctorProjectTeamChatPage";
 import DoctorCoursesPage from "@/pages/doctor/DoctorCoursesPage";
+import DoctorCreateCoursePage from "@/pages/doctor/DoctorCreateCoursePage";
 import DoctorCourseDetailPage from "@/pages/doctor/DoctorCourseDetailPage";
 import DoctorSectionDetailPage from "@/pages/doctor/DoctorSectionDetailPage";
 import DoctorCourseProjectDetailPage from "@/pages/doctor/DoctorCourseProjectDetailPage";
 import DoctorStudentProfilePage from "@/pages/doctor/DoctorStudentProfilePage";
+import DoctorSettingsPage from "@/pages/doctor/DoctorSettingsPage";
 import { LandingPage } from "@/pages/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
+import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import StudentAssociationRegisterPage from "@/pages/auth/StudentAssociationRegisterPage";
 import { ROUTES } from "@/routes/paths";
+import { RoleThemeProvider } from "@/context/RoleThemeContext";
 
 export function AppRouter() {
   return (
     <BrowserRouter>
+      <RoleThemeProvider>
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
+        <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
+        <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
         <Route path={ROUTES.register} element={<RegisterPage />} />
         <Route path={ROUTES.registerAssociation} element={<StudentAssociationRegisterPage />} />
 
@@ -50,6 +64,16 @@ export function AppRouter() {
             path={ROUTES.graduationProjectWorkspace}
             element={<GraduationProjectWorkspacePage />}
           />
+          <Route path={ROUTES.browseProjects} element={<StudentBrowseProjectsPage />} />
+          <Route path={ROUTES.studentCourses} element={<StudentManageCoursesPage />} />
+          <Route path={ROUTES.studentCourseDetail} element={<StudentManageCoursesPage />} />
+          <Route
+            path={ROUTES.studentCourseProjectDetail}
+            element={<StudentCourseProjectDetailsPage />}
+          />
+          <Route path={ROUTES.studentMessages} element={<StudentMessagesPage />} />
+          <Route path={ROUTES.studentMessageThread} element={<StudentMessagesPage />} />
+          <Route path={ROUTES.settings} element={<StudentSettingsPage />} />
         </Route>
 
         <Route
@@ -68,11 +92,14 @@ export function AppRouter() {
           <Route path={ROUTES.doctorRequests} element={<DoctorSupervisionRequestsPage />} />
           <Route path={ROUTES.doctorProjects} element={<DoctorProjectsPage />} />
           <Route path={ROUTES.doctorProjectDetail} element={<DoctorProjectDetailPage />} />
+          <Route path={ROUTES.doctorProjectChat} element={<DoctorProjectTeamChatPage />} />
           <Route path={ROUTES.doctorCourses} element={<DoctorCoursesPage />} />
+          <Route path={ROUTES.doctorCreateCourse} element={<DoctorCreateCoursePage />} />
           <Route path={ROUTES.doctorCourseDetail} element={<DoctorCourseDetailPage />} />
           <Route path={ROUTES.doctorSectionDetail} element={<DoctorSectionDetailPage />} />
           <Route path={ROUTES.doctorCourseProjectDetail} element={<DoctorCourseProjectDetailPage />} />
           <Route path={ROUTES.doctorStudentProfile} element={<DoctorStudentProfilePage />} />
+          <Route path={ROUTES.doctorSettings} element={<DoctorSettingsPage />} />
         </Route>
 
         <Route path="/student/profile" element={<Navigate to={ROUTES.editProfile} replace />} />
@@ -82,6 +109,7 @@ export function AppRouter() {
         </Route>
       </Routes>
       <Toaster />
+      </RoleThemeProvider>
     </BrowserRouter>
   );
 }

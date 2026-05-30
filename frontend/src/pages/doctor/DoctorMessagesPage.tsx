@@ -17,10 +17,7 @@ import {
   type DoctorMessagesFilter,
 } from "@/components/doctor/messages/DoctorMessagesConversationList";
 import { DoctorMessagesThread } from "@/components/doctor/messages/DoctorMessagesThread";
-import {
-  getDoctorStudentProfilePath,
-  resolveDoctorTeamWorkspacePath,
-} from "@/lib/doctorMessagesNavigation";
+import { getDoctorStudentProfilePath } from "@/lib/doctorMessagesNavigation";
 
 export default function DoctorMessagesPage() {
   const { conversationId: idParam } = useParams<{ conversationId?: string }>();
@@ -36,8 +33,6 @@ export default function DoctorMessagesPage() {
   const [sending, setSending] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<DoctorMessagesFilter>("all");
-  const [resolvingTeamLink, setResolvingTeamLink] = useState(false);
-
   const loadList = useCallback(async () => {
     setLoadingList(true);
     try {
@@ -112,31 +107,6 @@ export default function DoctorMessagesPage() {
     }
   };
 
-  const handleViewTeam = async () => {
-    const teamId = thread?.courseTeamId;
-    if (teamId == null) return;
-    setResolvingTeamLink(true);
-    try {
-      const path = await resolveDoctorTeamWorkspacePath(teamId);
-      if (path) {
-        navigate(path);
-        return;
-      }
-      toast({
-        title: "Team workspace unavailable",
-        description: "Open this team from the course project workspace in Courses.",
-      });
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Could not open team",
-        description: parseApiErrorMessage(err),
-      });
-    } finally {
-      setResolvingTeamLink(false);
-    }
-  };
-
   const handleViewStudent = () => {
     if (!thread) return;
     const path = getDoctorStudentProfilePath(thread, profile.userId);
@@ -144,16 +114,16 @@ export default function DoctorMessagesPage() {
   };
 
   return (
-    <main className="flex min-h-full flex-1 flex-col bg-gradient-mesh">
-      <div className="mx-auto flex w-full max-w-7xl min-h-0 flex-1 flex-col px-5 py-5 lg:px-8 lg:py-6">
-        <header className="mb-6 shrink-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Messages</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <main className="doctor-messages flex min-h-full flex-1 flex-col">
+      <div className="mx-auto flex w-full max-w-[88rem] min-h-0 flex-1 flex-col px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+        <header className="doctor-messages__header shrink-0">
+          <h1 className="doctor-messages__title">Messages</h1>
+          <p className="doctor-messages__subtitle">
             Communicate with supervised students and course teams.
           </p>
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-10 md:min-h-[calc(100vh-11rem)]">
+        <div className="doctor-messages-shell min-h-0 flex-1">
           <DoctorMessagesConversationList
             loading={loadingList}
             conversations={conversations}
@@ -164,6 +134,7 @@ export default function DoctorMessagesPage() {
             onQueryChange={setQuery}
             onFilterChange={setFilter}
             onSelect={handleSelectConversation}
+            onConversationsRefresh={loadList}
           />
 
           <DoctorMessagesThread
@@ -172,10 +143,8 @@ export default function DoctorMessagesPage() {
             currentUserId={profile.userId}
             draft={draft}
             sending={sending}
-            resolvingTeamLink={resolvingTeamLink}
             onDraftChange={setDraft}
             onSend={() => void handleSend()}
-            onViewTeam={() => void handleViewTeam()}
             onViewStudent={handleViewStudent}
           />
         </div>

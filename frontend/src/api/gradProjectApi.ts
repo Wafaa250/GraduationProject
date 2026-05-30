@@ -1,4 +1,24 @@
 import api from "./axiosInstance";
+import {
+  projectTypeToStage as projectTypeToStageFromLib,
+  projectTypeLabel as projectTypeLabelFromLib,
+} from "@/lib/graduationProjectTypes";
+
+export {
+  projectTypeLabel,
+  projectTypeShortLabel,
+  stageToProjectType,
+  getGraduationProjectTypeOptions,
+  getBrowseProjectTypeFilters,
+  isProjectVisibleToStudent,
+  getRegistrationGraduationCourses,
+  isEngineeringFaculty,
+  isComputerEngineeringMajor,
+  resolveGraduationTrack,
+  resolveGraduationProjectLabel,
+  getGraduationSectionTitle,
+  projectTypeForApi,
+} from "@/lib/graduationProjectTypes";
 
 export type GradProjectMember = {
   studentId: number;
@@ -16,8 +36,19 @@ export type GradProjectSupervisor = {
   doctorId: number;
   userId: number;
   name: string;
+  email?: string | null;
+  faculty?: string | null;
+  university?: string | null;
   specialization?: string | null;
   department?: string | null;
+  profilePicture?: string | null;
+  assignedAt?: string | null;
+};
+
+export type GradProjectAbstractFile = {
+  fileName: string;
+  uploadedAt: string;
+  downloadUrl: string;
 };
 
 export type GradProject = {
@@ -27,7 +58,11 @@ export type GradProject = {
   name: string;
   abstract?: string | null;
   description?: string | null;
+  technologies?: string[];
   projectType?: "GP1" | "GP2" | "GP";
+  projectTypeLabel?: string;
+  ownerFaculty?: string | null;
+  ownerMajor?: string | null;
   /** Total team capacity including owner (backend `PartnersCount`). */
   partnersCount: number;
   currentMembers: number;
@@ -90,14 +125,7 @@ export async function deleteGraduationProject(id: number): Promise<void> {
 }
 
 export function projectTypeToStage(type?: string): string {
-  switch (type) {
-    case "GP1":
-      return "gp1";
-    case "GP2":
-      return "gp2";
-    default:
-      return "gp";
-  }
+  return projectTypeToStageFromLib(type);
 }
 
 export async function getGraduationProjectsMyEnvelope(): Promise<{
@@ -106,6 +134,17 @@ export async function getGraduationProjectsMyEnvelope(): Promise<{
 }> {
   const { data } = await api.get("/graduation-projects/my");
   return parseGraduationProjectsMyPayload(data);
+}
+
+/** GET /api/graduation-projects — discovery list for browse. */
+export async function listGraduationProjects(): Promise<GradProject[]> {
+  const { data } = await api.get<GradProject[]>("/graduation-projects");
+  return Array.isArray(data) ? data : [];
+}
+
+/** POST /api/graduation-projects/{id}/join */
+export async function joinGraduationProject(projectId: number): Promise<void> {
+  await api.post(`/graduation-projects/${projectId}/join`);
 }
 
 function parseGraduationProjectsMyPayload(raw: unknown): {
@@ -165,6 +204,20 @@ export type GradProjectRecommendedSupervisor = {
 export async function getGraduationProjectById(projectId: number): Promise<GradProject> {
   const { data } = await api.get<GradProject>(`/graduation-projects/${projectId}`);
   return data;
+}
+
+/** GET /api/graduation-projects/{id}/abstract-file — supervisor or project owner. */
+export async function getGraduationProjectAbstractFile(
+  projectId: number,
+): Promise<GradProjectAbstractFile | null> {
+  try {
+    const { data } = await api.get<GradProjectAbstractFile>(
+      `/graduation-projects/${projectId}/abstract-file`,
+    );
+    return data?.downloadUrl ? data : null;
+  } catch {
+    return null;
+  }
 }
 
 export type GraduationProjectMember = {
@@ -389,15 +442,10 @@ export async function requestProjectSupervisor(
   await api.post(`/graduation-projects/${projectId}/request-supervisor/${doctorId}`);
 }
 
-export function projectTypeLabel(type?: string): string {
-  switch (type) {
-    case "GP1":
-      return "Graduation Project I";
-    case "GP2":
-      return "Graduation Project II";
-    case "GP":
-      return "Graduation Project";
-    default:
-      return type ?? "Graduation Project";
-  }
+/** Prefer API label; fall back to faculty/major-aware helper. */
+export function resolveProjectTypeLabel(
+  project: { projectType?: string; projectTypeLabel?: string; ownerFaculty?: string | null; ownerMajor?: string | null },
+): string {
+  if (project.projectTypeLabel?.trim()) return project.projectTypeLabel.trim();
+  return projectTypeLabelFromLib(project.projectType, project.ownerFaculty, project.ownerMajor);
 }

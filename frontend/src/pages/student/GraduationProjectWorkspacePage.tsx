@@ -46,6 +46,7 @@ import {
   inviteStudentToProject,
   requestProjectSupervisor,
   projectTypeLabel,
+  resolveProjectTypeLabel,
   type GradProject,
   type GradProjectMember,
   type GradProjectRecommendedStudent,
@@ -57,6 +58,7 @@ import {
   type SentProjectInvitation,
 } from "@/api/invitationsApi";
 import { toast } from "@/hooks/use-toast";
+import { MySupervisorSection } from "@/components/student/MySupervisorSection";
 
 /* ---------- small components ---------- */
 const Chip = ({
@@ -316,7 +318,7 @@ export default function GraduationProjectWorkspacePage() {
         setAiTeammates([]);
       }
 
-      if (owner || leader) {
+      if ((owner || leader) && !proj.supervisor) {
         tasks.push(
           getRecommendedSupervisors(proj.id)
             .then((rows) => {
@@ -390,15 +392,18 @@ export default function GraduationProjectWorkspacePage() {
     return envelope.project;
   };
 
-  const refreshSupervisors = useCallback(async (projectId: number) => {
-    if (!canViewSupervisors) return;
-    try {
-      const rows = await getRecommendedSupervisors(projectId);
-      setSupervisors(rows);
-    } catch {
-      setSupervisors([]);
-    }
-  }, [canViewSupervisors]);
+  const refreshSupervisors = useCallback(
+    async (projectId: number) => {
+      if (!canViewSupervisors || project?.supervisor) return;
+      try {
+        const rows = await getRecommendedSupervisors(projectId);
+        setSupervisors(rows);
+      } catch {
+        setSupervisors([]);
+      }
+    },
+    [canViewSupervisors, project?.supervisor],
+  );
 
   const refreshMatches = async () => {
     if (!project || !canManageTeam) return;
@@ -516,7 +521,9 @@ export default function GraduationProjectWorkspacePage() {
     );
   }
 
-  const stageLabel = projectTypeLabel(project.projectType);
+  const stageLabel = me
+    ? projectTypeLabel(project.projectType, me.faculty, me.major)
+    : resolveProjectTypeLabel(project);
   const statusLabel = deriveProjectStatus(project);
   const requiredSkills = project.requiredSkills ?? [];
 
@@ -1178,8 +1185,10 @@ export default function GraduationProjectWorkspacePage() {
           </section>
         )}
 
-        {/* SECTION 6 — SUPERVISORS */}
-        {canViewSupervisors && (
+        {/* SECTION 6 — SUPERVISOR */}
+        {project.supervisor ? <MySupervisorSection supervisor={project.supervisor} /> : null}
+
+        {canViewSupervisors && !project.supervisor ? (
           <section>
             <SectionHeader
               icon={GraduationCap}
@@ -1187,29 +1196,6 @@ export default function GraduationProjectWorkspacePage() {
               title="Recommended supervisors"
               desc="Faculty matched to your project's domain and methodology."
             />
-            {project.supervisor && (
-              <Card className="mb-4 border-border/60 shadow-soft">
-                <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/15 text-accent">
-                      <BookOpen className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Current supervisor
-                      </p>
-                      <p className="font-display text-lg font-bold">{project.supervisor.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {project.supervisor.specialization?.trim() ||
-                          project.supervisor.department?.trim() ||
-                          "—"}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge className="border-0 bg-success/10 text-success">Approved</Badge>
-                </CardContent>
-              </Card>
-            )}
             {supervisors.length === 0 ? (
               <Card className="border-2 border-dashed border-border bg-secondary/30 shadow-none">
                 <CardContent className="p-8 text-center">
@@ -1307,7 +1293,7 @@ export default function GraduationProjectWorkspacePage() {
               </div>
             )}
           </section>
-        )}
+        ) : null}
 
         <footer className="pb-4 pt-6 text-center text-xs text-muted-foreground">
           SkillSwap · Graduation Workspace · Designed for focused academic collaboration

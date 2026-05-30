@@ -90,7 +90,7 @@ export function DoctorsSection() {
         {
           icon: Activity,
           title: "Monitor Teams",
-          desc: "Track progress, milestones, and contributions across every group.",
+          desc: "Track team progress, communication, and shared project files in one place.",
         },
         {
           icon: ClipboardList,

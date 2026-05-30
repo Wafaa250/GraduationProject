@@ -14,7 +14,7 @@ export function SectionsPanel({ bundle, bundleLoading }: CourseWorkspacePanelPro
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 3 }, (_, index) => (
-          <div key={index} className="rounded-2xl border border-border/60 bg-white p-5 shadow-card">
+          <div key={index} className="rounded-2xl border border-border/60 bg-card p-5 shadow-card">
             <div className="h-5 w-24 animate-pulse rounded-md bg-secondary" />
             <div className="mt-3 h-3 w-40 animate-pulse rounded bg-secondary" />
             <div className="mt-6 flex gap-4">
@@ -53,7 +53,7 @@ export function SectionsPanel({ bundle, bundleLoading }: CourseWorkspacePanelPro
       {sections.map((section) => (
         <article
           key={section.id}
-          className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-white p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated"
+          className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated"
         >
           <header className="flex items-start justify-between gap-2">
             <div className="min-w-0">

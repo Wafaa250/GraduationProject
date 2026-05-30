@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { Flag, Users } from "lucide-react";
+import { MessageSquare, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { doctorProjectPath } from "@/routes/paths";
+import { doctorProjectChatPath, doctorProjectPath } from "@/routes/paths";
 import { ProjectStatusBadge, type ProjectHealthStatus } from "@/components/doctor/projects/ProjectStatusBadge";
 
 export interface ActiveProjectCardModel {
@@ -10,12 +10,11 @@ export interface ActiveProjectCardModel {
   status: ProjectHealthStatus;
   title: string;
   description: string;
-  milestone?: string | null;
-  milestoneCount?: number;
-  latestMilestoneStatus?: "Pending" | "In Progress" | "Completed" | null;
+  teamSize: number;
+  teamCapacity: number;
+  supervisorName?: string | null;
   skills: string[];
   team: Array<{ id: number; initials: string; name: string }>;
-  canOpenMilestones?: boolean;
 }
 
 type ProjectCardProps = {
@@ -24,7 +23,7 @@ type ProjectCardProps = {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   return (
-    <article className="group relative flex flex-col rounded-2xl border border-border bg-white p-5 shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-elevated">
+    <article className="group relative flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-elevated">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
@@ -39,18 +38,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
       <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{project.description}</p>
 
-      {project.milestone ? (
-        <div className="mt-4 inline-flex items-center gap-2 text-xs text-muted-foreground">
-          <Flag className="h-3.5 w-3.5 text-primary" />
-          <span className="truncate font-medium text-foreground/80">{project.milestone}</span>
-        </div>
-      ) : null}
-
-      {project.milestoneCount != null ? (
-        <div className="mt-2 text-xs text-muted-foreground">
-          {project.milestoneCount} milestone{project.milestoneCount === 1 ? "" : "s"}
-          {project.latestMilestoneStatus ? ` · Latest: ${project.latestMilestoneStatus}` : ""}
-        </div>
+      {project.supervisorName ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Supervisor: <span className="font-medium text-foreground">{project.supervisorName}</span>
+        </p>
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-1.5">
@@ -84,23 +75,21 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </div>
           <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <Users className="h-3 w-3" />
-            {project.team.length} members
+            {project.teamSize} / {project.teamCapacity} members
           </span>
         </div>
       </div>
 
-      <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: project.canOpenMilestones ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))" }}>
+      <div className="mt-3 grid grid-cols-2 gap-1.5">
         <Button size="sm" className="h-8 text-xs" asChild>
-          <Link to={doctorProjectPath(project.id)}>View</Link>
+          <Link to={doctorProjectPath(project.id)}>Open Project</Link>
         </Button>
         <Button size="sm" variant="secondary" className="h-8 text-xs" asChild>
-          <Link to={`${doctorProjectPath(project.id)}#team`}>Team Workspace</Link>
+          <Link to={doctorProjectChatPath(project.id)}>
+            <MessageSquare className="mr-1 h-3.5 w-3.5" />
+            Team Chat
+          </Link>
         </Button>
-        {project.canOpenMilestones ? (
-          <Button size="sm" variant="ghost" className="h-8 text-xs hover:bg-secondary" asChild>
-            <Link to={`${doctorProjectPath(project.id)}#milestones`}>Milestones</Link>
-          </Button>
-        ) : null}
       </div>
     </article>
   );

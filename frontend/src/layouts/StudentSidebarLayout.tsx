@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell,
+  BookOpen,
   ChevronLeft,
   Compass,
   GraduationCap,
@@ -11,7 +11,6 @@ import {
   MessageCircle,
   Settings,
   User,
-  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -20,12 +19,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
+import { useNotificationsInbox } from "@/hooks/useNotificationsInbox";
 import {
-  getGraduationNotifications,
-  getGraduationNotificationsUnreadCount,
-  markGraduationNotificationRead,
-  type GraduationNotification,
-} from "@/api/notificationsApi";
+  NotificationBellButton,
+  NotificationCenterDropdown,
+} from "@/components/notifications/NotificationCenter";
+import { getStudentNotificationTarget } from "@/lib/studentNotificationNavigation";
+import type { GraduationNotification } from "@/api/notificationsApi";
 import { ROUTES } from "@/routes/paths";
 import { logout } from "@/utils/authSession";
 import { cn } from "@/components/ui/utils";
@@ -59,15 +59,26 @@ const WORKSPACE_NAV: NavItemDef[] = [
       ROUTES.createGraduationProject,
     ],
   },
-  { key: "browse", label: "Browse Projects", icon: Compass, disabled: true },
-  { key: "supervisors", label: "Supervisors", icon: Users, disabled: true },
-  { key: "messages", label: "Messages", icon: MessageCircle, disabled: true },
   {
-    key: "notifications",
-    label: "Notifications",
-    icon: Bell,
-    disabled: true,
-    showNotificationBadge: true,
+    key: "browse",
+    label: "Browse Projects",
+    icon: Compass,
+    to: ROUTES.browseProjects,
+    matchPaths: [ROUTES.browseProjects],
+  },
+  {
+    key: "courses",
+    label: "My Courses",
+    icon: BookOpen,
+    to: ROUTES.studentCourses,
+    matchPaths: [ROUTES.studentCourses, "/courses"],
+  },
+  {
+    key: "messages",
+    label: "Messages",
+    icon: MessageCircle,
+    to: ROUTES.studentMessages,
+    matchPaths: [ROUTES.studentMessages, "/messages"],
   },
 ];
 
@@ -79,7 +90,13 @@ const ACCOUNT_NAV: NavItemDef[] = [
     to: ROUTES.profile,
     matchPaths: [ROUTES.profile, ROUTES.editProfile],
   },
-  { key: "settings", label: "Settings", icon: Settings, disabled: true },
+  {
+    key: "settings",
+    label: "Settings",
+    icon: Settings,
+    to: ROUTES.settings,
+    matchPaths: [ROUTES.settings],
+  },
 ];
 
 function initials(name: string): string {
@@ -90,19 +107,6 @@ function initials(name: string): string {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-}
-
-function formatNotificationDate(iso?: string | null): string {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return "";
-  }
 }
 
 function isItemActive(pathname: string, item: NavItemDef): boolean {
@@ -167,9 +171,7 @@ export function StudentSidebarLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [me, setMe] = useState<StudentMeResponse | null>(null);
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [notifications, setNotifications] = useState<GraduationNotification[]>([]);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const inbox = useNotificationsInbox({ role: "student", showToasts: true, markAllReadOnOpen: true });
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -179,24 +181,17 @@ export function StudentSidebarLayout() {
 
   const loadSidebarData = useCallback(async () => {
     try {
-      const [profile, unread, rows] = await Promise.all([
-        getMe(),
-        getGraduationNotificationsUnreadCount().catch(() => 0),
-        getGraduationNotifications(30).catch(() => [] as GraduationNotification[]),
-      ]);
+      const profile = await getMe();
       setMe(profile);
-      setNotificationCount(unread);
-      setNotifications(rows);
     } catch {
       setMe(null);
-      setNotificationCount(0);
-      setNotifications([]);
     }
   }, []);
 
   useEffect(() => {
     void loadSidebarData();
-  }, [loadSidebarData, pathname]);
+    void inbox.refresh();
+  }, [loadSidebarData, pathname, inbox.refresh]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -212,16 +207,12 @@ export function StudentSidebarLayout() {
   }, [mobileOpen]);
 
   useEffect(() => {
-    if (!notificationsOpen && !profileMenuOpen) return;
+    if (!inbox.open && !profileMenuOpen) return;
 
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (
-        notificationsOpen &&
-        notificationsRef.current &&
-        !notificationsRef.current.contains(target)
-      ) {
-        setNotificationsOpen(false);
+      if (inbox.open && notificationsRef.current && !notificationsRef.current.contains(target)) {
+        inbox.setOpen(false);
       }
       if (
         profileMenuOpen &&
@@ -234,7 +225,7 @@ export function StudentSidebarLayout() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setNotificationsOpen(false);
+        inbox.setOpen(false);
         setProfileMenuOpen(false);
       }
     };
@@ -245,12 +236,9 @@ export function StudentSidebarLayout() {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [notificationsOpen, profileMenuOpen]);
+  }, [inbox.open, inbox.setOpen, profileMenuOpen]);
 
   const displayName = me?.name?.trim() || localStorage.getItem("name") || "Student";
-  const displayMajor = me?.major?.trim() || "—";
-  const displayYear = me?.academicYear?.trim() || "";
-  const displayUniversity = me?.university?.trim() || "";
 
   const profilePhoto = useMemo(() => {
     const raw = me?.profilePictureBase64?.trim();
@@ -265,83 +253,53 @@ export function StudentSidebarLayout() {
     logout(navigate);
   };
 
+  const onStudentNotificationClick = (n: GraduationNotification) => {
+    const target = getStudentNotificationTarget(n);
+    void inbox.handleNotificationClick(n, () => {
+      if (target) navigate(target);
+    });
+  };
+
   const topActions = (
     <div className="student-sidebar-layout__top-actions">
       <div ref={notificationsRef} className="relative">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="relative h-9 w-9 rounded-lg"
-          aria-expanded={notificationsOpen}
-          aria-label="Notifications"
+        <NotificationBellButton
+          unreadCount={inbox.unreadCount}
+          open={inbox.open}
+          onToggle={() => {
+            inbox.toggleOpen();
+            setProfileMenuOpen(false);
+          }}
+          variant="student"
+        />
+        <NotificationCenterDropdown
+          open={inbox.open}
+          unreadCount={inbox.unreadCount}
+          notifications={inbox.notifications}
+          loading={inbox.loading}
+          markingAllRead={inbox.markingAllRead}
+          onMarkAllRead={() => void inbox.handleMarkAllRead()}
+          onNotificationClick={onStudentNotificationClick}
+          getTargetLabel={(n) => (getStudentNotificationTarget(n) ? "View" : null)}
+          variant="student"
+        />
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative h-9 w-9 rounded-lg"
+        asChild
+      >
+        <Link
+          to={ROUTES.studentMessages}
+          aria-label="Messages"
           onClick={() => {
-            setNotificationsOpen((open) => !open);
+            inbox.setOpen(false);
             setProfileMenuOpen(false);
           }}
         >
-          <Bell className="h-4 w-4" />
-          {notificationCount > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-              {notificationCount > 9 ? "9+" : notificationCount}
-            </span>
-          )}
-        </Button>
-        {notificationsOpen && (
-          <Card className="absolute right-0 top-11 z-50 w-[min(100vw-2rem,22rem)] border-border/60 shadow-elevated">
-            <CardContent className="max-h-80 overflow-y-auto p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Notifications
-              </p>
-              {notifications.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">
-                  No notifications yet.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {notifications.map((n) => (
-                    <li key={n.id}>
-                      <button
-                        type="button"
-                        className={`w-full rounded-lg border border-border/60 p-2.5 text-left text-sm transition hover:bg-secondary/50 ${n.readAt ? "opacity-70" : ""}`}
-                        onClick={() => {
-                          if (!n.readAt) {
-                            void markGraduationNotificationRead(n.id).then(() => {
-                              setNotifications((prev) =>
-                                prev.map((row) =>
-                                  row.id === n.id
-                                    ? { ...row, readAt: new Date().toISOString() }
-                                    : row,
-                                ),
-                              );
-                              setNotificationCount((count) => Math.max(0, count - 1));
-                            });
-                          }
-                        }}
-                      >
-                        <p className="font-medium text-foreground">{n.title}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{n.body}</p>
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {formatNotificationDate(n.createdAt)}
-                        </p>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-9 w-9 rounded-lg"
-        disabled
-        aria-label="Settings"
-      >
-        <Settings className="h-4 w-4" />
+          <MessageCircle className="h-4 w-4" />
+        </Link>
       </Button>
       <div ref={profileMenuRef} className="relative">
         <Button
@@ -354,7 +312,7 @@ export function StudentSidebarLayout() {
           aria-label="Account menu"
           onClick={() => {
             setProfileMenuOpen((open) => !open);
-            setNotificationsOpen(false);
+            inbox.setOpen(false);
           }}
         >
           <Avatar className="h-9 w-9 ring-2 ring-primary/20">
@@ -380,6 +338,15 @@ export function StudentSidebarLayout() {
                 <User className="h-4 w-4 text-muted-foreground" aria-hidden />
                 My Profile
               </Link>
+              <Link
+                to={ROUTES.settings}
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
+                onClick={() => setProfileMenuOpen(false)}
+              >
+                <Settings className="h-4 w-4 text-muted-foreground" aria-hidden />
+                Settings
+              </Link>
               <button
                 type="button"
                 role="menuitem"
@@ -397,7 +364,7 @@ export function StudentSidebarLayout() {
   );
 
   const layoutClass = cn(
-    "student-sidebar-layout",
+    "student-sidebar-layout student-hub",
     collapsed && "student-sidebar-layout--collapsed",
     mobileOpen && "student-sidebar-layout--mobile-open",
   );
@@ -450,69 +417,86 @@ export function StudentSidebarLayout() {
               </Button>
             </div>
 
-            <div className="student-sidebar-layout__profile-card">
-              <div className="student-sidebar-layout__profile-row">
-                <div className="student-sidebar-layout__avatar" aria-hidden>
-                  {profilePhoto ? (
-                    <img src={profilePhoto} alt="" />
-                  ) : (
-                    initials(displayName)
-                  )}
-                </div>
-                <div className="student-sidebar-layout__profile-text min-w-0">
-                  <p className="student-sidebar-layout__profile-name truncate">{displayName}</p>
-                  <p className="student-sidebar-layout__profile-major truncate">{displayMajor}</p>
-                </div>
-              </div>
-              {(displayYear || displayUniversity) && (
-                <div className="student-sidebar-layout__profile-badges">
-                  {displayYear && (
-                    <span className="student-sidebar-layout__profile-badge">{displayYear}</span>
-                  )}
-                  {displayUniversity && (
-                    <span className="student-sidebar-layout__profile-badge truncate max-w-full">
-                      {displayUniversity}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <nav className="student-sidebar-layout__nav-scroll">
+            <nav
+              className="student-sidebar-layout__nav-scroll"
+              aria-label="Workspace navigation"
+            >
               <p className="student-sidebar-layout__section-label">Workspace</p>
-              {WORKSPACE_NAV.map((item) => (
-                <NavItemButton
-                  key={item.key}
-                  item={item}
-                  active={isItemActive(pathname, item)}
-                  collapsed={collapsed}
-                  notificationCount={notificationCount}
-                  onNavigate={() => setMobileOpen(false)}
-                />
-              ))}
-
-              <p className="student-sidebar-layout__section-label mt-4">Account</p>
-              {ACCOUNT_NAV.map((item) => (
-                <NavItemButton
-                  key={item.key}
-                  item={item}
-                  active={isItemActive(pathname, item)}
-                  collapsed={collapsed}
-                  notificationCount={notificationCount}
-                  onNavigate={() => setMobileOpen(false)}
-                />
-              ))}
+              <div className="student-sidebar-layout__nav-group">
+                {WORKSPACE_NAV.map((item) => (
+                  <NavItemButton
+                    key={item.key}
+                    item={item}
+                    active={isItemActive(pathname, item)}
+                    collapsed={collapsed}
+                    notificationCount={inbox.unreadCount}
+                    onNavigate={() => setMobileOpen(false)}
+                  />
+                ))}
+              </div>
             </nav>
 
-            <div className="student-sidebar-layout__footer">
-              <button
-                type="button"
-                className="student-sidebar-layout__nav-item w-full text-destructive hover:bg-destructive/10"
-                onClick={handleLogout}
+            <div className="student-sidebar-layout__bottom">
+              <div className="student-sidebar-layout__section-divider" aria-hidden />
+
+              <nav
+                className="student-sidebar-layout__account-nav"
+                aria-label="Account navigation"
               >
-                <LogOut className="student-sidebar-layout__nav-icon" aria-hidden />
-                <span className="student-sidebar-layout__nav-label">Logout</span>
-              </button>
+                <p className="student-sidebar-layout__section-label">Account</p>
+                <div className="student-sidebar-layout__nav-group">
+                  {ACCOUNT_NAV.map((item) => (
+                    <NavItemButton
+                      key={item.key}
+                      item={item}
+                      active={isItemActive(pathname, item)}
+                      collapsed={collapsed}
+                      notificationCount={inbox.unreadCount}
+                      onNavigate={() => setMobileOpen(false)}
+                    />
+                  ))}
+                </div>
+              </nav>
+
+              <div className="student-sidebar-layout__section-divider" aria-hidden />
+
+              <div className="student-sidebar-layout__user-area">
+                <div className="student-sidebar-layout__user-card">
+                  <div className="student-sidebar-layout__user-avatar-wrap">
+                    <Avatar className="student-sidebar-layout__user-avatar">
+                      {profilePhoto && (
+                        <AvatarImage src={profilePhoto} alt="" />
+                      )}
+                      <AvatarFallback className="bg-gradient-hero text-xs font-semibold text-primary-foreground">
+                        {initials(displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span
+                      className="student-sidebar-layout__status-dot"
+                      title="Online"
+                      aria-label="Online"
+                    />
+                  </div>
+                  {!collapsed && (
+                    <div className="student-sidebar-layout__user-meta">
+                      <span className="student-sidebar-layout__user-name">
+                        {displayName}
+                      </span>
+                      <span className="student-sidebar-layout__user-role">
+                        Student
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="student-sidebar-layout__logout-btn"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="student-sidebar-layout__nav-icon" aria-hidden />
+                  <span className="student-sidebar-layout__nav-label">Logout</span>
+                </button>
+              </div>
             </div>
           </div>
         </aside>

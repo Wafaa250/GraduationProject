@@ -9,14 +9,22 @@ export type GraduationProjectView = {
   status: string;
   skills: string[];
   teamSize: string;
+  stageLabel?: string;
 };
 
 type GraduationProjectProps = {
   project: GraduationProjectView | null;
   empty?: boolean;
+  sectionTitle?: string;
+  courseLabels?: string[];
 };
 
-export const GraduationProject = ({ project, empty = false }: GraduationProjectProps) => (
+export const GraduationProject = ({
+  project,
+  empty = false,
+  sectionTitle = "Graduation Project",
+  courseLabels = [],
+}: GraduationProjectProps) => (
   <section
     aria-labelledby="grad-heading"
     className="rounded-2xl bg-card border border-border shadow-soft p-6 md:p-7 animate-fade-in-up h-full flex flex-col"
@@ -24,20 +32,24 @@ export const GraduationProject = ({ project, empty = false }: GraduationProjectP
     <div className="flex items-center justify-between mb-5">
       <div>
         <h2 id="grad-heading" className="text-xl font-display font-bold tracking-tight">
-          Graduation Project
+          {sectionTitle}
         </h2>
-        <p className="text-sm text-muted-foreground">Your capstone project at a glance.</p>
+        <p className="text-sm text-muted-foreground">
+          {courseLabels.length > 0
+            ? courseLabels.join(" · ")
+            : "Your capstone project at a glance."}
+        </p>
       </div>
       {!empty && project ? (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-warning/15 text-warning-foreground border border-warning/30">
           <CircleDot className="w-3 h-3" />
-          {project.status}
+          {project.stageLabel ?? project.status}
         </span>
       ) : null}
     </div>
 
     {empty || !project ? (
-      <EmptyGraduation />
+      <EmptyGraduation sectionTitle={sectionTitle} />
     ) : (
       <div className="flex-1 flex flex-col">
         <div className="relative overflow-hidden rounded-xl p-5 bg-gradient-card border border-border">
@@ -95,7 +107,7 @@ export const GraduationProject = ({ project, empty = false }: GraduationProjectP
   </section>
 );
 
-const EmptyGraduation = () => (
+const EmptyGraduation = ({ sectionTitle }: { sectionTitle: string }) => (
   <div className="flex-1 flex flex-col items-center justify-center text-center py-10 px-4">
     <div className="relative mb-5">
       <div className="absolute inset-0 bg-gradient-accent opacity-20 blur-2xl rounded-full" aria-hidden />
@@ -103,9 +115,9 @@ const EmptyGraduation = () => (
         <Rocket className="w-7 h-7" />
       </div>
     </div>
-    <h3 className="font-display font-semibold">Start your graduation project</h3>
+    <h3 className="font-display font-semibold">Start your {sectionTitle.toLowerCase()}</h3>
     <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-      You haven't created a graduation project yet. Define your idea and let SkillSwap help you find the perfect team.
+      You haven&apos;t created a graduation project yet. Define your idea and let SkillSwap help you find the perfect team.
     </p>
     <Button
       className="mt-5 bg-gradient-primary hover:opacity-95 hover:shadow-glow transition-smooth gap-2"
@@ -113,7 +125,7 @@ const EmptyGraduation = () => (
     >
       <Link to={ROUTES.createGraduationProject}>
         <Plus className="w-4 h-4" />
-        Create Graduation Project
+        Create {sectionTitle}
       </Link>
     </Button>
   </div>

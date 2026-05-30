@@ -1,9 +1,8 @@
-import { Loader2, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Loader2, Users2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDoctorHubRelativeTime } from "@/lib/doctorHubMappers";
+import { formatDoctorHubRelativeTime, initialsFromName } from "@/lib/doctorHubMappers";
 import type { ConversationListItem } from "@/api/conversationsApi";
+import { MessagesUserSearchBox } from "@/components/messaging/MessagesUserSearchBox";
 import {
   getDoctorConversationDisplayName,
   getDoctorConversationKind,
@@ -35,6 +34,7 @@ type DoctorMessagesConversationListProps = {
   onQueryChange: (value: string) => void;
   onFilterChange: (filter: DoctorMessagesFilter) => void;
   onSelect: (id: number) => void;
+  onConversationsRefresh: () => Promise<void>;
 };
 
 export function DoctorMessagesConversationList({
@@ -47,6 +47,7 @@ export function DoctorMessagesConversationList({
   onQueryChange,
   onFilterChange,
   onSelect,
+  onConversationsRefresh,
 }: DoctorMessagesConversationListProps) {
   const q = query.trim().toLowerCase();
   const filtered = conversations.filter((c) => {
@@ -59,32 +60,28 @@ export function DoctorMessagesConversationList({
   });
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card md:col-span-3">
-      <div className="border-b border-border p-4">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Conversations</h2>
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Search conversations"
-            className="h-9 border-border bg-secondary/60 pl-9"
-            aria-label="Search conversations"
-          />
-        </div>
-        <div className="mt-3 flex gap-1 rounded-lg bg-secondary/50 p-1">
+    <aside className="doctor-messages-sidebar">
+      <div className="doctor-messages-sidebar__head">
+        <p className="doctor-messages-sidebar__label">Inbox</p>
+        <MessagesUserSearchBox
+          variant="doctor"
+          query={query}
+          onQueryChange={onQueryChange}
+          conversations={conversations}
+          currentUserId={currentUserId}
+          onConversationOpen={onSelect}
+          onConversationsRefresh={onConversationsRefresh}
+        />
+        <div className="doctor-messages-segment" role="tablist" aria-label="Filter conversations">
           {FILTERS.map((item) => (
             <button
               key={item.id}
               type="button"
+              role="tab"
+              aria-selected={filter === item.id}
               className={cn(
-                "flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-smooth",
-                filter === item.id
-                  ? "bg-white text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                "doctor-messages-segment__btn",
+                filter === item.id && "doctor-messages-segment__btn--active",
               )}
               onClick={() => onFilterChange(item.id)}
             >
@@ -94,10 +91,10 @@ export function DoctorMessagesConversationList({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="doctor-messages-sidebar__list">
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-label="Loading conversations" />
+          <div className="doctor-messages-loading">
+            <Loader2 className="h-8 w-8 animate-spin" aria-label="Loading conversations" />
           </div>
         ) : filtered.length === 0 ? (
           <DoctorMessagesEmptyState
@@ -109,51 +106,68 @@ export function DoctorMessagesConversationList({
             }
           />
         ) : (
-          <ul className="space-y-1">
+          <ul className="space-y-0.5" role="list">
             {filtered.map((conversation) => {
               const kind = getDoctorConversationKind(conversation);
+              const displayName = getDoctorConversationDisplayName(conversation, currentUserId);
               const lastAt = conversation.lastMessage?.createdAt;
+              const isSelected = selectedId === conversation.id;
+              const hasUnread = conversation.unseenCount > 0;
+
               return (
                 <li key={conversation.id}>
                   <button
                     type="button"
                     onClick={() => onSelect(conversation.id)}
                     className={cn(
-                      "w-full rounded-lg px-3 py-2.5 text-left transition-smooth",
-                      "hover:bg-accent/60",
-                      selectedId === conversation.id && "border border-primary/20 bg-accent",
+                      "doctor-messages-convo",
+                      isSelected && "doctor-messages-convo--selected",
+                      hasUnread && "doctor-messages-convo--unread",
                     )}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium text-foreground">
-                            {getDoctorConversationDisplayName(conversation, currentUserId)}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="h-4 shrink-0 border-0 bg-secondary px-1.5 text-[10px] font-medium text-secondary-foreground"
-                          >
-                            {TYPE_LABEL[kind]}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">
-                          {getDoctorConversationPreview(conversation)}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={cn(
+                        "doctor-messages-avatar",
+                        kind === "team"
+                          ? "doctor-messages-avatar--team"
+                          : "doctor-messages-avatar--student",
+                      )}
+                      aria-hidden
+                    >
+                      {kind === "team" ? (
+                        <Users2 className="h-4 w-4" />
+                      ) : (
+                        initialsFromName(displayName) || "?"
+                      )}
+                    </span>
+                    <span className="doctor-messages-convo__body">
+                      <span className="doctor-messages-convo__top">
+                        <span className="doctor-messages-convo__name">{displayName}</span>
                         {lastAt ? (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="doctor-messages-convo__time">
                             {formatDoctorHubRelativeTime(lastAt)}
                           </span>
                         ) : null}
-                        {conversation.unseenCount > 0 ? (
-                          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                      </span>
+                      <span className="doctor-messages-convo__meta">
+                        <span
+                          className={cn(
+                            "doctor-messages-convo__type",
+                            kind === "student" && "doctor-messages-convo__type--student",
+                          )}
+                        >
+                          {TYPE_LABEL[kind]}
+                        </span>
+                        {hasUnread ? (
+                          <span className="doctor-messages-unread-badge">
                             {conversation.unseenCount > 99 ? "99+" : conversation.unseenCount}
                           </span>
                         ) : null}
-                      </div>
-                    </div>
+                      </span>
+                      <span className="doctor-messages-convo__preview">
+                        {getDoctorConversationPreview(conversation)}
+                      </span>
+                    </span>
                   </button>
                 </li>
               );

@@ -9,6 +9,8 @@ function conversationIdFromChatDedupKey(dedupKey: string | null | undefined): nu
   if (!dedupKey) return null;
   const direct = dedupKey.match(/^chat:direct:(\d+):/);
   if (direct) return Number(direct[1]);
+  const teamConv = dedupKey.match(/^chat:team-conv:(\d+):/);
+  if (teamConv) return Number(teamConv[1]);
   const started = dedupKey.match(/^chat:conversation_started:(\d+):/);
   if (started) return Number(started[1]);
   return null;

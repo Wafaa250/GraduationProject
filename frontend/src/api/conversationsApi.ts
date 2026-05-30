@@ -19,7 +19,9 @@ export type ConversationMessage = {
 export type ConversationListItem = {
   id: number;
   title: string | null;
+  type: string;
   courseTeamId: number | null;
+  courseProjectId: number | null;
   users: ConversationUser[];
   participantCount: number;
   otherUser: ConversationUser | null;
@@ -39,7 +41,9 @@ export function sumConversationUnseen(conversations: ConversationListItem[]): nu
 export type ConversationDetails = {
   id: number;
   title: string | null;
+  type: string;
   courseTeamId: number | null;
+  courseProjectId: number | null;
   participantCount: number;
   createdAt: string;
   users: ConversationUser[];
@@ -66,4 +70,12 @@ export async function sendMessage(conversationId: number, text: string): Promise
 /** POST /api/messages/{conversationId}/seen */
 export async function markConversationSeen(conversationId: number): Promise<void> {
   await api.post(`/messages/${conversationId}/seen`);
+}
+
+/** POST /api/conversations/start/{targetUserId} */
+export async function startConversation(targetUserId: number): Promise<number> {
+  const { data } = await api.post<{ conversationId: number }>(
+    `/conversations/start/${targetUserId}`,
+  );
+  return data.conversationId;
 }

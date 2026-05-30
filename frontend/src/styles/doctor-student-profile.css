@@ -1,0 +1,215 @@
+.doctor-hub .doctor-student-profile {
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+.doctor-hub .doctor-student-profile__hero {
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 48%, #f3f4ff 100%);
+  box-shadow: 0 1px 0 0 hsl(var(--border) / 0.5), 0 12px 32px -12px rgba(91, 95, 199, 0.18);
+}
+
+.doctor-hub .doctor-student-profile__hero-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .doctor-hub .doctor-student-profile__hero-inner {
+    padding: 2rem;
+  }
+}
+
+.doctor-hub .doctor-student-profile__avatar {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  box-shadow: 0 0 0 3px rgba(91, 95, 199, 0.2);
+}
+
+.doctor-hub .doctor-student-profile__avatar-fallback {
+  display: grid;
+  place-items: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(145deg, #6366f1 0%, #4f46e5 100%);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 8px 24px -8px rgba(79, 70, 229, 0.45);
+}
+
+.doctor-hub .doctor-student-profile__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.doctor-hub .doctor-student-profile__meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border) / 0.8);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.doctor-hub .doctor-student-profile__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .doctor-hub .doctor-student-profile__stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.doctor-hub .doctor-student-profile__stat {
+  border-radius: 0.875rem;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.75rem 0.875rem;
+  text-align: center;
+}
+
+.doctor-hub .doctor-student-profile__stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #4f46e5;
+  font-variant-numeric: tabular-nums;
+}
+
+.doctor-hub .doctor-student-profile__stat-label {
+  margin-top: 0.2rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.doctor-hub .doctor-student-profile__grid {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .doctor-hub .doctor-student-profile__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .doctor-hub .doctor-student-profile__grid--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.doctor-hub .doctor-student-profile__section {
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background: hsl(var(--card));
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 0 0 hsl(var(--border) / 0.45);
+}
+
+.doctor-hub .doctor-student-profile__section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.doctor-hub .doctor-student-profile__section-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0.04) 100%);
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.doctor-hub .doctor-student-profile__section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.doctor-hub .doctor-student-profile__badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.5rem;
+  background: rgba(91, 95, 199, 0.1);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+
+.doctor-hub .doctor-student-profile__badge--muted {
+  background: hsl(var(--secondary));
+  color: hsl(var(--muted-foreground));
+}
+
+.doctor-hub .doctor-student-profile__info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid hsl(var(--border) / 0.55);
+  font-size: 0.875rem;
+}
+
+.doctor-hub .doctor-student-profile__info-row:last-child {
+  border-bottom: none;
+}
+
+.doctor-hub .doctor-student-profile__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+
+.doctor-hub .doctor-student-profile__link:hover {
+  text-decoration: underline;
+}
+
+.doctor-hub .doctor-student-profile__gp-card {
+  border-radius: 0.875rem;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background: linear-gradient(180deg, #fafaff 0%, #ffffff 100%);
+  padding: 1rem;
+}
+
+.doctor-hub .doctor-student-profile__team-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid hsl(var(--border) / 0.55);
+}
+
+.doctor-hub .doctor-student-profile__team-row:last-child {
+  border-bottom: none;
+}

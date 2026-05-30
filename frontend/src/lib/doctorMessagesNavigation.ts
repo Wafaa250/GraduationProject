@@ -5,9 +5,13 @@ import type { ConversationDetails, ConversationListItem } from "@/api/conversati
 export type DoctorConversationKind = "team" | "student";
 
 export function getDoctorConversationKind(
-  conversation: Pick<ConversationListItem, "courseTeamId" | "participantCount">,
+  conversation: Pick<ConversationListItem, "courseTeamId" | "participantCount" | "type">,
 ): DoctorConversationKind {
-  if (conversation.courseTeamId != null || conversation.participantCount > 2) {
+  if (
+    conversation.type === "Team" ||
+    conversation.courseTeamId != null ||
+    conversation.participantCount > 2
+  ) {
     return "team";
   }
   return "student";

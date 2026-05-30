@@ -25,14 +25,9 @@ namespace GraduationProject.API.Helpers
 
         public static string BuildRequestCode(int requestId) => $"REQ-{requestId:D5}";
 
-        public static string MapProjectStage(string? projectType)
+        public static string MapProjectStage(string? projectType, string? faculty = null, string? major = null)
         {
-            return (projectType ?? "GP").Trim().ToUpperInvariant() switch
-            {
-                "GP1" => "GP1",
-                "GP2" => "GP2",
-                _ => "Graduation Project",
-            };
+            return GraduationProjectTypeHelper.MapProjectStage(projectType, faculty, major);
         }
 
         public static string InitialsFromName(string? name)
@@ -146,7 +141,10 @@ namespace GraduationProject.API.Helpers
                     Technologies = technologies,
                     PreferredRoles = preferredRoles,
                     ProjectType = project?.ProjectType ?? "GP",
-                    Stage = MapProjectStage(project?.ProjectType),
+                    Stage = MapProjectStage(
+                        project?.ProjectType,
+                        faculty,
+                        owner?.Major?.Trim() ?? sender?.Major?.Trim()),
                     PartnersCount = project?.PartnersCount ?? 0,
                     MemberCount = project?.Members?.Count ?? 0,
                     Faculty = string.IsNullOrWhiteSpace(faculty) ? null : faculty,

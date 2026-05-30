@@ -19,7 +19,6 @@ import {
 import { getDoctorDashboardSummary } from "@/api/doctorDashboardApi";
 import { getDoctorCourses } from "@/api/doctorCoursesApi";
 import { getConversations, sumConversationUnseen } from "@/api/conversationsApi";
-import { useDoctorHubProfile } from "./DoctorHubProfileContext";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -32,7 +31,7 @@ const nav = [
 
 const footerNav = [
   { key: "profile", label: "Profile", icon: User, to: ROUTES.doctorProfile },
-  { key: "settings", label: "Settings", icon: Settings, to: ROUTES.doctorEditProfile },
+  { key: "settings", label: "Settings", icon: Settings, to: ROUTES.doctorSettings },
   { key: "logout", label: "Logout", icon: LogOut, to: null },
 ];
 
@@ -41,7 +40,6 @@ export function DoctorHubSidebar() {
   const { pathname } = useLocation();
   const active = doctorNavKeyFromPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
-  const profile = useDoctorHubProfile();
   const [badges, setBadges] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -85,44 +83,11 @@ export function DoctorHubSidebar() {
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="text-muted-foreground hover:text-primary transition-smooth"
+          className="text-muted-foreground hover:text-doctor-accent transition-smooth"
           aria-label="Toggle sidebar"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
         </button>
-      </div>
-
-      <div
-        className={cn(
-          "doctor-hub__sidebar-profile shrink-0 px-4 py-5 border-b border-[hsl(var(--sidebar-border))]",
-          collapsed && "px-3",
-        )}
-      >
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          <div className="relative shrink-0">
-            {profile.profilePhoto ? (
-              <img
-                src={profile.profilePhoto}
-                alt=""
-                className="h-11 w-11 rounded-full ring-2 ring-primary-glow/40 object-cover"
-              />
-            ) : (
-              <div className="h-11 w-11 rounded-full ring-2 ring-primary-glow/40 bg-gradient-primary grid place-items-center text-xs font-bold text-primary-foreground">
-                {profile.initials}
-              </div>
-            )}
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground truncate">{profile.displayName}</div>
-              {profile.department !== "—" && (
-                <div className="text-[11px] text-[hsl(var(--sidebar-muted))] truncate">
-                  {profile.department}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
       </div>
 
       <nav className="doctor-hub__sidebar-nav min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 space-y-1">
@@ -145,16 +110,12 @@ export function DoctorHubSidebar() {
               to={to}
               className={cn(
                 "group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-smooth relative no-underline",
-                isActive
-                  ? "bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.15)]"
-                  : "text-foreground/75 hover:text-primary hover:bg-primary/5",
+                isActive ? "doctor-nav-link--active" : "text-foreground/75 hover:text-doctor-accent hover:bg-doctor-accent-soft/80",
                 collapsed && "justify-center px-0",
               )}
             >
-              {isActive && !collapsed && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r bg-primary" />
-              )}
-              <Icon className={cn("h-[18px] w-[18px] shrink-0", isActive && "text-primary")} />
+              <span className="doctor-nav-indicator" aria-hidden />
+              <Icon className={cn("h-[18px] w-[18px] shrink-0", isActive && "text-doctor-accent")} />
               {!collapsed && (
                 <>
                   <span className="flex-1 text-left">{item.label}</span>
@@ -162,7 +123,9 @@ export function DoctorHubSidebar() {
                     <span
                       className={cn(
                         "min-w-[22px] px-1.5 h-5 grid place-items-center rounded-full text-[10.5px] font-semibold",
-                        isActive ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary",
+                        isActive
+                          ? "bg-doctor-accent text-white"
+                          : "bg-doctor-accent-soft text-doctor-accent",
                       )}
                     >
                       {badge > 99 ? "99+" : badge}
@@ -176,6 +139,11 @@ export function DoctorHubSidebar() {
       </nav>
 
       <div className="doctor-hub__sidebar-footer shrink-0 border-t border-[hsl(var(--sidebar-border))] px-3 py-3 space-y-1">
+        {!collapsed && (
+          <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--sidebar-muted))]">
+            Account
+          </div>
+        )}
         {footerNav.map((item) => {
           const Icon = item.icon;
           if (item.key === "logout") {
@@ -185,7 +153,7 @@ export function DoctorHubSidebar() {
                 type="button"
                 onClick={() => logout(navigate)}
                 className={cn(
-                  "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground/70 hover:text-primary hover:bg-primary/5 transition-smooth",
+                  "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground/70 hover:text-doctor-accent hover:bg-doctor-accent-soft/80 transition-smooth",
                   collapsed && "justify-center px-0",
                 )}
               >
@@ -199,7 +167,7 @@ export function DoctorHubSidebar() {
               key={item.key}
               to={item.to!}
               className={cn(
-                "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground/70 hover:text-primary hover:bg-primary/5 transition-smooth no-underline",
+                "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground/70 hover:text-doctor-accent hover:bg-doctor-accent-soft/80 transition-smooth no-underline",
                 collapsed && "justify-center px-0",
               )}
             >

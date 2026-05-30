@@ -22,7 +22,7 @@ type Course = {
 
 export function CourseCard({ c }: { c: Course }) {
   return (
-    <div className="group rounded-2xl border border-border bg-white p-5 shadow-card hover:shadow-elevated hover:border-primary/30 transition-smooth">
+    <div className="group rounded-2xl border border-border bg-card p-5 shadow-card hover:shadow-elevated hover:border-primary/30 transition-smooth">
       <div className="flex items-start justify-between">
         <div
           className={cn("h-11 w-11 rounded-xl grid place-items-center bg-gradient-to-br", toneMap[c.color])}

@@ -43,6 +43,7 @@ namespace GraduationProject.API.Services
                     {
                         Id = c.Id,
                         Title = c.Title,
+                        Type = c.Type.ToString(),
                         CourseTeamId = c.CourseTeamId,
                         Users = c.ConversationUsers
                             .Select(cu => new ConversationUserDto
@@ -99,6 +100,7 @@ namespace GraduationProject.API.Services
             {
                 Id = conversation.Id,
                 Title = conversation.Title,
+                Type = conversation.Type.ToString(),
                 CourseTeamId = conversation.CourseTeamId,
                 ParticipantCount = conversation.ConversationUsers.Count,
                 CreatedAt = conversation.CreatedAt,
@@ -130,6 +132,7 @@ namespace GraduationProject.API.Services
             }
 
             var existingConversationId = await _context.Conversations
+                .Where(c => c.CourseTeamId == null)
                 .Where(c => c.ConversationUsers.Count == 2)
                 .Where(c => c.ConversationUsers.Any(cu => cu.UserId == currentUserId))
                 .Where(c => c.ConversationUsers.Any(cu => cu.UserId == targetUserId))

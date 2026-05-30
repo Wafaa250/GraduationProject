@@ -98,8 +98,14 @@ namespace GraduationProject.API.DTOs
         public int UserId { get; set; }
 
         public string Name { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? Faculty { get; set; }
+        public string? University { get; set; }
         public string? Specialization { get; set; }
         public string? Department { get; set; }
+        public string? ProfilePicture { get; set; }
+        /// <summary>When the accepted supervision request was confirmed.</summary>
+        public DateTime? AssignedAt { get; set; }
     }
 
     /// <summary>Recommended supervisors ranked by skill match.</summary>
@@ -123,11 +129,16 @@ namespace GraduationProject.API.DTOs
         public int OwnerId { get; set; }   // StudentProfile.Id
         public int OwnerUserId { get; set; }
         public string OwnerName { get; set; } = string.Empty;
+        public string? OwnerFaculty { get; set; }
+        public string? OwnerMajor { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Abstract { get; set; }
 
         /// <summary>"GP1" | "GP2" | "GP"</summary>
         public string ProjectType { get; set; } = "GP";
+
+        /// <summary>Human-readable label based on owner faculty/major.</summary>
+        public string ProjectTypeLabel { get; set; } = "Graduation Project";
 
         public List<string> RequiredSkills { get; set; } = new();
         public List<string> Technologies { get; set; } = new();

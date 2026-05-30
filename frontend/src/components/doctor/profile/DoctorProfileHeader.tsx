@@ -25,7 +25,7 @@ export function DoctorProfileHeader({
   const initials = initialsFromName(name || "?");
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-6 shadow-card">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
         <Avatar className="h-24 w-24 shrink-0 ring-2 ring-primary/15">
           {photoUrl ? <AvatarImage src={photoUrl} alt="" /> : null}

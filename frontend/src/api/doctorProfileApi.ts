@@ -2,6 +2,7 @@ import api from "./axiosInstance";
 
 export type UpdateDoctorProfilePayload = {
   fullName?: string;
+  phoneNumber?: string;
   department?: string;
   faculty?: string;
   specialization?: string;
@@ -10,12 +11,12 @@ export type UpdateDoctorProfilePayload = {
   yearsOfExperience?: number | null;
   linkedin?: string;
   officeHours?: string;
-  office?: string;
-  phone?: string;
   bio?: string;
   profilePictureBase64?: string | null;
   technicalSkills?: string[];
   researchSkills?: string[];
+  researchInterests?: string[];
+  preferredProjectAreas?: string[];
 };
 
 /** PUT /api/profile/doctor */

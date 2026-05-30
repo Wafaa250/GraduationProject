@@ -13,11 +13,13 @@ import {
 } from 'lucide-react'
 import api from '@/api/axiosInstance'
 import { navigateHome } from '@/utils/homeNavigation'
+import { applyRoleTheme } from '@/lib/roleTheme'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/components/ui/utils'
+import { ROUTES } from '@/routes/paths'
 import './login-page.css'
 
 export type LoginPageProps = {
@@ -50,6 +52,7 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
       localStorage.setItem('role', result.role)
       localStorage.setItem('name', result.name)
       localStorage.setItem('email', result.email)
+      applyRoleTheme(result.role)
 
       onLoginSuccess?.()
 
@@ -202,7 +205,7 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
                   label="Password"
                   rightSlot={
                     <Link
-                      to="/forgot-password"
+                      to={ROUTES.forgotPassword}
                       className="text-xs font-medium text-primary hover:text-primary-deep transition-colors"
                     >
                       Forgot password?

@@ -47,11 +47,13 @@ type DoctorMessagesThreadProps = {
   currentUserId: number | null;
   draft: string;
   sending: boolean;
-  resolvingTeamLink: boolean;
   onDraftChange: (value: string) => void;
   onSend: () => void;
-  onViewTeam: () => void;
   onViewStudent: () => void;
+  /** Non-clickable label in the thread header (replaces action buttons). */
+  headerBadge?: string;
+  /** Hide header actions (used when context badge is shown on the page header). */
+  suppressHeaderActions?: boolean;
 };
 
 export function DoctorMessagesThread({
@@ -60,11 +62,11 @@ export function DoctorMessagesThread({
   currentUserId,
   draft,
   sending,
-  resolvingTeamLink,
   onDraftChange,
   onSend,
-  onViewTeam,
   onViewStudent,
+  headerBadge,
+  suppressHeaderActions = false,
 }: DoctorMessagesThreadProps) {
   const senderNames = useMemo(() => {
     const map = new Map<number, string>();
@@ -74,9 +76,9 @@ export function DoctorMessagesThread({
 
   if (loading) {
     return (
-      <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card md:col-span-7">
-        <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-label="Loading conversation" />
+      <section className="doctor-messages-panel">
+        <div className="doctor-messages-loading">
+          <Loader2 className="h-8 w-8 animate-spin" aria-label="Loading conversation" />
         </div>
       </section>
     );
@@ -84,13 +86,12 @@ export function DoctorMessagesThread({
 
   if (!thread) {
     return (
-      <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card md:col-span-7">
-        <div className="flex flex-1 items-center justify-center">
-          <DoctorMessagesEmptyState
-            title="Select a conversation."
-            description="Choose a student or team conversation to read and reply."
-          />
-        </div>
+      <section className="doctor-messages-panel">
+        <DoctorMessagesEmptyState
+          variant="hero"
+          title="Select a conversation"
+          description="Choose a student or team conversation from your inbox to read messages and reply in real time."
+        />
       </section>
     );
   }
@@ -98,57 +99,47 @@ export function DoctorMessagesThread({
   const kind = getDoctorConversationKind(thread);
   const displayName = getDoctorConversationDisplayName(thread, currentUserId);
   const studentPath = getDoctorStudentProfilePath(thread, currentUserId);
-  const showViewTeam = kind === "team" && thread.courseTeamId != null;
-  const showViewStudent = kind === "student" && studentPath != null;
+  const showViewStudent =
+    !suppressHeaderActions && !headerBadge && kind === "student" && studentPath != null;
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card md:col-span-7">
-      <div className="border-b border-border bg-card px-6 py-4">
+    <section className="doctor-messages-panel">
+      <header className="doctor-messages-panel__header">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h3 className="text-base font-semibold text-foreground">{displayName}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <h3 className="doctor-messages-panel__title">{displayName}</h3>
+            <p className="doctor-messages-panel__meta">
               {thread.participantCount} participant{thread.participantCount === 1 ? "" : "s"}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {showViewTeam ? (
+          {headerBadge ? (
+            <span className="doctor-messages-context-badge shrink-0">{headerBadge}</span>
+          ) : showViewStudent ? (
+            <div className="doctor-messages-panel__actions flex flex-wrap gap-2 shrink-0">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 border-primary/30 text-xs text-primary hover:bg-accent hover:text-primary"
-                disabled={resolvingTeamLink}
-                onClick={onViewTeam}
-              >
-                {resolvingTeamLink ? "Opening…" : "View Team"}
-                <ExternalLink className="ml-1.5 h-3 w-3" />
-              </Button>
-            ) : null}
-            {showViewStudent ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 border-primary/30 text-xs text-primary hover:bg-accent hover:text-primary"
+                className="doctor-messages-action-btn"
                 onClick={onViewStudent}
               >
                 View Student
                 <ExternalLink className="ml-1.5 h-3 w-3" />
               </Button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
-      </div>
+      </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-6">
+      <div className="doctor-messages-scroll">
         {thread.messages.length === 0 ? (
           <DoctorMessagesEmptyState
-            title="No messages yet."
-            description="Send the first message to begin the academic conversation."
+            variant="hero"
+            title="No messages yet"
+            description="Send the first message to begin the academic conversation with your students."
           />
         ) : (
-          <div className="space-y-4">
+          <div className="mx-auto flex max-w-3xl flex-col gap-4">
             {thread.messages.map((message) => (
               <MessageRow
                 key={message.id}
@@ -182,7 +173,7 @@ function MessageRow({
 }) {
   if (message.deleted) {
     return (
-      <p className="text-center text-xs italic text-muted-foreground">Message removed</p>
+      <p className="text-center text-xs italic text-muted-foreground py-2">Message removed</p>
     );
   }
 
@@ -194,21 +185,15 @@ function MessageRow({
 
   if (announcement) {
     return (
-      <div
-        className="rounded-lg border px-5 py-4"
-        style={{
-          backgroundColor: "hsl(var(--announcement))",
-          borderColor: "hsl(var(--announcement-border))",
-        }}
-      >
-        <div className="mb-2 flex items-center gap-2">
-          <Megaphone className="h-4 w-4 text-primary" aria-hidden />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+      <div className="doctor-messages-announcement">
+        <div className="mb-2.5 flex flex-wrap items-center gap-2">
+          <Megaphone className="h-4 w-4 text-primary shrink-0" aria-hidden />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
             Announcement
           </span>
-          <span className="text-xs text-muted-foreground">·</span>
-          <span className="text-xs font-medium text-foreground">{senderName}</span>
-          <span className="text-xs text-muted-foreground">· {time}</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">·</span>
+          <span className="text-xs font-semibold text-foreground">{senderName}</span>
+          <span className="text-xs text-muted-foreground sm:ml-auto">{time}</span>
         </div>
         <p className="text-sm leading-relaxed text-foreground/90">{text}</p>
       </div>
@@ -218,41 +203,47 @@ function MessageRow({
   return (
     <div
       className={cn(
-        "rounded-lg border px-5 py-4",
-        isFaculty ? "border-primary/15" : "border-border bg-card",
+        "doctor-messages-bubble-row",
+        isFaculty ? "doctor-messages-bubble-row--faculty" : "doctor-messages-bubble-row--other",
       )}
-      style={isFaculty ? { backgroundColor: "hsl(var(--faculty-bubble))" } : undefined}
     >
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className="text-sm font-semibold text-foreground">{senderName}</span>
-        {isFaculty ? (
-          <span className="text-[11px] text-muted-foreground">· Supervisor</span>
-        ) : null}
-        <span className="ml-auto text-xs text-muted-foreground">{time}</span>
-      </div>
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{bodyText}</p>
-      {linkAttachment ? (
-        <a
-          href={linkAttachment.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2 transition-smooth hover:border-primary/30"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-accent">
-            <FileText className="h-4 w-4 text-primary" aria-hidden />
-          </div>
-          <div className="min-w-0 text-left">
-            <div className="truncate text-xs font-medium text-foreground">Shared link</div>
-            <div className="max-w-[14rem] truncate text-[11px] text-muted-foreground">
-              {linkAttachment.url}
+      <div
+        className={cn(
+          "doctor-messages-bubble",
+          isFaculty ? "doctor-messages-bubble--faculty" : "doctor-messages-bubble--other",
+        )}
+      >
+        <div className="doctor-messages-bubble__head">
+          <span className="doctor-messages-bubble__sender">{senderName}</span>
+          {isFaculty ? (
+            <span className="doctor-messages-bubble__role">Supervisor</span>
+          ) : null}
+          <span className="doctor-messages-bubble__time">{time}</span>
+        </div>
+        <p className="doctor-messages-bubble__text">{bodyText}</p>
+        {linkAttachment ? (
+          <a
+            href={linkAttachment.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="doctor-messages-link-card"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent">
+              <FileText className="h-4 w-4 text-primary" aria-hidden />
             </div>
-          </div>
-          <span className="text-xs font-medium text-primary">Open</span>
-        </a>
-      ) : null}
-      {message.edited ? (
-        <p className="mt-1 text-[10px] text-muted-foreground">Edited</p>
-      ) : null}
+            <div className="min-w-0 text-left">
+              <div className="truncate text-xs font-semibold text-foreground">Shared link</div>
+              <div className="max-w-[14rem] truncate text-[11px] text-muted-foreground">
+                {linkAttachment.url}
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-primary shrink-0">Open</span>
+          </a>
+        ) : null}
+        {message.edited ? (
+          <p className="mt-1.5 text-[10px] font-medium text-muted-foreground">Edited</p>
+        ) : null}
+      </div>
     </div>
   );
 }

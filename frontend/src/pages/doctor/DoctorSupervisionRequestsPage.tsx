@@ -10,7 +10,6 @@ import {
   parseApiErrorMessage,
 } from "@/api/doctorDashboardApi";
 import { SupervisionRequestCard } from "@/components/doctor/supervision/SupervisionRequestCard";
-import { SupervisionRequestDetailSheet } from "@/components/doctor/supervision/SupervisionRequestDetailSheet";
 import { SupervisionRequestStatCard } from "@/components/doctor/supervision/SupervisionRequestStatCard";
 import { SupervisionRequestsEmptyState } from "@/components/doctor/supervision/SupervisionRequestsEmptyState";
 import {
@@ -41,7 +40,6 @@ export default function DoctorSupervisionRequestsPage() {
   const [summary, setSummary] = useState<DoctorSupervisorRequestsSummary>(EMPTY_SUMMARY);
   const [activeTab, setActiveTab] = useState<(typeof STATUS_TABS)[number]["id"]>("all");
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [detailRequest, setDetailRequest] = useState<DoctorSupervisorRequest | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,8 +83,7 @@ export default function DoctorSupervisionRequestsPage() {
     setBusyId(id);
     try {
       await acceptSupervisorRequest(id, feedback);
-      toast({ title: "Request accepted" });
-      setDetailRequest(null);
+      toast({ title: "Request accepted", description: "The project is now in Active Projects." });
       await load();
     } catch (err) {
       toast({ variant: "destructive", title: "Failed", description: parseApiErrorMessage(err) });
@@ -100,7 +97,6 @@ export default function DoctorSupervisionRequestsPage() {
     try {
       await rejectSupervisorRequest(id, feedback);
       toast({ title: "Request rejected" });
-      setDetailRequest(null);
       await load();
     } catch (err) {
       toast({ variant: "destructive", title: "Failed", description: parseApiErrorMessage(err) });
@@ -152,11 +148,7 @@ export default function DoctorSupervisionRequestsPage() {
           />
         </div>
 
-        <div
-          className="inline-flex items-center gap-1 bg-secondary/60 rounded-lg p-1 flex-wrap"
-          role="tablist"
-          aria-label="Request status"
-        >
+        <div className="doctor-workspace-tabs" role="tablist" aria-label="Request status">
           {STATUS_TABS.map((t) => (
             <button
               key={t.id}
@@ -164,24 +156,10 @@ export default function DoctorSupervisionRequestsPage() {
               role="tab"
               aria-selected={activeTab === t.id}
               onClick={() => setActiveTab(t.id)}
-              className={cn(
-                "h-8 px-3 rounded-md text-sm font-medium transition-smooth inline-flex items-center gap-2",
-                activeTab === t.id
-                  ? "bg-white text-foreground shadow-card"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              className={cn("doctor-tab", activeTab === t.id && "doctor-tab--active")}
             >
               {t.label}
-              <span
-                className={cn(
-                  "text-[11px] px-1.5 py-0.5 rounded-md font-semibold",
-                  activeTab === t.id
-                    ? "bg-primary/10 text-primary"
-                    : "bg-white/60 text-muted-foreground",
-                )}
-              >
-                {loading ? "…" : tabBadge(t.id)}
-              </span>
+              <span className="doctor-tab-badge">{loading ? "…" : tabBadge(t.id)}</span>
             </button>
           ))}
         </div>
@@ -205,7 +183,7 @@ export default function DoctorSupervisionRequestsPage() {
             requests.length === 0 ? (
               <SupervisionRequestsEmptyState />
             ) : (
-              <div className="rounded-2xl border border-dashed border-border bg-white py-12 text-center shadow-card">
+              <div className="rounded-2xl border border-dashed border-border bg-card py-12 text-center shadow-card">
                 <p className="font-display font-semibold text-foreground">
                   No requests in this tab
                 </p>
@@ -221,7 +199,6 @@ export default function DoctorSupervisionRequestsPage() {
                   key={r.requestId}
                   request={r}
                   busyRequestId={busyId}
-                  onView={setDetailRequest}
                   onAccept={(id) => void handleAccept(id, "")}
                   onReject={(id) => void handleReject(id, "")}
                 />
@@ -230,15 +207,6 @@ export default function DoctorSupervisionRequestsPage() {
           )}
         </section>
       </div>
-
-      <SupervisionRequestDetailSheet
-        request={detailRequest}
-        open={detailRequest != null}
-        busy={busyId != null}
-        onOpenChange={(open) => !open && setDetailRequest(null)}
-        onAccept={handleAccept}
-        onReject={handleReject}
-      />
     </main>
   );
 }

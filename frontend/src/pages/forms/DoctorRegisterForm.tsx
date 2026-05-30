@@ -2,6 +2,7 @@ import { useState, ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Mail, Lock, User, GraduationCap, Users, BookOpen } from 'lucide-react'
 import api, { parseApiErrorMessage } from '@/api/axiosInstance'
+import { applyRoleTheme } from '@/lib/roleTheme'
 import { navigateHome } from '@/utils/homeNavigation'
 import { RegistrationLayout } from '@/components/registration/RegistrationLayout'
 import { FormSection, FieldGrid, RegField } from '@/components/registration/FormSection'
@@ -175,6 +176,7 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
       localStorage.setItem('userId', data.userId.toString())
       localStorage.setItem('role', 'doctor')
       localStorage.setItem('name', data.name)
+      applyRoleTheme('doctor')
       setSubmitted(true)
     } catch (err: unknown) {
       setApiError(parseApiErrorMessage(err))

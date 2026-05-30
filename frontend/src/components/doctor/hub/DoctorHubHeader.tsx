@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { doctorHubShowsGlobalSearch } from "@/lib/doctorHubNav";
 import { getDoctorNotificationTarget } from "@/lib/doctorNotificationNavigation";
-import { formatDoctorHubRelativeTime } from "@/lib/doctorHubMappers";
-import { Search, Command, Menu, User, LogOut, ChevronDown, Bell, Loader2 } from "lucide-react";
+import { Search, Command, Menu, User, Settings, LogOut, ChevronDown, MessageCircle } from "lucide-react";
 import { useDoctorHubProfile } from "./DoctorHubProfileContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,13 +11,12 @@ import { logout } from "@/utils/authSession";
 import { cn } from "@/lib/utils";
 import { searchPlatform, type SearchResponse, type SearchStudentHit, type SearchDoctorHit } from "@/api/searchApi";
 import { toast } from "@/hooks/use-toast";
+import { useNotificationsInbox } from "@/hooks/useNotificationsInbox";
 import {
-  getDoctorNotificationsForActivity,
-  getDoctorNotificationsUnreadCount,
-  markDoctorNotificationsAllRead,
-  markGraduationNotificationRead,
-  type GraduationNotification,
-} from "@/api/notificationsApi";
+  NotificationBellButton,
+  NotificationCenterDropdown,
+} from "@/components/notifications/NotificationCenter";
+import type { GraduationNotification } from "@/api/notificationsApi";
 
 export function DoctorHubHeader() {
   const navigate = useNavigate();
@@ -26,11 +24,7 @@ export function DoctorHubHeader() {
   const showGlobalSearch = doctorHubShowsGlobalSearch(pathname);
   const profile = useDoctorHubProfile();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [notifications, setNotifications] = useState<GraduationNotification[]>([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const inbox = useNotificationsInbox({ role: "doctor", showToasts: true, markAllReadOnOpen: true });
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -39,70 +33,9 @@ export function DoctorHubHeader() {
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
   const [searching, setSearching] = useState(false);
 
-  const loadNotifications = useCallback(async (options?: { list?: boolean }) => {
-    const loadList = options?.list ?? false;
-    if (loadList) setNotificationsLoading(true);
-    try {
-      const unreadPromise = getDoctorNotificationsUnreadCount();
-      const rowsPromise = loadList
-        ? getDoctorNotificationsForActivity(30)
-        : Promise.resolve(null as GraduationNotification[] | null);
-      const [unread, rows] = await Promise.all([unreadPromise, rowsPromise]);
-      setNotificationCount(unread);
-      if (rows != null) setNotifications(rows);
-    } catch {
-      setNotificationCount(0);
-      if (loadList) setNotifications([]);
-    } finally {
-      if (loadList) setNotificationsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications, pathname]);
-
-  useEffect(() => {
-    if (notificationsOpen) void loadNotifications({ list: true });
-  }, [notificationsOpen, loadNotifications]);
-
-  const handleNotificationClick = (n: GraduationNotification) => {
-    const markIfUnread = async () => {
-      if (!n.readAt) {
-        await markGraduationNotificationRead(n.id);
-        setNotifications((prev) =>
-          prev.map((row) =>
-            row.id === n.id ? { ...row, readAt: new Date().toISOString() } : row,
-          ),
-        );
-        setNotificationCount((count) => Math.max(0, count - 1));
-      }
-    };
-
-    void markIfUnread().finally(() => {
-      const target = getDoctorNotificationTarget(n);
-      setNotificationsOpen(false);
-      if (target) navigate(target);
-    });
-  };
-
-  const handleMarkAllRead = async () => {
-    if (notificationCount === 0 || markingAllRead) return;
-    setMarkingAllRead(true);
-    try {
-      await markDoctorNotificationsAllRead();
-      const now = new Date().toISOString();
-      setNotifications((prev) => prev.map((row) => ({ ...row, readAt: row.readAt ?? now })));
-      setNotificationCount(0);
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Could not mark notifications read",
-      });
-    } finally {
-      setMarkingAllRead(false);
-    }
-  };
+    void inbox.refresh();
+  }, [pathname, inbox.refresh]);
 
   useEffect(() => {
     if (!showGlobalSearch) {
@@ -131,19 +64,15 @@ export function DoctorHubHeader() {
   }, [searchQuery, showGlobalSearch]);
 
   useEffect(() => {
-    if (!profileMenuOpen && !notificationsOpen && !searchOpen) return;
+    if (!profileMenuOpen && !inbox.open && !searchOpen) return;
 
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (searchOpen && searchRef.current && !searchRef.current.contains(target)) {
         setSearchOpen(false);
       }
-      if (
-        notificationsOpen &&
-        notificationsRef.current &&
-        !notificationsRef.current.contains(target)
-      ) {
-        setNotificationsOpen(false);
+      if (inbox.open && notificationsRef.current && !notificationsRef.current.contains(target)) {
+        inbox.setOpen(false);
       }
       if (profileMenuOpen && profileMenuRef.current && !profileMenuRef.current.contains(target)) {
         setProfileMenuOpen(false);
@@ -153,7 +82,7 @@ export function DoctorHubHeader() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setSearchOpen(false);
-        setNotificationsOpen(false);
+        inbox.setOpen(false);
         setProfileMenuOpen(false);
       }
     };
@@ -164,12 +93,19 @@ export function DoctorHubHeader() {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [notificationsOpen, profileMenuOpen, searchOpen]);
+  }, [inbox.open, inbox.setOpen, profileMenuOpen, searchOpen]);
 
   const handleLogout = () => {
     setProfileMenuOpen(false);
-    setNotificationsOpen(false);
+    inbox.setOpen(false);
     logout(navigate);
+  };
+
+  const onDoctorNotificationClick = (n: GraduationNotification) => {
+    const target = getDoctorNotificationTarget(n);
+    void inbox.handleNotificationClick(n, () => {
+      if (target) navigate(target);
+    });
   };
 
   const handleSearchStudent = (student: SearchStudentHit) => {
@@ -204,7 +140,7 @@ export function DoctorHubHeader() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 placeholder="Search students and faculty…"
-                className="w-full h-10 rounded-xl border border-border bg-white/60 pl-9 pr-14 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:bg-white transition-smooth"
+                className="w-full h-10 rounded-xl border border-border bg-card/60 pl-9 pr-14 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:bg-card transition-smooth"
                 aria-label="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -216,7 +152,7 @@ export function DoctorHubHeader() {
             </div>
             {searchOpen && searchResults && (
               <Card className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 shadow-elevated border-border/70 max-h-72 overflow-y-auto">
-                <CardContent className="p-2 bg-white">
+                <CardContent className="p-2 bg-card">
                   {searching ? (
                     <p className="py-3 text-center text-sm text-muted-foreground">Searching…</p>
                   ) : searchResults.students.length === 0 && searchResults.doctors.length === 0 ? (
@@ -267,107 +203,41 @@ export function DoctorHubHeader() {
 
         <div className="ml-auto flex items-center gap-2 shrink-0">
           <div ref={notificationsRef} className="relative">
-            <button
-              type="button"
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-smooth hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              aria-expanded={notificationsOpen}
-              aria-label="Notifications"
-              onClick={() => {
-                setNotificationsOpen((open) => !open);
+            <NotificationBellButton
+              unreadCount={inbox.unreadCount}
+              open={inbox.open}
+              onToggle={() => {
+                inbox.toggleOpen();
                 setProfileMenuOpen(false);
               }}
-            >
-              <Bell className="h-5 w-5" />
-              {notificationCount > 0 && (
-                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                  {notificationCount > 99 ? "99+" : notificationCount}
-                </span>
-              )}
-            </button>
-
-            {notificationsOpen && (
-              <Card className="absolute right-0 top-[calc(100%+6px)] z-50 w-[min(100vw-2rem,22rem)] border-border/70 shadow-elevated">
-                <CardContent className="flex max-h-96 flex-col p-0 bg-white">
-                  <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Notifications
-                      {notificationCount > 0 && (
-                        <span className="ml-1.5 normal-case text-primary">
-                          ({notificationCount} unread)
-                        </span>
-                      )}
-                    </p>
-                    {notificationCount > 0 && (
-                      <button
-                        type="button"
-                        className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-50"
-                        disabled={markingAllRead}
-                        onClick={() => void handleMarkAllRead()}
-                      >
-                        {markingAllRead ? "Marking…" : "Mark all read"}
-                      </button>
-                    )}
-                  </div>
-                  <div className="max-h-80 overflow-y-auto p-3">
-                    {notificationsLoading ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      </div>
-                    ) : notifications.length === 0 ? (
-                      <p className="py-4 text-center text-sm text-muted-foreground">
-                        No notifications yet.
-                      </p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {notifications.map((n) => {
-                          const isUnread = !n.readAt;
-                          return (
-                            <li key={n.id}>
-                              <button
-                                type="button"
-                                className={cn(
-                                  "w-full rounded-lg border p-2.5 text-left text-sm transition-smooth hover:bg-[hsl(var(--accent))]",
-                                  isUnread
-                                    ? "border-primary/25 bg-primary/5"
-                                    : "border-border/60 opacity-80",
-                                )}
-                                onClick={() => handleNotificationClick(n)}
-                              >
-                                <div className="flex items-start gap-2">
-                                  {isUnread && (
-                                    <span
-                                      className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary"
-                                      aria-hidden
-                                    />
-                                  )}
-                                  <div className={cn("min-w-0 flex-1", !isUnread && "pl-4")}>
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="font-medium text-foreground">{n.title}</p>
-                                      <span className="shrink-0 text-[10px] text-muted-foreground">
-                                        {formatDoctorHubRelativeTime(n.createdAt)}
-                                      </span>
-                                    </div>
-                                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                                      {n.body}
-                                    </p>
-                                    {getDoctorNotificationTarget(n) && (
-                                      <p className="mt-1 text-[10px] font-medium text-primary">
-                                        Open related page
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+              variant="doctor"
+            />
+            <NotificationCenterDropdown
+              open={inbox.open}
+              unreadCount={inbox.unreadCount}
+              notifications={inbox.notifications}
+              loading={inbox.loading}
+              markingAllRead={inbox.markingAllRead}
+              onMarkAllRead={() => void inbox.handleMarkAllRead()}
+              onNotificationClick={onDoctorNotificationClick}
+              getTargetLabel={(n) =>
+                getDoctorNotificationTarget(n) ? "Open related page" : null
+              }
+              variant="doctor"
+            />
           </div>
+
+          <Link
+            to={ROUTES.doctorMessages}
+            className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-smooth hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            aria-label="Messages"
+            onClick={() => {
+              inbox.setOpen(false);
+              setProfileMenuOpen(false);
+            }}
+          >
+            <MessageCircle className="h-5 w-5" />
+          </Link>
 
           <div ref={profileMenuRef} className="relative">
             <button
@@ -382,7 +252,7 @@ export function DoctorHubHeader() {
               aria-label="Doctor account menu"
               onClick={() => {
                 setProfileMenuOpen((open) => !open);
-                setNotificationsOpen(false);
+                inbox.setOpen(false);
               }}
             >
               <Avatar className="h-8 w-8 shrink-0">
@@ -409,7 +279,7 @@ export function DoctorHubHeader() {
                 role="menu"
                 aria-label="Account"
               >
-                <CardContent className="p-1 bg-white">
+                <CardContent className="p-1 bg-card">
                   <Link
                     to={ROUTES.doctorProfile}
                     role="menuitem"
@@ -418,6 +288,15 @@ export function DoctorHubHeader() {
                   >
                     <User className="h-4 w-4 text-primary/80" aria-hidden />
                     My Profile
+                  </Link>
+                  <Link
+                    to={ROUTES.doctorSettings}
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-smooth hover:bg-[hsl(var(--accent))]"
+                    onClick={() => setProfileMenuOpen(false)}
+                  >
+                    <Settings className="h-4 w-4 text-primary/80" aria-hidden />
+                    Settings
                   </Link>
                   <button
                     type="button"

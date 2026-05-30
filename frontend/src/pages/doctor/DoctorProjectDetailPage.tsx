@@ -1,24 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { Download, ExternalLink, FileText, Loader2, MessageSquare } from "lucide-react";
 import {
+  getGraduationProjectAbstractFile,
   getGraduationProjectById,
   getGraduationProjectMembers,
+  resolveProjectTypeLabel,
+  type GradProject,
+  type GradProjectAbstractFile,
   type GraduationProjectMembersResponse,
 } from "@/api/gradProjectApi";
-import {
-  resignDoctorSupervision,
-  parseApiErrorMessage,
-} from "@/api/doctorDashboardApi";
-import {
-  createProjectMilestone,
-  deleteProjectMilestone,
-  getProjectMilestones,
-  updateProjectMilestoneStatus,
-  type ProjectMilestone,
-} from "@/api/projectMilestonesApi";
+import { resignDoctorSupervision, parseApiErrorMessage } from "@/api/doctorDashboardApi";
 import { DoctorHubPageHeader } from "@/components/doctor/hub/DoctorHubPageHeader";
-import { ROUTES } from "@/routes/paths";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ROUTES, doctorProjectChatPath } from "@/routes/paths";
 import { initialsFromName } from "@/lib/doctorHubMappers";
 import { toast } from "@/hooks/use-toast";
 
@@ -26,32 +22,23 @@ export default function DoctorProjectDetailPage() {
   const { projectId: idParam } = useParams<{ projectId: string }>();
   const projectId = Number(idParam);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState<string | null>(null);
-  const [skills, setSkills] = useState<string[]>([]);
+  const [project, setProject] = useState<GradProject | null>(null);
   const [members, setMembers] = useState<GraduationProjectMembersResponse | null>(null);
-  const [milestones, setMilestones] = useState<ProjectMilestone[]>([]);
-  const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
-  const [newMilestoneDescription, setNewMilestoneDescription] = useState("");
-  const [newMilestoneDueDate, setNewMilestoneDueDate] = useState("");
-  const [milestoneBusyId, setMilestoneBusyId] = useState<number | null>(null);
-  const [creatingMilestone, setCreatingMilestone] = useState(false);
+  const [abstractFile, setAbstractFile] = useState<GradProjectAbstractFile | null>(null);
   const [resigning, setResigning] = useState(false);
 
   const load = useCallback(async () => {
     if (!Number.isFinite(projectId)) return;
     setLoading(true);
     try {
-      const [project, team] = await Promise.all([
+      const [projectData, team, file] = await Promise.all([
         getGraduationProjectById(projectId),
         getGraduationProjectMembers(projectId),
+        getGraduationProjectAbstractFile(projectId),
       ]);
-      setName(project.name ?? "");
-      setDescription(project.abstract ?? null);
-      setSkills(project.requiredSkills ?? []);
+      setProject(projectData);
       setMembers(team);
-      const rows = await getProjectMilestones(projectId);
-      setMilestones(rows);
+      setAbstractFile(file);
     } catch (err) {
       toast({
         variant: "destructive",
@@ -85,69 +72,6 @@ export default function DoctorProjectDetailPage() {
     }
   };
 
-  const handleCreateMilestone = async () => {
-    const title = newMilestoneTitle.trim();
-    if (!title) return;
-
-    setCreatingMilestone(true);
-    try {
-      const created = await createProjectMilestone(projectId, {
-        title,
-        description: newMilestoneDescription.trim() || undefined,
-        dueDate: newMilestoneDueDate || undefined,
-      });
-      setMilestones((prev) => [created, ...prev]);
-      setNewMilestoneTitle("");
-      setNewMilestoneDescription("");
-      setNewMilestoneDueDate("");
-      toast({ title: "Milestone added" });
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Could not create milestone",
-        description: parseApiErrorMessage(err),
-      });
-    } finally {
-      setCreatingMilestone(false);
-    }
-  };
-
-  const handleUpdateMilestoneStatus = async (
-    milestoneId: number,
-    status: ProjectMilestone["status"],
-  ) => {
-    setMilestoneBusyId(milestoneId);
-    try {
-      const updated = await updateProjectMilestoneStatus(projectId, milestoneId, status);
-      setMilestones((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Could not update milestone",
-        description: parseApiErrorMessage(err),
-      });
-    } finally {
-      setMilestoneBusyId(null);
-    }
-  };
-
-  const handleDeleteMilestone = async (milestoneId: number) => {
-    setMilestoneBusyId(milestoneId);
-    try {
-      await deleteProjectMilestone(projectId, milestoneId);
-      setMilestones((prev) => prev.filter((m) => m.id !== milestoneId));
-      toast({ title: "Milestone deleted" });
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Could not delete milestone",
-        description: parseApiErrorMessage(err),
-      });
-    } finally {
-      setMilestoneBusyId(null);
-    }
-  };
-
   if (loading) {
     return (
       <main className="flex-1 flex items-center justify-center min-h-[40vh]">
@@ -156,133 +80,190 @@ export default function DoctorProjectDetailPage() {
     );
   }
 
+  if (!project) {
+    return (
+      <main className="flex-1 bg-gradient-mesh">
+        <div className="px-5 lg:px-8 py-5 max-w-3xl mx-auto">
+          <DoctorHubPageHeader title="Project not found" backTo={ROUTES.doctorProjects} backLabel="Projects" />
+        </div>
+      </main>
+    );
+  }
+
+  const description = project.abstract?.trim() || project.description?.trim() || null;
+  const technologies = project.technologies ?? [];
+  const skills = project.requiredSkills ?? [];
+
   return (
     <main className="flex-1 bg-gradient-mesh">
       <div className="px-5 lg:px-8 py-5 max-w-3xl mx-auto space-y-6">
-        <DoctorHubPageHeader title={name} backTo={ROUTES.doctorProjects} backLabel="Projects" />
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-card space-y-4">
-          {description && (
-            <p className="text-sm text-foreground/90">{description}</p>
-          )}
-          {skills.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {skills.map((s) => (
-                <span
-                  key={s}
-                  className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium border border-border"
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
-          )}
-          {members && (
-            <div id="team">
-              <h2 className="font-semibold text-foreground mb-2">
-                Team ({members.currentMembers}/{members.totalCapacity})
-              </h2>
-              <ul className="space-y-2">
-                {members.members.map((m) => (
-                  <li
-                    key={m.studentId}
-                    className="flex items-center gap-3 rounded-lg border border-border p-3"
-                  >
-                    <div className="h-9 w-9 rounded-full bg-secondary grid place-items-center text-xs font-bold">
-                      {initialsFromName(m.name)}
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{m.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {m.role} · {m.major}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div id="milestones" className="space-y-3 border-t border-border pt-4">
-            <h2 className="font-semibold text-foreground">Milestones ({milestones.length})</h2>
+        <DoctorHubPageHeader
+          title={project.name}
+          description={
+            project.projectTypeLabel ??
+            (project.projectType
+              ? `${resolveProjectTypeLabel(project)} graduation project`
+              : undefined)
+          }
+          backTo={ROUTES.doctorProjects}
+          backLabel="Active Projects"
+        />
 
-            <div className="grid grid-cols-1 gap-2 rounded-xl border border-border p-3">
-              <input
-                value={newMilestoneTitle}
-                onChange={(event) => setNewMilestoneTitle(event.target.value)}
-                placeholder="Milestone title"
-                className="h-10 rounded-lg border border-border px-3 text-sm"
-              />
-              <textarea
-                value={newMilestoneDescription}
-                onChange={(event) => setNewMilestoneDescription(event.target.value)}
-                placeholder="Description (optional)"
-                className="min-h-[72px] rounded-lg border border-border px-3 py-2 text-sm"
-              />
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={newMilestoneDueDate}
-                  onChange={(event) => setNewMilestoneDueDate(event.target.value)}
-                  className="h-10 rounded-lg border border-border px-3 text-sm"
-                />
-                <button
-                  type="button"
-                  disabled={creatingMilestone || !newMilestoneTitle.trim()}
-                  className="inline-flex h-10 items-center gap-1 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                  onClick={() => void handleCreateMilestone()}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add
-                </button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" className="h-9" asChild>
+            <Link to={doctorProjectChatPath(projectId)}>
+              <MessageSquare className="mr-1.5 h-4 w-4" />
+              Team Chat
+            </Link>
+          </Button>
+        </div>
+
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3 h-10">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="team">Team</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="mt-0">
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-5">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Description
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                  {description ?? "No description provided."}
+                </p>
               </div>
-            </div>
 
-            {milestones.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No milestones added yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {milestones.map((milestone) => (
-                  <li key={milestone.id} className="rounded-lg border border-border p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="font-medium text-foreground">{milestone.title}</p>
-                        {milestone.description ? (
-                          <p className="mt-0.5 text-sm text-muted-foreground">{milestone.description}</p>
-                        ) : null}
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Due: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : "Not set"}
+              {technologies.length > 0 ? (
+                <div>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Technologies
+                  </h2>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {technologies.map((tech) => (
+                      <span
+                        key={tech}
+                        className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium border border-border"
+                      >
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {skills.length > 0 ? (
+                <div>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Required skills
+                  </h2>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {skills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="rounded-md border border-border/70 bg-background px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {project.supervisor ? (
+                <div>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Supervisor
+                  </h2>
+                  <p className="mt-2 font-medium text-foreground">{project.supervisor.name}</p>
+                  {project.supervisor.specialization ? (
+                    <p className="text-sm text-muted-foreground">{project.supervisor.specialization}</p>
+                  ) : null}
+                  {project.supervisor.department ? (
+                    <p className="text-sm text-muted-foreground">{project.supervisor.department}</p>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          </TabsContent>
+
+          <TabsContent value="files" className="mt-0">
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Uploaded documents
+              </h2>
+              {abstractFile ? (
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-border p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent">
+                    <FileText className="h-5 w-5 text-primary" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground truncate">{abstractFile.fileName}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Uploaded{" "}
+                      {new Date(abstractFile.uploadedAt).toLocaleDateString(undefined, {
+                        dateStyle: "medium",
+                      })}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" className="shrink-0" asChild>
+                    <a href={abstractFile.downloadUrl} target="_blank" rel="noopener noreferrer">
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      Download
+                      <ExternalLink className="ml-1 h-3 w-3 opacity-60" />
+                    </a>
+                  </Button>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No project documents uploaded yet. Students can attach an abstract file when creating
+                  the project.
+                </p>
+              )}
+            </section>
+          </TabsContent>
+
+          <TabsContent value="team" className="mt-0">
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Team members
+                {members ? ` (${members.currentMembers}/${members.totalCapacity})` : ""}
+              </h2>
+              {members && members.members.length > 0 ? (
+                <ul className="space-y-2">
+                  {members.members.map((member) => (
+                    <li
+                      key={member.studentId}
+                      className="flex items-center gap-3 rounded-lg border border-border p-3"
+                    >
+                      <div className="h-9 w-9 rounded-full bg-secondary grid place-items-center text-xs font-bold">
+                        {initialsFromName(member.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{member.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {member.role} · {member.major}
                         </p>
+                        {member.email ? (
+                          <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                        ) : null}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={milestone.status}
-                          disabled={milestoneBusyId === milestone.id}
-                          onChange={(event) =>
-                            void handleUpdateMilestoneStatus(
-                              milestone.id,
-                              event.target.value as ProjectMilestone["status"],
-                            )
-                          }
-                          className="h-8 rounded-md border border-border px-2 text-xs"
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
-                        </select>
-                        <button
-                          type="button"
-                          disabled={milestoneBusyId === milestone.id}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-danger/30 text-danger disabled:opacity-50"
-                          onClick={() => void handleDeleteMilestone(milestone.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No team members listed.</p>
+              )}
+            </section>
+          </TabsContent>
+        </Tabs>
+
+        <div className="rounded-2xl border border-danger/20 bg-card p-4 shadow-card">
+          <p className="text-sm text-muted-foreground mb-3">
+            End your supervision role for this project. The team will need to request a new supervisor.
+          </p>
           <button
             type="button"
             disabled={resigning}

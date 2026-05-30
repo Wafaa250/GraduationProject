@@ -9,7 +9,7 @@ export function TeamsPanel({ bundle, bundleLoading }: CourseWorkspacePanelProps)
     return (
       <div className="grid gap-4 md:grid-cols-2">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="h-36 animate-pulse rounded-2xl border border-border/60 bg-white shadow-card" />
+          <div key={index} className="h-36 animate-pulse rounded-2xl border border-border/60 bg-card shadow-card" />
         ))}
       </div>
     );
@@ -32,7 +32,7 @@ export function TeamsPanel({ bundle, bundleLoading }: CourseWorkspacePanelProps)
       {teams.map(({ courseProjectId, courseProjectTitle, team }) => (
         <article
           key={team.teamId}
-          className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-white p-5 shadow-card"
+          className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-card"
         >
           <div className="flex items-start gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">

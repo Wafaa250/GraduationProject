@@ -6,7 +6,7 @@ export function CollaborationPanel({ bundle, bundleLoading }: CourseWorkspacePan
     return (
       <div className="space-y-2">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="h-16 animate-pulse rounded-xl border border-border/60 bg-white shadow-card" />
+          <div key={index} className="h-16 animate-pulse rounded-xl border border-border/60 bg-card shadow-card" />
         ))}
       </div>
     );
@@ -26,7 +26,7 @@ export function CollaborationPanel({ bundle, bundleLoading }: CourseWorkspacePan
       <CourseWorkspaceEmptyState
         icon={MessageSquare}
         title="No recent collaboration activity"
-        description="Course and supervision updates appear in the notification bell when students submit milestones, join teams, or update projects."
+        description="Course and supervision updates appear in the notification bell when students join teams or update projects."
       />
     );
   }
@@ -36,7 +36,7 @@ export function CollaborationPanel({ bundle, bundleLoading }: CourseWorkspacePan
       <p className="text-sm text-muted-foreground">
         Recent updates from course and supervised project activity.
       </p>
-      <ul className="divide-y divide-border rounded-2xl border border-border/60 bg-white shadow-card">
+      <ul className="divide-y divide-border rounded-2xl border border-border/60 bg-card shadow-card">
         {notifications.slice(0, 12).map((item) => (
           <li key={item.id} className="flex gap-3 px-4 py-3.5">
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">

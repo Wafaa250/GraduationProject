@@ -5,6 +5,13 @@ export type DoctorCourse = {
   name: string;
   code: string;
   semester: string | null;
+  academicYear?: string | null;
+  description?: string | null;
+  allowCourseProjects?: boolean;
+  allowTeamFormation?: boolean;
+  allowAiTeamSuggestions?: boolean;
+  allowStudentCollaboration?: boolean;
+  defaultTeamFormationStrategy?: "doctor" | "student";
   createdAt: string;
   doctorId: number;
   doctorName: string;
@@ -115,6 +122,19 @@ export type CourseWorkspaceResponse = {
   teams: CourseWorkspaceTeam[];
 };
 
+export type CreateCoursePayload = {
+  name: string;
+  code: string;
+  semester: string;
+  academicYear: string;
+  description?: string;
+  allowCourseProjects: boolean;
+  allowTeamFormation: boolean;
+  allowAiTeamSuggestions: boolean;
+  allowStudentCollaboration: boolean;
+  defaultTeamFormationStrategy: "doctor" | "student";
+};
+
 export type CreateCourseSectionPayload = {
   name: string;
   days: string[];
@@ -155,6 +175,23 @@ export type ImportSectionStudentsResult = {
 export async function getDoctorCourses(): Promise<DoctorCourse[]> {
   const { data } = await api.get<DoctorCourse[]>("/courses/my");
   return Array.isArray(data) ? data : [];
+}
+
+/** POST /api/courses */
+export async function createCourse(payload: CreateCoursePayload): Promise<DoctorCourse> {
+  const { data } = await api.post<DoctorCourse>("/courses", {
+    name: payload.name.trim(),
+    code: payload.code.trim(),
+    semester: payload.semester.trim(),
+    academicYear: payload.academicYear.trim(),
+    description: payload.description?.trim() || undefined,
+    allowCourseProjects: payload.allowCourseProjects,
+    allowTeamFormation: payload.allowTeamFormation,
+    allowAiTeamSuggestions: payload.allowAiTeamSuggestions,
+    allowStudentCollaboration: payload.allowStudentCollaboration,
+    defaultTeamFormationStrategy: payload.defaultTeamFormationStrategy,
+  });
+  return data;
 }
 
 export async function getDoctorCourseById(courseId: number): Promise<DoctorCourse> {

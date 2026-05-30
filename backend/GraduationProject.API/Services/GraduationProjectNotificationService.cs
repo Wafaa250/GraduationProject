@@ -19,6 +19,7 @@ namespace GraduationProject.API.Services
         public const string CourseCategory = "course";
         public const string OrganizationEventCategory = "organization_event";
         public const string OrganizationRecruitmentCategory = "organization_recruitment";
+        public const string AiCategory = "ai";
 
         private readonly ApplicationDbContext _db;
         private readonly IHubContext<NotificationsHub> _hubContext;
@@ -485,19 +486,32 @@ namespace GraduationProject.API.Services
             DateTime createdAt,
             CancellationToken ct = default)
         {
-            var title = $"New message from {senderName}";
+            var courseTeamId = await _db.Conversations
+                .AsNoTracking()
+                .Where(c => c.Id == conversationId)
+                .Select(c => c.CourseTeamId)
+                .FirstOrDefaultAsync(ct);
+
+            var isTeamChat = courseTeamId.HasValue;
+            var title = isTeamChat
+                ? $"New team message from {senderName}"
+                : $"New message from {senderName}";
             var body = string.IsNullOrWhiteSpace(previewText) ? "You received a new message." : previewText;
+            var eventType = isTeamChat ? "team_conversation_message" : "direct_message";
             var recipients = recipientUserIds.Where(id => id != senderUserId).Distinct().ToList();
             foreach (var recipientId in recipients)
             {
+                var dedupKey = isTeamChat
+                    ? $"chat:team-conv:{conversationId}:{messageId}:{recipientId}"
+                    : $"chat:direct:{conversationId}:{messageId}:{recipientId}";
                 await TryAddGenericAsync(
                     recipientId,
                     ChatCategory,
-                    "direct_message",
+                    eventType,
                     conversationId,
                     title,
                     body,
-                    $"chat:direct:{conversationId}:{messageId}:{recipientId}",
+                    dedupKey,
                     ct);
 
                 await _hubContext.Clients.User(recipientId.ToString()).SendAsync(
@@ -707,12 +721,52 @@ namespace GraduationProject.API.Services
             IEnumerable<int> assignedUserIds,
             CancellationToken ct = default)
         {
+            var userIds = assignedUserIds.Where(id => id > 0).Distinct().ToList();
             await AddManyByCategoryAsync(
-                assignedUserIds.Where(id => id > 0).Distinct(),
+                userIds,
                 CourseCategory,
                 "course_teams_generated",
                 courseProjectId,
                 "Your team has been assigned",
+                $"Teams were generated for \"{projectTitle}\".",
+                ct);
+
+            await NotifyStudentsAiTeamGenerationCompletedAsync(courseProjectId, projectTitle, userIds, ct);
+        }
+
+        public async Task NotifyAiRecommendationsGeneratedAsync(
+            int userId,
+            int? projectId,
+            string projectTitle,
+            string context,
+            CancellationToken ct = default)
+        {
+            if (userId <= 0) return;
+
+            var label = string.IsNullOrWhiteSpace(projectTitle) ? "your project" : $"\"{projectTitle}\"";
+            await TryAddGenericAsync(
+                userId,
+                AiCategory,
+                "ai_recommendations_generated",
+                projectId,
+                "AI recommendations ready",
+                $"Teammate recommendations are ready for {label}.",
+                $"ai:recommendations:{context}:{projectId}:{userId}:{DateTime.UtcNow:yyyyMMddHH}",
+                ct);
+        }
+
+        public async Task NotifyStudentsAiTeamGenerationCompletedAsync(
+            int courseProjectId,
+            string projectTitle,
+            IEnumerable<int> studentUserIds,
+            CancellationToken ct = default)
+        {
+            await AddManyByCategoryAsync(
+                studentUserIds.Where(id => id > 0).Distinct(),
+                AiCategory,
+                "ai_team_generation_completed",
+                courseProjectId,
+                "AI team generation completed",
                 $"Teams were generated for \"{projectTitle}\".",
                 ct);
         }
@@ -846,6 +900,156 @@ namespace GraduationProject.API.Services
                 courseId,
                 "Added to section",
                 $"You were added to section \"{sectionName}\" in course \"{courseName}\".",
+                ct);
+
+            var doctorUserId = await _db.Courses
+                .AsNoTracking()
+                .Where(c => c.Id == courseId)
+                .Join(_db.DoctorProfiles.AsNoTracking(), c => c.DoctorId, d => d.Id, (_, d) => (int?)d.UserId)
+                .FirstOrDefaultAsync(ct);
+
+            if (doctorUserId.HasValue)
+            {
+                await NotifyDoctorStudentsJoinedCourseAsync(
+                    doctorUserId.Value,
+                    courseId,
+                    courseName,
+                    userIds.Count,
+                    ct);
+            }
+        }
+
+        public async Task NotifyCourseTeammateInvitationReceivedAsync(
+            int receiverUserId,
+            int projectId,
+            string projectTitle,
+            string senderName,
+            string dedupKey,
+            CancellationToken ct = default)
+        {
+            await TryAddGenericAsync(
+                receiverUserId,
+                CourseCategory,
+                "course_teammate_invitation_pending",
+                projectId,
+                "New team invitation",
+                $"{senderName} invited you to join a team for \"{projectTitle}\".",
+                dedupKey,
+                ct);
+        }
+
+        public async Task NotifyCourseTeammateInvitationAcceptedAsync(
+            int senderUserId,
+            int projectId,
+            string projectTitle,
+            string accepterName,
+            CancellationToken ct = default)
+        {
+            await TryAddGenericAsync(
+                senderUserId,
+                CourseCategory,
+                "course_teammate_invitation_accepted",
+                projectId,
+                "Invitation accepted",
+                $"{accepterName} accepted your invitation for \"{projectTitle}\".",
+                $"course:invite-accepted:{projectId}:{senderUserId}:{DateTime.UtcNow.Ticks}",
+                ct);
+        }
+
+        public async Task NotifyCourseTeammateInvitationRejectedAsync(
+            int senderUserId,
+            int projectId,
+            string projectTitle,
+            string rejecterName,
+            CancellationToken ct = default)
+        {
+            await TryAddGenericAsync(
+                senderUserId,
+                CourseCategory,
+                "course_teammate_invitation_rejected",
+                projectId,
+                "Invitation rejected",
+                $"{rejecterName} declined your invitation for \"{projectTitle}\".",
+                $"course:invite-rejected:{projectId}:{senderUserId}:{DateTime.UtcNow.Ticks}",
+                ct);
+        }
+
+        public async Task NotifyDoctorCourseTeamsGenerationCompletedAsync(
+            int doctorUserId,
+            int courseProjectId,
+            string projectTitle,
+            int teamCount,
+            CancellationToken ct = default)
+        {
+            await TryAddGenericAsync(
+                doctorUserId,
+                AiCategory,
+                "ai_team_generation_completed",
+                courseProjectId,
+                "AI team generation finished",
+                $"Generated {teamCount} team{(teamCount == 1 ? "" : "s")} for \"{projectTitle}\".",
+                $"ai:teams-generated:{courseProjectId}:{doctorUserId}",
+                ct);
+
+            await TryAddGenericAsync(
+                doctorUserId,
+                CourseCategory,
+                "course_team_formation_completed",
+                courseProjectId,
+                "Team formation completed",
+                $"Team formation is complete for \"{projectTitle}\" ({teamCount} teams).",
+                $"course:formation-done:{courseProjectId}:{doctorUserId}",
+                ct);
+        }
+
+        public async Task NotifyDoctorStudentsJoinedCourseAsync(
+            int doctorUserId,
+            int courseId,
+            string courseName,
+            int studentCount,
+            CancellationToken ct = default)
+        {
+            if (studentCount <= 0) return;
+
+            await TryAddGenericAsync(
+                doctorUserId,
+                CourseCategory,
+                "course_student_joined",
+                courseId,
+                "Students joined course",
+                $"{studentCount} student{(studentCount == 1 ? "" : "s")} joined \"{courseName}\".",
+                $"course:students-joined:{courseId}:{DateTime.UtcNow:yyyyMMddHHmmss}:{doctorUserId}",
+                ct);
+        }
+
+        public async Task NotifyCourseTeamReachedCapacityAsync(
+            int courseProjectId,
+            string projectTitle,
+            int teamIndex,
+            IEnumerable<int> teamMemberUserIds,
+            int doctorUserId,
+            CancellationToken ct = default)
+        {
+            var teamLabel = $"Team {teamIndex + 1}";
+            var members = teamMemberUserIds.Where(id => id > 0).Distinct().ToList();
+
+            await AddManyByCategoryAsync(
+                members,
+                CourseCategory,
+                "course_team_completed",
+                courseProjectId,
+                "Team is complete",
+                $"Your team for \"{projectTitle}\" ({teamLabel}) reached the required size.",
+                ct);
+
+            await TryAddGenericAsync(
+                doctorUserId,
+                CourseCategory,
+                "course_team_completed_doctor",
+                courseProjectId,
+                "Team reached full size",
+                $"{teamLabel} for \"{projectTitle}\" is now full.",
+                $"course:team-full:{courseProjectId}:{teamIndex}:{doctorUserId}",
                 ct);
         }
 
@@ -1309,6 +1513,7 @@ namespace GraduationProject.API.Services
                     notification.EventType,
                     notification.Category,
                     notification.ProjectId,
+                    notification.DedupKey,
                     notification.CreatedAt,
                     notification.ReadAt,
                 }, ct);

@@ -25,6 +25,18 @@ export type StudentMeResponse = {
   tools?: string[];
   generalSkills?: string[];
   majorSkills?: string[];
+  notificationPreferences?: NotificationPreferences;
+  aiProjectInterests?: string[];
+  graduationProjectTrack?: "general" | "engineering" | "computer-engineering";
+  graduationProjectCourses?: string[];
+};
+
+export type NotificationPreferences = {
+  teamInvitations: boolean;
+  newMessages: boolean;
+  supervisorUpdates: boolean;
+  projectUpdates: boolean;
+  courseAnnouncements: boolean;
 };
 
 export type DoctorMeResponse = {
@@ -45,16 +57,36 @@ export type DoctorMeResponse = {
     specialization: string;
     university: string;
     academicRank: string | null;
+    phoneNumber: string | null;
     yearsOfExperience: number | null;
     linkedin: string | null;
     officeHours: string | null;
-    office: string | null;
-    phone: string | null;
     bio: string | null;
     profilePictureBase64: string | null;
     technicalSkills: string[];
     researchSkills: string[];
+    supervisionCapacity?: number;
+    availableForSupervision?: boolean;
+    researchInterests?: string[];
+    preferredProjectAreas?: string[];
+    notificationPreferences?: DoctorNotificationPreferences;
+    supervisionPreferences?: DoctorSupervisionPreferences;
   };
+  graduationProjectTrack?: "general" | "engineering" | "computer-engineering";
+  graduationProjectCourses?: string[];
+};
+
+export type DoctorNotificationPreferences = {
+  newMessages: boolean;
+  supervisionRequests: boolean;
+  projectRequests: boolean;
+  courseProjectUpdates: boolean;
+  teamFormationUpdates: boolean;
+};
+
+export type DoctorSupervisionPreferences = {
+  supervisionCapacity: number;
+  availableForSupervision: boolean;
 };
 
 export async function getMe(): Promise<StudentMeResponse> {

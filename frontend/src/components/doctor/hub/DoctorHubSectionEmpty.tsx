@@ -15,7 +15,7 @@ export function DoctorHubSectionEmpty({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-dashed border-border/80 bg-white/70 px-6 py-10 flex items-center justify-center text-center shadow-card",
+        "rounded-2xl border border-dashed border-doctor-accent/20 bg-doctor-accent-soft/40 px-6 py-10 flex items-center justify-center text-center shadow-card",
         minHeight,
         className,
       )}

@@ -27,16 +27,11 @@ export function SectionWorkspaceTabs(props: SectionWorkspacePanelProps) {
                 aria-selected={isActive}
                 onClick={() => setActive(tab.id)}
                 className={cn(
-                  "relative -mb-px px-4 py-2.5 text-sm transition-colors",
-                  isActive
-                    ? "font-medium text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                  "doctor-tab-underline -mb-px",
+                  isActive && "doctor-tab-underline--active",
                 )}
               >
                 {tab.label}
-                {isActive ? (
-                  <span className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-primary" />
-                ) : null}
               </button>
             );
           })}
