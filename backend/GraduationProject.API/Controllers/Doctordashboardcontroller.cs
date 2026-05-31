@@ -123,6 +123,47 @@ namespace GraduationProject.API.Controllers
         }
 
         // =====================================================================
+        // GET /api/doctors/me/requests-summary
+        //
+        // Status counts for the Doctor Supervision Requests page stat cards.
+        // =====================================================================
+        [HttpGet("requests-summary")]
+        public async Task<IActionResult> GetRequestsSummary()
+        {
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can access this endpoint." });
+
+            var doctor = await GetCurrentDoctorProfileAsync();
+            if (doctor == null)
+            {
+                return Ok(new
+                {
+                    pendingCount = 0,
+                    acceptedCount = 0,
+                    rejectedCount = 0,
+                    totalCount = 0
+                });
+            }
+
+            var pendingCount = await _db.SupervisorRequests
+                .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "pending");
+
+            var acceptedCount = await _db.SupervisorRequests
+                .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "accepted");
+
+            var rejectedCount = await _db.SupervisorRequests
+                .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "rejected");
+
+            return Ok(new
+            {
+                pendingCount,
+                acceptedCount,
+                rejectedCount,
+                totalCount = pendingCount + acceptedCount + rejectedCount
+            });
+        }
+
+        // =====================================================================
         // GET /api/doctors/me/supervised-projects
         //
         // Returns all projects where the logged-in doctor is the current supervisor.

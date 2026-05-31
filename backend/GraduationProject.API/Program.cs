@@ -62,6 +62,7 @@ builder.Services.AddSignalR();
 // SERVICES
 // ===========================
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICompanyTalentMatchService, CompanyTalentMatchService>();
 builder.Services.AddScoped<ICompanyRequestService, CompanyRequestService>();
 builder.Services.AddScoped<ICompanyRequestInvitationService, CompanyRequestInvitationService>();
@@ -110,7 +111,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins(
                 "http://localhost:3000",
-                "http://localhost:5173",SmtpEmailService.cs
+                "http://localhost:5173",
                 "http://localhost:8081",
                 "http://192.168.1.107:8081",
                 // Expo (web) default dev server — mobile app in browser calls API from this origin

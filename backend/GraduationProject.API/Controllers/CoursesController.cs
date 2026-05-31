@@ -375,6 +375,117 @@ namespace GraduationProject.API.Controllers
             return Ok(allEnrollments.Select(MapEnrollmentToDto));
         }
 
+        /// <summary>
+        /// Aggregated data for the doctor course administration workspace.
+        /// </summary>
+        [HttpGet("{courseId:int}/workspace")]
+        [Authorize(Roles = "doctor")]
+        public async Task<IActionResult> GetCourseWorkspace(int courseId)
+        {
+            var doctorId = await GetCurrentDoctorIdAsync();
+            if (doctorId == null)
+                return Unauthorized(new { message = "Doctor profile not found." });
+
+            var course = await _courseRepo.GetByIdAsync(courseId);
+            if (course == null || course.DoctorId != doctorId.Value)
+                return NotFound(new { message = "Course not found." });
+
+            var doctorNames = await _courseRepo.GetDoctorNamesByIdsAsync(new List<int> { course.DoctorId });
+            var doctorName = doctorNames.GetValueOrDefault(course.DoctorId, string.Empty);
+
+            var sections = (await _sectionRepo.GetByCourseIdAsync(courseId)).ToList();
+            var enrollments = (await _sectionRepo.GetAllEnrollmentsByCourseIdAsync(courseId)).ToList();
+            var enrolledStudentIds = enrollments.Select(e => e.StudentProfileId).Distinct().ToList();
+
+            var courseProjects = (await _projectRepo.GetByCourseIdAsync(courseId)).ToList();
+            var teamCountByProject = new Dictionary<int, int>();
+            foreach (var cp in courseProjects)
+            {
+                var count = (await _teamRepo.GetTeamsByProjectAsync(cp.Id)).Count();
+                teamCountByProject[cp.Id] = count;
+            }
+
+            var sectionDtos = sections.Select(section =>
+            {
+                var sectionStudentCount = enrollments.Count(e => e.CourseSectionId == section.Id);
+                var sectionProjectIds = courseProjects
+                    .Where(p => p.ApplyToAllSections || p.Sections.Any(s => s.CourseSectionId == section.Id))
+                    .Select(p => p.Id)
+                    .ToList();
+                return new CourseSectionWorkspaceDto
+                {
+                    Id = section.Id,
+                    CourseId = section.CourseId,
+                    Name = section.Name,
+                    Days = ParseSectionDays(section.Days),
+                    TimeFrom = section.TimeFrom,
+                    TimeTo = section.TimeTo,
+                    Capacity = section.Capacity,
+                    CreatedAt = section.CreatedAt,
+                    StudentCount = sectionStudentCount,
+                    CourseProjectCount = sectionProjectIds.Count,
+                };
+            }).ToList();
+
+            var projectDtos = courseProjects.Select(p =>
+            {
+                var dto = MapProjectToDto(p);
+                return new CourseProjectWorkspaceDto
+                {
+                    Id = dto.Id,
+                    CourseId = dto.CourseId,
+                    Title = dto.Title,
+                    Description = dto.Description,
+                    TeamSize = dto.TeamSize,
+                    ApplyToAllSections = dto.ApplyToAllSections,
+                    AllowCrossSectionTeams = dto.AllowCrossSectionTeams,
+                    AiMode = dto.AiMode,
+                    CreatedAt = dto.CreatedAt,
+                    Sections = dto.Sections,
+                    TeamCount = teamCountByProject.GetValueOrDefault(p.Id),
+                };
+            }).ToList();
+
+            var teams = new List<CourseWorkspaceTeamDto>();
+            foreach (var cp in courseProjects)
+            {
+                var cpTeams = (await _teamRepo.GetTeamsByProjectAsync(cp.Id)).ToList();
+                foreach (var team in cpTeams)
+                {
+                    teams.Add(new CourseWorkspaceTeamDto
+                    {
+                        CourseProjectId = cp.Id,
+                        CourseProjectTitle = cp.Title,
+                        TeamId = team.Id,
+                        TeamIndex = team.TeamIndex,
+                        MemberCount = team.Members.Count,
+                        Members = team.Members.Select(m => new CourseWorkspaceTeamMemberDto
+                        {
+                            StudentId = m.StudentProfileId,
+                            UserId = m.UserId,
+                            Name = m.Student?.User?.Name ?? string.Empty,
+                            UniversityId = m.Student?.StudentId,
+                        }).ToList(),
+                    });
+                }
+            }
+
+            return Ok(new CourseWorkspaceResponseDto
+            {
+                Course = MapCourseToDto(course, doctorName),
+                Stats = new CourseWorkspaceStatsDto
+                {
+                    Sections = sections.Count,
+                    Students = enrolledStudentIds.Count,
+                    CourseProjectCount = courseProjects.Count,
+                },
+                Sections = sectionDtos,
+                Students = enrollments.Select(MapEnrollmentToDto).ToList(),
+                CourseProjects = projectDtos,
+                Teams = teams,
+            });
+        }
+
         [HttpGet("{courseId:int}/projects")]
         [Authorize(Roles = "doctor,student")]
         public async Task<IActionResult> GetCourseProjects(int courseId)
@@ -1677,21 +1788,23 @@ namespace GraduationProject.API.Controllers
 
         private static CourseSectionResponseDto MapSectionToDto(CourseSection s)
         {
-            List<string> days;
-            try { days = JsonSerializer.Deserialize<List<string>>(s.Days) ?? new(); }
-            catch { days = new(); }
-
             return new CourseSectionResponseDto
             {
                 Id = s.Id,
                 CourseId = s.CourseId,
                 Name = s.Name,
-                Days = days,
+                Days = ParseSectionDays(s.Days),
                 TimeFrom = s.TimeFrom,
                 TimeTo = s.TimeTo,
                 Capacity = s.Capacity,
                 CreatedAt = s.CreatedAt,
             };
+        }
+
+        private static List<string> ParseSectionDays(string daysJson)
+        {
+            try { return JsonSerializer.Deserialize<List<string>>(daysJson) ?? new(); }
+            catch { return new(); }
         }
 
         private static CourseProjectResponseDto MapProjectToDto(CourseProject p)

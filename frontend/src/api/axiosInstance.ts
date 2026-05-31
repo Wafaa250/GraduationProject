@@ -1,8 +1,19 @@
 import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { setMustChangePassword } from "@/lib/authSession";
 
+/** Ensures requests hit the ASP.NET API (/api/...) not the Vite dev server. */
+function resolveApiBaseUrl(): string {
+  const raw = import.meta.env.VITE_API_BASE_URL;
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  const base = trimmed !== "" ? trimmed : "http://localhost:5262";
+  const withoutTrailingSlash = base.replace(/\/+$/, "");
+  return withoutTrailingSlash.endsWith("/api")
+    ? withoutTrailingSlash
+    : `${withoutTrailingSlash}/api`;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5262/api",
+  baseURL: resolveApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
 });
 
