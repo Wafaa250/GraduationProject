@@ -27,7 +27,7 @@ export function CompanyCollaborationsPage() {
         <h2 className="text-sm font-medium text-muted-foreground">Active & pending</h2>
         <div className={cn("grid md:grid-cols-2", cwLayout.gridDense)}>
           {active.map((c) => (
-            <Card key={c.id} className="cw-card-elevated">
+            <Card key={c.id} className="cw-card-elevated cw-candidate-card">
               <CardContent className={cwLayout.cardPadding}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">

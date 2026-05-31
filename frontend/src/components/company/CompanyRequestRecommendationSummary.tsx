@@ -11,7 +11,7 @@ import { collaborationFormatLabel } from "@/constants/companyRequestCatalog";
 
 type Props = {
   request: CompanyProjectRequestDetail;
-  variant?: "individual" | "team";
+  variant?: "individual" | "team" | "detail";
 };
 
 export function CompanyRequestRecommendationSummary({ request, variant = "individual" }: Props) {
@@ -21,20 +21,28 @@ export function CompanyRequestRecommendationSummary({ request, variant = "indivi
   const roleSubtitle = getRequestRoleSubtitle(request);
   const formatLabel = collaborationFormatLabel(request.collaborationType) || "—";
   const isTeam = variant === "team";
+  const isDetail = variant === "detail";
 
-  const description = isTeam
-    ? "AI-built teams ranked for role coverage, team chemistry, and alignment with your project goals."
-    : "AI-ranked students based on your roles, skills, technologies, and project goals.";
+  const description = isDetail
+    ? request.description?.trim() || "No description provided."
+    : isTeam
+      ? "AI-built teams ranked for role coverage, team chemistry, and alignment with your project goals."
+      : "AI-ranked students based on your roles, skills, technologies, and project goals.";
+
+  const bannerClass = isDetail ? "cw-detail-summary" : "cw-rec-summary-banner";
+  const iconClass = isDetail ? "cw-detail-summary-icon" : "cw-rec-summary-icon";
+  const chipClass = isDetail ? "cw-detail-chip" : "cw-rec-chip";
+  const eyebrow = isDetail ? "Project request" : "Request summary";
 
   return (
-    <div className="cw-rec-summary-banner rounded-2xl p-5 md:p-6 mb-6">
+    <div className={`${bannerClass} rounded-2xl p-5 md:p-6 mb-6`}>
       <div className="flex gap-3 items-start">
-        <div className="cw-rec-summary-icon shrink-0">
+        <div className={`${iconClass} shrink-0`}>
           <Sparkles className="h-5 w-5" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-wider font-semibold opacity-90">
-            Request summary
+            {eyebrow}
           </p>
           <h2 className="text-xl md:text-2xl font-semibold mt-1.5 tracking-tight leading-snug">
             {projectTitle}
@@ -45,22 +53,22 @@ export function CompanyRequestRecommendationSummary({ request, variant = "indivi
           <p className="text-sm mt-3 opacity-90 leading-relaxed max-w-3xl">{description}</p>
           <div className="flex flex-wrap gap-2 mt-4">
             {request.category && (
-              <Badge className="cw-rec-chip rounded-md border-0 text-xs font-normal">
+              <Badge className={`${chipClass} rounded-md border-0 text-xs font-normal`}>
                 {request.category}
               </Badge>
             )}
-            {isTeam && roles.length > 0 ? (
-              <Badge className="cw-rec-chip rounded-md border-0 text-xs font-normal">
-                {roles.length} roles
+            {(isTeam || isDetail) && roles.length > 0 ? (
+              <Badge className={`${chipClass} rounded-md border-0 text-xs font-normal`}>
+                {roles.length} role{roles.length === 1 ? "" : "s"}
               </Badge>
             ) : null}
             {formatLabel !== "—" && (
-              <Badge className="cw-rec-chip rounded-md border-0 text-xs font-normal">
+              <Badge className={`${chipClass} rounded-md border-0 text-xs font-normal`}>
                 {formatLabel}
               </Badge>
             )}
-            {(isTeam ? skills.slice(0, 4) : skills).map((skill) => (
-              <Badge key={skill} className="cw-rec-chip rounded-md border-0 text-xs font-normal">
+            {(isTeam || isDetail ? skills.slice(0, 4) : skills).map((skill) => (
+              <Badge key={skill} className={`${chipClass} rounded-md border-0 text-xs font-normal`}>
                 {skill}
               </Badge>
             ))}

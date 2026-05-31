@@ -58,7 +58,7 @@ export function CompanyDiscoverPage() {
         <TabsContent value="students">
           <div className={cn("grid md:grid-cols-2 lg:grid-cols-3", cwLayout.gridDense)}>
             {filteredStudents.map((s) => (
-              <Card key={s.id} className="cw-card-elevated">
+              <Card key={s.id} className="cw-card-elevated cw-candidate-card">
                 <CardContent className={cwLayout.cardPadding}>
                   <div className="flex gap-3">
                     <CompatibilityRing value={s.compatibility} size={44} />
@@ -69,12 +69,16 @@ export function CompanyDiscoverPage() {
                   </div>
                   <div className="flex flex-wrap gap-1 mt-3">
                     {s.skills.slice(0, 3).map((k) => (
-                      <Badge key={k} variant="secondary" className="text-[10px]">
+                      <Badge key={k} className="cw-candidate-skill-badge text-[10px] rounded-md">
                         {k}
                       </Badge>
                     ))}
                   </div>
-                  <Button asChild size="sm" variant="outline" className="w-full mt-3 rounded-lg">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="w-full mt-3 rounded-xl cw-btn-gradient border-0 shadow-sm"
+                  >
                     <Link to={COMPANY_ROUTES.messages}>
                       <MessageSquare className="h-3.5 w-3.5 mr-1" /> Message
                     </Link>
@@ -88,14 +92,18 @@ export function CompanyDiscoverPage() {
         <TabsContent value="teams">
           <div className={cn("grid md:grid-cols-2", cwLayout.gridDense)}>
             {filteredTeams.map((t) => (
-              <Card key={t.id} className="cw-card-elevated">
+              <Card key={t.id} className="cw-card-elevated cw-candidate-card">
                 <CardContent className={cwLayout.cardPadding}>
                   <div className="flex justify-between">
                     <div className="font-medium">{t.name}</div>
                     <CompatibilityRing value={t.compatibility} size={40} />
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{t.description}</p>
-                  <Button asChild size="sm" variant="outline" className="mt-3 rounded-lg">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="mt-3 rounded-xl cw-btn-gradient border-0 shadow-sm"
+                  >
                     <Link to={COMPANY_ROUTES.messages}>Message</Link>
                   </Button>
                 </CardContent>

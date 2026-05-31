@@ -521,8 +521,7 @@ export function CompanyNewRequestPage() {
                             {role.skills.map((s) => (
                               <Badge
                                 key={s}
-                                variant="outline"
-                                className="text-[10px] rounded-md font-normal"
+                                className="cw-request-skill-badge rounded-md text-[10px]"
                               >
                                 {s}
                               </Badge>

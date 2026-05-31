@@ -10,6 +10,7 @@ import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { cwLayout } from "@/lib/companyLayout";
 import { CompanyRequestReviewStat } from "@/components/company/CompanyRequestReviewStat";
 import { CompanyRequestAnalyzeCta } from "@/components/company/CompanyRequestAnalyzeCta";
+import { CompanyRequestRecommendationSummary } from "@/components/company/CompanyRequestRecommendationSummary";
 import { CompanyRequestActionsMenu } from "@/components/company/CompanyRequestActionsMenu";
 import { ConfirmDialog } from "@/components/company/ConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,6 @@ import {
   formatRequestDuration,
   getRequestLifecycleStatus,
   isRequestViewOnly,
-  requestLifecycleStatusBadgeClass,
   requestLifecycleStatusLabel,
   requestTypeLabel,
 } from "@/lib/companyRequestDisplay";
@@ -155,31 +155,46 @@ export function CompanyRequestDetailPage() {
       )}
 
       {!loading && request && (
-        <Card className="cw-card-elevated">
-          <CardContent className={cwLayout.cardPaddingLg}>
-            <div className="space-y-6">
-              <div className="cw-request-review-hero">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                    Summary
-                  </p>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "rounded-md text-xs font-normal capitalize",
-                      requestLifecycleStatusBadgeClass(lifecycleStatus),
-                    )}
-                  >
-                    {requestLifecycleStatusLabel(lifecycleStatus)}
-                  </Badge>
-                </div>
-                <h3 className="text-xl md:text-2xl font-semibold mt-2 tracking-tight">
-                  {request.title}
-                </h3>
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-2xl">
-                  {request.description.trim() || "No description provided."}
+        <>
+          {(lifecycleStatus === "paused" || lifecycleStatus === "closed") && (
+            <div
+              className={cn(
+                "cw-status-banner mb-6",
+                lifecycleStatus === "paused"
+                  ? "cw-status-banner--paused"
+                  : "cw-status-banner--closed",
+              )}
+            >
+              <div>
+                <p className="text-sm font-medium">
+                  {lifecycleStatus === "paused" ? "Request Paused" : "This request has been closed."}
                 </p>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-5">
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {lifecycleStatus === "paused"
+                    ? "This request is view-only. Reactivate it to run AI matching, save candidates, or edit the request."
+                    : "Recommendations remain visible for reference. Saving new candidates or teams is disabled."}
+                </p>
+              </div>
+              {lifecycleStatus === "paused" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-xl shrink-0 cw-btn-gradient border-0 shadow-sm"
+                  disabled={statusLoading}
+                  onClick={() => setLifecycleStatus("Active", "Request reactivated")}
+                >
+                  {statusLoading ? "Reactivating…" : "Reactivate Request"}
+                </Button>
+              )}
+            </div>
+          )}
+
+          <CompanyRequestRecommendationSummary request={request} variant="detail" />
+
+          <Card className="cw-card-elevated">
+            <CardContent className={cwLayout.cardPaddingLg}>
+              <div className="space-y-6">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <CompanyRequestReviewStat
                     label="Type"
                     value={requestTypeLabel(request.requestType)}
@@ -199,8 +214,11 @@ export function CompanyRequestDetailPage() {
                       value={String(request.roles.filter((r) => r.roleName).length)}
                     />
                   )}
+                  <CompanyRequestReviewStat
+                    label="Status"
+                    value={requestLifecycleStatusLabel(lifecycleStatus)}
+                  />
                 </div>
-              </div>
 
               <div className="cw-request-review-section">
                 <p className="cw-request-review-section-title">Requirements</p>
@@ -276,6 +294,7 @@ export function CompanyRequestDetailPage() {
             </div>
           </CardContent>
         </Card>
+        </>
       )}
 
       <ConfirmDialog

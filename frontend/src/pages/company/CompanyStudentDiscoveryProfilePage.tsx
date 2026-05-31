@@ -74,8 +74,7 @@ function SkillGroup({ label, items }: { label: string; items: string[] }) {
         {items.map((item) => (
           <Badge
             key={`${label}-${item}`}
-            variant="secondary"
-            className="rounded-md text-xs font-normal bg-primary/8 text-foreground border-0"
+            className="cw-candidate-skill-badge rounded-md text-xs font-normal"
           >
             {item}
           </Badge>
@@ -237,7 +236,7 @@ export function CompanyStudentDiscoveryProfilePage() {
       {/* Header hero — Lovable structure */}
       <Card className="cw-card-elevated overflow-hidden mb-6 border-primary/20">
         <div className="h-24 cw-hero-bg relative opacity-95">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/10" />
+          <div className="absolute inset-0 cw-hero-overlay" />
         </div>
         <CardContent className="p-6 pt-0">
           <div className="flex flex-col md:flex-row md:items-end gap-5 -mt-12">
@@ -425,7 +424,7 @@ export function CompanyStudentDiscoveryProfilePage() {
                         {project.technologies.map((tech) => (
                           <span
                             key={tech}
-                            className="text-[11px] px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground"
+                            className="text-[11px] px-2 py-0.5 rounded-md cw-candidate-skill-badge border-0"
                           >
                             {tech}
                           </span>

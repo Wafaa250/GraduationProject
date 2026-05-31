@@ -11,10 +11,10 @@ import { COMPANY_ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
 
 const ROLE_CHIP_CLASSES = [
-  "bg-primary/15 text-primary hover:bg-primary/15",
-  "bg-violet-500/10 text-violet-700 dark:text-violet-300 hover:bg-violet-500/10",
-  "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10",
-  "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/10",
+  "cw-role-chip-0",
+  "cw-role-chip-1",
+  "cw-role-chip-2",
+  "cw-role-chip-3",
 ] as const;
 
 type Props = {
@@ -70,7 +70,7 @@ export function CompanyTeamRecommendationCard({
         : "Balanced role coverage";
 
   return (
-    <Card className="cw-card-elevated h-full transition-shadow hover:shadow-md border border-border/50">
+    <Card className="cw-card-elevated cw-candidate-card h-full">
       <CardContent className="p-5 flex flex-col h-full">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -123,10 +123,7 @@ export function CompanyTeamRecommendationCard({
         </div>
 
         <div className="mt-3">
-          <Badge
-            variant="outline"
-            className="rounded-md text-[10px] font-medium border-emerald-200/80 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300"
-          >
+          <Badge variant="outline" className="cw-signal-badge rounded-md text-[10px] font-medium">
             ✓ {teamSignalLabel}
           </Badge>
         </div>

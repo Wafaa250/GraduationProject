@@ -50,7 +50,7 @@ function InfoRow({
         </div>
       </div>
       {href ? (
-        <Button asChild size="sm" variant="outline" className="rounded-lg shrink-0 h-8">
+        <Button asChild size="sm" variant="outline" className="rounded-xl shrink-0 h-8">
           <a href={href} target="_blank" rel="noopener noreferrer">
             Open <ExternalLink className="h-3 w-3 ml-1" />
           </a>
@@ -69,7 +69,7 @@ function Field({
 }) {
   return (
     <div>
-      <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5 block">
+      <Label className="cw-form-label mb-1.5 block">
         {label}
       </Label>
       {children}
@@ -249,13 +249,13 @@ export function CompanyProfilePage() {
           {/* Left — main profile */}
           <Card className="cw-card-elevated lg:col-span-2 overflow-hidden">
             <div className="h-24 cw-hero-bg relative opacity-95">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/10" />
+              <div className="absolute inset-0 cw-hero-overlay" />
             </div>
 
             <CardContent className="p-6 pt-0">
               <div className="flex flex-col md:flex-row md:items-end gap-5 -mt-10">
                 <Avatar className="h-20 w-20 rounded-2xl ring-4 ring-card shadow-lg shrink-0">
-                  <AvatarFallback className="rounded-2xl bg-gradient-to-br from-primary to-accent text-white text-xl">
+                  <AvatarFallback className="rounded-2xl cw-avatar-gradient text-xl">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -332,9 +332,7 @@ export function CompanyProfilePage() {
                 </div>
 
                 <div>
-                  <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                    Areas of interest
-                  </Label>
+                  <Label className="cw-form-label mb-1.5 block">Areas of interest</Label>
                   <div className="space-y-2.5">
                     {isOwner ? (
                       <Input
@@ -351,9 +349,8 @@ export function CompanyProfilePage() {
                         {areasOfInterest.map((tag) => (
                           <Badge
                             key={tag}
-                            variant="secondary"
                             className={cn(
-                              "rounded-md bg-primary/10 text-primary border-0",
+                              "cw-request-skill-badge rounded-md",
                               isOwner && "cursor-pointer hover:bg-primary/15",
                             )}
                             title={isOwner ? "Click to remove" : undefined}
@@ -441,7 +438,7 @@ export function CompanyProfilePage() {
                 ) : null}
               </div>
 
-              <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
+              <div className="rounded-xl cw-insight-panel px-4 py-3 text-xs text-muted-foreground leading-relaxed">
                 Discovery only — SkillSwap helps students discover companies, then they contact you
                 externally. No applications, pipelines, interviews, or recruitment workflows are
                 managed inside the platform.

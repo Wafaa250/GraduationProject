@@ -33,7 +33,7 @@ export function CompanyRequestAnalyzeCta({
         {disabled ? (
           <Button
             size="sm"
-            className="rounded-xl shrink-0 opacity-80"
+            className="rounded-xl shrink-0 bg-white/15 text-white border border-white/25 hover:bg-white/15"
             disabled
             title={disabledReason}
           >
@@ -44,7 +44,7 @@ export function CompanyRequestAnalyzeCta({
           <Button
             asChild
             size="sm"
-            className="rounded-xl cw-btn-gradient shadow-sm shrink-0 border-0 text-primary-foreground"
+            className="rounded-xl shrink-0 border-0 bg-white text-primary hover:bg-white/90 shadow-sm font-medium"
           >
             <Link to={analyzeHref}>
               <Sparkles className="h-4 w-4 mr-1" />

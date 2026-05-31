@@ -24,6 +24,7 @@ import {
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { cwLayout } from "@/lib/companyLayout";
+import { cn } from "@/lib/utils";
 
 function formatDate(iso: string): string {
   try {
@@ -64,11 +65,13 @@ function EmptyBlock({
   action?: { label: string; to: string };
 }) {
   return (
-    <div className="py-10 px-4 text-center">
-      <Icon className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
-      <p className="text-sm text-muted-foreground max-w-sm mx-auto">{message}</p>
+    <div className="cw-empty-state">
+      <div className="cw-empty-state-icon-sm mb-4">
+        <Icon className="h-6 w-6" />
+      </div>
+      <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">{message}</p>
       {action && (
-        <Button asChild variant="outline" size="sm" className="mt-4 rounded-lg">
+        <Button asChild variant="outline" size="sm" className="mt-6 rounded-xl">
           <Link to={action.to}>{action.label}</Link>
         </Button>
       )}
@@ -88,15 +91,17 @@ function MetricCard({
   loading: boolean;
 }) {
   return (
-    <Card className="cw-card-elevated hover:shadow-md transition-shadow">
+    <Card className="cw-card-elevated cw-metric-card">
       <CardContent className={cwLayout.cardPadding}>
         <div className="flex items-start justify-between mb-3">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <div className="cw-metric-icon">
             <Icon className="h-5 w-5" />
           </div>
         </div>
-        <div className="text-3xl font-semibold tabular-nums">{loading ? "—" : value}</div>
-        <div className="text-sm font-medium mt-0.5 text-foreground">{label}</div>
+        <div className="text-3xl font-semibold tabular-nums tracking-tight">
+          {loading ? "—" : value}
+        </div>
+        <div className="text-sm font-medium mt-0.5 text-muted-foreground">{label}</div>
       </CardContent>
     </Card>
   );
@@ -141,7 +146,7 @@ export function CompanyDashboardPage() {
         <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="max-w-2xl space-y-2">
-            <Badge className="bg-primary/10 text-primary hover:bg-primary/10 border-0">
+            <Badge className="cw-badge-ai">
               <Sparkles className="h-3 w-3 mr-1" /> AI Discovery Workspace
             </Badge>
             <h1 className="text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
@@ -170,7 +175,7 @@ export function CompanyDashboardPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={cn("grid grid-cols-2 lg:grid-cols-4", cwLayout.gridDense)}>
         <MetricCard
           label="Active Requests"
           value={dashboard?.activeRequests ?? 0}
@@ -209,11 +214,13 @@ export function CompanyDashboardPage() {
       ) : (
         <>
           {/* Row 1: Active Requests + Activity */}
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className={cn("grid lg:grid-cols-3", cwLayout.grid)}>
             <Card className="cw-card-elevated lg:col-span-2">
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <div>
-                  <CardTitle className="text-base">Active Requests</CardTitle>
+                  <CardTitle className="text-base font-semibold tracking-tight">
+                    Active Requests
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground mt-0.5">
                     Your open collaboration requests and saved shortlists.
                   </p>
@@ -236,10 +243,7 @@ export function CompanyDashboardPage() {
                 ) : (
                   <div className="space-y-3">
                     {dashboard?.activeRequestsPreview.map((request) => (
-                      <div
-                        key={request.id}
-                        className="p-4 rounded-xl border bg-gradient-to-br from-card to-muted/20 hover:border-primary/30 transition-colors"
-                      >
+                      <div key={request.id} className="cw-list-row">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -282,7 +286,7 @@ export function CompanyDashboardPage() {
                           </div>
                         </div>
                         <div className="mt-3">
-                          <Button asChild size="sm" variant="outline" className="rounded-lg">
+                          <Button asChild size="sm" variant="outline" className="rounded-xl">
                             <Link to={COMPANY_ROUTES.requestDetail(request.id)}>
                               View Request
                             </Link>
@@ -297,7 +301,7 @@ export function CompanyDashboardPage() {
 
             <Card className="cw-card-elevated">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
+                <CardTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-primary" />
                   Workspace Activity
                 </CardTitle>
@@ -328,10 +332,12 @@ export function CompanyDashboardPage() {
           </div>
 
           {/* Row 2: Saved Students + Saved Teams */}
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className={cn("grid lg:grid-cols-2", cwLayout.grid)}>
             <Card className="cw-card-elevated">
               <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-base">Recently Saved Candidates</CardTitle>
+                <CardTitle className="text-base font-semibold tracking-tight">
+                  Recently Saved Candidates
+                </CardTitle>
                 {(dashboard?.savedStudents ?? 0) > 0 && (
                   <Button asChild variant="ghost" size="sm">
                     <Link to={COMPANY_ROUTES.saved}>View all</Link>
@@ -356,9 +362,9 @@ export function CompanyDashboardPage() {
                     {dashboard.recentSavedStudents.map((student) => (
                       <div
                         key={`${student.companyRequestId}-${student.studentProfileId}`}
-                        className="flex items-center gap-3 p-3 rounded-xl border hover:border-primary/30 transition-colors"
+                        className="cw-inner-card flex items-center gap-3 p-3"
                       >
-                        <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm shrink-0">
+                        <div className="h-10 w-10 rounded-full cw-avatar-gradient flex items-center justify-center font-semibold text-sm shrink-0">
                           {student.studentName
                             .split(" ")
                             .map((p) => p[0])
@@ -379,7 +385,7 @@ export function CompanyDashboardPage() {
                         {student.matchScore != null && (
                           <CompanyMatchScoreBadge score={student.matchScore} size="sm" />
                         )}
-                        <Button asChild size="sm" variant="outline" className="rounded-lg shrink-0">
+                        <Button asChild size="sm" variant="outline" className="rounded-xl shrink-0">
                           <Link
                             to={COMPANY_ROUTES.studentDiscoveryProfile(
                               student.companyRequestId,
@@ -399,7 +405,7 @@ export function CompanyDashboardPage() {
             <Card className="cw-card-elevated relative overflow-hidden">
               <div className="absolute top-0 right-0 h-32 w-32 bg-primary/10 blur-2xl rounded-full pointer-events-none" />
               <CardHeader className="flex flex-row items-center justify-between pb-3 relative">
-                <CardTitle className="text-base flex items-center gap-2">
+                <CardTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
                   <UsersRound className="h-4 w-4 text-primary" />
                   Recently Saved Teams
                 </CardTitle>
@@ -427,7 +433,7 @@ export function CompanyDashboardPage() {
                     {dashboard.recentSavedTeams.map((team) => (
                       <div
                         key={`${team.companyRequestId}-${team.teamRecommendationId}`}
-                        className="p-4 rounded-xl border hover:border-primary/30 transition-colors"
+                        className="cw-inner-card p-4"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -443,7 +449,7 @@ export function CompanyDashboardPage() {
                             <CompanyMatchScoreBadge score={team.matchScore} size="sm" />
                           )}
                         </div>
-                        <Button asChild size="sm" variant="outline" className="rounded-lg mt-3">
+                        <Button asChild size="sm" variant="outline" className="rounded-xl mt-3">
                           <Link
                             to={COMPANY_ROUTES.teamDiscoveryProfile(
                               team.companyRequestId,

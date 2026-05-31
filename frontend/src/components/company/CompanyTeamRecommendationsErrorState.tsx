@@ -17,7 +17,7 @@ export function CompanyTeamRecommendationsErrorState({
 }: Props) {
   return (
     <Card className="cw-card-elevated cw-team-state-panel overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-amber-400/80 via-primary/70 to-violet-500/80" aria-hidden />
+      <div className="cw-accent-bar" aria-hidden />
       <CardContent className="py-14 md:py-16 px-6 md:px-10">
         <div className="max-w-xl mx-auto text-center">
           <div className="cw-team-state-icon cw-team-state-icon-warning mb-6 mx-auto">
@@ -30,7 +30,7 @@ export function CompanyTeamRecommendationsErrorState({
             Our AI orchestration layer was unable to finish building team compositions for this request.
             Your request details are still saved — try the steps below before continuing backend tuning.
           </p>
-          <div className="mt-8 rounded-xl border bg-secondary/30 text-left p-4 md:p-5 space-y-3 max-w-md mx-auto">
+          <div className="mt-8 cw-insight-panel text-left p-4 md:p-5 space-y-3 max-w-md mx-auto">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
               <AlertCircle className="h-3.5 w-3.5" />
               Recommended next steps

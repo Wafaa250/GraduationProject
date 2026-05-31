@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
 import { CompanyRequestRecommendationSummary } from "@/components/company/CompanyRequestRecommendationSummary";
 import { CompanyCandidateCard } from "@/components/company/CompanyCandidateCard";
 import { CompanyTeamRecommendationCard } from "@/components/company/CompanyTeamRecommendationCard";
@@ -324,7 +325,7 @@ export function CompanyRequestRecommendationsPage() {
       {!loading && !pageError && request && !(error && isIndividualRequest) && (
         <>
           {isPaused && (
-            <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="cw-status-banner cw-status-banner--paused mb-6">
               <div>
                 <p className="text-sm font-medium">Request Paused</p>
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -335,7 +336,7 @@ export function CompanyRequestRecommendationsPage() {
               <Button
                 type="button"
                 size="sm"
-                className="rounded-xl shrink-0"
+                className="rounded-xl shrink-0 cw-btn-gradient border-0 shadow-sm"
                 disabled={reactivating}
                 onClick={() => void handleReactivate()}
               >
@@ -345,12 +346,14 @@ export function CompanyRequestRecommendationsPage() {
           )}
 
           {isClosed && (
-            <div className="mb-4 rounded-xl border border-muted-foreground/20 bg-muted/40 px-4 py-3">
-              <p className="text-sm font-medium">This request has been closed.</p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Recommendations remain visible for reference. Saving new candidates or teams is
-                disabled.
-              </p>
+            <div className="cw-status-banner cw-status-banner--closed mb-6">
+              <div>
+                <p className="text-sm font-medium">This request has been closed.</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Recommendations remain visible for reference. Saving new candidates or teams is
+                  disabled.
+                </p>
+              </div>
             </div>
           )}
 
@@ -360,15 +363,15 @@ export function CompanyRequestRecommendationsPage() {
           />
 
           {isIndividualRequest && (
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <Users className="h-4 w-4 shrink-0" />
+            <div className="cw-page-meta mb-4">
+              <p className="flex items-center gap-2">
+                <Users className="h-4 w-4 shrink-0 text-primary" />
                 <span>
                   <span className="font-medium text-foreground">{candidates.length}</span>{" "}
                   AI-ranked {candidates.length === 1 ? "student" : "students"}
                 </span>
               </p>
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <p className="text-xs flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
                 Contact students outside SkillSwap after reviewing profiles
               </p>
@@ -384,7 +387,7 @@ export function CompanyRequestRecommendationsPage() {
           )}
 
           {isIndividualRequest && candidates.length > 0 ? (
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className={cwLayout.cardGrid}>
               {candidates.map((candidate) => (
                 <CompanyCandidateCard
                   key={candidate.id}
@@ -411,7 +414,7 @@ export function CompanyRequestRecommendationsPage() {
               onRegenerate={() => void regenerateTeams()}
             />
           ) : isTeamRequest && teamRecommendations.length > 0 ? (
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className={cwLayout.cardGrid}>
               {teamRecommendations.map((team) => (
                 <CompanyTeamRecommendationCard
                   key={team.teamId}

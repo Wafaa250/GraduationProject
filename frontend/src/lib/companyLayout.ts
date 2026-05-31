@@ -19,6 +19,10 @@ export const cwLayout = {
   cardPaddingLg: "p-6 md:p-8",
   /** Loading, error, and empty state vertical padding */
   statePadding: "py-16 px-6",
+  /** Card grid — matches AI Recommendations */
+  cardGrid: "grid md:grid-cols-2 xl:grid-cols-3 gap-4",
+  /** Inner card grid (saved recommendations, etc.) */
+  innerCardGrid: "grid sm:grid-cols-2 gap-4",
   /** Page hero — matches Dashboard */
   hero: "relative overflow-hidden rounded-3xl border bg-card cw-hero-bg p-8 md:p-10 shadow-sm",
   /** Settings / sidebar layouts */

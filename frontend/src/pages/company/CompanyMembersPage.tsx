@@ -86,7 +86,7 @@ function SectionCard({
 }) {
   return (
     <section className="cw-card-elevated overflow-hidden transition-shadow hover:shadow-md">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-6 md:p-7 border-b border-border/60 bg-muted/20">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-6 md:p-7 cw-section-card-header">
         <div className="flex items-start gap-3.5 min-w-0">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl cw-btn-gradient shrink-0 mt-0.5">
             <Icon className="h-[18px] w-[18px] text-white" />
@@ -160,9 +160,7 @@ function MemberRow({
         <AvatarFallback
           className={cn(
             "rounded-xl text-sm font-semibold",
-            isOwner
-              ? "bg-gradient-to-br from-primary to-accent text-white"
-              : "bg-muted text-foreground",
+            isOwner ? "cw-avatar-gradient" : "bg-muted text-foreground",
           )}
         >
           {memberInitials(member.name)}
@@ -209,11 +207,11 @@ function MemberRow({
 
 function MembersEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="cw-members-empty py-12 px-4 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
-        <Users className="h-7 w-7" aria-hidden />
+    <div className="cw-empty-state py-12">
+      <div className="cw-team-state-icon mb-5 mx-auto">
+        <Users className="h-8 w-8" aria-hidden />
       </div>
-      <h3 className="text-base font-semibold tracking-tight">No members yet</h3>
+      <h3 className="text-lg font-semibold tracking-tight">No members yet</h3>
       <p className="text-sm text-muted-foreground mt-1.5 max-w-sm mx-auto leading-relaxed">
         Invite teammates to share access to project requests, recommendations, and workspace
         settings.
@@ -321,11 +319,11 @@ export function CompanyMembersPage() {
         <div className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4 sm:gap-5 min-w-0">
-            <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0 border border-primary/10">
+            <div className="hidden sm:flex cw-hero-icon-box h-12 w-12 rounded-2xl">
               <Users className="h-6 w-6" strokeWidth={1.75} />
             </div>
             <div className="min-w-0 flex-1">
-              <Badge className="bg-primary/10 text-primary hover:bg-primary/10 border-0 mb-3">
+              <Badge className="cw-badge-ai mb-3">
                 <Building2 className="h-3 w-3 mr-1.5" />
                 Company Workspace
               </Badge>
@@ -373,7 +371,7 @@ export function CompanyMembersPage() {
         >
           {credentialsEmailed && addedMemberEmail ? (
             <div className="cw-members-invite-form max-w-2xl">
-              <div className="rounded-xl border border-primary/20 bg-primary/5 px-5 py-4 space-y-3">
+              <div className="cw-invite-success-panel space-y-3">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" aria-hidden />
                   <p className="text-sm font-medium">Member added successfully.</p>
@@ -409,7 +407,7 @@ export function CompanyMembersPage() {
                     id="member-name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="rounded-lg h-11 w-full border-border/70"
+                    className="rounded-xl h-11 w-full border-border/70"
                     required
                   />
                 </InviteFormField>
@@ -419,13 +417,13 @@ export function CompanyMembersPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="rounded-lg h-11 w-full border-border/70"
+                    className="rounded-xl h-11 w-full border-border/70"
                     required
                   />
                 </InviteFormField>
                 <InviteFormField label="Role">
                   <Select value={role} onValueChange={(v) => setRole(v as "owner" | "member")}>
-                    <SelectTrigger className="rounded-lg h-11 w-full border-border/70">
+                    <SelectTrigger className="rounded-xl h-11 w-full border-border/70">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -474,7 +472,7 @@ export function CompanyMembersPage() {
             <Button
               type="button"
               variant="outline"
-              className="rounded-xl border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="rounded-xl cw-btn-outline-primary transition-colors"
               onClick={() => setShowForm(true)}
             >
               <Plus className="h-4 w-4 mr-2" />

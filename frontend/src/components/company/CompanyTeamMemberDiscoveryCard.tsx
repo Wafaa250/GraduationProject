@@ -55,7 +55,7 @@ export function CompanyTeamMemberDiscoveryCard({ member, requestId, teamId }: Pr
         </div>
 
         {explanation && (
-          <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/10 flex-1">
+          <div className="mt-4 cw-insight-panel flex-1">
             <p className="text-[11px] font-medium text-primary flex items-center gap-1">
               <Sparkles className="h-3 w-3 shrink-0" aria-hidden />
               Role fit

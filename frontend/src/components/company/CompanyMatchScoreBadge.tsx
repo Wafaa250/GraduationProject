@@ -13,7 +13,7 @@ export function CompanyMatchScoreBadge({ score, size = "md", className }: Props)
       : size === "sm"
         ? "h-9 w-9 text-[11px]"
         : "h-12 w-12 text-sm";
-  const ring = `conic-gradient(hsl(var(--primary)) ${score * 3.6}deg, hsl(var(--muted)) 0deg)`;
+  const ring = `conic-gradient(hsl(var(--cw-match-ring, 38 92% 50%)) ${score * 3.6}deg, hsl(var(--muted)) 0deg)`;
 
   return (
     <div

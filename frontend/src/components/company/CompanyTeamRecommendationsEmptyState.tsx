@@ -21,7 +21,7 @@ export function CompanyTeamRecommendationsEmptyState({
 
   return (
     <Card className="cw-card-elevated cw-team-state-panel overflow-hidden">
-      <div className="h-1 cw-team-card-accent opacity-60" aria-hidden />
+      <div className="cw-accent-bar" aria-hidden />
       <CardContent className="py-14 md:py-16 px-6 md:px-10">
         <div className="max-w-xl mx-auto text-center">
           <div className="cw-team-state-icon mb-6 mx-auto">

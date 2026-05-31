@@ -140,7 +140,7 @@ export function CompanyCandidateProfilePanel({ candidate, onClose }: Props) {
             <ProfileSection title="Tools">
               <div className="flex flex-wrap gap-1.5">
                 {candidate.tools.map((tool) => (
-                  <Badge key={tool} variant="secondary" className="rounded-md text-xs font-normal">
+                  <Badge key={tool} className="cw-candidate-skill-badge rounded-md text-xs font-normal">
                     {tool}
                   </Badge>
                 ))}
@@ -152,7 +152,7 @@ export function CompanyCandidateProfilePanel({ candidate, onClose }: Props) {
             <ProfileSection title="Project interests">
               <div className="flex flex-wrap gap-1.5">
                 {candidate.projectInterests.map((interest) => (
-                  <Badge key={interest} variant="outline" className="rounded-md text-xs font-normal">
+                  <Badge key={interest} className="cw-candidate-skill-badge rounded-md text-xs font-normal">
                     {interest}
                   </Badge>
                 ))}

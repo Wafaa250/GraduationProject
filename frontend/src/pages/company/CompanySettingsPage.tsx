@@ -105,7 +105,7 @@ function PasswordField({
           type={showToggle && show ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-11 rounded-lg border-border/70 bg-background pr-10 text-sm focus-visible:ring-primary/30"
+          className="h-11 rounded-xl border-border/70 bg-background pr-10 text-sm focus-visible:ring-primary/30"
           required
           autoComplete={autoComplete}
           minLength={minLength}
@@ -205,7 +205,7 @@ function SectionCard({
 }) {
   return (
     <section className="cw-card-elevated overflow-hidden transition-shadow hover:shadow-md">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-6 md:p-8 border-b border-border/60 bg-muted/20">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-6 md:p-8 cw-section-card-header">
         <div className="flex items-start gap-4 min-w-0">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl cw-btn-gradient shrink-0">
             <Icon className="h-5 w-5 text-white" />
@@ -246,9 +246,7 @@ function WorkspaceStatCard({
     <div
       className={cn(
         "group rounded-xl border p-5 transition-all hover:-translate-y-0.5 hover:shadow-sm",
-        accent
-          ? "border-primary/20 bg-gradient-to-br from-primary/[0.04] to-primary/[0.08]"
-          : "border-border/70 bg-card",
+        accent ? "cw-stat-accent-card" : "border-border/70 bg-card",
       )}
     >
       <div className="flex items-center justify-between gap-3">
@@ -258,9 +256,7 @@ function WorkspaceStatCard({
         <span
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-lg transition-colors shrink-0",
-            accent
-              ? "bg-primary/10 text-primary"
-              : "bg-muted text-primary group-hover:bg-primary/10",
+            accent ? "cw-stat-icon" : "bg-muted text-primary group-hover:bg-primary/10",
           )}
         >
           <Icon className="h-4 w-4" />
@@ -291,8 +287,8 @@ function NotificationToggleRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-start gap-4 px-1 py-5 rounded-lg transition-colors hover:bg-muted/40">
-      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-primary shrink-0">
+    <div className="cw-toggle-row flex items-start gap-4 px-1 py-5 rounded-lg transition-colors hover:bg-muted/40">
+      <span className="cw-toggle-icon flex h-10 w-10 items-center justify-center rounded-lg shrink-0">
         <Icon className="h-[18px] w-[18px]" />
       </span>
       <div className="flex-1 min-w-0 pt-0.5">
@@ -442,11 +438,11 @@ export function CompanySettingsPage() {
       <div className={cwLayout.hero}>
         <div className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         <div className="relative flex items-start gap-4 sm:gap-5">
-          <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0 border border-primary/10">
+          <div className="hidden sm:flex cw-hero-icon-box h-12 w-12 rounded-2xl">
             <ShieldCheck className="h-6 w-6" strokeWidth={1.75} />
           </div>
           <div className="min-w-0 flex-1">
-            <Badge className="bg-primary/10 text-primary hover:bg-primary/10 border-0 mb-3">
+            <Badge className="cw-badge-ai mb-3">
               <Building2 className="h-3 w-3 mr-1.5" />
               Company Workspace
             </Badge>
@@ -512,7 +508,7 @@ export function CompanySettingsPage() {
                   />
                 </div>
 
-                <div className="rounded-xl border border-border/70 bg-muted/40 p-4 flex items-start gap-3">
+                <div className="cw-insight-panel p-4 flex items-start gap-3">
                   <Lock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Use at least 8 characters with a mix of letters, numbers, and symbols. Your
@@ -523,7 +519,7 @@ export function CompanySettingsPage() {
                 <div className="flex justify-end pt-1">
                   <Button
                     type="submit"
-                    className="rounded-lg cw-btn-gradient border-0 h-10 px-5 text-sm font-medium"
+                    className="rounded-xl cw-btn-gradient border-0 h-10 px-5 text-sm font-medium"
                     disabled={passwordSaving}
                   >
                     {passwordSaving ? (
@@ -550,7 +546,7 @@ export function CompanySettingsPage() {
                 <Button
                   asChild
                   variant="outline"
-                  className="rounded-lg border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground transition-colors h-10"
+                  className="rounded-xl cw-btn-outline-primary transition-colors h-10"
                 >
                   <Link to={COMPANY_ROUTES.members}>
                     <Users className="h-4 w-4 mr-2" />

@@ -83,11 +83,7 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {roles.map((role) => (
-                    <Badge
-                      key={role}
-                      variant="secondary"
-                      className="rounded-md text-xs font-normal"
-                    >
+                    <Badge key={role} className="cw-request-skill-badge rounded-md text-xs font-normal">
                       {role}
                     </Badge>
                   ))}
@@ -130,8 +126,7 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
             </Button>
             <Button
               size="sm"
-              variant="outline"
-              className="rounded-xl w-full lg:w-auto"
+              className="rounded-xl w-full lg:w-auto cw-btn-gradient border-0 shadow-sm"
               asChild
             >
               <Link to={COMPANY_ROUTES.requestRecommendations(request.id)}>
@@ -232,9 +227,16 @@ export function CompanyRequestsPage() {
 
       {!loading && !error && requests.length > 0 && (
         <div className={cwLayout.section}>
-          <p className="text-sm text-muted-foreground">
-            {requests.length} request{requests.length === 1 ? "" : "s"}
-          </p>
+          <div className="cw-page-meta">
+            <p>
+              <span className="font-medium text-foreground">{requests.length}</span>{" "}
+              project request{requests.length === 1 ? "" : "s"}
+            </p>
+            <p className="text-xs flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+              Open AI recommendations from any active request
+            </p>
+          </div>
           {requests.map((r) => (
             <RequestCard key={r.id} request={r} />
           ))}

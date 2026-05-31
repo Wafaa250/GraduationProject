@@ -67,7 +67,7 @@ export function CompanyAiMatchesPage() {
         <TabsContent value="students">
           <div className={cn("grid md:grid-cols-2 xl:grid-cols-3", cwLayout.gridDense)}>
             {students.map((s) => (
-              <Card key={s.id} className="cw-card-elevated hover:shadow-lg transition-shadow">
+              <Card key={s.id} className="cw-card-elevated cw-candidate-card">
                 <CardContent className={cwLayout.cardPadding}>
                   <div className="flex gap-4">
                     <CompatibilityRing value={s.compatibility} size={52} />
@@ -76,7 +76,7 @@ export function CompanyAiMatchesPage() {
                       <div className="text-xs text-muted-foreground">
                         {s.specialization} · {s.university}
                       </div>
-                      <Badge variant="secondary" className="mt-2 text-[10px]">
+                      <Badge className="cw-candidate-skill-badge mt-2 text-[10px] rounded-md">
                         {s.availability}
                       </Badge>
                     </div>
@@ -84,12 +84,16 @@ export function CompanyAiMatchesPage() {
                   <p className="text-xs text-muted-foreground mt-3 line-clamp-2">{s.bio}</p>
                   <div className="flex flex-wrap gap-1 mt-3">
                     {s.skills.slice(0, 4).map((k) => (
-                      <Badge key={k} variant="secondary" className="text-[10px]">
+                      <Badge key={k} className="cw-candidate-skill-badge text-[10px] rounded-md">
                         {k}
                       </Badge>
                     ))}
                   </div>
-                  <Button asChild size="sm" className="w-full mt-4 rounded-lg" variant="outline">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="w-full mt-4 rounded-xl cw-btn-gradient border-0 shadow-sm"
+                  >
                     <Link to={COMPANY_ROUTES.messages}>
                       <MessageSquare className="h-3.5 w-3.5 mr-1" /> Contact
                     </Link>
@@ -103,7 +107,7 @@ export function CompanyAiMatchesPage() {
         <TabsContent value="teams">
           <div className={cn("grid md:grid-cols-2", cwLayout.gridDense)}>
             {teams.map((t) => (
-              <Card key={t.id} className="cw-card-elevated">
+              <Card key={t.id} className="cw-card-elevated cw-candidate-card">
                 <CardContent className={cwLayout.cardPadding}>
                   <div className="flex justify-between gap-3">
                     <div>
@@ -115,7 +119,11 @@ export function CompanyAiMatchesPage() {
                     <CompatibilityRing value={t.compatibility} size={48} />
                   </div>
                   <p className="text-xs text-muted-foreground mt-3">{t.description}</p>
-                  <Button asChild size="sm" className="mt-4 rounded-lg" variant="outline">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="mt-4 rounded-xl cw-btn-gradient border-0 shadow-sm"
+                  >
                     <Link to={COMPANY_ROUTES.messages}>Contact team</Link>
                   </Button>
                 </CardContent>

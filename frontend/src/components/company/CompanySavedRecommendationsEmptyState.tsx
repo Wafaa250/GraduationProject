@@ -7,7 +7,7 @@ import { COMPANY_ROUTES } from "@/routes/paths";
 export function CompanySavedRecommendationsEmptyState() {
   return (
     <Card className="cw-card-elevated overflow-hidden">
-      <div className="h-1 cw-team-card-accent opacity-60" aria-hidden />
+      <div className="cw-accent-bar" aria-hidden />
       <CardContent className="py-16 md:py-20 px-6 md:px-10">
         <div className="max-w-lg mx-auto text-center">
           <div className="cw-team-state-icon mb-6 mx-auto">
@@ -25,7 +25,7 @@ export function CompanySavedRecommendationsEmptyState() {
           </p>
           <ul className="mt-8 text-left text-sm text-muted-foreground space-y-3 max-w-md mx-auto">
             <li className="flex gap-3">
-              <span className="h-6 w-6 rounded-lg bg-primary/10 text-primary text-xs font-semibold grid place-items-center shrink-0">
+              <span className="cw-step-number">
                 1
               </span>
               <span>
@@ -34,7 +34,7 @@ export function CompanySavedRecommendationsEmptyState() {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="h-6 w-6 rounded-lg bg-primary/10 text-primary text-xs font-semibold grid place-items-center shrink-0">
+              <span className="cw-step-number">
                 2
               </span>
               <span>
@@ -43,7 +43,7 @@ export function CompanySavedRecommendationsEmptyState() {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="h-6 w-6 rounded-lg bg-primary/10 text-primary text-xs font-semibold grid place-items-center shrink-0">
+              <span className="cw-step-number">
                 3
               </span>
               <span>

@@ -201,7 +201,7 @@ export function CompanySavedRecommendationsPage() {
         subtitle="Your workspace shortlist — students and teams saved from AI recommendations, organised by project request. Add notes before contacting externally."
         actions={
           totalCount > 0 ? (
-            <Badge variant="secondary" className="rounded-lg px-3 py-1 text-xs font-medium">
+            <Badge className="cw-status-primary rounded-lg px-3 py-1 text-xs font-medium">
               {totalCount} saved across {groups.length} request{groups.length === 1 ? "" : "s"}
             </Badge>
           ) : null
@@ -220,7 +220,7 @@ export function CompanySavedRecommendationsPage() {
         <div className={cwLayout.section}>
           {groups.map((group) => (
             <Card key={group.companyRequestId} className="cw-card-elevated overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-primary/5 to-violet-500/5 border-b border-border/60 py-5 px-6">
+              <CardHeader className="cw-card-header-accent py-5 px-6">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div className="min-w-0">
                     <CardTitle className="text-lg font-semibold tracking-tight truncate">
@@ -242,19 +242,19 @@ export function CompanySavedRecommendationsPage() {
               <CardContent className={cn(cwLayout.cardPadding, cwLayout.section)}>
                 {group.teams.length > 0 ? (
                   <section>
-                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                    <div className="cw-section-label mb-3 flex items-center gap-1.5">
                       <Users className="h-3.5 w-3.5" aria-hidden />
                       Saved teams
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className={cwLayout.innerCardGrid}>
                       {group.teams.map((item) => (
                         <div
                           key={item.id}
-                          className="rounded-xl border border-border/70 bg-background/40 p-4 hover:border-primary/30 transition-colors flex flex-col h-full"
+                          className="cw-inner-card cw-candidate-card p-4 flex flex-col h-full"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex gap-3 min-w-0">
-                              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-violet-600 text-primary-foreground grid place-items-center shrink-0">
+                              <div className="h-11 w-11 rounded-xl cw-avatar-gradient grid place-items-center shrink-0">
                                 <Users className="h-5 w-5" aria-hidden />
                               </div>
                               <div className="min-w-0">
@@ -268,9 +268,11 @@ export function CompanySavedRecommendationsPage() {
                           </div>
 
                           {item.summaryReason ? (
-                            <p className="text-xs text-muted-foreground mt-3 line-clamp-2 leading-relaxed">
-                              {item.summaryReason}
-                            </p>
+                            <div className="cw-insight-panel mt-3 flex-1">
+                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                                {item.summaryReason}
+                              </p>
+                            </div>
                           ) : null}
 
                           {item.memberNames.length > 0 ? (
@@ -278,8 +280,7 @@ export function CompanySavedRecommendationsPage() {
                               {item.memberNames.slice(0, 5).map((name) => (
                                 <Badge
                                   key={name}
-                                  variant="secondary"
-                                  className="rounded-md text-[10px]"
+                                  className="cw-candidate-skill-badge rounded-md text-[10px]"
                                 >
                                   {name}
                                 </Badge>
@@ -332,15 +333,15 @@ export function CompanySavedRecommendationsPage() {
 
                 {group.students.length > 0 ? (
                   <section>
-                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                    <div className="cw-section-label mb-3 flex items-center gap-1.5">
                       <Bookmark className="h-3.5 w-3.5" aria-hidden />
                       Saved students
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className={cwLayout.innerCardGrid}>
                       {group.students.map((item) => (
                         <div
                           key={item.id}
-                          className="rounded-xl border border-border/70 bg-background/40 p-4 hover:border-primary/30 transition-colors flex flex-col h-full"
+                          className="cw-inner-card cw-candidate-card p-4 flex flex-col h-full"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex gap-3 min-w-0">
@@ -362,9 +363,11 @@ export function CompanySavedRecommendationsPage() {
                           </div>
 
                           {item.reasonSummary ? (
-                            <p className="text-xs text-muted-foreground mt-3 line-clamp-2 leading-relaxed">
-                              {item.reasonSummary}
-                            </p>
+                            <div className="cw-insight-panel mt-3 flex-1">
+                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                                {item.reasonSummary}
+                              </p>
+                            </div>
                           ) : null}
 
                           <div className="mt-3 pt-3 border-t border-border/60">

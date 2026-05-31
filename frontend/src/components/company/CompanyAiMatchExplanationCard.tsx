@@ -27,7 +27,7 @@ export function CompanyAiMatchExplanationCard({
   }
 
   return (
-    <Card className="cw-card-elevated border-primary/20 bg-gradient-to-br from-card to-primary/5">
+    <Card className="cw-card-elevated cw-match-explanation-card">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <div className="h-7 w-7 rounded-lg cw-btn-gradient grid place-items-center shrink-0">

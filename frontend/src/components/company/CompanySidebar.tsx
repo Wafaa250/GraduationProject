@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -10,11 +10,13 @@ import {
   Sparkles,
   Users,
   Bookmark,
+  LogOut,
 } from "lucide-react";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
 import { useCompanySidebarCollapsed } from "@/hooks/useCompanySidebarCollapsed";
 import { isCompanyOwner } from "@/lib/companyWorkspace";
+import { companySignOut } from "@/components/company/CompanyProfileMenu";
 
 const workspaceNav = [
   { title: "Dashboard", to: COMPANY_ROUTES.dashboard, icon: LayoutDashboard },
@@ -79,6 +81,7 @@ function SectionLabel({ collapsed, children }: { collapsed: boolean; children: s
 }
 
 export function CompanySidebar() {
+  const navigate = useNavigate();
   const { collapsed, toggle } = useCompanySidebarCollapsed();
   const showMembers = isCompanyOwner();
 
@@ -91,43 +94,32 @@ export function CompanySidebar() {
       )}
       aria-label="Company workspace navigation"
     >
-      <div
-        className={cn(
-          "border-b border-border shrink-0 transition-[padding] duration-300",
-          collapsed ? "px-2 py-3" : "px-3 py-4",
-        )}
-      >
-        <div className={cn("flex items-center gap-2", collapsed ? "flex-col" : "flex-row")}>
-          <div
-            className={cn(
-              "flex items-center gap-2 min-w-0",
-              collapsed ? "justify-center w-full" : "flex-1",
-            )}
-          >
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-accent grid place-items-center shadow-md shrink-0">
-              <Sparkles className="h-5 w-5 text-white" aria-hidden />
+      <div className="cw-shell-header cw-sidebar-header">
+        <div
+          className={cn(
+            "cw-sidebar-header-inner",
+            collapsed ? "cw-sidebar-header-inner--collapsed" : "cw-sidebar-header-inner--expanded",
+          )}
+        >
+          <div className="cw-sidebar-brand">
+            <div className="cw-sidebar-brand-mark cw-avatar-gradient shadow-md" aria-hidden>
+              <Sparkles className="h-[1.125rem] w-[1.125rem] text-white" />
             </div>
             <div
               className={cn(
-                "leading-tight min-w-0 overflow-hidden transition-[opacity,width] duration-300 ease-in-out",
-                collapsed ? "w-0 opacity-0" : "w-auto opacity-100",
+                "cw-sidebar-brand-text",
+                collapsed && "cw-sidebar-brand-text--hidden",
               )}
             >
-              <div className="font-semibold text-base truncate text-foreground">SkillSwap</div>
-              <div className="text-[11px] text-muted-foreground whitespace-nowrap">
-                AI Talent Discovery
-              </div>
+              <span className="cw-sidebar-brand-title truncate">SkillSwap</span>
+              <span className="cw-sidebar-brand-subtitle truncate">AI Talent Discovery</span>
             </div>
           </div>
 
           <button
             type="button"
             onClick={toggle}
-            className={cn(
-              "shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary",
-              "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              "h-8 w-8 grid place-items-center",
-            )}
+            className="cw-sidebar-header-toggle"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -179,6 +171,34 @@ export function CompanySidebar() {
           </div>
         </div>
       </nav>
+
+      <div
+        className={cn(
+          "cw-sidebar-footer shrink-0 border-t border-border/80 mt-auto transition-[padding] duration-300",
+          collapsed ? "px-1.5 py-2" : "px-2 py-2",
+        )}
+      >
+        <button
+          type="button"
+          title={collapsed ? "Logout" : undefined}
+          data-tooltip={collapsed ? "Logout" : undefined}
+          className={cn(
+            "cw-sidebar-link w-full",
+            collapsed && "cw-sidebar-link--collapsed",
+          )}
+          onClick={() => companySignOut(navigate)}
+        >
+          <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+          <span
+            className={cn(
+              "whitespace-nowrap overflow-hidden transition-[opacity,width,margin] duration-300 ease-in-out",
+              collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100",
+            )}
+          >
+            Logout
+          </span>
+        </button>
+      </div>
     </aside>
   );
 }
