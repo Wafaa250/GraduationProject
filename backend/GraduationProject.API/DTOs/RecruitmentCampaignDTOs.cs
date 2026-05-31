@@ -25,8 +25,6 @@ namespace GraduationProject.API.DTOs
         /// <summary>Comma-separated labels, e.g. "Canva, Photoshop, Creativity".</summary>
         [MaxLength(1000)]
         public string? RequiredSkills { get; set; }
-
-        public int DisplayOrder { get; set; }
     }
 
     public class CreateRecruitmentCampaignDto
@@ -79,7 +77,6 @@ namespace GraduationProject.API.DTOs
         public string? Description { get; set; }
         public string? Requirements { get; set; }
         public string? RequiredSkills { get; set; }
-        public int DisplayOrder { get; set; }
     }
 
     public class RecruitmentCampaignResponseDto

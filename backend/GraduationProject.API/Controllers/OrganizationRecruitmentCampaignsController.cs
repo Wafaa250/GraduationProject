@@ -240,10 +240,9 @@ namespace GraduationProject.API.Controllers
             StudentOrganizationRecruitmentCampaign campaign,
             IList<RecruitmentPositionInputDto> positions)
         {
-            var order = 0;
-            foreach (var p in positions.OrderBy(x => x.DisplayOrder).ThenBy(x => x.RoleTitle))
+            foreach (var p in positions)
             {
-                campaign.Positions.Add(MapPositionEntity(p, order++));
+                campaign.Positions.Add(MapPositionEntity(p));
             }
         }
 
@@ -260,26 +259,24 @@ namespace GraduationProject.API.Controllers
             if (toRemove.Count > 0)
                 _db.StudentOrganizationRecruitmentPositions.RemoveRange(toRemove);
 
-            var order = 0;
-            foreach (var input in positions.OrderBy(x => x.DisplayOrder).ThenBy(x => x.RoleTitle))
+            foreach (var input in positions)
             {
                 if (input.Id.HasValue)
                 {
                     var entity = existing.FirstOrDefault(e => e.Id == input.Id.Value);
                     if (entity != null)
                     {
-                        UpdatePositionEntity(entity, input, order++);
+                        UpdatePositionEntity(entity, input);
                         continue;
                     }
                 }
 
-                _db.StudentOrganizationRecruitmentPositions.Add(MapPositionEntity(input, order++, campaign.Id));
+                _db.StudentOrganizationRecruitmentPositions.Add(MapPositionEntity(input, campaign.Id));
             }
         }
 
         private static StudentOrganizationRecruitmentPosition MapPositionEntity(
             RecruitmentPositionInputDto input,
-            int displayOrder,
             int? campaignId = null)
         {
             var entity = new StudentOrganizationRecruitmentPosition
@@ -289,7 +286,6 @@ namespace GraduationProject.API.Controllers
                 Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim(),
                 Requirements = string.IsNullOrWhiteSpace(input.Requirements) ? null : input.Requirements.Trim(),
                 RequiredSkills = string.IsNullOrWhiteSpace(input.RequiredSkills) ? null : input.RequiredSkills.Trim(),
-                DisplayOrder = input.DisplayOrder != 0 ? input.DisplayOrder : displayOrder,
             };
             if (campaignId.HasValue) entity.CampaignId = campaignId.Value;
             return entity;
@@ -297,15 +293,13 @@ namespace GraduationProject.API.Controllers
 
         private static void UpdatePositionEntity(
             StudentOrganizationRecruitmentPosition entity,
-            RecruitmentPositionInputDto input,
-            int displayOrder)
+            RecruitmentPositionInputDto input)
         {
             entity.RoleTitle = input.RoleTitle.Trim();
             entity.NeededCount = input.NeededCount;
             entity.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
             entity.Requirements = string.IsNullOrWhiteSpace(input.Requirements) ? null : input.Requirements.Trim();
             entity.RequiredSkills = string.IsNullOrWhiteSpace(input.RequiredSkills) ? null : input.RequiredSkills.Trim();
-            entity.DisplayOrder = input.DisplayOrder != 0 ? input.DisplayOrder : displayOrder;
         }
 
         private IActionResult? ValidateImageFile(IFormFile? file)
@@ -346,9 +340,7 @@ namespace GraduationProject.API.Controllers
             UpdatedAt = c.UpdatedAt,
             OrganizationName = profile.AssociationName,
             OrganizationLogoUrl = profile.LogoUrl,
-            Positions = c.Positions
-                .OrderBy(p => p.DisplayOrder)
-                .ThenBy(p => p.Id)
+            Positions = LeadershipRoleSortHelper.SortPositions(c.Positions)
                 .Select(MapPositionDto)
                 .ToList(),
         };
@@ -362,7 +354,6 @@ namespace GraduationProject.API.Controllers
             Description = p.Description,
             Requirements = p.Requirements,
             RequiredSkills = p.RequiredSkills,
-            DisplayOrder = p.DisplayOrder,
         };
     }
 }

@@ -49,3 +49,28 @@ export const COMPANY_ROUTES = {
   saved: "/company/saved",
   settings: "/company/settings",
 } as const;
+
+/** Student association workspace (post-login, association role). */
+export const ASSOCIATION_ROUTES = {
+  dashboard: "/association/dashboard",
+  events: "/association/events",
+  eventCreate: "/association/events/create",
+  eventDetail: (eventId: number | string) => `/association/events/${eventId}`,
+  eventEdit: (eventId: number | string) => `/association/events/${eventId}/edit`,
+  eventRegistrationForm: (eventId: number | string) =>
+    `/association/events/${eventId}/registration-form`,
+  recruitment: "/association/recruitment",
+  recruitmentCreate: "/association/recruitment/create",
+  recruitmentDetail: (campaignId: number | string) => `/association/recruitment/${campaignId}`,
+  recruitmentEdit: (campaignId: number | string) =>
+    `/association/recruitment/${campaignId}/edit`,
+  recruitmentApplication: (
+    campaignId: number | string,
+    applicationId: number | string,
+  ) => `/association/recruitment/${campaignId}/applications/${applicationId}`,
+  recruitmentPositionForm: (campaignId: number | string, positionId: number | string) =>
+    `/association/recruitment/${campaignId}/positions/${positionId}/form`,
+  leadership: "/association/leadership",
+  profile: "/association/profile",
+  settings: "/association/settings",
+} as const;

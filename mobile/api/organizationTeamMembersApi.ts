@@ -8,7 +8,6 @@ export type OrganizationTeamMember = {
   major?: string | null;
   imageUrl?: string | null;
   linkedInUrl?: string | null;
-  displayOrder: number;
   createdAt: string;
   updatedAt?: string | null;
 };
@@ -19,7 +18,6 @@ export type CreateOrganizationTeamMemberPayload = {
   major?: string | null;
   imageUrl?: string | null;
   linkedInUrl?: string | null;
-  displayOrder: number;
 };
 
 export type UpdateOrganizationTeamMemberPayload = CreateOrganizationTeamMemberPayload;

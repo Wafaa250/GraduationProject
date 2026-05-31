@@ -27,7 +27,22 @@ import { CompanyProfilePage } from "@/pages/company/CompanyProfilePage";
 import { CompanyMembersPage } from "@/pages/company/CompanyMembersPage";
 import { CompanySavedRecommendationsPage } from "@/pages/company/CompanySavedRecommendationsPage";
 import { CompanySettingsPage } from "@/pages/company/CompanySettingsPage";
-import { COMPANY_ROUTES, ROUTES } from "@/routes/paths";
+import { ASSOCIATION_ROUTES, COMPANY_ROUTES, ROUTES } from "@/routes/paths";
+import { AssociationRoute } from "@/routes/associationRoutes";
+import AssociationDashboardPage from "@/pages/association/AssociationDashboardPage";
+import AssociationProfilePage from "@/pages/association/AssociationProfilePage";
+import OrganizationEventsListPage from "@/pages/association/events/OrganizationEventsListPage";
+import OrganizationEventCreatePage from "@/pages/association/events/OrganizationEventCreatePage";
+import OrganizationEventDetailsPage from "@/pages/association/events/OrganizationEventDetailsPage";
+import OrganizationEventEditPage from "@/pages/association/events/OrganizationEventEditPage";
+import OrganizationEventRegistrationFormPage from "@/pages/association/events/OrganizationEventRegistrationFormPage";
+import OrganizationTeamMembersPage from "@/pages/association/OrganizationTeamMembersPage";
+import OrganizationRecruitmentCampaignsListPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignsListPage";
+import OrganizationRecruitmentCampaignCreatePage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignCreatePage";
+import OrganizationRecruitmentCampaignDetailsPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignDetailsPage";
+import OrganizationRecruitmentCampaignEditPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignEditPage";
+import OrganizationRecruitmentPositionFormPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentPositionFormPage";
+import OrganizationRecruitmentApplicationDetailPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentApplicationDetailPage";
 
 export function AppRouter() {
   return (
@@ -81,6 +96,39 @@ export function AppRouter() {
 
         {/* Legacy path from earlier integration */}
         <Route path="/student/profile" element={<Navigate to={ROUTES.editProfile} replace />} />
+
+        <Route
+          element={
+            <ProtectedRoute>
+              <AssociationRoute />
+            </ProtectedRoute>
+          }
+        >
+          <Route path={ASSOCIATION_ROUTES.dashboard} element={<AssociationDashboardPage />} />
+          <Route path={ASSOCIATION_ROUTES.events} element={<OrganizationEventsListPage />} />
+          <Route path={ASSOCIATION_ROUTES.eventCreate} element={<OrganizationEventCreatePage />} />
+          <Route path="/association/events/:eventId" element={<OrganizationEventDetailsPage />} />
+          <Route path="/association/events/:eventId/edit" element={<OrganizationEventEditPage />} />
+          <Route
+            path="/association/events/:eventId/registration-form"
+            element={<OrganizationEventRegistrationFormPage />}
+          />
+          <Route path={ASSOCIATION_ROUTES.recruitment} element={<OrganizationRecruitmentCampaignsListPage />} />
+          <Route path={ASSOCIATION_ROUTES.recruitmentCreate} element={<OrganizationRecruitmentCampaignCreatePage />} />
+          <Route
+            path="/association/recruitment/:campaignId/applications/:applicationId"
+            element={<OrganizationRecruitmentApplicationDetailPage />}
+          />
+          <Route path="/association/recruitment/:campaignId" element={<OrganizationRecruitmentCampaignDetailsPage />} />
+          <Route path="/association/recruitment/:campaignId/edit" element={<OrganizationRecruitmentCampaignEditPage />} />
+          <Route
+            path="/association/recruitment/:campaignId/positions/:positionId/form"
+            element={<OrganizationRecruitmentPositionFormPage />}
+          />
+          <Route path={ASSOCIATION_ROUTES.leadership} element={<OrganizationTeamMembersPage />} />
+          <Route path={ASSOCIATION_ROUTES.profile} element={<AssociationProfilePage />} />
+          <Route path={ASSOCIATION_ROUTES.settings} element={<AssociationProfilePage />} />
+        </Route>
 
         <Route
           path={COMPANY_ROUTES.root}

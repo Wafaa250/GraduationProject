@@ -34,9 +34,6 @@ namespace GraduationProject.API.Models
         [Column("linkedin_url")]
         public string? LinkedInUrl { get; set; }
 
-        [Column("display_order")]
-        public int DisplayOrder { get; set; }
-
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

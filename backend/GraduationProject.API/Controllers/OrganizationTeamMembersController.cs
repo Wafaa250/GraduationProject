@@ -84,11 +84,9 @@ namespace GraduationProject.API.Controllers
                 .AsNoTracking()
                 .Include(m => m.StudentProfile)
                 .Where(m => m.OrganizationProfileId == profile.Id)
-                .OrderBy(m => m.DisplayOrder)
-                .ThenBy(m => m.CreatedAt)
                 .ToListAsync();
 
-            return Ok(rows.Select(MapToDto).ToList());
+            return Ok(LeadershipRoleSortHelper.SortTeamMembers(rows).Select(MapToDto).ToList());
         }
 
         // POST /api/organization/team-members
@@ -110,7 +108,6 @@ namespace GraduationProject.API.Controllers
                 Major = string.IsNullOrWhiteSpace(dto.Major) ? null : dto.Major.Trim(),
                 ImageUrl = string.IsNullOrWhiteSpace(dto.ImageUrl) ? null : dto.ImageUrl.Trim(),
                 LinkedInUrl = string.IsNullOrWhiteSpace(dto.LinkedInUrl) ? null : dto.LinkedInUrl.Trim(),
-                DisplayOrder = dto.DisplayOrder,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -144,7 +141,6 @@ namespace GraduationProject.API.Controllers
             entity.Major = string.IsNullOrWhiteSpace(dto.Major) ? null : dto.Major.Trim();
             entity.ImageUrl = string.IsNullOrWhiteSpace(dto.ImageUrl) ? null : dto.ImageUrl.Trim();
             entity.LinkedInUrl = string.IsNullOrWhiteSpace(dto.LinkedInUrl) ? null : dto.LinkedInUrl.Trim();
-            entity.DisplayOrder = dto.DisplayOrder;
             entity.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
@@ -245,7 +241,6 @@ namespace GraduationProject.API.Controllers
             Major = m.Major,
             ImageUrl = m.ImageUrl,
             LinkedInUrl = m.LinkedInUrl,
-            DisplayOrder = m.DisplayOrder,
             CreatedAt = m.CreatedAt,
             UpdatedAt = m.UpdatedAt,
             IsLinkedStudent = m.StudentProfileId.HasValue,

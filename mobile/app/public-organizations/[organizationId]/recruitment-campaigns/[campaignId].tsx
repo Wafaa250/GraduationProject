@@ -10,6 +10,7 @@ import {
   getPublicRecruitmentCampaign,
   type PublicRecruitmentCampaignDetail,
 } from "@/api/organizationRecruitmentCampaignsApi";
+import { sortByLeadershipRole } from "@/utils/leadershipRoleSort";
 import { AssociationAvatar } from "@/components/organization/AssociationAvatar";
 import { OrgScreenHeader } from "@/components/organization/OrgScreenHeader";
 import { PublicRecruitmentPositionCard } from "@/components/organization/PublicRecruitmentPositionCard";
@@ -51,7 +52,7 @@ export default function PublicRecruitmentCampaignScreen() {
   }, [load]);
 
   const cover = campaign?.coverImageUrl ? resolveApiFileUrl(campaign.coverImageUrl) : null;
-  const positions = [...(campaign?.positions ?? [])].sort((a, b) => a.displayOrder - b.displayOrder);
+  const positions = sortByLeadershipRole(campaign?.positions ?? []);
   return (
     <SafeAreaView style={styles.safe} edges={["left", "right", "bottom"]}>
       <OrgScreenHeader title="Recruitment" onBack={() => router.back()} />

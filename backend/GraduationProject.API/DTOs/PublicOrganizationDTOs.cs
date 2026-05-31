@@ -31,7 +31,6 @@ namespace GraduationProject.API.DTOs
         public string? Major { get; set; }
         public string? ImageUrl { get; set; }
         public string? LinkedInUrl { get; set; }
-        public int DisplayOrder { get; set; }
     }
 
     public class OrganizationFollowStatusDto

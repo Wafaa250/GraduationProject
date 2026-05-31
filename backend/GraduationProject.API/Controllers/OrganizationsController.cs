@@ -118,24 +118,24 @@ namespace GraduationProject.API.Controllers
                 })
                 .ToListAsync();
 
-            var leadershipTeam = await _db.StudentOrganizationTeamMembers
+            var leadershipRows = await _db.StudentOrganizationTeamMembers
                 .AsNoTracking()
                 .Include(m => m.StudentProfile)
                 .Where(m => m.OrganizationProfileId == organizationId)
-                .OrderBy(m => m.DisplayOrder)
-                .ThenBy(m => m.CreatedAt)
+                .ToListAsync();
+
+            var leadershipTeam = LeadershipRoleSortHelper.SortTeamMembers(leadershipRows)
                 .Select(m => new PublicLeadershipTeamMemberDto
                 {
                     Id = m.Id,
-                    StudentUserId = m.StudentProfile != null ? m.StudentProfile.UserId : null,
+                    StudentUserId = m.StudentProfile?.UserId,
                     FullName = m.FullName,
                     RoleTitle = m.RoleTitle,
                     Major = m.Major,
                     ImageUrl = m.ImageUrl,
                     LinkedInUrl = m.LinkedInUrl,
-                    DisplayOrder = m.DisplayOrder,
                 })
-                .ToListAsync();
+                .ToList();
 
             var generalMembers = await _db.StudentOrganizationMembers
                 .AsNoTracking()
@@ -299,9 +299,7 @@ namespace GraduationProject.API.Controllers
                 CoverImageUrl = campaign.CoverImageUrl,
                 OrganizationName = profile.AssociationName,
                 OrganizationLogoUrl = profile.LogoUrl,
-                Positions = campaign.Positions
-                    .OrderBy(p => p.DisplayOrder)
-                    .ThenBy(p => p.Id)
+                Positions = LeadershipRoleSortHelper.SortPositions(campaign.Positions)
                     .Select(p => new RecruitmentPositionResponseDto
                     {
                         Id = p.Id,
@@ -311,7 +309,6 @@ namespace GraduationProject.API.Controllers
                         Description = p.Description,
                         Requirements = p.Requirements,
                         RequiredSkills = p.RequiredSkills,
-                        DisplayOrder = p.DisplayOrder,
                     })
                     .ToList(),
                 Questions = MapPublicQuestions(campaign.Questions),

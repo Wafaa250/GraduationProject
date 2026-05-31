@@ -13,7 +13,6 @@ export type RecruitmentPosition = {
   description?: string | null;
   requirements?: string | null;
   requiredSkills?: string | null;
-  displayOrder: number;
 };
 
 export type RecruitmentPositionInput = {
@@ -23,7 +22,6 @@ export type RecruitmentPositionInput = {
   description?: string | null;
   requirements?: string | null;
   requiredSkills?: string | null;
-  displayOrder: number;
 };
 
 export type RecruitmentCampaign = {

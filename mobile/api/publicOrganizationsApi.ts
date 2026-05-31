@@ -18,7 +18,6 @@ export type PublicLeadershipTeamMember = {
   major?: string | null;
   imageUrl?: string | null;
   linkedInUrl?: string | null;
-  displayOrder: number;
 };
 
 export type PublicStudentOrganizationProfile = {
