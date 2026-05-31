@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
+import { cn } from "@/lib/utils";
 import { CompatibilityRing } from "@/components/company/CompatibilityRing";
 import { getCompanyProjectRequest } from "@/api/companyApi";
 import { students, teams } from "@/data/companyMock";
@@ -34,7 +37,7 @@ export function CompanyAiMatchesPage() {
   }, [requestId]);
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="AI Matches"
         subtitle="Students and teams ranked by SkillSwap AI for your project requests — review fit and reach out."
@@ -46,7 +49,7 @@ export function CompanyAiMatchesPage() {
       />
 
       {linkedTitle && (
-        <div className="cw-ai-panel rounded-2xl px-4 py-3 mb-6 text-sm flex flex-wrap items-center gap-2">
+        <div className="cw-ai-panel rounded-2xl px-4 py-3 text-sm flex flex-wrap items-center gap-2">
           <Sparkles className="h-4 w-4" />
           <span>
             Matches for <strong>{linkedTitle}</strong>
@@ -55,17 +58,17 @@ export function CompanyAiMatchesPage() {
         </div>
       )}
 
-      <Tabs defaultValue={defaultTab} className="space-y-6">
+      <Tabs defaultValue={defaultTab} className={cwLayout.section}>
         <TabsList className="rounded-xl">
           <TabsTrigger value="students">Student matches</TabsTrigger>
           <TabsTrigger value="teams">Team matches</TabsTrigger>
         </TabsList>
 
         <TabsContent value="students">
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className={cn("grid md:grid-cols-2 xl:grid-cols-3", cwLayout.gridDense)}>
             {students.map((s) => (
               <Card key={s.id} className="cw-card-elevated hover:shadow-lg transition-shadow">
-                <CardContent className="p-5">
+                <CardContent className={cwLayout.cardPadding}>
                   <div className="flex gap-4">
                     <CompatibilityRing value={s.compatibility} size={52} />
                     <div className="flex-1 min-w-0">
@@ -98,10 +101,10 @@ export function CompanyAiMatchesPage() {
         </TabsContent>
 
         <TabsContent value="teams">
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className={cn("grid md:grid-cols-2", cwLayout.gridDense)}>
             {teams.map((t) => (
               <Card key={t.id} className="cw-card-elevated">
-                <CardContent className="p-5">
+                <CardContent className={cwLayout.cardPadding}>
                   <div className="flex justify-between gap-3">
                     <div>
                       <div className="font-semibold">{t.name}</div>
@@ -121,6 +124,6 @@ export function CompanyAiMatchesPage() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+    </CompanyPageShell>
   );
 }

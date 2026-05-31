@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { conversations } from "@/data/companyMock";
 
 const templates = [
@@ -32,7 +33,7 @@ export function CompanyMessagesPage() {
     .slice(0, 2);
 
   return (
-    <div className="p-6 md:p-8 max-w-[1500px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Messages"
         subtitle="Collaboration conversations with students and teams."
@@ -130,6 +131,6 @@ export function CompanyMessagesPage() {
           </div>
         </div>
       </Card>
-    </div>
+    </CompanyPageShell>
   );
 }

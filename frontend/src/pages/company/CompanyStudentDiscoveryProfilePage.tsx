@@ -16,6 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
+import { cn } from "@/lib/utils";
 import { CompanyMatchScoreBadge } from "@/components/company/CompanyMatchScoreBadge";
 import { CompanyAiMatchExplanationCard } from "@/components/company/CompanyAiMatchExplanationCard";
 import { CompanyStudentContactSection } from "@/components/company/CompanyStudentContactSection";
@@ -33,7 +36,6 @@ import {
   getCompareStudentIds,
   toggleCompareStudent,
 } from "@/lib/companyDiscoveryStorage";
-import { cn } from "@/lib/utils";
 
 function initials(name: string): string {
   return name
@@ -190,20 +192,24 @@ export function CompanyStudentDiscoveryProfilePage() {
 
   if (loading) {
     return (
-      <div className="p-6 md:p-8 max-w-6xl mx-auto">
-        <p className="text-sm text-muted-foreground text-center py-24">Loading student profile…</p>
-      </div>
+      <CompanyPageShell>
+        <p className={cn(cwLayout.statePadding, "text-sm text-muted-foreground")}>
+          Loading student profile…
+        </p>
+      </CompanyPageShell>
     );
   }
 
   if (error || !profile) {
     return (
-      <div className="p-6 md:p-8 max-w-6xl mx-auto text-center">
-        <p className="text-sm text-muted-foreground">{error ?? "Profile not found."}</p>
-        <Button asChild variant="outline" className="rounded-xl mt-6">
-          <Link to={backHref}>Back to recommendations</Link>
-        </Button>
-      </div>
+      <CompanyPageShell>
+        <div className={cn(cwLayout.statePadding, "text-center")}>
+          <p className="text-sm text-muted-foreground">{error ?? "Profile not found."}</p>
+          <Button asChild variant="outline" className="rounded-xl mt-6">
+            <Link to={backHref}>Back to recommendations</Link>
+          </Button>
+        </div>
+      </CompanyPageShell>
     );
   }
 
@@ -220,7 +226,7 @@ export function CompanyStudentDiscoveryProfilePage() {
   );
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+    <CompanyPageShell>
       <Button asChild variant="ghost" size="sm" className="mb-4 -ml-3 rounded-xl">
         <Link to={backHref}>
           <ArrowLeft className="h-4 w-4 mr-1.5" />
@@ -316,7 +322,7 @@ export function CompanyStudentDiscoveryProfilePage() {
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className={cn("grid lg:grid-cols-3", cwLayout.grid)}>
         <div className="lg:col-span-2 space-y-6">
           <Card className="cw-card-elevated">
             <CardHeader>
@@ -516,6 +522,6 @@ export function CompanyStudentDiscoveryProfilePage() {
           </div>
         </div>
       </div>
-    </div>
+    </CompanyPageShell>
   );
 }

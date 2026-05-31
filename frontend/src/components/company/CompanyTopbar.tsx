@@ -25,7 +25,7 @@ export function CompanyTopbar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 border-b bg-background/80 backdrop-blur-xl flex items-center gap-3 px-4 md:px-6">
+    <header className="shrink-0 z-30 h-16 border-b bg-background/80 backdrop-blur-xl flex items-center gap-3 px-4 md:px-6">
       <div className="hidden sm:block min-w-0">
         <h1 className="text-sm font-semibold truncate">{companyName} · Workspace</h1>
         <p className="text-[11px] text-muted-foreground">AI talent discovery workspace</p>

@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { CompanyRequestRecommendationSummary } from "@/components/company/CompanyRequestRecommendationSummary";
 import { CompanyCandidateCard } from "@/components/company/CompanyCandidateCard";
 import { CompanyTeamRecommendationCard } from "@/components/company/CompanyTeamRecommendationCard";
@@ -269,7 +270,7 @@ export function CompanyRequestRecommendationsPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1500px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title={isTeamRequest ? "AI Team Recommendations" : "AI Student Recommendations"}
         subtitle={
@@ -450,7 +451,7 @@ export function CompanyRequestRecommendationsPage() {
         </>
       )}
 
-    </div>
+    </CompanyPageShell>
   );
 }
 

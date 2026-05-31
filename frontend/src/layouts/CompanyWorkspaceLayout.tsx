@@ -15,11 +15,11 @@ const mobileNav = [
 
 export function CompanyWorkspaceLayout() {
   return (
-    <div className="company-workspace min-h-screen flex w-full bg-background">
+    <div className="company-workspace cw-shell flex w-full bg-background">
       <CompanySidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="cw-shell-main flex flex-col">
         <CompanyTopbar />
-        <main className="flex-1 min-w-0 pb-16 md:pb-0">
+        <main className="cw-shell-content pb-16 md:pb-0">
           <Outlet />
         </main>
         <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur flex justify-around py-2">

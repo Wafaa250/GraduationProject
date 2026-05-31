@@ -9,37 +9,59 @@ type Props = {
 
 export function CompanyRequestStepper({ steps, current, className }: Props) {
   return (
-    <div
-      className={cn(
-        "cw-request-stepper flex items-center gap-2 mb-8 overflow-x-auto pb-2",
-        className,
-      )}
+    <nav
+      className={cn("cw-request-stepper flex items-center gap-1 overflow-x-auto", className)}
       aria-label="Request creation progress"
     >
-      {steps.map((label, i) => (
-        <div key={label} className="flex items-center gap-2 shrink-0">
-          <div
-            className={cn(
-              "cw-request-step-indicator",
-              i < current && "is-complete",
-              i === current && "is-active",
-              i > current && "is-pending",
+      {steps.map((label, i) => {
+        const isComplete = i < current;
+        const isActive = i === current;
+        const isPending = i > current;
+
+        return (
+          <div key={label} className="flex items-center shrink-0">
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-full px-1 py-0.5 transition-colors",
+                isActive && "bg-primary/8",
+              )}
+            >
+              <div
+                className={cn(
+                  "cw-request-step-indicator",
+                  isComplete && "is-complete",
+                  isActive && "is-active",
+                  isPending && "is-pending",
+                )}
+                aria-current={isActive ? "step" : undefined}
+              >
+                {isComplete ? <Check className="h-3 w-3" aria-hidden /> : i + 1}
+              </div>
+              <span
+                className={cn(
+                  "text-xs whitespace-nowrap transition-colors",
+                  isActive
+                    ? "font-medium text-foreground"
+                    : isComplete
+                      ? "text-muted-foreground hidden md:inline"
+                      : "text-muted-foreground/70 hidden lg:inline",
+                )}
+              >
+                {label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div
+                className={cn(
+                  "cw-request-step-connector mx-1",
+                  isComplete && "is-complete",
+                )}
+                aria-hidden
+              />
             )}
-            aria-current={i === current ? "step" : undefined}
-          >
-            {i < current ? <Check className="h-4 w-4" aria-hidden /> : i + 1}
           </div>
-          <span
-            className={cn(
-              "text-xs whitespace-nowrap",
-              i === current ? "font-medium text-foreground" : "text-muted-foreground",
-            )}
-          >
-            {label}
-          </span>
-          {i < steps.length - 1 && <div className="cw-request-step-connector" aria-hidden />}
-        </div>
-      ))}
-    </div>
+        );
+      })}
+    </nav>
   );
 }

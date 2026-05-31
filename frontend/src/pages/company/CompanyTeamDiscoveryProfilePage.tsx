@@ -4,6 +4,8 @@ import { ArrowLeft, Bookmark, Users, Mail } from "lucide-react";
 import toast from "react-hot-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
 import { cn } from "@/lib/utils";
 import { CompanyMatchScoreBadge } from "@/components/company/CompanyMatchScoreBadge";
 import { CompanyRequestReviewStat } from "@/components/company/CompanyRequestReviewStat";
@@ -135,27 +137,31 @@ export function CompanyTeamDiscoveryProfilePage() {
 
   if (loading) {
     return (
-      <div className="p-6 md:p-8 max-w-6xl mx-auto">
-        <p className="text-sm text-muted-foreground text-center py-24">Loading team profile…</p>
-      </div>
+      <CompanyPageShell>
+        <p className={cn(cwLayout.statePadding, "text-sm text-muted-foreground")}>
+          Loading team profile…
+        </p>
+      </CompanyPageShell>
     );
   }
 
   if (error || !team) {
     return (
-      <div className="p-6 md:p-8 max-w-6xl mx-auto text-center">
-        <p className="text-sm text-muted-foreground">{error ?? "Team not found."}</p>
-        <Button asChild variant="outline" className="rounded-xl mt-6">
-          <Link to={backHref}>Back to recommendations</Link>
-        </Button>
-      </div>
+      <CompanyPageShell>
+        <div className={cn(cwLayout.statePadding, "text-center")}>
+          <p className="text-sm text-muted-foreground">{error ?? "Team not found."}</p>
+          <Button asChild variant="outline" className="rounded-xl mt-6">
+            <Link to={backHref}>Back to recommendations</Link>
+          </Button>
+        </div>
+      </CompanyPageShell>
     );
   }
 
   const chemistry = chemistryLabel(team.compatibilityScore);
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
+    <CompanyPageShell>
       <Button asChild variant="ghost" size="sm" className="-ml-3 rounded-xl">
         <Link to={backHref}>
           <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to recommendations
@@ -255,7 +261,7 @@ export function CompanyTeamDiscoveryProfilePage() {
           <Users className="h-4 w-4 text-primary" />
           Team overview
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3", cwLayout.gridDense)}>
           {team.members.map((member) => (
             <CompanyTeamMemberDiscoveryCard
               key={`${member.companyRequestRoleId}-${member.studentProfileId}`}
@@ -273,7 +279,7 @@ export function CompanyTeamDiscoveryProfilePage() {
           <Mail className="h-4 w-4 text-primary" />
           Team contact information
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3", cwLayout.gridDense)}>
           {team.members.map((member) => (
             <CompanyTeamMemberContactCard
               key={`contact-${member.studentProfileId}`}
@@ -284,6 +290,6 @@ export function CompanyTeamDiscoveryProfilePage() {
           ))}
         </div>
       </section>
-    </div>
+    </CompanyPageShell>
   );
 }

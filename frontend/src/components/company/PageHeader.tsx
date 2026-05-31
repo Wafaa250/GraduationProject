@@ -8,7 +8,7 @@ type Props = {
 
 export function CompanyPageHeader({ title, subtitle, actions }: Props) {
   return (
-    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6">
+    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
       <div>
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">{title}</h1>
         {subtitle && (

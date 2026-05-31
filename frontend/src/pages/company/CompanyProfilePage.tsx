@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
 import {
   getCompanyProfile,
   parseApiErrorMessage,
@@ -222,7 +224,7 @@ export function CompanyProfilePage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Company Profile"
         subtitle={
@@ -243,7 +245,7 @@ export function CompanyProfilePage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid lg:grid-cols-3 gap-6 items-start">
+        <div className={cn("grid lg:grid-cols-3 items-start", cwLayout.grid)}>
           {/* Left — main profile */}
           <Card className="cw-card-elevated lg:col-span-2 overflow-hidden">
             <div className="h-24 cw-hero-bg relative opacity-95">
@@ -448,6 +450,6 @@ export function CompanyProfilePage() {
           </Card>
         </div>
       )}
-    </div>
+    </CompanyPageShell>
   );
 }

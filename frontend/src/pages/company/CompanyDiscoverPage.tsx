@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell, CompanyPageSection } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
+import { cn } from "@/lib/utils";
 import { CompatibilityRing } from "@/components/company/CompatibilityRing";
 import { students, teams } from "@/data/companyMock";
 import { COMPANY_ROUTES } from "@/routes/paths";
@@ -29,13 +32,14 @@ export function CompanyDiscoverPage() {
   );
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Discover"
         subtitle="Browse students and teams on SkillSwap — explore beyond your current request matches."
       />
 
-      <div className="relative max-w-md mb-6">
+      <CompanyPageSection>
+      <div className="relative max-w-xl">
         <Compass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           value={query}
@@ -46,16 +50,16 @@ export function CompanyDiscoverPage() {
       </div>
 
       <Tabs defaultValue="students">
-        <TabsList className="rounded-xl mb-6">
+        <TabsList className="rounded-xl">
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
         </TabsList>
 
         <TabsContent value="students">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={cn("grid md:grid-cols-2 lg:grid-cols-3", cwLayout.gridDense)}>
             {filteredStudents.map((s) => (
               <Card key={s.id} className="cw-card-elevated">
-                <CardContent className="p-4">
+                <CardContent className={cwLayout.cardPadding}>
                   <div className="flex gap-3">
                     <CompatibilityRing value={s.compatibility} size={44} />
                     <div className="min-w-0 flex-1">
@@ -82,10 +86,10 @@ export function CompanyDiscoverPage() {
         </TabsContent>
 
         <TabsContent value="teams">
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className={cn("grid md:grid-cols-2", cwLayout.gridDense)}>
             {filteredTeams.map((t) => (
               <Card key={t.id} className="cw-card-elevated">
-                <CardContent className="p-5">
+                <CardContent className={cwLayout.cardPadding}>
                   <div className="flex justify-between">
                     <div className="font-medium">{t.name}</div>
                     <CompatibilityRing value={t.compatibility} size={40} />
@@ -100,6 +104,7 @@ export function CompanyDiscoverPage() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+      </CompanyPageSection>
+    </CompanyPageShell>
   );
 }

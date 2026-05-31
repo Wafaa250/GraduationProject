@@ -22,6 +22,8 @@ import {
   requestLifecycleStatusLabel,
 } from "@/lib/companyRequestDisplay";
 import { COMPANY_ROUTES } from "@/routes/paths";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
 
 function formatDate(iso: string): string {
   try {
@@ -87,7 +89,7 @@ function MetricCard({
 }) {
   return (
     <Card className="cw-card-elevated hover:shadow-md transition-shadow">
-      <CardContent className="p-5">
+      <CardContent className={cwLayout.cardPadding}>
         <div className="flex items-start justify-between mb-3">
           <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
             <Icon className="h-5 w-5" />
@@ -133,9 +135,9 @@ export function CompanyDashboardPage() {
   const hasMoreRequests = activeRequests > previewCount;
 
   return (
-    <div className="p-6 md:p-8 max-w-[1500px] mx-auto space-y-6">
+    <CompanyPageShell>
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-3xl border bg-card cw-hero-bg p-8 md:p-10 shadow-sm">
+      <div className={cwLayout.hero}>
         <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="max-w-2xl space-y-2">
@@ -460,6 +462,6 @@ export function CompanyDashboardPage() {
           </div>
         </>
       )}
-    </div>
+    </CompanyPageShell>
   );
 }

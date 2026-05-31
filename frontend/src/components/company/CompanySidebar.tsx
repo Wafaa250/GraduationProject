@@ -85,7 +85,7 @@ export function CompanySidebar() {
   return (
     <aside
       className={cn(
-        "cw-sidebar hidden md:flex flex-col shrink-0 overflow-hidden",
+        "cw-sidebar hidden md:flex flex-col shrink-0 h-full min-h-0 overflow-hidden",
         "transition-[width] duration-300 ease-in-out",
         collapsed ? "cw-sidebar--collapsed w-[4.25rem]" : "w-64",
       )}

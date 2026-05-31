@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
 import {
   listCompanyProjectRequests,
   parseApiErrorMessage,
@@ -48,7 +50,7 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
 
   return (
     <Card className="cw-card-elevated cw-request-list-card">
-      <CardContent className="p-5 md:p-6">
+      <CardContent className={cwLayout.cardPaddingLg}>
         <div className="flex flex-col lg:flex-row lg:items-start gap-5">
           <div className="flex-1 min-w-0 space-y-4">
             <div className="flex flex-wrap items-start gap-2">
@@ -171,7 +173,7 @@ export function CompanyRequestsPage() {
   }, []);
 
   return (
-    <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Project Requests"
         subtitle="Requests for AI matching — individual contributors or AI-built team compositions."
@@ -229,7 +231,7 @@ export function CompanyRequestsPage() {
       )}
 
       {!loading && !error && requests.length > 0 && (
-        <div className="space-y-4">
+        <div className={cwLayout.section}>
           <p className="text-sm text-muted-foreground">
             {requests.length} request{requests.length === 1 ? "" : "s"}
           </p>
@@ -238,6 +240,6 @@ export function CompanyRequestsPage() {
           ))}
         </div>
       )}
-    </div>
+    </CompanyPageShell>
   );
 }

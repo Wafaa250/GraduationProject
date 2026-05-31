@@ -10,7 +10,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,8 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
 import { CompanyRequestStepper } from "@/components/company/CompanyRequestStepper";
+import {
+  CompanyRequestWizardLayout,
+} from "@/components/company/CompanyRequestWizardLayout";
 import { CompanyRequestReviewStat } from "@/components/company/CompanyRequestReviewStat";
 import { CompanyRequestReviewAiBanner } from "@/components/company/CompanyRequestReviewAiBanner";
 import { SearchableSelect } from "@/components/company/SearchableSelect";
@@ -275,46 +278,98 @@ export function CompanyNewRequestPage() {
 
   if (created) {
     return (
-      <div className="p-6 md:p-8 max-w-2xl mx-auto">
-        <Card className="cw-card-elevated">
-          <CardContent className="p-10 md:p-12 text-center">
-            <div className="cw-request-success-icon mb-5">
+      <CompanyPageShell>
+        <CompanyRequestWizardLayout
+          title={editRequestId ? "Request updated" : "Request created"}
+          subtitle={
+            editRequestId
+              ? "Your changes are saved. You can return to the request or find matching students when AI matching is available."
+              : "Your project request is saved. SkillSwap AI will recommend students based on your roles and skills when matching is available."
+          }
+          footer={
+            <>
+              <span aria-hidden />
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {savedRequestId && (
+                  <Button asChild className="rounded-xl cw-btn-gradient shadow-sm">
+                    <Link to={COMPANY_ROUTES.requestDetail(savedRequestId)}>View request</Link>
+                  </Button>
+                )}
+                <Button asChild variant="outline" className="rounded-xl">
+                  <Link to={COMPANY_ROUTES.requests}>All requests</Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => nav(COMPANY_ROUTES.dashboard)}
+                >
+                  Back to dashboard
+                </Button>
+              </div>
+            </>
+          }
+        >
+          <div className="py-8 text-center">
+            <div className="cw-request-success-icon mb-4">
               <CheckCircle2 className="h-9 w-9" aria-hidden />
             </div>
-            <h2 className="text-xl font-semibold tracking-tight">
-              {editRequestId ? "Request updated" : "Request created"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
-              {editRequestId
-                ? "Your changes are saved. You can return to the request or find matching students when AI matching is available."
-                : "Your project request is saved. SkillSwap AI will recommend students based on your roles and skills when matching is available."}
-            </p>
-            <div className="flex flex-wrap justify-center gap-3 mt-8">
-              {savedRequestId && (
-                <Button asChild className="rounded-xl cw-btn-gradient shadow-sm">
-                  <Link to={COMPANY_ROUTES.requestDetail(savedRequestId)}>View request</Link>
-                </Button>
-              )}
-              <Button asChild variant="outline" className="rounded-xl">
-                <Link to={COMPANY_ROUTES.requests}>All requests</Link>
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-xl"
-                onClick={() => nav(COMPANY_ROUTES.dashboard)}
-              >
-                Back to dashboard
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CompanyRequestWizardLayout>
+      </CompanyPageShell>
     );
   }
 
+  const wizardFooter = (
+    <>
+      <Button
+        variant="ghost"
+        className="rounded-xl"
+        disabled={step === 0}
+        onClick={() => setStep((s) => Math.max(0, s - 1))}
+      >
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back
+      </Button>
+      {step < steps.length - 1 ? (
+        <Button
+          className="rounded-xl cw-btn-gradient shadow-sm"
+          disabled={!canContinue()}
+          onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
+        >
+          Continue <ArrowRight className="h-4 w-4 ml-1" />
+        </Button>
+      ) : (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {!isEdit && (
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={saveDraft}
+              disabled={savingDraft || submitting}
+            >
+              {savingDraft ? "Saving…" : "Save draft"}
+            </Button>
+          )}
+          <Button
+            className="rounded-xl cw-btn-gradient shadow-sm"
+            onClick={submit}
+            disabled={submitting || savingDraft}
+          >
+            {submitting
+              ? isEdit
+                ? "Saving…"
+                : "Creating…"
+              : isEdit
+                ? "Save changes"
+                : "Create Request"}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
-      <CompanyPageHeader
+    <CompanyPageShell>
+      <CompanyRequestWizardLayout
         title={isEdit ? "Edit Project Request" : "Create Project Request"}
         subtitle={
           isEdit
@@ -328,22 +383,20 @@ export function CompanyNewRequestPage() {
             </Button>
           ) : undefined
         }
-      />
-
-      <CompanyRequestStepper steps={steps} current={step} />
-
-      {draftLoading ? (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading draft…
-          </CardContent>
-        </Card>
-      ) : (
-      <Card className="cw-card-elevated">
-        <CardContent className="p-6 md:p-8 lg:p-10">
+        stepper={<CompanyRequestStepper steps={steps} current={step} />}
+        headerMeta={
+          draftUpdatedAt && !isEdit ? (
+            <>Draft saved {formatDraftSavedAt(draftUpdatedAt)}</>
+          ) : undefined
+        }
+        footer={draftLoading ? undefined : wizardFooter}
+      >
+        {draftLoading ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">Loading draft…</div>
+        ) : (
           <div key={step} className="cw-request-step-content">
-          {step === 0 && (
-            <div className="grid md:grid-cols-2 gap-4">
+              {step === 0 && (
+                <div className={cn("grid md:grid-cols-2", cwLayout.grid)}>
               <button
                 type="button"
                 onClick={() => setType("individual")}
@@ -381,49 +434,53 @@ export function CompanyNewRequestPage() {
           )}
 
           {step === 1 && (
-            <div className="space-y-5">
-              <div>
-                <Label className="text-sm font-medium">Project title</Label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Mobile booking app MVP"
-                  className="rounded-xl mt-1.5"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Description</Label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                  placeholder="What should collaborators build or contribute?"
-                  className="rounded-xl mt-1.5"
-                />
-              </div>
-              <SearchableSelect
-                label="Category"
-                value={categoryChoice}
-                onChange={setCategoryChoice}
-                options={PROJECT_CATEGORIES}
-                placeholder="Search categories…"
-              />
-              {categoryChoice === "Other" && (
+            <div className={cn("grid lg:grid-cols-2", cwLayout.grid, "items-start")}>
+              <div className="cw-request-form-stack">
                 <div>
-                  <Label className="text-sm font-medium">Custom category</Label>
+                  <Label className="text-sm font-medium">Project title</Label>
                   <Input
-                    value={categoryOther}
-                    onChange={(e) => setCategoryOther(e.target.value)}
-                    placeholder="Describe your project category"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Mobile booking app MVP"
+                    className="rounded-xl mt-1.5 h-11"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Description</Label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={5}
+                    placeholder="What should collaborators build or contribute?"
                     className="rounded-xl mt-1.5"
                   />
                 </div>
-              )}
+              </div>
+              <div className="cw-request-form-stack">
+                <SearchableSelect
+                  label="Category"
+                  value={categoryChoice}
+                  onChange={setCategoryChoice}
+                  options={PROJECT_CATEGORIES}
+                  placeholder="Search categories…"
+                />
+                {categoryChoice === "Other" && (
+                  <div>
+                    <Label className="text-sm font-medium">Custom category</Label>
+                    <Input
+                      value={categoryOther}
+                      onChange={(e) => setCategoryOther(e.target.value)}
+                      placeholder="Describe your project category"
+                      className="rounded-xl mt-1.5 h-11"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {step === 2 && type === "individual" && (
-            <div className="space-y-5">
+            <div className={cn("grid lg:grid-cols-2", cwLayout.grid, "items-start")}>
               <SearchableSelect
                 label="Role"
                 value={targetRole}
@@ -443,7 +500,7 @@ export function CompanyNewRequestPage() {
           )}
 
           {step === 2 && type === "ai-built-team" && (
-            <div className="space-y-4">
+            <div className={cwLayout.section}>
               {teamRoles.map((role) => {
                 const taken = rolesTakenByOthers(role.id);
                 const roleOptions = COMPANY_ROLE_OPTIONS.filter(
@@ -545,7 +602,7 @@ export function CompanyNewRequestPage() {
           )}
 
           {step === 3 && (
-            <div className="space-y-5">
+            <div className={cn("grid lg:grid-cols-2", cwLayout.grid, "items-start")}>
               <DurationFields
                 ongoing={durationOngoing}
                 onOngoingChange={setDurationOngoing}
@@ -554,36 +611,38 @@ export function CompanyNewRequestPage() {
                 unit={durationUnit}
                 onUnitChange={setDurationUnit}
               />
-              <div>
-                <Label className="text-sm font-medium">Collaboration format</Label>
-                <Select value={collaborationType} onValueChange={setCollaborationType}>
-                  <SelectTrigger className="rounded-xl mt-1.5">
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COLLABORATION_FORMATS.map((f) => (
-                      <SelectItem key={f.value} value={f.value}>
-                        {f.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Additional notes (optional)</Label>
-                <Textarea
-                  value={scopeNotes}
-                  onChange={(e) => setScopeNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Meeting cadence, deliverables, or anything else students should know"
-                  className="rounded-xl mt-1.5"
-                />
+              <div className="cw-request-form-stack">
+                <div>
+                  <Label className="text-sm font-medium">Collaboration format</Label>
+                  <Select value={collaborationType} onValueChange={setCollaborationType}>
+                    <SelectTrigger className="rounded-xl mt-1.5 h-11">
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLLABORATION_FORMATS.map((f) => (
+                        <SelectItem key={f.value} value={f.value}>
+                          {f.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Additional notes (optional)</Label>
+                  <Textarea
+                    value={scopeNotes}
+                    onChange={(e) => setScopeNotes(e.target.value)}
+                    rows={4}
+                    placeholder="Meeting cadence, deliverables, or anything else students should know"
+                    className="rounded-xl mt-1.5"
+                  />
+                </div>
               </div>
             </div>
           )}
 
           {step === 4 && (
-            <div className="space-y-6">
+            <div className={cwLayout.section}>
               <div className="cw-request-review-hero">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
                   Summary
@@ -596,7 +655,8 @@ export function CompanyNewRequestPage() {
                 </p>
                 <div
                   className={cn(
-                    "grid gap-3 mt-5",
+                    "grid mt-5",
+                    cwLayout.gridDense,
                     draftUpdatedAt ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2",
                   )}
                 >
@@ -695,56 +755,9 @@ export function CompanyNewRequestPage() {
               <CompanyRequestReviewAiBanner />
             </div>
           )}
-          </div>
-
-          <div className="flex items-center justify-between mt-8 pt-6 border-t gap-3">
-            <Button
-              variant="ghost"
-              className="rounded-xl"
-              disabled={step === 0}
-              onClick={() => setStep((s) => Math.max(0, s - 1))}
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back
-            </Button>
-            {step < steps.length - 1 ? (
-              <Button
-                className="rounded-xl cw-btn-gradient shadow-sm"
-                disabled={!canContinue()}
-                onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
-              >
-                Continue <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            ) : (
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {!isEdit && (
-                  <Button
-                    variant="outline"
-                    className="rounded-xl"
-                    onClick={saveDraft}
-                    disabled={savingDraft || submitting}
-                  >
-                    {savingDraft ? "Saving…" : "Save draft"}
-                  </Button>
-                )}
-                <Button
-                  className="rounded-xl cw-btn-gradient shadow-sm"
-                  onClick={submit}
-                  disabled={submitting || savingDraft}
-                >
-                  {submitting
-                    ? isEdit
-                      ? "Saving…"
-                      : "Creating…"
-                    : isEdit
-                      ? "Save changes"
-                      : "Create Request"}
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      )}
-    </div>
+            </div>
+          )}
+      </CompanyRequestWizardLayout>
+    </CompanyPageShell>
   );
 }

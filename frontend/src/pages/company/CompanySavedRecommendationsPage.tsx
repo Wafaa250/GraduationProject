@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
+import { cn } from "@/lib/utils";
 import { CompanySavedRecommendationsEmptyState } from "@/components/company/CompanySavedRecommendationsEmptyState";
 import { CompanySavedRecommendationNoteField } from "@/components/company/CompanySavedRecommendationNoteField";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -192,7 +195,7 @@ export function CompanySavedRecommendationsPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Saved Recommendations"
         subtitle="Your workspace shortlist — students and teams saved from AI recommendations, organised by project request. Add notes before contacting externally."
@@ -214,7 +217,7 @@ export function CompanySavedRecommendationsPage() {
       ) : totalCount === 0 ? (
         <CompanySavedRecommendationsEmptyState />
       ) : (
-        <div className="space-y-8">
+        <div className={cwLayout.section}>
           {groups.map((group) => (
             <Card key={group.companyRequestId} className="cw-card-elevated overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-primary/5 to-violet-500/5 border-b border-border/60 py-5 px-6">
@@ -236,7 +239,7 @@ export function CompanySavedRecommendationsPage() {
                 </div>
               </CardHeader>
 
-              <CardContent className="p-6 space-y-6">
+              <CardContent className={cn(cwLayout.cardPadding, cwLayout.section)}>
                 {group.teams.length > 0 ? (
                   <section>
                     <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
@@ -424,6 +427,6 @@ export function CompanySavedRecommendationsPage() {
           ))}
         </div>
       )}
-    </div>
+    </CompanyPageShell>
   );
 }

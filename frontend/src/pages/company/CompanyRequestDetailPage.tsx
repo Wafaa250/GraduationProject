@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { cwLayout } from "@/lib/companyLayout";
 import { CompanyRequestReviewStat } from "@/components/company/CompanyRequestReviewStat";
 import { CompanyRequestAnalyzeCta } from "@/components/company/CompanyRequestAnalyzeCta";
 import { CompanyRequestActionsMenu } from "@/components/company/CompanyRequestActionsMenu";
@@ -107,7 +109,7 @@ export function CompanyRequestDetailPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+    <CompanyPageShell>
       <CompanyPageHeader
         title="Request details"
         subtitle={request?.title}
@@ -154,7 +156,7 @@ export function CompanyRequestDetailPage() {
 
       {!loading && request && (
         <Card className="cw-card-elevated">
-          <CardContent className="p-6 md:p-8 lg:p-10">
+          <CardContent className={cwLayout.cardPaddingLg}>
             <div className="space-y-6">
               <div className="cw-request-review-hero">
                 <div className="flex flex-wrap items-center gap-2">
@@ -286,6 +288,6 @@ export function CompanyRequestDetailPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}
       />
-    </div>
+    </CompanyPageShell>
   );
 }
