@@ -15,6 +15,8 @@ import { AlertError, GhostButton, PrimaryButton } from '@/components/registratio
 import { RegistrationStepFooter } from '@/components/registration/RegistrationStepFooter'
 import { RegistrationSuccess } from '@/components/registration/RegistrationSuccess'
 import type { RegistrationStep } from '@/components/registration/types'
+import { persistAuthSession } from '@/lib/authSession'
+import { setStoredCompanyRole } from '@/lib/companyWorkspace'
 import './company-register-mobile.css'
 
 const STEPS: RegistrationStep[] = [
@@ -46,7 +48,6 @@ type FormState = {
   companyName: string
   industry: string
   description: string
-  location: string
 }
 
 export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() => void) | null }) {
@@ -72,7 +73,6 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
     companyName: '',
     industry: '',
     description: '',
-    location: '',
   })
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) => {
@@ -140,7 +140,6 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
         companyName: result.companyName || f.companyName,
         industry: result.industry ?? '',
         description: result.description ?? '',
-        location: result.location ?? '',
       }))
       if (result.message) setAnalysisNote(result.message)
       toast.success(result.usedAi ? 'Company profile analyzed with AI' : 'Profile draft ready — please review')
@@ -168,24 +167,25 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
         companyName: form.companyName.trim(),
         industry: form.industry.trim() || undefined,
         description: form.description.trim() || undefined,
-        location: form.location.trim() || undefined,
         websiteUrl: form.websiteUrl.trim() || undefined,
         linkedInUrl: form.linkedInUrl.trim() || undefined,
       })
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('userId', data.userId.toString())
-      localStorage.setItem('role', data.role)
-      localStorage.setItem('name', data.name)
-      localStorage.setItem('email', data.email)
+      persistAuthSession(data)
+      setStoredCompanyRole(data.companyRole ?? 'owner')
       applyRoleTheme(data.role)
 
       toast.success('Company account created!')
       setSubmitted(true)
     } catch (err) {
       const msg = parseApiErrorMessage(err)
-      setApiError(msg)
-      toast.error(msg)
+      const status = (err as { response?: { status?: number } })?.response?.status
+      const friendly =
+        status === 409 && msg.includes('workspace')
+          ? `${msg} Use Company Members after an owner adds your account.`
+          : msg
+      setApiError(friendly)
+      toast.error(friendly)
     } finally {
       setIsLoading(false)
     }
@@ -384,24 +384,14 @@ export default function CompanyRegisterForm({ onBack = null }: { onBack?: (() =>
                 onChange={(e) => set('companyName', e.target.value)}
               />
             </RegField>
-            <FieldGrid>
-              <RegField label="Industry" htmlFor="co-industry">
-                <TextInput
-                  id="co-industry"
-                  placeholder="e.g. Software, FinTech"
-                  value={form.industry}
-                  onChange={(e) => set('industry', e.target.value)}
-                />
-              </RegField>
-              <RegField label="Location" htmlFor="co-loc">
-                <TextInput
-                  id="co-loc"
-                  placeholder="e.g. Nablus, Palestine"
-                  value={form.location}
-                  onChange={(e) => set('location', e.target.value)}
-                />
-              </RegField>
-            </FieldGrid>
+            <RegField label="Industry" htmlFor="co-industry">
+              <TextInput
+                id="co-industry"
+                placeholder="e.g. Software, FinTech"
+                value={form.industry}
+                onChange={(e) => set('industry', e.target.value)}
+              />
+            </RegField>
             <RegField label="About the company" htmlFor="co-desc" error={errors.description}>
               <Textarea
                 id="co-desc"

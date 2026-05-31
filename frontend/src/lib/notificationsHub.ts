@@ -161,6 +161,9 @@ export function subscribeNotificationsHubReconnect(listener: ReconnectListener):
   };
 }
 
+/** Alias used by company notification UI. */
+export const subscribeNotificationsHubReconnected = subscribeNotificationsHubReconnect;
+
 /** Optional: also listen for live chat message payloads on the same hub. */
 export function subscribeReceiveMessage(
   listener: (payload: {
@@ -195,5 +198,32 @@ export function subscribeReceiveMessage(
 
   return () => {
     connection?.off("ReceiveMessage", handler);
+  };
+}
+
+export function normalizeNotificationCreatedPayload(
+  payload: NotificationCreatedPayload,
+): {
+  id: number;
+  title: string;
+  body: string;
+  eventType: string;
+  category: string;
+  projectId: number | null;
+  createdAt: string;
+  readAt: string | null;
+} | null {
+  const id = payload.id;
+  if (typeof id !== "number") return null;
+
+  return {
+    id,
+    title: payload.title ?? "",
+    body: payload.body ?? "",
+    eventType: payload.eventType ?? "",
+    category: payload.category ?? "",
+    projectId: payload.projectId ?? null,
+    createdAt: payload.createdAt ?? new Date().toISOString(),
+    readAt: payload.readAt ?? null,
   };
 }

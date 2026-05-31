@@ -2,6 +2,7 @@
 export const ROUTES = {
   home: "/",
   login: "/login",
+  changePassword: "/change-password",
   register: "/register",
   forgotPassword: "/forgot-password",
   resetPassword: "/reset-password",
@@ -90,3 +91,35 @@ export function studentCoursePath(courseId: number) {
 export function studentCourseProjectPath(courseId: number, projectId: number) {
   return `/courses/${courseId}/projects/${projectId}`;
 }
+/** Company workspace (post-login, role === company). */
+export const COMPANY_ROUTES = {
+  root: "/company",
+  dashboard: "/company",
+  requests: "/company/requests",
+  requestDetail: (id: number | string) => `/company/requests/${id}`,
+  editRequest: (id: number | string) => `/company/requests/${id}/edit`,
+  requestRecommendations: (id: number | string) =>
+    `/company/requests/${id}/recommendations`,
+  studentDiscoveryProfile: (
+    requestId: number | string,
+    studentProfileId: number | string,
+    teamId?: number | string,
+  ) => {
+    const base = `/company/requests/${requestId}/students/${studentProfileId}`;
+    if (teamId != null && teamId !== "") {
+      return `${base}?teamId=${teamId}`;
+    }
+    return base;
+  },
+  teamDiscoveryProfile: (requestId: number | string, teamId: number | string) =>
+    `/company/requests/${requestId}/teams/${teamId}`,
+  newRequest: "/company/requests/new",
+  matches: "/company/matches",
+  discover: "/company/discover",
+  collaborations: "/company/collaborations",
+  messages: "/company/messages",
+  profile: "/company/profile",
+  members: "/company/members",
+  saved: "/company/saved",
+  settings: "/company/settings",
+} as const;

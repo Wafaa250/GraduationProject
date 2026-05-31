@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Services;
@@ -86,7 +87,9 @@ namespace GraduationProject.API.Controllers
 
             if (error != null)
             {
-                if (error.Contains("already registered"))
+                if (error.Contains("already registered") ||
+                    error.Contains("already exists") ||
+                    error.Contains("workspace"))
                     return Conflict(new { message = error });
                 return BadRequest(new { message = error });
             }
@@ -128,6 +131,25 @@ namespace GraduationProject.API.Controllers
 
             if (error != null)
                 return Unauthorized(new { message = error });
+
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out var userId) || userId <= 0)
+                return Unauthorized(new { message = "Invalid session." });
+
+            var (result, error) = await _authService.ChangePasswordAsync(userId, dto);
+
+            if (error != null)
+                return BadRequest(new { message = error });
 
             return Ok(result);
         }

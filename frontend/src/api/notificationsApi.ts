@@ -1,6 +1,6 @@
 import api from "./axiosInstance";
 
-export type GraduationNotification = {
+export type AppNotification = {
   id: number;
   category: string;
   title: string;
@@ -12,6 +12,18 @@ export type GraduationNotification = {
   readAt: string | null;
 };
 
+export type GraduationNotification = AppNotification;
+
+export const NOTIFICATION_CATEGORY = {
+  graduation: "graduation_project",
+  company: "company",
+  chat: "chat",
+  course: "course",
+  ai: "ai",
+  organization_event: "organization_event",
+  organization_recruitment: "organization_recruitment",
+} as const;
+
 const ALL_CATEGORIES = [
   "graduation_project",
   "course",
@@ -19,7 +31,19 @@ const ALL_CATEGORIES = [
   "ai",
   "organization_event",
   "organization_recruitment",
+  "company",
 ] as const;
+
+/** GET /api/notifications */
+export async function getNotifications(
+  take = 50,
+  category?: string,
+): Promise<AppNotification[]> {
+  const { data } = await api.get<AppNotification[]>("/notifications", {
+    params: { take, ...(category ? { category } : {}) },
+  });
+  return Array.isArray(data) ? data : [];
+}
 
 /** GET /api/notifications — all categories for current user. */
 export async function getAllNotifications(take = 50): Promise<GraduationNotification[]> {
@@ -27,6 +51,14 @@ export async function getAllNotifications(take = 50): Promise<GraduationNotifica
     params: { take, category: "all" },
   });
   return Array.isArray(data) ? data : [];
+}
+
+/** GET /api/notifications/unread-count */
+export async function getNotificationsUnreadCount(category?: string): Promise<number> {
+  const { data } = await api.get<{ count: number }>("/notifications/unread-count", {
+    params: category ? { category } : {},
+  });
+  return typeof data?.count === "number" ? data.count : 0;
 }
 
 /** GET /api/notifications/unread-count — all categories. */
@@ -46,23 +78,18 @@ export async function markAllNotificationsRead(): Promise<number> {
 }
 
 /** GET /api/notifications — graduation project notifications for current user. */
-export async function getGraduationNotifications(
-  take = 50,
-): Promise<GraduationNotification[]> {
-  const { data } = await api.get<GraduationNotification[]>("/notifications", {
-    params: { take },
-  });
-  return Array.isArray(data) ? data : [];
+export async function getGraduationNotifications(take = 50): Promise<AppNotification[]> {
+  return getNotifications(take, NOTIFICATION_CATEGORY.graduation);
 }
 
 /** GET /api/notifications/unread-count */
 export async function getGraduationNotificationsUnreadCount(
   category?: string,
 ): Promise<number> {
-  const { data } = await api.get<{ count: number }>("/notifications/unread-count", {
-    params: category ? { category } : { category: "all" },
-  });
-  return typeof data?.count === "number" ? data.count : 0;
+  if (category) {
+    return getNotificationsUnreadCount(category);
+  }
+  return getNotificationsUnreadCount(NOTIFICATION_CATEGORY.graduation);
 }
 
 const DOCTOR_ACTIVITY_CATEGORIES = ["graduation_project", "course", "chat", "ai"] as const;
@@ -93,13 +120,30 @@ export async function getDoctorNotificationsForActivity(
 }
 
 /** POST /api/notifications/{id}/read */
-export async function markGraduationNotificationRead(id: number): Promise<void> {
+export async function markNotificationRead(id: number): Promise<void> {
   await api.post(`/notifications/${id}/read`);
+}
+
+/** POST /api/notifications/{id}/read */
+export async function markGraduationNotificationRead(id: number): Promise<void> {
+  return markNotificationRead(id);
 }
 
 /** POST /api/notifications/read-all — all doctor hub notification categories. */
 export async function markDoctorNotificationsAllRead(): Promise<number> {
   return markAllNotificationsRead();
+}
+
+export async function getCompanyNotifications(take = 50): Promise<AppNotification[]> {
+  return getNotifications(take, NOTIFICATION_CATEGORY.company);
+}
+
+export async function getCompanyNotificationsUnreadCount(): Promise<number> {
+  return getNotificationsUnreadCount(NOTIFICATION_CATEGORY.company);
+}
+
+export async function markCompanyNotificationRead(id: number): Promise<void> {
+  return markNotificationRead(id);
 }
 
 export { ALL_CATEGORIES };

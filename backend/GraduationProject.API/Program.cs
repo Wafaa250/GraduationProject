@@ -8,13 +8,15 @@ using GraduationProject.API.Data;
 using GraduationProject.API.Hubs;
 using GraduationProject.API.Middleware;
 using GraduationProject.API.Services;
+using GraduationProject.API.Services.Recommendations;
 using GraduationProject.API.Interfaces;
 using GraduationProject.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// OpenAI: environment variable overrides appsettings / user secrets (highest priority).
+// OpenAI + Email: environment variables override appsettings / user secrets (highest priority).
 ApplyOpenAiApiKeyFromEnvironment(builder.Configuration);
+ApplyEmailSettingsFromEnvironment(builder.Configuration);
 
 // ===========================
 // DATABASE - PostgreSQL
@@ -61,6 +63,21 @@ builder.Services.AddSignalR();
 // ===========================
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICompanyTalentMatchService, CompanyTalentMatchService>();
+builder.Services.AddScoped<ICompanyRequestService, CompanyRequestService>();
+builder.Services.AddScoped<ICompanyRequestInvitationService, CompanyRequestInvitationService>();
+builder.Services.AddScoped<ICompanyRequestRecommendationService, CompanyRequestRecommendationService>();
+builder.Services.AddScoped<ICompanyRequestTeamRecommendationService, CompanyRequestTeamRecommendationService>();
+builder.Services.AddScoped<ICompanyStudentDiscoveryService, CompanyStudentDiscoveryService>();
+builder.Services.AddScoped<ICompanyWorkspaceService, CompanyWorkspaceService>();
+builder.Services.AddScoped<ICompanyMemberService, CompanyMemberService>();
+builder.Services.AddScoped<ICompanyUniquenessService, CompanyUniquenessService>();
+builder.Services.AddScoped<ICompanySavedRecommendationService, CompanySavedRecommendationService>();
+builder.Services.AddScoped<ICompanyActivityService, CompanyActivityService>();
+builder.Services.AddScoped<ICompanyDashboardService, CompanyDashboardService>();
+builder.Services.AddScoped<ICompanySettingsService, CompanySettingsService>();
+builder.Services.AddScoped<IRecommendationNormalizationService, RecommendationNormalizationService>();
+builder.Services.AddScoped<IRecommendationScoringEngine, RecommendationScoringEngine>();
+builder.Services.AddHttpClient<IRecommendationSemanticService, OpenAiRecommendationSemanticService>();
 builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
@@ -93,7 +110,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins(
                 "http://localhost:3000",
-                "http://localhost:5173",
+                "http://localhost:5173",SmtpEmailService.cs
                 "http://localhost:8081",
                 "http://192.168.1.107:8081",
                 // Expo (web) default dev server — mobile app in browser calls API from this origin
@@ -143,6 +160,7 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 LogOpenAiConfigurationAtStartup(app);
+LogEmailConfigurationAtStartup(app);
 
 static void ApplyOpenAiApiKeyFromEnvironment(IConfigurationBuilder configurationBuilder)
 {
@@ -154,6 +172,64 @@ static void ApplyOpenAiApiKeyFromEnvironment(IConfigurationBuilder configuration
     {
         ["OpenAI:ApiKey"] = envKey.Trim(),
     }!);
+}
+
+static void ApplyEmailSettingsFromEnvironment(IConfigurationBuilder configurationBuilder)
+{
+    var updates = new Dictionary<string, string?>();
+
+    void SetIfPresent(string envName, string configKey)
+    {
+        var value = Environment.GetEnvironmentVariable(envName);
+        if (!string.IsNullOrWhiteSpace(value))
+            updates[configKey] = value.Trim();
+    }
+
+    SetIfPresent("Email__Enabled", "Email:Enabled");
+    SetIfPresent("Email__SmtpHost", "Email:SmtpHost");
+    SetIfPresent("Email__SmtpPort", "Email:SmtpPort");
+    SetIfPresent("Email__UseSsl", "Email:UseSsl");
+    SetIfPresent("Email__Username", "Email:Username");
+    SetIfPresent("Email__Password", "Email:Password");
+    SetIfPresent("Email__FromAddress", "Email:FromAddress");
+    SetIfPresent("Email__FromName", "Email:FromName");
+    SetIfPresent("App__FrontendLoginUrl", "App:FrontendLoginUrl");
+
+    if (updates.Count == 0)
+        return;
+
+    configurationBuilder.AddInMemoryCollection(updates);
+}
+
+static void LogEmailConfigurationAtStartup(WebApplication app)
+{
+    var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Email");
+    var enabled = app.Configuration.GetValue<bool>("Email:Enabled");
+    var host = app.Configuration["Email:SmtpHost"];
+    var from = app.Configuration["Email:FromAddress"];
+    var hasPassword = !string.IsNullOrWhiteSpace(app.Configuration["Email:Password"]);
+    var fromEnv = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("Email__Password"))
+        || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("Email__SmtpHost"));
+
+    if (!enabled)
+    {
+        log.LogWarning(
+            "Email:Enabled is false. Company member invitations will fail until SMTP is configured. See backend/GraduationProject.API/EMAIL_SETUP.md");
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(host) || !hasPassword)
+    {
+        log.LogWarning(
+            "Email is enabled but SMTP host or password is missing. See backend/GraduationProject.API/EMAIL_SETUP.md");
+        return;
+    }
+
+    log.LogInformation(
+        "Email ready ({Source}): host={Host}, from={From}",
+        fromEnv ? "environment" : "configuration",
+        host,
+        from);
 }
 
 static void LogOpenAiConfigurationAtStartup(WebApplication app)
@@ -190,6 +266,7 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseMiddleware<RoleAuthorizationMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<RequirePasswordChangeMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationsHub>("/hubs/notifications");

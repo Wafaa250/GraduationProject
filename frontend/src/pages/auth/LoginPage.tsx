@@ -14,6 +14,8 @@ import {
 import api from '@/api/axiosInstance'
 import { navigateHome } from '@/utils/homeNavigation'
 import { applyRoleTheme } from '@/lib/roleTheme'
+import { persistAuthSession } from '@/lib/authSession'
+import { setStoredCompanyRole } from '@/lib/companyWorkspace'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,16 +49,18 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
       const response = await api.post('/auth/login', { email, password })
       const result = response.data
 
-      localStorage.setItem('token', result.token)
-      localStorage.setItem('userId', result.userId.toString())
-      localStorage.setItem('role', result.role)
-      localStorage.setItem('name', result.name)
-      localStorage.setItem('email', result.email)
+      persistAuthSession(result)
+      setStoredCompanyRole(result.companyRole)
       applyRoleTheme(result.role)
 
       onLoginSuccess?.()
 
       if (embedded) {
+        return
+      }
+
+      if (result.mustChangePassword) {
+        navigate(ROUTES.changePassword, { replace: true })
         return
       }
 

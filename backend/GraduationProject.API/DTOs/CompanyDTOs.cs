@@ -12,9 +12,52 @@ namespace GraduationProject.API.DTOs
         public string? Industry { get; set; }
         public string? Description { get; set; }
         public string? Location { get; set; }
+        public string? HeadquartersLocation { get; set; }
+        public string? WorkingStyle { get; set; }
+        public List<string> AreasOfInterest { get; set; } = new();
         public string? WebsiteUrl { get; set; }
         public string? LinkedInUrl { get; set; }
         public string Email { get; set; } = string.Empty;
+        public string? ContactEmail { get; set; }
+        public string? OptionalContactLink { get; set; }
+        public string WorkspaceRole { get; set; } = "member";
+    }
+
+    public class UpdateCompanyProfileDto
+    {
+        [Required(ErrorMessage = "Company name is required.")]
+        [MaxLength(200)]
+        public string CompanyName { get; set; } = string.Empty;
+
+        [MaxLength(5000)]
+        public string? Description { get; set; }
+
+        [MaxLength(200)]
+        public string? Industry { get; set; }
+
+        [MaxLength(250)]
+        public string? HeadquartersLocation { get; set; }
+
+        [MaxLength(120)]
+        public string? WorkingStyle { get; set; }
+
+        public List<string>? AreasOfInterest { get; set; }
+
+        [Url(ErrorMessage = "Website URL must be a valid URL.")]
+        [MaxLength(500)]
+        public string? WebsiteUrl { get; set; }
+
+        [Url(ErrorMessage = "LinkedIn URL must be a valid URL.")]
+        [MaxLength(500)]
+        public string? LinkedInUrl { get; set; }
+
+        [EmailAddress(ErrorMessage = "Contact email must be a valid email.")]
+        [MaxLength(320)]
+        public string? ContactEmail { get; set; }
+
+        [Url(ErrorMessage = "Optional contact link must be a valid URL.")]
+        [MaxLength(500)]
+        public string? OptionalContactLink { get; set; }
     }
 
     public class CompanyTalentSearchDto
@@ -81,7 +124,6 @@ namespace GraduationProject.API.DTOs
         public string CompanyName { get; set; } = string.Empty;
         public string? Industry { get; set; }
         public string? Description { get; set; }
-        public string? Location { get; set; }
         public bool UsedAi { get; set; }
         public string? Message { get; set; }
     }

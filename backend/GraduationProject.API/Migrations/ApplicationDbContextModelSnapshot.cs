@@ -22,6 +22,130 @@ namespace GraduationProject.API.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyActivityLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ActivityType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("activity_type");
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CompanyProfileId", "CreatedAt");
+
+                    b.ToTable("company_activity_logs", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyProfileId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("company_members", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyMemberNotificationPreference", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<bool>("NotifyAiRecommendations")
+                        .HasColumnType("boolean")
+                        .HasColumnName("notify_ai_recommendations");
+
+                    b.Property<bool>("NotifyRequestStatusUpdates")
+                        .HasColumnType("boolean")
+                        .HasColumnName("notify_request_updates");
+
+                    b.Property<bool>("NotifySavedRecommendations")
+                        .HasColumnType("boolean")
+                        .HasColumnName("notify_saved_recommendations");
+
+                    b.Property<bool>("NotifyWorkspaceMemberChanges")
+                        .HasColumnType("boolean")
+                        .HasColumnName("notify_workspace_member_changes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CompanyProfileId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("company_member_notification_preferences", (string)null);
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.CompanyProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -31,14 +155,26 @@ namespace GraduationProject.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AreasOfInterest")
+                        .HasColumnType("text")
+                        .HasColumnName("areas_of_interest");
+
                     b.Property<string>("CompanyName")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("company_name");
 
+                    b.Property<string>("ContactEmail")
+                        .HasColumnType("text")
+                        .HasColumnName("contact_email");
+
                     b.Property<string>("Description")
                         .HasColumnType("text")
                         .HasColumnName("description");
+
+                    b.Property<string>("HeadquartersLocation")
+                        .HasColumnType("text")
+                        .HasColumnName("headquarters_location");
 
                     b.Property<string>("Industry")
                         .HasColumnType("text")
@@ -52,20 +188,736 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("location");
 
+                    b.Property<string>("NormalizedCompanyName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("normalized_company_name");
+
+                    b.Property<string>("OptionalContactLink")
+                        .HasColumnType("text")
+                        .HasColumnName("optional_contact_link");
+
+                    b.Property<string>("PrimaryEmailDomain")
+                        .HasColumnType("text")
+                        .HasColumnName("primary_email_domain");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
+
+                    b.Property<string>("WebsiteDomain")
+                        .HasColumnType("text")
+                        .HasColumnName("website_domain");
 
                     b.Property<string>("WebsiteUrl")
                         .HasColumnType("text")
                         .HasColumnName("website_url");
 
+                    b.Property<string>("WorkingStyle")
+                        .HasColumnType("text")
+                        .HasColumnName("working_style");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("NormalizedCompanyName")
+                        .IsUnique();
+
+                    b.HasIndex("PrimaryEmailDomain")
+                        .IsUnique()
+                        .HasFilter("\"primary_email_domain\" IS NOT NULL");
 
                     b.HasIndex("UserId")
                         .IsUnique();
 
+                    b.HasIndex("WebsiteDomain")
+                        .IsUnique()
+                        .HasFilter("\"website_domain\" IS NOT NULL");
+
                     b.ToTable("company_profiles", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<string>("CategoryChoice")
+                        .HasColumnType("text")
+                        .HasColumnName("category_choice");
+
+                    b.Property<string>("CategoryOther")
+                        .HasColumnType("text")
+                        .HasColumnName("category_other");
+
+                    b.Property<string>("CollaborationFormat")
+                        .HasColumnType("text")
+                        .HasColumnName("collaboration_format");
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("DurationLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("duration_label");
+
+                    b.Property<bool>("DurationOngoing")
+                        .HasColumnType("boolean")
+                        .HasColumnName("duration_ongoing");
+
+                    b.Property<string>("DurationUnit")
+                        .HasColumnType("text")
+                        .HasColumnName("duration_unit");
+
+                    b.Property<int?>("DurationValue")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_value");
+
+                    b.Property<DateTime?>("MatchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("matched_at");
+
+                    b.Property<string>("MatchingStatus")
+                        .HasColumnType("text")
+                        .HasColumnName("matching_status");
+
+                    b.Property<string>("RequestStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("request_status");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("request_type");
+
+                    b.Property<string>("ScopeNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("scope_notes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<int?>("WizardStep")
+                        .HasColumnType("integer")
+                        .HasColumnName("wizard_step");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyProfileId")
+                        .IsUnique()
+                        .HasFilter("\"status\" = 'draft'");
+
+                    b.HasIndex("CompanyProfileId", "Status");
+
+                    b.ToTable("company_requests", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestInvitation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<int>("CompanyRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_id");
+
+                    b.Property<int?>("CompanyRequestRoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_role_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("InvitedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("invited_by_user_id");
+
+                    b.Property<decimal?>("MatchScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("match_score");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("message");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("pending")
+                        .HasColumnName("status");
+
+                    b.Property<int>("StudentProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_profile_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyProfileId");
+
+                    b.HasIndex("CompanyRequestId");
+
+                    b.HasIndex("CompanyRequestRoleId");
+
+                    b.HasIndex("InvitedByUserId");
+
+                    b.HasIndex("StudentProfileId");
+
+                    b.HasIndex("CompanyRequestId", "StudentProfileId")
+                        .IsUnique()
+                        .HasFilter("status = 'pending'");
+
+                    b.HasIndex("CompanyRequestId", "StudentProfileId", "Status")
+                        .HasDatabaseName("IX_company_request_invitations_company_request_id_student_pro~1");
+
+                    b.ToTable("company_request_invitations", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("HighlightsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("highlights_json");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer")
+                        .HasColumnName("rank");
+
+                    b.Property<string>("ReasonSummary")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason_summary");
+
+                    b.Property<int>("RunId")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_id");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer")
+                        .HasColumnName("score");
+
+                    b.Property<string>("ScoreBreakdownJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("score_breakdown_json");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("deterministic")
+                        .HasColumnName("source");
+
+                    b.Property<int>("StudentProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_profile_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyRequestId");
+
+                    b.HasIndex("RunId");
+
+                    b.HasIndex("StudentProfileId");
+
+                    b.HasIndex("CompanyRequestId", "StudentProfileId");
+
+                    b.HasIndex("RunId", "Rank")
+                        .IsUnique();
+
+                    b.ToTable("company_request_recommendations", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendationRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AlgorithmVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("algorithm_version");
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<int>("CompanyRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_id");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("completed")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyProfileId");
+
+                    b.HasIndex("CompanyRequestId");
+
+                    b.HasIndex("CompanyRequestId", "GeneratedAt");
+
+                    b.ToTable("company_request_recommendation_runs", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClientRoleKey")
+                        .HasColumnType("text")
+                        .HasColumnName("client_role_key");
+
+                    b.Property<int>("CompanyRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_id");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("RoleName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role_name");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyRequestId");
+
+                    b.ToTable("company_request_roles", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestSkill", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyRequestRoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_role_id");
+
+                    b.Property<string>("SkillName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("skill_name");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyRequestRoleId");
+
+                    b.ToTable("company_request_skills", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_id");
+
+                    b.Property<int>("CompatibilityScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("compatibility_score");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("RisksJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("risks_json");
+
+                    b.Property<int>("RoleCoverageScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("role_coverage_score");
+
+                    b.Property<int>("RunId")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_id");
+
+                    b.Property<string>("StrengthsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("strengths_json");
+
+                    b.Property<string>("SummaryReason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("summary_reason");
+
+                    b.Property<int>("TeamRank")
+                        .HasColumnType("integer")
+                        .HasColumnName("team_rank");
+
+                    b.Property<int>("TotalScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_score");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyRequestId")
+                        .HasDatabaseName("IX_crtt_company_request");
+
+                    b.HasIndex("RunId")
+                        .HasDatabaseName("IX_crtt_run");
+
+                    b.HasIndex("RunId", "TeamRank")
+                        .IsUnique()
+                        .HasDatabaseName("IX_crtt_run_team_rank");
+
+                    b.ToTable("company_request_team_recommendations", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AssignmentReason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("assignment_reason");
+
+                    b.Property<int>("CompanyRequestRoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_role_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("HighlightsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("highlights_json");
+
+                    b.Property<int>("RoleScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("role_score");
+
+                    b.Property<double>("SemanticSimilarity")
+                        .HasColumnType("double precision")
+                        .HasColumnName("semantic_similarity");
+
+                    b.Property<int>("StudentProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_profile_id");
+
+                    b.Property<int>("TeamRecommendationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("team_recommendation_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyRequestRoleId")
+                        .HasDatabaseName("IX_crtm_role_id");
+
+                    b.HasIndex("StudentProfileId")
+                        .HasDatabaseName("IX_crtm_student_id");
+
+                    b.HasIndex("TeamRecommendationId")
+                        .HasDatabaseName("IX_crtm_team_rec_id");
+
+                    b.HasIndex("TeamRecommendationId", "CompanyRequestRoleId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_crtm_team_rec_role");
+
+                    b.ToTable("company_request_team_recommendation_members", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AlgorithmVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("algorithm_version");
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<int>("CompanyRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_id");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("completed")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyProfileId")
+                        .HasDatabaseName("IX_crtr_company_profile");
+
+                    b.HasIndex("CompanyRequestId")
+                        .HasDatabaseName("IX_crtr_company_request");
+
+                    b.HasIndex("CompanyRequestId", "GeneratedAt")
+                        .HasDatabaseName("IX_crtr_request_generated_at");
+
+                    b.ToTable("company_request_team_recommendation_runs", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanySavedStudentRecommendation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<int>("CompanyRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<int>("SavedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("saved_by_user_id");
+
+                    b.Property<int>("StudentProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_profile_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyProfileId");
+
+                    b.HasIndex("CompanyRequestId");
+
+                    b.HasIndex("SavedByUserId");
+
+                    b.HasIndex("StudentProfileId");
+
+                    b.HasIndex("CompanyProfileId", "CompanyRequestId", "StudentProfileId")
+                        .IsUnique();
+
+                    b.ToTable("company_saved_student_recommendations", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanySavedTeamRecommendation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyProfileId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_profile_id");
+
+                    b.Property<int>("CompanyRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_request_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<int>("SavedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("saved_by_user_id");
+
+                    b.Property<int>("TeamRecommendationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("team_recommendation_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyProfileId");
+
+                    b.HasIndex("CompanyRequestId");
+
+                    b.HasIndex("SavedByUserId");
+
+                    b.HasIndex("TeamRecommendationId");
+
+                    b.HasIndex("CompanyProfileId", "CompanyRequestId", "TeamRecommendationId")
+                        .IsUnique();
+
+                    b.ToTable("company_saved_team_recommendations", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.CompanyTalentRequest", b =>
@@ -614,6 +1466,60 @@ namespace GraduationProject.API.Migrations
                         .HasDatabaseName("ix_project_invitations_project_receiver");
 
                     b.ToTable("project_invitations", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.RecommendationSemanticEmbedding", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EmbeddingJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("embedding_json");
+
+                    b.Property<string>("EmbeddingModel")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("embedding_model");
+
+                    b.Property<int>("ScopeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("scope_id");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeType", "UpdatedAt");
+
+                    b.HasIndex("ScopeType", "ScopeId", "EmbeddingModel")
+                        .IsUnique();
+
+                    b.ToTable("recommendation_semantic_embeddings", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.SectionChatMessage", b =>
@@ -1700,6 +2606,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("email");
 
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("boolean")
+                        .HasColumnName("must_change_password");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1790,6 +2700,63 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("user_notifications", (string)null);
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyActivityLog", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany()
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CompanyProfile");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyMember", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany("Members")
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithOne("CompanyMembership")
+                        .HasForeignKey("GraduationProject.API.Models.CompanyMember", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyProfile");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyMemberNotificationPreference", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany()
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyProfile");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.CompanyProfile", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.User", "User")
@@ -1799,6 +2766,269 @@ namespace GraduationProject.API.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequest", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany()
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyProfile");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestInvitation", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany()
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
+                        .WithMany("Invitations")
+                        .HasForeignKey("CompanyRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequestRole", "CompanyRequestRole")
+                        .WithMany("Invitations")
+                        .HasForeignKey("CompanyRequestRoleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GraduationProject.API.Models.User", "InvitedByUser")
+                        .WithMany()
+                        .HasForeignKey("InvitedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
+                        .WithMany()
+                        .HasForeignKey("StudentProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyProfile");
+
+                    b.Navigation("CompanyRequest");
+
+                    b.Navigation("CompanyRequestRole");
+
+                    b.Navigation("InvitedByUser");
+
+                    b.Navigation("StudentProfile");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendation", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
+                        .WithMany("Recommendations")
+                        .HasForeignKey("CompanyRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequestRecommendationRun", "Run")
+                        .WithMany("Recommendations")
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
+                        .WithMany()
+                        .HasForeignKey("StudentProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyRequest");
+
+                    b.Navigation("Run");
+
+                    b.Navigation("StudentProfile");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendationRun", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany()
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
+                        .WithMany("RecommendationRuns")
+                        .HasForeignKey("CompanyRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyProfile");
+
+                    b.Navigation("CompanyRequest");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRole", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
+                        .WithMany("Roles")
+                        .HasForeignKey("CompanyRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyRequest");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestSkill", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyRequestRole", "Role")
+                        .WithMany("Skills")
+                        .HasForeignKey("CompanyRequestRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendation", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
+                        .WithMany("TeamRecommendations")
+                        .HasForeignKey("CompanyRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_crtt_company_request");
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequestTeamRecommendationRun", "Run")
+                        .WithMany("Teams")
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_crtt_run");
+
+                    b.Navigation("CompanyRequest");
+
+                    b.Navigation("Run");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationMember", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyRequestRole", "CompanyRequestRole")
+                        .WithMany("TeamAssignments")
+                        .HasForeignKey("CompanyRequestRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_crtm_role");
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
+                        .WithMany()
+                        .HasForeignKey("StudentProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_crtm_student");
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequestTeamRecommendation", "TeamRecommendation")
+                        .WithMany("Members")
+                        .HasForeignKey("TeamRecommendationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_crtm_team_rec");
+
+                    b.Navigation("CompanyRequestRole");
+
+                    b.Navigation("StudentProfile");
+
+                    b.Navigation("TeamRecommendation");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationRun", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany()
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_crtr_company_profile");
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
+                        .WithMany("TeamRecommendationRuns")
+                        .HasForeignKey("CompanyRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_crtr_company_request");
+
+                    b.Navigation("CompanyProfile");
+
+                    b.Navigation("CompanyRequest");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanySavedStudentRecommendation", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany()
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
+                        .WithMany()
+                        .HasForeignKey("CompanyRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.User", "SavedByUser")
+                        .WithMany()
+                        .HasForeignKey("SavedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
+                        .WithMany()
+                        .HasForeignKey("StudentProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyProfile");
+
+                    b.Navigation("CompanyRequest");
+
+                    b.Navigation("SavedByUser");
+
+                    b.Navigation("StudentProfile");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanySavedTeamRecommendation", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
+                        .WithMany()
+                        .HasForeignKey("CompanyProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
+                        .WithMany()
+                        .HasForeignKey("CompanyRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.User", "SavedByUser")
+                        .WithMany()
+                        .HasForeignKey("SavedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.CompanyRequestTeamRecommendation", "TeamRecommendation")
+                        .WithMany()
+                        .HasForeignKey("TeamRecommendationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompanyProfile");
+
+                    b.Navigation("CompanyRequest");
+
+                    b.Navigation("SavedByUser");
+
+                    b.Navigation("TeamRecommendation");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.CompanyTalentRequest", b =>
@@ -2398,6 +3628,50 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyProfile", b =>
+                {
+                    b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequest", b =>
+                {
+                    b.Navigation("Invitations");
+
+                    b.Navigation("RecommendationRuns");
+
+                    b.Navigation("Recommendations");
+
+                    b.Navigation("Roles");
+
+                    b.Navigation("TeamRecommendationRuns");
+
+                    b.Navigation("TeamRecommendations");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendationRun", b =>
+                {
+                    b.Navigation("Recommendations");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRole", b =>
+                {
+                    b.Navigation("Invitations");
+
+                    b.Navigation("Skills");
+
+                    b.Navigation("TeamAssignments");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendation", b =>
+                {
+                    b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestTeamRecommendationRun", b =>
+                {
+                    b.Navigation("Teams");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.Conversation", b =>
                 {
                     b.Navigation("ConversationUsers");
@@ -2478,6 +3752,8 @@ namespace GraduationProject.API.Migrations
 
             modelBuilder.Entity("GraduationProject.API.Models.User", b =>
                 {
+                    b.Navigation("CompanyMembership");
+
                     b.Navigation("CompanyProfile");
 
                     b.Navigation("DoctorProfile");

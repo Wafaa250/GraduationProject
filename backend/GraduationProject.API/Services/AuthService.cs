@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -8,6 +9,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
+using GraduationProject.API.Helpers;
+using GraduationProject.API.Middleware;
 using GraduationProject.API.Models;
 using Google.Apis.Auth;
 
@@ -20,18 +23,35 @@ namespace GraduationProject.API.Services
         Task<(AuthResponseDto? result, string? error)> RegisterCompanyAsync(RegisterCompanyDto dto);
         Task<(AuthResponseDto? result, string? error)> RegisterStudentAssociationAsync(StudentAssociationRegisterDto dto);
         Task<(AuthResponseDto? result, string? error)> LoginAsync(LoginDto dto);
+        Task<(AuthResponseDto? result, string? error)> ChangePasswordAsync(int userId, ChangePasswordDto dto);
         Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto);
+        Task<string> ForgotPasswordAsync(ForgotPasswordDto dto);
+        Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto);
     }
 
     public class AuthService : IAuthService
     {
+        private const string ForgotPasswordSuccessMessage =
+            "If an account exists for that email, you will receive password reset instructions shortly.";
+
         private readonly ApplicationDbContext _db;
         private readonly IConfiguration _config;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<AuthService> _logger;
+        private readonly ICompanyUniquenessService _companyUniqueness;
 
-        public AuthService(ApplicationDbContext db, IConfiguration config)
+        public AuthService(
+            ApplicationDbContext db,
+            IConfiguration config,
+            IEmailService emailService,
+            ILogger<AuthService> logger,
+            ICompanyUniquenessService companyUniqueness)
         {
             _db = db;
             _config = config;
+            _emailService = emailService;
+            _logger = logger;
+            _companyUniqueness = companyUniqueness;
         }
 
         // ===========================
@@ -89,24 +109,46 @@ namespace GraduationProject.API.Services
             var check = await CheckEmailAsync(dto.Email);
             if (check != null) return (null, check);
 
+            var uniqueness = await _companyUniqueness.ValidateNewCompanyAsync(
+                dto.CompanyName,
+                dto.Email,
+                website);
+            if (!uniqueness.isAllowed)
+                return (null, uniqueness.error);
+
             var user = CreateUser(dto.ContactName.Trim(), dto.Email, dto.Password, "company");
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
+
+            var location = string.IsNullOrWhiteSpace(dto.Location) ? null : dto.Location.Trim();
 
             var profile = new CompanyProfile
             {
                 UserId       = user.Id,
                 CompanyName  = dto.CompanyName.Trim(),
+                NormalizedCompanyName = CompanyUniquenessHelper.NormalizeCompanyName(dto.CompanyName),
+                PrimaryEmailDomain = CompanyUniquenessHelper.ResolvePrimaryEmailDomain(dto.Email),
+                WebsiteDomain = CompanyUniquenessHelper.ExtractWebsiteDomain(website),
                 Industry     = string.IsNullOrWhiteSpace(dto.Industry) ? null : dto.Industry.Trim(),
                 Description  = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
-                Location     = string.IsNullOrWhiteSpace(dto.Location) ? null : dto.Location.Trim(),
+                Location     = location,
+                HeadquartersLocation = location,
                 WebsiteUrl   = website,
                 LinkedInUrl  = linkedIn,
             };
             _db.CompanyProfiles.Add(profile);
             await _db.SaveChangesAsync();
 
-            return (BuildResponse(user, profile.Id), null);
+            _db.CompanyMembers.Add(new CompanyMember
+            {
+                UserId = user.Id,
+                CompanyProfileId = profile.Id,
+                Role = CompanyMemberRoles.Owner,
+                CreatedAt = DateTime.UtcNow,
+            });
+            await _db.SaveChangesAsync();
+
+            return (BuildResponse(user, profile.Id, CompanyMemberRoles.Owner), null);
         }
 
         private static string? NormalizeCompanyUrl(string? url)
@@ -181,8 +223,40 @@ namespace GraduationProject.API.Services
                 return (null, "Invalid email or password.");
 
             int profileId = await GetProfileIdAsync(user);
+            string? companyRole = null;
+            if (user.Role == "company")
+                companyRole = await GetCompanyRoleAsync(user.Id);
 
-            return (BuildResponse(user, profileId), null);
+            return (BuildResponse(user, profileId, companyRole, user.MustChangePassword), null);
+        }
+
+        public async Task<(AuthResponseDto? result, string? error)> ChangePasswordAsync(
+            int userId,
+            ChangePasswordDto dto)
+        {
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return (null, "Passwords do not match.");
+
+            if (dto.NewPassword == dto.CurrentPassword)
+                return (null, "New password must be different from your current password.");
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+                return (null, "User not found.");
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.Password))
+                return (null, "Current password is incorrect.");
+
+            user.Password = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.MustChangePassword = false;
+            await _db.SaveChangesAsync();
+
+            int profileId = await GetProfileIdAsync(user);
+            string? companyRole = null;
+            if (user.Role == "company")
+                companyRole = await GetCompanyRoleAsync(user.Id);
+
+            return (BuildResponse(user, profileId, companyRole, false), null);
         }
 
         // ── PRIVATE HELPERS ──────────────────────────────────────────────────
@@ -194,23 +268,35 @@ namespace GraduationProject.API.Services
             return exists ? "This email is already registered." : null;
         }
 
-        private static User CreateUser(string name, string email, string password, string role) => new()
+        private static User CreateUser(
+            string name,
+            string email,
+            string password,
+            string role,
+            bool mustChangePassword = false) => new()
         {
             Name      = name.Trim(),
             Email     = email.ToLower().Trim(),
             Password  = BCrypt.Net.BCrypt.HashPassword(password),
             Role      = role,
+            MustChangePassword = mustChangePassword,
             CreatedAt = DateTime.UtcNow
         };
 
-        private AuthResponseDto BuildResponse(User user, int profileId) => new()
+        private AuthResponseDto BuildResponse(
+            User user,
+            int profileId,
+            string? companyRole = null,
+            bool? mustChangePassword = null) => new()
         {
             Token     = GenerateJwtToken(user),
             Role      = user.Role,
             UserId    = user.Id,
             Name      = user.Name,
             Email     = user.Email,
-            ProfileId = profileId
+            ProfileId = profileId,
+            CompanyRole = companyRole,
+            MustChangePassword = mustChangePassword ?? user.MustChangePassword,
         };
 
         private async Task<int> GetProfileIdAsync(User user)
@@ -219,11 +305,41 @@ namespace GraduationProject.API.Services
             {
                 "student"     => (await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == user.Id))?.Id ?? 0,
                 "doctor"      => (await _db.DoctorProfiles.FirstOrDefaultAsync(d => d.UserId == user.Id))?.Id ?? 0,
-                "company"     => (await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.UserId == user.Id))?.Id ?? 0,
+                "company"     => await GetCompanyProfileIdAsync(user.Id),
                 "studentassociation" or "association" =>
                     (await _db.StudentAssociationProfiles.FirstOrDefaultAsync(a => a.UserId == user.Id))?.Id ?? 0,
                 _             => 0
             };
+        }
+
+        private async Task<int> GetCompanyProfileIdAsync(int userId)
+        {
+            var membership = await _db.CompanyMembers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.UserId == userId);
+
+            if (membership != null)
+                return membership.CompanyProfileId;
+
+            return (await _db.CompanyProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.UserId == userId))?.Id ?? 0;
+        }
+
+        private async Task<string?> GetCompanyRoleAsync(int userId)
+        {
+            var membership = await _db.CompanyMembers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.UserId == userId);
+
+            if (membership != null)
+                return membership.Role;
+
+            var ownsProfile = await _db.CompanyProfiles
+                .AsNoTracking()
+                .AnyAsync(c => c.UserId == userId);
+
+            return ownsProfile ? CompanyMemberRoles.Owner : null;
         }
 
         private string GenerateJwtToken(User user)
@@ -234,13 +350,20 @@ namespace GraduationProject.API.Services
             var key   = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email,          user.Email),
                 new Claim(ClaimTypes.Role,           user.Role),
-                new Claim(ClaimTypes.Name,           user.Name)
+                new Claim(ClaimTypes.Name,           user.Name),
             };
+
+            if (user.MustChangePassword)
+            {
+                claims.Add(new Claim(
+                    RequirePasswordChangeMiddleware.MustChangePasswordClaim,
+                    "true"));
+            }
 
             var token = new JwtSecurityToken(
                 issuer:             _config["Jwt:Issuer"],
@@ -332,7 +455,97 @@ namespace GraduationProject.API.Services
 
             // ── 3. ارجع الـ JWT ───────────────────────────────────────────────
             int profileId = await GetProfileIdAsync(user);
-            return (BuildResponse(user, profileId), null);
+            string? companyRole = null;
+            if (user.Role == "company")
+                companyRole = await GetCompanyRoleAsync(user.Id);
+
+            return (BuildResponse(user, profileId, companyRole), null);
+        }
+
+        // ===========================
+        // FORGOT PASSWORD
+        // ===========================
+        public async Task<string> ForgotPasswordAsync(ForgotPasswordDto dto)
+        {
+            var email = dto.Email.ToLower().Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user != null)
+            {
+                var now = DateTime.UtcNow;
+                var activeTokens = await _db.PasswordResetTokens
+                    .Where(t => t.UserId == user.Id && t.UsedAt == null && t.ExpiresAt > now)
+                    .ToListAsync();
+
+                foreach (var token in activeTokens)
+                    token.UsedAt = now;
+
+                var rawToken = PasswordResetTokenHelper.GenerateRawToken();
+                var expirationMinutes = _config.GetValue<int>("PasswordReset:TokenExpirationMinutes", 60);
+
+                _db.PasswordResetTokens.Add(new PasswordResetToken
+                {
+                    UserId = user.Id,
+                    TokenHash = PasswordResetTokenHelper.HashToken(rawToken),
+                    ExpiresAt = now.AddMinutes(expirationMinutes),
+                    CreatedAt = now,
+                });
+                await _db.SaveChangesAsync();
+
+                var resetBaseUrl = (_config["PasswordReset:FrontendResetUrl"] ?? "http://localhost:5173/reset-password")
+                    .TrimEnd('/');
+                var resetUrl = $"{resetBaseUrl}?token={Uri.EscapeDataString(rawToken)}";
+
+                try
+                {
+                    await _emailService.SendPasswordResetEmailAsync(user.Email, resetUrl);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send password reset email for user {UserId}", user.Id);
+                }
+            }
+
+            return ForgotPasswordSuccessMessage;
+        }
+
+        // ===========================
+        // RESET PASSWORD
+        // ===========================
+        public async Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            if (dto.Password != dto.ConfirmPassword)
+                return (false, "Passwords do not match.");
+
+            if (string.IsNullOrWhiteSpace(dto.Token))
+                return (false, "Invalid or expired reset link.");
+
+            var tokenHash = PasswordResetTokenHelper.HashToken(dto.Token.Trim());
+            var now = DateTime.UtcNow;
+
+            var resetToken = await _db.PasswordResetTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t =>
+                    t.TokenHash == tokenHash &&
+                    t.UsedAt == null &&
+                    t.ExpiresAt > now);
+
+            if (resetToken?.User == null)
+                return (false, "Invalid or expired reset link.");
+
+            resetToken.User.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            resetToken.User.MustChangePassword = false;
+            resetToken.UsedAt = now;
+
+            var otherActive = await _db.PasswordResetTokens
+                .Where(t => t.UserId == resetToken.UserId && t.Id != resetToken.Id && t.UsedAt == null)
+                .ToListAsync();
+
+            foreach (var t in otherActive)
+                t.UsedAt = now;
+
+            await _db.SaveChangesAsync();
+            return (true, null);
         }
 
     }

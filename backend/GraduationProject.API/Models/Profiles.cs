@@ -83,13 +83,22 @@ namespace GraduationProject.API.Models
         [Column("id")]           public int Id { get; set; }
         [Column("user_id")]      public int UserId { get; set; }
         [Column("company_name")] public string CompanyName { get; set; } = string.Empty;
+        [Column("normalized_company_name")] public string NormalizedCompanyName { get; set; } = string.Empty;
+        [Column("primary_email_domain")] public string? PrimaryEmailDomain { get; set; }
+        [Column("website_domain")] public string? WebsiteDomain { get; set; }
         [Column("industry")]     public string? Industry { get; set; }
         [Column("description")]  public string? Description { get; set; }
         [Column("location")]     public string? Location { get; set; }
+        [Column("headquarters_location")] public string? HeadquartersLocation { get; set; }
+        [Column("working_style")] public string? WorkingStyle { get; set; }
+        [Column("areas_of_interest")] public string? AreasOfInterest { get; set; }
         [Column("website_url")]  public string? WebsiteUrl { get; set; }
         [Column("linkedin_url")] public string? LinkedInUrl { get; set; }
+        [Column("contact_email")] public string? ContactEmail { get; set; }
+        [Column("optional_contact_link")] public string? OptionalContactLink { get; set; }
 
         public User User { get; set; } = null!;
+        public ICollection<CompanyMember> Members { get; set; } = new List<CompanyMember>();
     }
 
     // ===========================

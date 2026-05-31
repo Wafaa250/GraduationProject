@@ -4,7 +4,14 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<!-- SDK generates assembly metadata; exclude stray nested build output from compilation -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);**/obj_compile_out/**;**/bin_compile_check_out/**;**/bin_check/**</DefaultItemExcludes>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="Scripts/**/obj/**" />
+		<Compile Remove="Scripts/**/bin/**" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />

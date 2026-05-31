@@ -4,7 +4,6 @@ export type CompanyAnalysisResult = {
   companyName: string;
   industry?: string | null;
   description?: string | null;
-  location?: string | null;
   usedAi: boolean;
   message?: string | null;
 };
@@ -17,7 +16,6 @@ export type RegisterCompanyPayload = {
   companyName: string;
   industry?: string;
   description?: string;
-  location?: string;
   websiteUrl?: string;
   linkedInUrl?: string;
 };
