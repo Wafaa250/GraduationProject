@@ -1,5 +1,6 @@
-﻿import { Building2, CalendarDays, ClipboardList, LayoutDashboard, LogOut, Sparkles, UsersRound } from 'lucide-react'
+﻿import { Building2, CalendarDays, ClipboardList, LayoutDashboard, LogOut, UsersRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
+import { LandingBrandLogo } from '@/components/brand/LandingBrandLogo'
 import { ASSOCIATION_ROUTES } from '@/routes/paths'
 import { assocDash, assocShellHeader } from './associationDashTokens'
 
@@ -62,55 +63,7 @@ export function AssociationSidebar({ mobileOpen, onCloseMobile, onLogout }: Prop
             padding: '0 14px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: assocDash.gradient,
-                boxShadow: '0 2px 8px rgba(15,23,42,0.08)',
-              }}
-              aria-hidden
-            >
-              <Sparkles size={18} color="#ffffff" strokeWidth={2} />
-            </div>
-            <div style={{ minWidth: 0, overflow: 'hidden' }}>
-              <p
-                style={{
-                  margin: 0,
-                  fontFamily: assocDash.fontDisplay,
-                  fontSize: 16,
-                  fontWeight: 700,
-                  lineHeight: 1.2,
-                  color: assocDash.text,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Skill<span style={{ color: assocDash.accent }}>Swap</span>
-              </p>
-              <p
-                style={{
-                  margin: '2px 0 0',
-                  fontSize: 11,
-                  lineHeight: 1.2,
-                  color: assocDash.muted,
-                  fontWeight: 500,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Student Organizations
-              </p>
-            </div>
-          </div>
+          <LandingBrandLogo subtitle="Student Organizations" />
         </div>
 
         <nav
