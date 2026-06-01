@@ -1,0 +1,22 @@
+{
+  "name": "SkillSwap",
+  "tagline": "AI Talent Discovery & Collaboration Platform",
+  "colors": {
+    "primaryPurple": "#7B61B8",
+    "indigo": "#6366F1",
+    "softViolet": "#A487C8",
+    "matchOrange": "#F59E0B",
+    "darkNavy": "#0F172A",
+    "backgroundWhite": "#FFFFFF",
+    "backgroundSoft": "#F8FAFC"
+  },
+  "gradients": {
+    "markBackground": ["#7B61B8", "#6366F1"],
+    "wordmarkSwap": ["#7B61B8", "#6366F1"],
+    "matchHighlightOnly": "#F59E0B"
+  },
+  "ecosystem": {
+    "nodes": ["student", "professor", "aiEngine", "company", "organization"],
+    "flow": "Discovered S via connected paths — not a literal letterform"
+  }
+}

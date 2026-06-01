@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getCompanyDashboard, type CompanyDashboard } from "@/api/companyApi";
+import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { CompanyMatchScoreBadge } from "@/components/company/CompanyMatchScoreBadge";
 import {
   requestLifecycleStatusBadgeClass,
@@ -110,19 +111,19 @@ function MetricCard({
 export function CompanyDashboardPage() {
   const [dashboard, setDashboard] = useState<CompanyDashboard | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setLoadError(false);
+    setLoadError(null);
     getCompanyDashboard()
       .then((data) => {
         if (!cancelled) setDashboard(data);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
-          setLoadError(true);
+          setLoadError(parseApiErrorMessage(err));
           setDashboard(null);
         }
       })
@@ -207,7 +208,7 @@ export function CompanyDashboardPage() {
           <CardContent>
             <EmptyBlock
               icon={Inbox}
-              message="Could not load your dashboard. Please refresh the page."
+              message={loadError}
             />
           </CardContent>
         </Card>

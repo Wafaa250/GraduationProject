@@ -1,20 +1,28 @@
-import { Sparkles } from "lucide-react";
+import { BrandLogo } from '@/components/brand/BrandLogo'
+import { ROUTES } from '@/routes/paths'
 
-type BrandLogoProps = {
-  className?: string;
-};
+type LandingBrandLogoProps = {
+  className?: string
+  subtitle?: string
+  subtitleClassName?: string
+  to?: string
+}
 
-export function LandingBrandLogo({ className = "" }: BrandLogoProps) {
+/** Landing / marketing lockup — same mark + wordmark as app chrome. */
+export function LandingBrandLogo({
+  className = '',
+  subtitle,
+  subtitleClassName,
+  to = ROUTES.home,
+}: LandingBrandLogoProps) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <div className="relative">
-        <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-[0_0_20px_hsl(var(--primary)/0.5)]">
-          <Sparkles className="w-4 h-4 text-white" strokeWidth={2.5} />
-        </div>
-      </div>
-      <span className="font-display font-bold text-xl tracking-tight">
-        Skill<span className="text-gradient-primary">Swap</span>
-      </span>
-    </div>
-  );
+    <BrandLogo
+      size="md"
+      to={to}
+      className={className}
+      subtitle={subtitle}
+      subtitleClassName={subtitleClassName}
+      wordmarkClassName="text-xl"
+    />
+  )
 }

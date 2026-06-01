@@ -117,10 +117,10 @@ namespace GraduationProject.API.Services
                 _db.Users.Add(existingUser);
             }
 
-            await using var transaction = await _db.Database.BeginTransactionAsync();
+            CompanyMember member;
             try
             {
-                var member = new CompanyMember
+                member = new CompanyMember
                 {
                     User = existingUser,
                     CompanyProfileId = context.Profile.Id,
@@ -130,35 +130,55 @@ namespace GraduationProject.API.Services
                 _db.CompanyMembers.Add(member);
                 await _db.SaveChangesAsync();
 
-                if (isNewUser && temporaryPassword != null)
-                {
-                    var loginUrl = (_config["App:FrontendLoginUrl"] ?? "http://localhost:5173/login").Trim();
-                    try
-                    {
-                        await _emailService.SendCompanyMemberWelcomeEmailAsync(
-                            existingUser.Email,
-                            fullName,
-                            context.Profile.CompanyName,
-                            existingUser.Email,
-                            temporaryPassword,
-                            loginUrl);
-                    }
-                    catch (EmailSendException ex)
-                    {
-                        _logger.LogError(
-                            ex,
-                            "Failed to send welcome email to {Email} for company {CompanyProfileId}",
-                            existingUser.Email,
-                            context.Profile.Id);
-                        await transaction.RollbackAsync();
-                        return (
-                            null,
-                            "Member account was not created because login credentials could not be emailed. Please verify email settings and try again.",
-                            false);
-                    }
-                }
+                var hasPrefs = await _db.CompanyMemberNotificationPreferences.AnyAsync(p =>
+                    p.CompanyProfileId == context.Profile.Id &&
+                    p.UserId == existingUser.Id);
 
-                await transaction.CommitAsync();
+                if (!hasPrefs)
+                {
+                    _db.CompanyMemberNotificationPreferences.Add(new CompanyMemberNotificationPreference
+                    {
+                        CompanyProfileId = context.Profile.Id,
+                        UserId = existingUser.Id,
+                        UpdatedAt = DateTime.UtcNow,
+                    });
+                    await _db.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to add company member for {Email}", email);
+                throw;
+            }
+
+            var credentialsEmailSent = false;
+            if (isNewUser && temporaryPassword != null)
+            {
+                var loginUrl = (_config["App:FrontendLoginUrl"] ?? "http://localhost:5173/login").Trim();
+                try
+                {
+                    await _emailService.SendCompanyMemberWelcomeEmailAsync(
+                        existingUser.Email,
+                        fullName,
+                        context.Profile.CompanyName,
+                        existingUser.Email,
+                        temporaryPassword,
+                        loginUrl);
+                    credentialsEmailSent = true;
+                }
+                catch (EmailSendException ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Member {UserId} was added to company {CompanyProfileId} but welcome email to {Email} failed",
+                        existingUser.Id,
+                        context.Profile.Id,
+                        existingUser.Email);
+                }
+            }
+
+            try
+            {
                 await _db.Entry(member).Reference(m => m.User).LoadAsync();
 
                 var actor = await _db.Users.AsNoTracking()
@@ -177,12 +197,11 @@ namespace GraduationProject.API.Services
                     fullName,
                     actingUserId);
 
-                return (MapToDto(member), null, isNewUser);
+                return (MapToDto(member), null, credentialsEmailSent);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Failed to add company member for {Email}", email);
+                _logger.LogError(ex, "Post-add hooks failed for company member {Email}", email);
                 throw;
             }
         }

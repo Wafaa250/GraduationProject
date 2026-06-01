@@ -40,11 +40,11 @@ namespace GraduationProject.API.Controllers
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
-            return Ok(MapProfile(context));
+            return Ok(MapProfile(context!));
         }
 
         [HttpPut("profile")]
@@ -53,11 +53,11 @@ namespace GraduationProject.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var context = await RequireWorkspaceAsync(trackChanges: true);
-            if (context == null)
-                return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync(trackChanges: true);
+            if (workspaceError != null)
+                return workspaceError;
 
-            if (!context.IsOwner)
+            if (!context!.IsOwner)
                 return Forbid();
 
             var profile = await _db.CompanyProfiles
@@ -120,20 +120,20 @@ namespace GraduationProject.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
-            var result = await _talentMatch.SearchAsync(context.Profile.Id, dto);
+            var result = await _talentMatch.SearchAsync(context!.Profile.Id, dto);
             return Ok(result);
         }
 
         [HttpGet("talent-requests")]
         public async Task<IActionResult> ListTalentRequests()
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var rows = await _db.CompanyTalentRequests
                 .AsNoTracking()
@@ -154,28 +154,36 @@ namespace GraduationProject.API.Controllers
             return Ok(list);
         }
 
-        private async Task<CompanyWorkspaceContext?> RequireWorkspaceAsync(bool trackChanges = false)
+        private async Task<(CompanyWorkspaceContext? Context, IActionResult? Error)> RequireWorkspaceAsync(
+            bool trackChanges = false)
         {
-            var userId = AuthorizationHelper.GetUserId(User);
-            var context = await _workspace.GetWorkspaceAsync(userId);
-            if (context == null)
-                return null;
+            var resolved = await CompanyWorkspaceHelper.ResolveAsync(_workspace, User);
+            if (!resolved.Success)
+                return (null, CompanyWorkspaceHelper.NotFound(resolved));
+
+            var context = resolved.Context!;
 
             if (!trackChanges)
-                return context;
+                return (context, null);
 
             var profile = await _db.CompanyProfiles
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.Id == context.Profile.Id);
 
             if (profile == null)
-                return null;
+            {
+                return (null, NotFound(new
+                {
+                    message = "Company profile record is missing. Contact support.",
+                    code = "COMPANY_PROFILE_MISSING",
+                }));
+            }
 
-            return new CompanyWorkspaceContext
+            return (new CompanyWorkspaceContext
             {
                 Profile = profile,
                 Member = context.Member,
-            };
+            }, null);
         }
 
         private static CompanyProfileDto MapProfile(CompanyWorkspaceContext context)

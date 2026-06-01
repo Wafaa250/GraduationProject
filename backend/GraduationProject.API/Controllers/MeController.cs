@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
 using GraduationProject.API.Helpers;
+using GraduationProject.API.Services;
 
 namespace GraduationProject.API.Controllers
 {
@@ -15,7 +16,13 @@ namespace GraduationProject.API.Controllers
     public class MeController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
-        public MeController(ApplicationDbContext db) => _db = db;
+        private readonly ICompanyWorkspaceService _companyWorkspace;
+
+        public MeController(ApplicationDbContext db, ICompanyWorkspaceService companyWorkspace)
+        {
+            _db = db;
+            _companyWorkspace = companyWorkspace;
+        }
 
         // GET /api/me
         [HttpGet]
@@ -151,23 +158,25 @@ namespace GraduationProject.API.Controllers
         // ── Company ──────────────────────────────────────────────────────────
         private async Task<IActionResult> GetCompanyInfo(int userId)
         {
-            var profile = await _db.CompanyProfiles
-                .Include(c => c.User)
-                .FirstOrDefaultAsync(c => c.UserId == userId);
+            var resolved = await _companyWorkspace.ResolveWorkspaceAsync(userId);
+            if (!resolved.Success)
+                return NotFound(new { message = resolved.UserFacingMessage, code = resolved.FailureCode });
 
-            if (profile == null)
-                return NotFound(new { message = "Company profile not found." });
+            var profile = resolved.Context!.Profile;
+            if (profile.User == null)
+                await _db.Entry(profile).Reference(c => c.User).LoadAsync();
 
             return Ok(new
             {
-                role        = "company",
-                userId      = profile.UserId,
-                profileId   = profile.Id,
-                name        = profile.User.Name,
-                email       = profile.User.Email,
-                companyName = profile.CompanyName,
-                industry    = profile.Industry,
-                description = profile.Description
+                role          = "company",
+                userId        = profile.UserId,
+                profileId     = profile.Id,
+                name          = profile.User.Name,
+                email         = profile.User.Email,
+                companyName   = profile.CompanyName,
+                industry      = profile.Industry,
+                description   = profile.Description,
+                workspaceRole = resolved.Context.Member.Role,
             });
         }
 

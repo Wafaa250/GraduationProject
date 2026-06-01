@@ -24,10 +24,12 @@ import {
   NotificationBellButton,
   NotificationCenterDropdown,
 } from "@/components/notifications/NotificationCenter";
+import { WorkspaceThemeToggle } from "@/components/theme/WorkspaceThemeToggle";
 import { getStudentNotificationTarget } from "@/lib/studentNotificationNavigation";
 import type { GraduationNotification } from "@/api/notificationsApi";
 import { ROUTES } from "@/routes/paths";
 import { logout } from "@/utils/authSession";
+import { PROFILE_AVATAR_FALLBACK_CLASS, profileInitialsFromName } from "@/lib/profileAvatar";
 import { cn } from "@/components/ui/utils";
 import "@/styles/student-sidebar-layout.css";
 
@@ -98,16 +100,6 @@ const ACCOUNT_NAV: NavItemDef[] = [
     matchPaths: [ROUTES.settings],
   },
 ];
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 function isItemActive(pathname: string, item: NavItemDef): boolean {
   if (!item.matchPaths?.length) {
@@ -301,6 +293,7 @@ export function StudentSidebarLayout() {
           <MessageCircle className="h-4 w-4" />
         </Link>
       </Button>
+      <WorkspaceThemeToggle />
       <div ref={profileMenuRef} className="relative">
         <Button
           type="button"
@@ -317,8 +310,10 @@ export function StudentSidebarLayout() {
         >
           <Avatar className="h-9 w-9 ring-2 ring-primary/20">
             {profilePhoto && <AvatarImage src={profilePhoto} alt="" />}
-            <AvatarFallback className="bg-gradient-hero text-xs font-semibold text-primary-foreground">
-              {initials(displayName)}
+            <AvatarFallback
+              className={cn(PROFILE_AVATAR_FALLBACK_CLASS, "text-xs")}
+            >
+              {profileInitialsFromName(displayName)}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -391,9 +386,6 @@ export function StudentSidebarLayout() {
                 aria-label="SkillSwap dashboard"
               >
                 <BrandLogo size="sm" variant={collapsed ? "mark" : "full"} />
-                {!collapsed && (
-                  <span className="student-sidebar-layout__brand-sub">Student</span>
-                )}
               </Link>
               <Button
                 type="button"

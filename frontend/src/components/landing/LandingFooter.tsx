@@ -1,5 +1,6 @@
 import { Github, Linkedin, Mail, Twitter } from "lucide-react";
 import { LandingBrandLogo } from "@/components/brand/LandingBrandLogo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const footerColumns = [
   {
@@ -58,9 +59,12 @@ export function LandingFooter() {
             </div>
           ))}
         </div>
-        <div className="mt-12 pt-6 border-t border-border/40 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-muted-foreground">
+        <div className="mt-12 pt-6 border-t border-border/40 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} SkillSwap. All rights reserved.</span>
-          <span>Build Better Teams Through Skills and AI.</span>
+          <div className="flex items-center gap-3">
+            <ThemeToggle placement="inline" />
+            <span className="hidden sm:inline">Build Better Teams Through Skills and AI.</span>
+          </div>
         </div>
       </div>
     </footer>

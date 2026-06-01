@@ -31,6 +31,7 @@ import { OrgScreenHeader } from "@/components/organization/OrgScreenHeader";
 import { assocColors } from "@/constants/associationTheme";
 import { radius, spacing } from "@/constants/responsiveLayout";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { sortByLeadershipRole } from "@/utils/leadershipRoleSort";
 import { clearSession } from "@/utils/authStorage";
 
 type Draft = {
@@ -39,7 +40,6 @@ type Draft = {
   major: string;
   imageUrl: string;
   linkedInUrl: string;
-  displayOrder: string;
 };
 
 function emptyDraft(): Draft {
@@ -49,7 +49,6 @@ function emptyDraft(): Draft {
     major: "",
     imageUrl: "",
     linkedInUrl: "",
-    displayOrder: "0",
   };
 }
 
@@ -60,15 +59,7 @@ function draftFromMember(m: OrganizationTeamMember): Draft {
     major: m.major ?? "",
     imageUrl: m.imageUrl ?? "",
     linkedInUrl: m.linkedInUrl ?? "",
-    displayOrder: String(m.displayOrder ?? 0),
   };
-}
-
-function sortMembers(list: OrganizationTeamMember[]): OrganizationTeamMember[] {
-  return [...list].sort((a, b) => {
-    if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-  });
 }
 
 export default function OrganizationTeamMembersScreen() {
@@ -83,7 +74,7 @@ export default function OrganizationTeamMembersScreen() {
   const [portraitBusy, setPortraitBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const sorted = useMemo(() => sortMembers(members), [members]);
+  const sorted = useMemo(() => sortByLeadershipRole(members), [members]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -150,8 +141,6 @@ export default function OrganizationTeamMembersScreen() {
   };
 
   const submitForm = async () => {
-    const orderRaw = parseInt(draft.displayOrder.trim(), 10);
-    const displayOrder = Number.isFinite(orderRaw) ? orderRaw : 0;
     const fullName = draft.fullName.trim();
     const roleTitle = draft.roleTitle.trim();
     if (!fullName || !roleTitle) {
@@ -164,17 +153,16 @@ export default function OrganizationTeamMembersScreen() {
       major: draft.major.trim() || null,
       imageUrl: draft.imageUrl.trim() || null,
       linkedInUrl: draft.linkedInUrl.trim() || null,
-      displayOrder,
     };
     setSaving(true);
     try {
       if (editingId != null) {
         const updated = await updateOrganizationTeamMember(editingId, payload);
-        setMembers((prev) => sortMembers(prev.map((x) => (x.id === updated.id ? updated : x))));
+        setMembers((prev) => sortByLeadershipRole(prev.map((x) => (x.id === updated.id ? updated : x))));
         Alert.alert("Saved", "Leadership member updated.");
       } else {
         const created = await createOrganizationTeamMember(payload);
-        setMembers((prev) => sortMembers([...prev, created]));
+        setMembers((prev) => sortByLeadershipRole([...prev, created]));
         Alert.alert("Added", "Leadership member added to your public showcase.");
       }
       closeForm();
@@ -284,7 +272,6 @@ export default function OrganizationTeamMembersScreen() {
                         {m.major.trim()}
                       </Text>
                     ) : null}
-                    <Text style={styles.cardOrder}>Order: {m.displayOrder}</Text>
                   </View>
                 </View>
                 <View style={styles.cardActions}>
@@ -404,15 +391,6 @@ export default function OrganizationTeamMembersScreen() {
                 autoCorrect={false}
               />
 
-              <FormLabel>Display order</FormLabel>
-              <TextInput
-                value={draft.displayOrder}
-                onChangeText={(t) => setDraft((d) => ({ ...d, displayOrder: t }))}
-                keyboardType="number-pad"
-                style={styles.input}
-              />
-              <Text style={styles.orderHint}>Lower numbers appear first on your public profile.</Text>
-
               <Pressable
                 style={[styles.saveBtn, saving && { opacity: 0.75 }]}
                 onPress={() => void submitForm()}
@@ -520,7 +498,6 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 16, fontWeight: "900", color: assocColors.text },
   cardRole: { marginTop: 4, fontSize: 13, fontWeight: "800", color: assocColors.accent },
   cardMajor: { marginTop: 6, fontSize: 12, color: assocColors.muted, fontWeight: "600" },
-  cardOrder: { marginTop: 8, fontSize: 11, color: assocColors.subtle, fontWeight: "700" },
   cardActions: {
     flexDirection: "row",
     gap: spacing.lg,
@@ -579,7 +556,6 @@ const styles = StyleSheet.create({
     color: assocColors.text,
     backgroundColor: assocColors.surface,
   },
-  orderHint: { marginTop: 6, fontSize: 11, color: assocColors.muted, fontWeight: "600" },
   saveBtn: {
     marginTop: spacing.xl,
     minHeight: 52,

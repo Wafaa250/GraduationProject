@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { BrandLogo } from '@/components/brand/BrandLogo'
+import { ROUTES } from '@/routes/paths'
 import { cn } from '@/components/ui/utils'
 import '@/pages/auth/login-page.css'
 
@@ -30,7 +31,7 @@ export function AuthShell({ children, wide = false, topRight, className }: AuthS
       />
 
       <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-5 py-5 sm:px-8 lg:px-12">
-        <BrandLogo to="/" size="md" />
+        <BrandLogo to={ROUTES.home} size="md" />
         {topRight ? <div className="text-right text-sm">{topRight}</div> : null}
       </header>
 

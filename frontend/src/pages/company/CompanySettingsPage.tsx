@@ -16,7 +16,10 @@ import {
   Bookmark,
   FileText,
   UserPlus,
+  Palette,
 } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
+import type { ThemePreference } from "@/lib/theme";
 import toast from "react-hot-toast";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -39,7 +42,7 @@ import {
   type CompanyWorkspaceSummary,
 } from "@/api/companyApi";
 
-type SectionId = "security" | "workspace" | "notifications";
+type SectionId = "security" | "workspace" | "notifications" | "appearance";
 
 const NOTIFICATION_ITEMS: {
   key: keyof CompanyNotificationPreferences;
@@ -308,7 +311,14 @@ function NotificationToggleRow({
   );
 }
 
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
+
 export function CompanySettingsPage() {
+  const { themePreference, setThemePreference } = useTheme();
   const showMembersLink = isCompanyOwner();
   const [active, setActive] = useState<SectionId>("security");
   const [loading, setLoading] = useState(true);
@@ -343,6 +353,12 @@ export function CompanySettingsPage() {
       label: "Notifications",
       icon: Bell,
       desc: "Alerts & updates",
+    });
+    items.push({
+      id: "appearance",
+      label: "Appearance",
+      icon: Palette,
+      desc: "Light & dark mode",
     });
     return items;
   }, [showMembersLink]);
@@ -570,6 +586,36 @@ export function CompanySettingsPage() {
                   loading={loading}
                 />
               </div>
+            </SectionCard>
+          )}
+
+          {active === "appearance" && (
+            <SectionCard
+              icon={Palette}
+              eyebrow="Display"
+              title="Appearance"
+              description="Choose how SkillSwap looks on this device."
+            >
+              <div className="flex flex-wrap gap-2">
+                {THEME_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={cn(
+                      "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
+                      themePreference === value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground",
+                    )}
+                    onClick={() => setThemePreference(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
+                Stored on this device only. &quot;System&quot; follows your OS light/dark setting.
+              </p>
             </SectionCard>
           )}
 

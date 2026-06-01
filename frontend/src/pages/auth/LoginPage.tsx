@@ -114,7 +114,7 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
               className="absolute inset-0 [background-image:linear-gradient(hsl(0_0%_100%/0.08)_1px,transparent_1px),linear-gradient(90deg,hsl(0_0%_100%/0.08)_1px,transparent_1px)] [background-size:42px_42px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]"
             />
 
-            <BrandLogo to="/" size="lg" onDark className="relative" />
+            <BrandLogo to={ROUTES.home} size="lg" onDark className="relative" />
 
             <div className="relative flex-1 flex flex-col justify-center space-y-10 text-primary-foreground -translate-y-7">
               <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
@@ -160,7 +160,7 @@ export default function LoginPage({ embedded = false, onLoginSuccess }: LoginPag
           <div className="w-full max-w-md">
             {!embedded && (
               <div className="lg:hidden mb-8 flex items-center justify-center gap-2.5">
-                <BrandLogo to="/" size="sm" className="justify-center w-full" />
+                <BrandLogo to={ROUTES.home} size="sm" className="justify-center w-full" />
               </div>
             )}
 

@@ -5,6 +5,7 @@ import { getDoctorNotificationTarget } from "@/lib/doctorNotificationNavigation"
 import { Search, Command, Menu, User, Settings, LogOut, ChevronDown, MessageCircle } from "lucide-react";
 import { useDoctorHubProfile } from "./DoctorHubProfileContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROUTES, doctorStudentPath } from "@/routes/paths";
 import { logout } from "@/utils/authSession";
@@ -16,6 +17,7 @@ import {
   NotificationBellButton,
   NotificationCenterDropdown,
 } from "@/components/notifications/NotificationCenter";
+import { WorkspaceThemeToggle } from "@/components/theme/WorkspaceThemeToggle";
 import type { GraduationNotification } from "@/api/notificationsApi";
 
 export function DoctorHubHeader() {
@@ -227,17 +229,20 @@ export function DoctorHubHeader() {
             />
           </div>
 
-          <Link
-            to={ROUTES.doctorMessages}
-            className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-smooth hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-            aria-label="Messages"
-            onClick={() => {
-              inbox.setOpen(false);
-              setProfileMenuOpen(false);
-            }}
-          >
-            <MessageCircle className="h-5 w-5" />
-          </Link>
+          <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-lg" asChild>
+            <Link
+              to={ROUTES.doctorMessages}
+              aria-label="Messages"
+              onClick={() => {
+                inbox.setOpen(false);
+                setProfileMenuOpen(false);
+              }}
+            >
+              <MessageCircle className="h-4 w-4" />
+            </Link>
+          </Button>
+
+          <WorkspaceThemeToggle />
 
           <div ref={profileMenuRef} className="relative">
             <button

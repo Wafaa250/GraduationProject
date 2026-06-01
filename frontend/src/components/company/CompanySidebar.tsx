@@ -1,17 +1,19 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
   Building2,
   Settings,
   Plus,
-  PanelLeftClose,
-  PanelLeft,
-  Sparkles,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronDown,
   Users,
   Bookmark,
   LogOut,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
 import { useCompanySidebarCollapsed } from "@/hooks/useCompanySidebarCollapsed";
@@ -20,8 +22,86 @@ import { companySignOut } from "@/components/company/CompanyProfileMenu";
 
 const workspaceNav = [
   { title: "Dashboard", to: COMPANY_ROUTES.dashboard, icon: LayoutDashboard },
-  { title: "Project Requests", to: COMPANY_ROUTES.requests, icon: FileText },
 ];
+
+function isProjectRequestsPath(pathname: string) {
+  return (
+    pathname === COMPANY_ROUTES.requests ||
+    pathname.startsWith(`${COMPANY_ROUTES.requests}/`)
+  );
+}
+
+function ProjectRequestsNavGroup({ collapsed }: { collapsed: boolean }) {
+  const { pathname } = useLocation();
+  const inRequests = isProjectRequestsPath(pathname);
+  const [open, setOpen] = useState(inRequests);
+
+  useEffect(() => {
+    setOpen(inRequests);
+  }, [inRequests]);
+
+  return (
+    <div className="space-y-0.5">
+      <div
+        className={cn(
+          "flex items-center gap-0.5 min-w-0",
+          collapsed && "justify-center",
+        )}
+      >
+        <NavLink
+          to={COMPANY_ROUTES.requests}
+          end={pathname === COMPANY_ROUTES.requests}
+          title={collapsed ? "Project Requests" : undefined}
+          data-tooltip={collapsed ? "Project Requests" : undefined}
+          onClick={() => setOpen(true)}
+          className={({ isActive }) =>
+            cn(
+              "cw-sidebar-link min-w-0 flex-1",
+              collapsed && "cw-sidebar-link--collapsed",
+              (isActive || inRequests) && "active",
+            )
+          }
+        >
+          <FileText className="h-4 w-4 shrink-0" aria-hidden />
+          <span
+            className={cn(
+              "whitespace-nowrap overflow-hidden transition-[opacity,width,margin] duration-300 ease-in-out",
+              collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100",
+            )}
+          >
+            Project Requests
+          </span>
+        </NavLink>
+        {!collapsed ? (
+          <button
+            type="button"
+            className={cn(
+              "cw-sidebar-requests-toggle shrink-0",
+              open && "is-open",
+            )}
+            aria-label={open ? "Hide new request" : "Show new request"}
+            aria-expanded={open}
+            onClick={(e) => {
+              e.preventDefault();
+              setOpen((value) => !value);
+            }}
+          >
+            <ChevronDown className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
+      </div>
+      {open && !collapsed ? (
+        <SidebarNavItem
+          to={COMPANY_ROUTES.newRequest}
+          icon={Plus}
+          title="New Request"
+          collapsed={collapsed}
+          sublink
+        />
+      ) : null}
+    </div>
+  );
+}
 
 const accountNav = [
   { title: "Company Profile", to: COMPANY_ROUTES.profile, icon: Building2 },
@@ -90,31 +170,28 @@ export function CompanySidebar() {
       className={cn(
         "cw-sidebar hidden md:flex flex-col shrink-0 h-full min-h-0 overflow-hidden",
         "transition-[width] duration-300 ease-in-out",
-        collapsed ? "cw-sidebar--collapsed w-[4.25rem]" : "w-64",
+        collapsed ? "cw-sidebar--collapsed w-[4.875rem]" : "w-64",
       )}
       aria-label="Company workspace navigation"
     >
-      <div className="cw-shell-header cw-sidebar-header">
+      <div
+        className={cn(
+          "cw-shell-header cw-sidebar-header",
+          collapsed && "cw-sidebar-header--collapsed",
+        )}
+      >
         <div
           className={cn(
             "cw-sidebar-header-inner",
-            collapsed ? "cw-sidebar-header-inner--collapsed" : "cw-sidebar-header-inner--expanded",
+            collapsed && "cw-sidebar-header-inner--collapsed",
           )}
         >
-          <div className="cw-sidebar-brand">
-            <div className="cw-sidebar-brand-mark cw-avatar-gradient shadow-md" aria-hidden>
-              <Sparkles className="h-[1.125rem] w-[1.125rem] text-white" />
-            </div>
-            <div
-              className={cn(
-                "cw-sidebar-brand-text",
-                collapsed && "cw-sidebar-brand-text--hidden",
-              )}
-            >
-              <span className="cw-sidebar-brand-title truncate">SkillSwap</span>
-              <span className="cw-sidebar-brand-subtitle truncate">AI Talent Discovery</span>
-            </div>
-          </div>
+          <BrandLogo
+            to={COMPANY_ROUTES.dashboard}
+            size="sm"
+            variant={collapsed ? "mark" : "full"}
+            className={cn("cw-sidebar-brand min-w-0", collapsed && "cw-sidebar-brand--collapsed")}
+          />
 
           <button
             type="button"
@@ -124,7 +201,11 @@ export function CompanySidebar() {
             aria-expanded={!collapsed}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            {collapsed ? (
+              <ChevronsRight className="h-4 w-4" />
+            ) : (
+              <ChevronsLeft className="h-4 w-4" />
+            )}
           </button>
         </div>
       </div>
@@ -141,13 +222,7 @@ export function CompanySidebar() {
             {workspaceNav.map((item) => (
               <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
             ))}
-            <SidebarNavItem
-              to={COMPANY_ROUTES.newRequest}
-              icon={Plus}
-              title="New Request"
-              collapsed={collapsed}
-              sublink
-            />
+            <ProjectRequestsNavGroup collapsed={collapsed} />
             <SidebarNavItem
               to={COMPANY_ROUTES.saved}
               icon={Bookmark}

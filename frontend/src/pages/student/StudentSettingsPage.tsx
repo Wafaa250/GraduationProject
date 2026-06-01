@@ -16,9 +16,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/context/ThemeContext";
 import { toast } from "@/hooks/use-toast";
+import { PROFILE_AVATAR_FALLBACK_CLASS, profileInitialsFromName } from "@/lib/profileAvatar";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
-import { ROUTES } from "@/routes/paths";
 import { cn } from "@/components/ui/utils";
+import { ROUTES } from "@/routes/paths";
 import type { ThemePreference } from "@/lib/theme";
 import "@/styles/student-hub.css";
 import "@/styles/student-workspace-pages.css";
@@ -47,16 +48,6 @@ const NOTIFICATION_ITEMS: { key: keyof NotificationPreferences; label: string; d
   { key: "projectUpdates", label: "Project updates", description: "Changes on projects you own or belong to." },
   { key: "courseAnnouncements", label: "Course announcements", description: "Announcements from your enrolled courses." },
 ];
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 function SettingsSection({
   title,
@@ -295,8 +286,10 @@ export default function StudentSettingsPage() {
             <div className="flex flex-col items-center gap-2">
               <Avatar className="h-20 w-20 border border-border">
                 {photo ? <AvatarImage src={photo} alt="" /> : null}
-                <AvatarFallback className="text-lg font-semibold">
-                  {initials(fullName || "?")}
+                <AvatarFallback
+                  className={cn(PROFILE_AVATAR_FALLBACK_CLASS, "text-lg")}
+                >
+                  {profileInitialsFromName(fullName || "?")}
                 </AvatarFallback>
               </Avatar>
               <label className="student-ws-btn-outline cursor-pointer gap-2 px-3 py-1.5 text-xs">

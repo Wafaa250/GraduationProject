@@ -27,9 +27,9 @@ namespace GraduationProject.API.Controllers
         [HttpGet]
         public async Task<IActionResult> ListAll()
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var page = await _saved.ListAllAsync(context.Profile.Id);
             return Ok(page);
@@ -38,9 +38,9 @@ namespace GraduationProject.API.Controllers
         [HttpGet("requests/{requestId:int}/ids")]
         public async Task<IActionResult> GetIdsForRequest(int requestId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var ids = await _saved.GetSavedIdsForRequestAsync(context.Profile.Id, requestId);
             return Ok(ids);
@@ -49,9 +49,9 @@ namespace GraduationProject.API.Controllers
         [HttpPut("requests/{requestId:int}/students/{studentProfileId:int}")]
         public async Task<IActionResult> SaveStudent(int requestId, int studentProfileId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var userId = AuthorizationHelper.GetUserId(User);
             var (saved, error) = await _saved.SaveStudentAsync(
@@ -69,9 +69,9 @@ namespace GraduationProject.API.Controllers
         [HttpDelete("requests/{requestId:int}/students/{studentProfileId:int}")]
         public async Task<IActionResult> UnsaveStudent(int requestId, int studentProfileId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var (removed, error) = await _saved.UnsaveStudentAsync(
                 context.Profile.Id,
@@ -87,9 +87,9 @@ namespace GraduationProject.API.Controllers
         [HttpPut("requests/{requestId:int}/teams/{teamRecommendationId:int}")]
         public async Task<IActionResult> SaveTeam(int requestId, int teamRecommendationId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var userId = AuthorizationHelper.GetUserId(User);
             var (saved, error) = await _saved.SaveTeamAsync(
@@ -107,9 +107,9 @@ namespace GraduationProject.API.Controllers
         [HttpDelete("requests/{requestId:int}/teams/{teamRecommendationId:int}")]
         public async Task<IActionResult> UnsaveTeam(int requestId, int teamRecommendationId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var (removed, error) = await _saved.UnsaveTeamAsync(
                 context.Profile.Id,
@@ -128,9 +128,9 @@ namespace GraduationProject.API.Controllers
             int studentProfileId,
             [FromBody] UpdateSavedRecommendationNoteDto body)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var (updated, error) = await _saved.UpdateStudentNoteAsync(
                 context.Profile.Id,
@@ -151,9 +151,9 @@ namespace GraduationProject.API.Controllers
             int teamRecommendationId,
             [FromBody] UpdateSavedRecommendationNoteDto body)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null)
+                return workspaceError;
 
             var (updated, error) = await _saved.UpdateTeamNoteAsync(
                 context.Profile.Id,
@@ -168,7 +168,7 @@ namespace GraduationProject.API.Controllers
             return NoContent();
         }
 
-        private async Task<CompanyWorkspaceContext?> RequireWorkspaceAsync() =>
-            await CompanyWorkspaceHelper.RequireWorkspaceAsync(_workspace, User);
+        private Task<(CompanyWorkspaceContext? Context, IActionResult? Error)> RequireWorkspaceAsync() =>
+            CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
     }
 }

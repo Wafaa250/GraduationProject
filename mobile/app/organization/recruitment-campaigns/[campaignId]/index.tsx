@@ -27,7 +27,7 @@ import {
   parseSkillsList,
   type RecruitmentCampaign,
 } from "@/api/organizationRecruitmentCampaignsApi";
-import { OrgScreenHeader } from "@/components/organization/OrgScreenHeader";
+import { sortByLeadershipRole } from "@/utils/leadershipRoleSort";
 import { assocColors } from "@/constants/associationTheme";
 import { radius, spacing } from "@/constants/responsiveLayout";
 import { formatEventDate } from "@/utils/eventFormUtils";
@@ -95,7 +95,7 @@ export default function OrganizationRecruitmentCampaignDetailsScreen() {
   }, [aiAnalyzingPositionId, pulse]);
 
   const cover = campaign?.coverImageUrl ? resolveApiFileUrl(campaign.coverImageUrl) : null;
-  const positions = [...(campaign?.positions ?? [])].sort((a, b) => a.displayOrder - b.displayOrder);
+  const positions = sortByLeadershipRole(campaign?.positions ?? []);
 
   const confirmDelete = () => {
     if (!campaign) return;

@@ -11,6 +11,8 @@ import {
   User,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PROFILE_AVATAR_FALLBACK_CLASS } from "@/lib/profileAvatar";
+import { cn } from "@/components/ui/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -122,7 +124,9 @@ export function MySupervisorSection({ supervisor }: MySupervisorSectionProps) {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
             <Avatar className="h-20 w-20 shrink-0 ring-4 ring-primary/10">
               {photo ? <AvatarImage src={photo} alt="" /> : null}
-              <AvatarFallback className="bg-gradient-hero text-lg font-semibold text-primary-foreground">
+              <AvatarFallback
+                className={cn(PROFILE_AVATAR_FALLBACK_CLASS, "text-lg")}
+              >
                 {initials(supervisor.name || "?")}
               </AvatarFallback>
             </Avatar>

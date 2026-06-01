@@ -1,0 +1,45 @@
+/* Association workspace — theme-aware shell (light / dark, same pattern as student & doctor) */
+.association-workspace {
+  --aw-shell-bg: 210 40% 98%;
+  --aw-surface: 0 0% 100%;
+  --aw-border: 220 13% 91%;
+  --aw-text: 222 47% 11%;
+  --aw-text-secondary: 215 20% 35%;
+  --aw-muted: 220 9% 46%;
+  --aw-subtle: 220 9% 55%;
+  --aw-label: 220 9% 46%;
+  --aw-accent: 32 95% 44%;
+  --aw-accent-dark: 28 75% 32%;
+  --aw-accent-muted: 48 96% 96%;
+  --aw-accent-border: 48 96% 85%;
+  --aw-shadow: 0 1px 2px hsl(222 47% 11% / 0.04), 0 4px 16px hsl(222 47% 11% / 0.06);
+  --aw-shadow-lg: 0 8px 30px hsl(222 47% 11% / 0.08);
+
+  min-height: 100%;
+  color: hsl(var(--aw-text));
+  background: hsl(var(--aw-shell-bg));
+}
+
+.dark .association-workspace {
+  --aw-shell-bg: 222 39% 11%;
+  --aw-surface: 215 30% 22%;
+  --aw-border: 215 16% 27%;
+  --aw-text: 210 20% 98%;
+  --aw-text-secondary: 220 9% 84%;
+  --aw-muted: 220 9% 64%;
+  --aw-subtle: 220 9% 55%;
+  --aw-label: 220 9% 64%;
+  --aw-accent: 38 92% 55%;
+  --aw-accent-dark: 43 96% 72%;
+  --aw-accent-muted: 32 60% 14%;
+  --aw-accent-border: 32 50% 26%;
+  --aw-shadow: 0 1px 2px hsl(222 47% 5% / 0.35), 0 4px 16px hsl(222 47% 5% / 0.25);
+  --aw-shadow-lg: 0 8px 30px hsl(222 47% 5% / 0.35);
+}
+
+.association-workspace .assoc-workspace-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}

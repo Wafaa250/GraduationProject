@@ -14,7 +14,7 @@ import { radius, spacing } from "@/constants/responsiveLayout";
 
 export type PositionDraft = RecruitmentPositionInput & { _key: string };
 
-export function newPositionDraft(order: number): PositionDraft {
+export function newPositionDraft(): PositionDraft {
   return {
     _key: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     roleTitle: "",
@@ -22,7 +22,6 @@ export function newPositionDraft(order: number): PositionDraft {
     description: "",
     requirements: "",
     requiredSkills: "",
-    displayOrder: order,
   };
 }
 
@@ -34,7 +33,6 @@ export function positionsFromCampaign(
     description?: string | null;
     requirements?: string | null;
     requiredSkills?: string | null;
-    displayOrder: number;
   }>,
 ): PositionDraft[] {
   return positions.map((p) => ({
@@ -45,19 +43,17 @@ export function positionsFromCampaign(
     description: p.description ?? "",
     requirements: p.requirements ?? "",
     requiredSkills: p.requiredSkills ?? "",
-    displayOrder: p.displayOrder,
   }));
 }
 
 export function draftsToPayload(drafts: PositionDraft[]): RecruitmentPositionInput[] {
-  return drafts.map((d, index) => ({
+  return drafts.map((d) => ({
     id: d.id ?? undefined,
     roleTitle: d.roleTitle.trim(),
     neededCount: Number.isFinite(d.neededCount) && d.neededCount >= 1 ? d.neededCount : 1,
     description: d.description?.trim() || null,
     requirements: d.requirements?.trim() || null,
     requiredSkills: d.requiredSkills?.trim() || null,
-    displayOrder: d.displayOrder ?? index,
   }));
 }
 
@@ -92,7 +88,7 @@ export function RecruitmentPositionsEditor({
     };
   }, [campaignId, positions]);
 
-  const add = () => onChange([...positions, newPositionDraft(positions.length)]);
+  const add = () => onChange([...positions, newPositionDraft()]);
 
   const update = (key: string, patch: Partial<PositionDraft>) => {
     onChange(positions.map((p) => (p._key === key ? { ...p, ...patch } : p)));
@@ -184,18 +180,6 @@ export function RecruitmentPositionsEditor({
               onChangeText={(t) => update(pos._key, { requiredSkills: t })}
               placeholder="Canva, Photoshop, Creativity"
               placeholderTextColor={assocColors.subtle}
-              style={styles.input}
-              editable={!disabled}
-            />
-          </Field>
-
-          <Field label="Display order" optional>
-            <TextInput
-              value={String(pos.displayOrder ?? index)}
-              onChangeText={(t) =>
-                update(pos._key, { displayOrder: parseInt(t.replace(/[^\d]/g, ""), 10) || index })
-              }
-              keyboardType="number-pad"
               style={styles.input}
               editable={!disabled}
             />

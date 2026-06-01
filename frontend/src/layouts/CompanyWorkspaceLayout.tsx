@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { CompanySidebar } from "@/components/company/CompanySidebar";
 import { CompanyTopbar } from "@/components/company/CompanyTopbar";
+import { useCompanyWorkspaceBootstrap } from "@/layouts/useCompanyWorkspaceBootstrap";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, FileText, Sparkles, MessageSquare } from "lucide-react";
@@ -14,6 +15,8 @@ const mobileNav = [
 ];
 
 export function CompanyWorkspaceLayout() {
+  useCompanyWorkspaceBootstrap();
+
   return (
     <div className="company-workspace cw-shell flex w-full">
       <CompanySidebar />

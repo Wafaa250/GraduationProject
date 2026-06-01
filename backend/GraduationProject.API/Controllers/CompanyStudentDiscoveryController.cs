@@ -28,8 +28,8 @@ namespace GraduationProject.API.Controllers
             int studentProfileId,
             [FromQuery] int? teamId = null)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var result = await _discovery.GetStudentProfileAsync(
                 context.Profile.Id,
@@ -42,7 +42,7 @@ namespace GraduationProject.API.Controllers
                 : Ok(result);
         }
 
-        private async Task<CompanyWorkspaceContext?> RequireWorkspaceAsync() =>
-            await CompanyWorkspaceHelper.RequireWorkspaceAsync(_workspace, User);
+        private Task<(CompanyWorkspaceContext? Context, IActionResult? Error)> RequireWorkspaceAsync() =>
+            CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
     }
 }

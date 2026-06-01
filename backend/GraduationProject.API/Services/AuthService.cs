@@ -39,19 +39,22 @@ namespace GraduationProject.API.Services
         private readonly IEmailService _emailService;
         private readonly ILogger<AuthService> _logger;
         private readonly ICompanyUniquenessService _companyUniqueness;
+        private readonly ICompanyWorkspaceService _companyWorkspace;
 
         public AuthService(
             ApplicationDbContext db,
             IConfiguration config,
             IEmailService emailService,
             ILogger<AuthService> logger,
-            ICompanyUniquenessService companyUniqueness)
+            ICompanyUniquenessService companyUniqueness,
+            ICompanyWorkspaceService companyWorkspace)
         {
             _db = db;
             _config = config;
             _emailService = emailService;
             _logger = logger;
             _companyUniqueness = companyUniqueness;
+            _companyWorkspace = companyWorkspace;
         }
 
         // ===========================
@@ -221,6 +224,13 @@ namespace GraduationProject.API.Services
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.Password))
                 return (null, "Invalid email or password.");
+
+            if (string.Equals(user.Role, "company", StringComparison.OrdinalIgnoreCase))
+            {
+                var workspace = await _companyWorkspace.ResolveWorkspaceAsync(user.Id);
+                if (!workspace.Success)
+                    return (null, workspace.UserFacingMessage);
+            }
 
             int profileId = await GetProfileIdAsync(user);
             string? companyRole = null;

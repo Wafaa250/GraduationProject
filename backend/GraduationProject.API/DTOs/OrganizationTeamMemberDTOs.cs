@@ -21,8 +21,6 @@ namespace GraduationProject.API.DTOs
 
         [MaxLength(2048)]
         public string? LinkedInUrl { get; set; }
-
-        public int DisplayOrder { get; set; }
     }
 
     public class UpdateStudentOrganizationTeamMemberDto
@@ -43,8 +41,6 @@ namespace GraduationProject.API.DTOs
 
         [MaxLength(2048)]
         public string? LinkedInUrl { get; set; }
-
-        public int DisplayOrder { get; set; }
     }
 
     public class StudentOrganizationTeamMemberResponseDto
@@ -59,7 +55,6 @@ namespace GraduationProject.API.DTOs
         public string? Major { get; set; }
         public string? ImageUrl { get; set; }
         public string? LinkedInUrl { get; set; }
-        public int DisplayOrder { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public bool IsLinkedStudent { get; set; }

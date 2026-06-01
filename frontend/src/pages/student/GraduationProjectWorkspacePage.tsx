@@ -31,6 +31,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { PROFILE_AVATAR_FALLBACK_CLASS } from "@/lib/profileAvatar";
+import { cn } from "@/components/ui/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import "@/styles/project-workspace-hub.css";
@@ -744,7 +746,9 @@ export default function GraduationProjectWorkspacePage() {
                   </div>
                   <div className="mt-5 flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
                     <Avatar className="h-9 w-9 ring-2 ring-warning/30">
-                      <AvatarFallback className="bg-gradient-hero text-xs font-semibold text-primary-foreground">
+                      <AvatarFallback
+                        className={cn(PROFILE_AVATAR_FALLBACK_CLASS, "text-xs")}
+                      >
                         {initials(ownerName)}
                       </AvatarFallback>
                     </Avatar>
@@ -862,7 +866,9 @@ export default function GraduationProjectWorkspacePage() {
                 <CardContent className="p-5">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-12 w-12 ring-2 ring-primary/15">
-                      <AvatarFallback className="bg-gradient-hero text-sm font-semibold text-primary-foreground">
+                      <AvatarFallback
+                        className={cn(PROFILE_AVATAR_FALLBACK_CLASS, "text-sm")}
+                      >
                         {initials(m.name)}
                       </AvatarFallback>
                     </Avatar>

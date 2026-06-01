@@ -524,7 +524,6 @@ namespace GraduationProject.API.Data
                     .HasForeignKey(m => m.SourceApplicationId)
                     .OnDelete(DeleteBehavior.SetNull);
                 e.HasIndex(m => m.OrganizationProfileId);
-                e.HasIndex(m => new { m.OrganizationProfileId, m.DisplayOrder });
                 e.HasIndex(m => new { m.OrganizationProfileId, m.StudentProfileId })
                     .IsUnique()
                     .HasFilter("student_profile_id IS NOT NULL");
@@ -549,7 +548,6 @@ namespace GraduationProject.API.Data
                  .HasForeignKey(p => p.CampaignId)
                  .OnDelete(DeleteBehavior.Cascade);
                 e.HasIndex(p => p.CampaignId);
-                e.HasIndex(p => new { p.CampaignId, p.DisplayOrder });
             });
 
             modelBuilder.Entity<StudentOrganizationRecruitmentQuestion>(e =>

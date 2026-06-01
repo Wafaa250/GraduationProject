@@ -238,6 +238,19 @@
     @apply border-white/10;
   }
 
+  /* Default user avatar (no photo) — same purple as student profile */
+  .profile-avatar-fallback {
+    background: var(--gradient-primary);
+    color: hsl(var(--primary-foreground));
+    font-weight: 600;
+  }
+
+  .dark .profile-avatar-fallback {
+    background-color: hsl(var(--primary));
+    background-image: none;
+    color: hsl(var(--primary-foreground));
+  }
+
   .text-gradient {
     background: var(--gradient-text);
     -webkit-background-clip: text;

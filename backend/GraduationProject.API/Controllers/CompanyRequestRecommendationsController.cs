@@ -29,8 +29,8 @@ namespace GraduationProject.API.Controllers
             int requestId,
             [FromBody] CompanyRequestRecommendationGenerateDto? dto = null)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             try
             {
@@ -51,8 +51,8 @@ namespace GraduationProject.API.Controllers
             int requestId,
             [FromBody] CompanyRequestRecommendationGenerateDto? dto = null)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             try
             {
@@ -71,8 +71,8 @@ namespace GraduationProject.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetLatest(int requestId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var result = await _recommendations.GetLatestAsync(context.Profile.Id, requestId);
             return result == null ? NotFound(new { message = "No recommendations generated yet." }) : Ok(result);
@@ -81,14 +81,14 @@ namespace GraduationProject.API.Controllers
         [HttpGet("history")]
         public async Task<IActionResult> History(int requestId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFound(new { message = "Company profile not found." });
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var result = await _recommendations.ListRunsAsync(context.Profile.Id, requestId);
             return result == null ? NotFound(new { message = "No recommendation history found." }) : Ok(result);
         }
 
-        private async Task<CompanyWorkspaceContext?> RequireWorkspaceAsync() =>
-            await CompanyWorkspaceHelper.RequireWorkspaceAsync(_workspace, User);
+        private Task<(CompanyWorkspaceContext? Context, IActionResult? Error)> RequireWorkspaceAsync() =>
+            CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
     }
 }

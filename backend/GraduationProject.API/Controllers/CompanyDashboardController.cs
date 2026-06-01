@@ -25,11 +25,11 @@ namespace GraduationProject.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetDashboard()
         {
-            var context = await CompanyWorkspaceHelper.RequireWorkspaceAsync(_workspace, User);
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, error) = await CompanyWorkspaceHelper.TryResolveAsync(_workspace, User, HttpContext);
+            if (error != null)
+                return error;
 
-            var data = await _dashboard.GetDashboardAsync(context.Profile.Id);
+            var data = await _dashboard.GetDashboardAsync(context!.Profile.Id);
             return Ok(data);
         }
     }

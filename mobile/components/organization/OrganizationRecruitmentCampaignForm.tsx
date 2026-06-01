@@ -46,7 +46,7 @@ function emptyValues(): FormValues {
     applicationDeadlineIso: "",
     coverImageUrl: null,
     isPublished: true,
-    positions: [newPositionDraft(0)],
+    positions: [newPositionDraft()],
   };
 }
 
@@ -58,7 +58,7 @@ function campaignToValues(c: RecruitmentCampaign): FormValues {
     coverImageUrl: c.coverImageUrl ?? null,
     isPublished: c.isPublished,
     positions:
-      c.positions.length > 0 ? positionsFromCampaign(c.positions) : [newPositionDraft(0)],
+      c.positions.length > 0 ? positionsFromCampaign(c.positions) : [newPositionDraft()],
   };
 }
 

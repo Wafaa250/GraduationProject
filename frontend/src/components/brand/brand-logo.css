@@ -1,13 +1,43 @@
+.brand-logo__mark {
+  display: block;
+  object-fit: contain;
+}
+
 .brand-logo__wordmark {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 52%, #a855f7 100%);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.brand-logo__skill {
+  color: #0f172a;
+}
+
+.brand-logo__swap {
+  background: linear-gradient(135deg, #7b61b8 0%, #6366f1 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-.brand-logo__wordmark--on-dark {
-  background: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
-  color: #ffffff;
+.dark .brand-logo__skill {
+  color: #f8fafc;
+}
+
+.dark .brand-logo__swap {
+  background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-logo__wordmark--on-dark .brand-logo__skill {
+  color: #f8fafc;
+}
+
+.brand-logo__wordmark--on-dark .brand-logo__swap {
+  background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

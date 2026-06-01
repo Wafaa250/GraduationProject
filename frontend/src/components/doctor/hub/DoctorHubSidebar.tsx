@@ -78,7 +78,6 @@ export function DoctorHubSidebar() {
           aria-label="SkillSwap dashboard"
         >
           <BrandLogo size="sm" variant={collapsed ? "mark" : "full"} />
-          {!collapsed && <span className="doctor-hub__sidebar-brand-sub">Doctor</span>}
         </Link>
         <button
           type="button"

@@ -29,8 +29,8 @@ namespace GraduationProject.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             try
             {
@@ -50,8 +50,8 @@ namespace GraduationProject.API.Controllers
         [HttpGet("requests/{requestId:int}/invitations")]
         public async Task<IActionResult> ListByRequest(int requestId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             try
             {
@@ -67,8 +67,8 @@ namespace GraduationProject.API.Controllers
         [HttpGet("invitations")]
         public async Task<IActionResult> ListCompanyInvitations()
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var list = await _invitations.ListCompanyInvitationsAsync(context.Profile.Id);
             return Ok(list);
@@ -77,8 +77,8 @@ namespace GraduationProject.API.Controllers
         [HttpPost("requests/{requestId:int}/invitations/{invitationId:int}/cancel")]
         public async Task<IActionResult> Cancel(int requestId, int invitationId)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             try
             {
@@ -91,10 +91,7 @@ namespace GraduationProject.API.Controllers
             }
         }
 
-        private async Task<CompanyWorkspaceContext?> RequireWorkspaceAsync() =>
-            await CompanyWorkspaceHelper.RequireWorkspaceAsync(_workspace, User);
-
-        private IActionResult NotFoundProfile() =>
-            NotFound(new { message = "Company profile not found." });
+        private Task<(CompanyWorkspaceContext? Context, IActionResult? Error)> RequireWorkspaceAsync() =>
+            CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
     }
 }

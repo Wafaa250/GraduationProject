@@ -26,12 +26,12 @@ namespace GraduationProject.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetSettings()
         {
-            var context = await CompanyWorkspaceHelper.RequireWorkspaceAsync(_workspace, User);
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, error) = await CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
+            if (error != null)
+                return error;
 
             var userId = AuthorizationHelper.GetUserId(User);
-            var data = await _settings.GetSettingsAsync(context.Profile.Id, userId);
+            var data = await _settings.GetSettingsAsync(context!.Profile.Id, userId);
             return Ok(data);
         }
 
@@ -39,13 +39,13 @@ namespace GraduationProject.API.Controllers
         public async Task<IActionResult> UpdateNotifications(
             [FromBody] UpdateCompanyNotificationPreferencesDto dto)
         {
-            var context = await CompanyWorkspaceHelper.RequireWorkspaceAsync(_workspace, User);
-            if (context == null)
-                return NotFound(new { message = "Company workspace not found." });
+            var (context, error) = await CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
+            if (error != null)
+                return error;
 
             var userId = AuthorizationHelper.GetUserId(User);
             var updated = await _settings.UpdateNotificationsAsync(
-                context.Profile.Id,
+                context!.Profile.Id,
                 userId,
                 dto);
             return Ok(updated);

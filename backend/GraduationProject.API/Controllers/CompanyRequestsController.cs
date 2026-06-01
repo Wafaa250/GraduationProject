@@ -30,8 +30,8 @@ namespace GraduationProject.API.Controllers
         [HttpGet]
         public async Task<IActionResult> List([FromQuery] bool includeDraft = false)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var list = await _requests.ListAsync(context.Profile.Id, includeDraft);
             return Ok(list);
@@ -40,8 +40,8 @@ namespace GraduationProject.API.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var detail = await _requests.GetByIdAsync(context.Profile.Id, id);
             return detail == null ? NotFound() : Ok(detail);
@@ -50,8 +50,8 @@ namespace GraduationProject.API.Controllers
         [HttpGet("draft")]
         public async Task<IActionResult> GetDraft()
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var draft = await _requests.GetDraftAsync(context.Profile.Id);
             return draft == null ? NoContent() : Ok(draft);
@@ -62,8 +62,8 @@ namespace GraduationProject.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             try
             {
@@ -80,8 +80,8 @@ namespace GraduationProject.API.Controllers
         [HttpDelete("draft")]
         public async Task<IActionResult> DeleteDraft()
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             await _requests.DeleteDraftAsync(context.Profile.Id);
             return NoContent();
@@ -92,8 +92,8 @@ namespace GraduationProject.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             try
             {
@@ -112,8 +112,8 @@ namespace GraduationProject.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             try
             {
@@ -130,8 +130,8 @@ namespace GraduationProject.API.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var deleted = await _requests.DeleteAsync(context.Profile.Id, id);
             return deleted ? NoContent() : NotFound();
@@ -142,18 +142,15 @@ namespace GraduationProject.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var context = await RequireWorkspaceAsync();
-            if (context == null) return NotFoundProfile();
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
 
             var userId = AuthorizationHelper.GetUserId(User);
             var updated = await _requests.UpdateStatusAsync(context.Profile.Id, id, dto.Status, userId);
             return updated == null ? BadRequest(new { message = "Invalid status or request not found." }) : Ok(updated);
         }
 
-        private async Task<CompanyWorkspaceContext?> RequireWorkspaceAsync() =>
-            await CompanyWorkspaceHelper.RequireWorkspaceAsync(_workspace, User);
-
-        private IActionResult NotFoundProfile() =>
-            NotFound(new { message = "Company profile not found." });
+        private Task<(CompanyWorkspaceContext? Context, IActionResult? Error)> RequireWorkspaceAsync() =>
+            CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
     }
 }

@@ -2105,10 +2105,6 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("display_order");
-
                     b.Property<int>("NeededCount")
                         .HasColumnType("integer")
                         .HasColumnName("needed_count");
@@ -2129,8 +2125,6 @@ namespace GraduationProject.API.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CampaignId");
-
-                    b.HasIndex("CampaignId", "DisplayOrder");
 
                     b.ToTable("student_organization_recruitment_positions", (string)null);
                 });
@@ -2212,10 +2206,6 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("display_order");
-
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("text")
@@ -2261,8 +2251,6 @@ namespace GraduationProject.API.Migrations
                     b.HasIndex("SourceApplicationId");
 
                     b.HasIndex("StudentProfileId");
-
-                    b.HasIndex("OrganizationProfileId", "DisplayOrder");
 
                     b.HasIndex("OrganizationProfileId", "StudentProfileId")
                         .IsUnique()

@@ -150,11 +150,6 @@ namespace GraduationProject.API.Services
                 return (existing, false);
             }
 
-            var maxOrder = await _db.StudentOrganizationTeamMembers
-                .Where(m => m.OrganizationProfileId == organizationProfileId)
-                .Select(m => (int?)m.DisplayOrder)
-                .MaxAsync(cancellationToken) ?? -1;
-
             var created = new StudentOrganizationTeamMember
             {
                 OrganizationProfileId = organizationProfileId,
@@ -165,7 +160,6 @@ namespace GraduationProject.API.Services
                 Major = string.IsNullOrWhiteSpace(student.Major) ? null : student.Major.Trim(),
                 ImageUrl = null,
                 LinkedInUrl = null,
-                DisplayOrder = maxOrder + 1,
                 CreatedAt = DateTime.UtcNow,
             };
             _db.StudentOrganizationTeamMembers.Add(created);

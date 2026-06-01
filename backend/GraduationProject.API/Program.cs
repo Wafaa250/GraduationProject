@@ -272,4 +272,23 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationsHub>("/hubs/notifications");
 
+await RunCompanyWorkspaceStartupRepairAsync(app);
+
 app.Run();
+
+static async Task RunCompanyWorkspaceStartupRepairAsync(WebApplication app)
+{
+    try
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var log = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("CompanyWorkspace");
+        await CompanyWorkspaceStartupRepair.RunAsync(db, log);
+    }
+    catch (Exception ex)
+    {
+        var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("CompanyWorkspace");
+        log.LogError(ex, "Company workspace startup repair failed");
+    }
+}
