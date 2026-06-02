@@ -5,7 +5,6 @@
   ChevronsRight,
   ClipboardList,
   LayoutDashboard,
-  LogOut,
   UsersRound,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
@@ -29,10 +28,9 @@ const NAV = [
 type Props = {
   mobileOpen: boolean
   onCloseMobile: () => void
-  onLogout: () => void
 }
 
-export function AssociationSidebar({ mobileOpen, onCloseMobile, onLogout }: Props) {
+export function AssociationSidebar({ mobileOpen, onCloseMobile }: Props) {
   const location = useLocation()
   const { collapsed, toggle } = useAssociationSidebarCollapsed()
   const desktopCollapsed = collapsed && !mobileOpen
@@ -142,32 +140,8 @@ export function AssociationSidebar({ mobileOpen, onCloseMobile, onLogout }: Prop
             )
           })}
         </nav>
-
-        <div
-          style={{
-            flexShrink: 0,
-            marginTop: 'auto',
-            padding: desktopCollapsed ? '10px 8px 14px' : '10px 14px 14px',
-            borderTop: `1px solid ${assocDash.border}`,
-          }}
-        >
-          <button
-            type="button"
-            onClick={onLogout}
-            title={desktopCollapsed ? 'Log out' : undefined}
-            className="assoc-sidebar-logout-btn assoc-sidebar-logout"
-            style={{ color: assocDash.muted }}
-          >
-            <LogOut size={18} strokeWidth={2} className="shrink-0" />
-            <span className="assoc-sidebar-logout-label">Log out</span>
-          </button>
-        </div>
       </aside>
       <style>{`
-        .assoc-sidebar-logout:hover {
-          background: ${assocDash.bg};
-          color: ${assocDash.text};
-        }
         @media (max-width: 900px) {
           .assoc-sidebar {
             position: fixed !important;

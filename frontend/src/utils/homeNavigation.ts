@@ -12,7 +12,7 @@ export function getHomePath(): string {
   const roleLower = (role ?? "").toLowerCase();
 
   if (roleLower === "student") {
-    return ROUTES.dashboard;
+    return ROUTES.communicationHub;
   }
 
   if (roleLower === "doctor") {
@@ -28,4 +28,29 @@ export function getHomePath(): string {
 
 export function navigateHome(navigate: NavigateFunction): void {
   navigate(getHomePath());
+}
+
+/** Role workspace dashboard (student dashboard is /dashboard, not the feed). */
+export function getRoleDashboardPath(): string {
+  const role = localStorage.getItem("role");
+
+  if (isAssociationRole(role)) {
+    return ASSOCIATION_ROUTES.dashboard;
+  }
+
+  const roleLower = (role ?? "").toLowerCase();
+
+  if (roleLower === "student") {
+    return ROUTES.dashboard;
+  }
+
+  if (roleLower === "doctor") {
+    return ROUTES.doctorDashboard;
+  }
+
+  if (roleLower === "company") {
+    return COMPANY_ROUTES.dashboard;
+  }
+
+  return ROUTES.home;
 }

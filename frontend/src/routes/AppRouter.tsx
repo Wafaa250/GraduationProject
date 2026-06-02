@@ -66,6 +66,11 @@ import OrganizationRecruitmentCampaignDetailsPage from "@/pages/association/recr
 import OrganizationRecruitmentCampaignEditPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentCampaignEditPage";
 import OrganizationRecruitmentPositionFormPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentPositionFormPage";
 import OrganizationRecruitmentApplicationDetailPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentApplicationDetailPage";
+import StudentDirectoryProfilePage from "@/pages/student/StudentDirectoryProfilePage";
+import GlobalSearchResultsPage from "@/pages/search/GlobalSearchResultsPage";
+import DoctorPublicProfilePage from "@/pages/student/DoctorPublicProfilePage";
+import OrganizationPublicProfilePage from "@/pages/student/OrganizationPublicProfilePage";
+import { StudentCommunicationHubRoute } from "@/routes/studentRoutes";
 
 export function AppRouter() {
   return (
@@ -87,6 +92,11 @@ export function AppRouter() {
           }
         >
           <Route path={ROUTES.dashboard} element={<StudentDashboardPage />} />
+          <Route path={ROUTES.communicationHub} element={<StudentCommunicationHubRoute />} />
+          <Route path={ROUTES.globalSearch} element={<GlobalSearchResultsPage />} />
+          <Route path="/students/:userId" element={<StudentDirectoryProfilePage />} />
+          <Route path="/doctors/:userId" element={<DoctorPublicProfilePage />} />
+          <Route path="/organizations/:organizationId" element={<OrganizationPublicProfilePage />} />
           <Route path={ROUTES.profile} element={<StudentProfilePage />} />
           <Route path={ROUTES.editProfile} element={<StudentProfileEditPage />} />
           <Route path={ROUTES.createGraduationProject} element={<CreateGraduationProjectPage />} />

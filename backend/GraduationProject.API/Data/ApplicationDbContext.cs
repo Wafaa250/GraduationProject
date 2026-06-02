@@ -40,6 +40,9 @@ namespace GraduationProject.API.Data
         public DbSet<StudentOrganizationEventRegistrationField> StudentOrganizationEventRegistrationFields =>
             Set<StudentOrganizationEventRegistrationField>();
         public DbSet<OrganizationFollow> OrganizationFollows => Set<OrganizationFollow>();
+        public DbSet<CompanyFollow> CompanyFollows => Set<CompanyFollow>();
+        public DbSet<FeedPostEngagement> FeedPostEngagements => Set<FeedPostEngagement>();
+        public DbSet<FeedPostComment> FeedPostComments => Set<FeedPostComment>();
         public DbSet<StudentOrganizationTeamMember> StudentOrganizationTeamMembers => Set<StudentOrganizationTeamMember>();
         public DbSet<StudentOrganizationRecruitmentCampaign> StudentOrganizationRecruitmentCampaigns =>
             Set<StudentOrganizationRecruitmentCampaign>();
@@ -651,6 +654,41 @@ namespace GraduationProject.API.Data
                 e.HasOne(f => f.StudentProfile)
                     .WithMany(s => s.OrganizationFollows)
                     .HasForeignKey(f => f.StudentProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CompanyFollow>(e =>
+            {
+                e.ToTable("company_follows");
+                e.HasIndex(f => new { f.CompanyProfileId, f.StudentProfileId }).IsUnique();
+                e.HasOne(f => f.CompanyProfile)
+                    .WithMany()
+                    .HasForeignKey(f => f.CompanyProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(f => f.StudentProfile)
+                    .WithMany(s => s.CompanyFollows)
+                    .HasForeignKey(f => f.StudentProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<FeedPostEngagement>(e =>
+            {
+                e.ToTable("feed_post_engagements");
+                e.HasIndex(x => new { x.UserId, x.PostKey, x.EngagementType }).IsUnique();
+                e.HasIndex(x => x.PostKey);
+                e.HasOne(x => x.User)
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<FeedPostComment>(e =>
+            {
+                e.ToTable("feed_post_comments");
+                e.HasIndex(x => x.PostKey);
+                e.HasOne(x => x.User)
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 

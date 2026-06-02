@@ -23,6 +23,17 @@ export const ROUTES = {
   studentCourses: "/courses",
   studentCourseDetail: "/courses/:courseId",
   studentCourseProjectDetail: "/courses/:courseId/projects/:projectId",
+  /** Communication Hub — university community feed. */
+  communicationHub: "/feed",
+  /** Full-page global search results. */
+  globalSearch: "/search",
+  /** Public student directory profile (by user id). */
+  studentDirectoryProfile: (userId: number | string) => `/students/${userId}`,
+  /** Public doctor profile (by user id). */
+  doctorPublicProfile: (userId: number | string) => `/doctors/${userId}`,
+  /** Public student association profile. */
+  organizationPublicProfile: (organizationId: number | string) =>
+    `/organizations/${organizationId}`,
   /** Student direct messages. */
   studentMessages: "/messages",
   studentMessageThread: "/messages/:conversationId",

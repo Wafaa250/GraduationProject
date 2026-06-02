@@ -13,7 +13,6 @@ import {
 } from "@/api/studentCoursesApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { StudentOverview, type StudentOverviewData } from "@/components/dashboard/StudentOverview";
 import { StudentInsights, type InsightMetric } from "@/components/dashboard/StudentInsights";
 import { TeamInvitations, type TeamInvitationView } from "@/components/dashboard/TeamInvitations";
 import {
@@ -35,26 +34,6 @@ function initials(name: string): string {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-}
-
-function mergeSkills(
-  roles: string[] = [],
-  technical: string[] = [],
-  tools: string[] = [],
-  general: string[] = [],
-  major: string[] = [],
-): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const s of [...roles, ...technical, ...tools, ...general, ...major]) {
-    const t = s.trim();
-    if (!t) continue;
-    const key = t.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(t);
-  }
-  return out;
 }
 
 function mapInvitations(items: TeamInvitationItem[]): TeamInvitationView[] {
@@ -89,7 +68,6 @@ function mapGradProject(
 
 const StudentDashboardPage = () => {
   const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState<StudentOverviewData | null>(null);
   const [insights, setInsights] = useState<InsightMetric[]>([]);
   const [invitations, setInvitations] = useState<TeamInvitationView[]>([]);
   const [gradProject, setGradProject] = useState<GraduationProjectView | null>(null);
@@ -109,24 +87,6 @@ const StudentDashboardPage = () => {
         getEligibleTeamInvitations(),
         getEnrolledCourses(),
       ]);
-
-      const skills = mergeSkills(
-        me.roles,
-        me.technicalSkills,
-        me.tools,
-        me.generalSkills,
-        me.majorSkills,
-      );
-
-      setOverview({
-        name: me.name || summary.name,
-        major: me.major || summary.major,
-        year: me.academicYear || summary.academicYear,
-        university: me.university || summary.university,
-        skills,
-        initials: initials(me.name || summary.name),
-        photoUrl: me.profilePictureBase64 ?? null,
-      });
 
       const teammatesCount =
         summary.suggestedTeammatesCount ?? summary.suggestedTeammates?.length ?? 0;
@@ -234,7 +194,7 @@ const StudentDashboardPage = () => {
 
   const insightsReady = useMemo(() => insights, [insights]);
 
-  if (loading || !overview) {
+  if (loading) {
     return (
       <div className="student-hub min-h-screen flex items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading your dashboard…</p>
@@ -248,8 +208,6 @@ const StudentDashboardPage = () => {
           <DashboardHeader />
 
           <div className="space-y-6 md:space-y-8">
-            <StudentOverview student={overview} />
-
             <StudentInsights metrics={insightsReady} />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">

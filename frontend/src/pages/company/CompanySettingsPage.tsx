@@ -138,21 +138,21 @@ function SettingsNav({
   onSelect: (id: SectionId) => void;
 }) {
   return (
-    <nav className="lg:sticky lg:top-8 h-fit">
-      <ul className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 -mx-1 px-1">
+    <nav className="cw-card-elevated p-2.5 md:p-3">
+      <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
           return (
-            <li key={item.id} className="flex-shrink-0 lg:w-full">
+            <li key={item.id}>
               <button
                 type="button"
                 onClick={() => onSelect(item.id)}
                 className={cn(
-                  "group w-full flex items-center gap-3 rounded-xl px-3.5 py-3 text-left transition-all",
+                  "group w-full flex items-center gap-3 rounded-xl px-3.5 py-3 text-left transition-all border",
                   isActive
-                    ? "cw-btn-gradient text-white shadow-sm"
-                    : "text-foreground/70 hover:bg-muted/80 hover:text-foreground",
+                    ? "cw-btn-gradient text-white border-primary/30 shadow-sm"
+                    : "text-foreground/80 border-border/70 bg-card hover:bg-muted/60 hover:text-foreground",
                 )}
               >
                 <span
@@ -178,8 +178,8 @@ function SettingsNav({
                 </span>
                 <ChevronRight
                   className={cn(
-                    "h-4 w-4 hidden lg:block shrink-0 transition-opacity",
-                    isActive ? "opacity-100" : "opacity-0 group-hover:opacity-50",
+                    "h-4 w-4 shrink-0 transition-all",
+                    isActive ? "opacity-100 translate-x-0" : "opacity-40 -translate-x-0.5 group-hover:opacity-70",
                   )}
                 />
               </button>
@@ -337,9 +337,7 @@ export function CompanySettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
 
   const navItems = useMemo(() => {
-    const items: { id: SectionId; label: string; icon: typeof Shield; desc: string }[] = [
-      { id: "security", label: "Security", icon: Shield, desc: "Password & access" },
-    ];
+    const items: { id: SectionId; label: string; icon: typeof Shield; desc: string }[] = [];
     if (showMembersLink) {
       items.push({
         id: "workspace",
@@ -348,6 +346,12 @@ export function CompanySettingsPage() {
         desc: "Team & members",
       });
     }
+    items.push({
+      id: "security",
+      label: "Security",
+      icon: Shield,
+      desc: "Password & access",
+    });
     items.push({
       id: "notifications",
       label: "Notifications",
@@ -473,10 +477,10 @@ export function CompanySettingsPage() {
       </div>
 
       {/* Layout */}
-      <div className={cwLayout.sidebarGrid}>
+      <div className="space-y-4 md:space-y-5">
         <SettingsNav items={navItems} active={active} onSelect={setActive} />
 
-        <div className="min-w-0">
+        <div className="min-w-0 max-w-5xl">
           {active === "security" && (
             <SectionCard
               icon={Shield}

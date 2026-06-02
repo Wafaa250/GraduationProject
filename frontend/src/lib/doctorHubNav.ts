@@ -6,7 +6,7 @@ export const DOCTOR_NAV_ROUTES: Record<string, string> = {
   projects: ROUTES.doctorProjects,
   courses: ROUTES.doctorCourses,
   messages: ROUTES.doctorMessages,
-  profile: ROUTES.doctorProfile,
+  settings: ROUTES.doctorSettings,
 };
 
 export function doctorNavKeyFromPath(pathname: string): string {

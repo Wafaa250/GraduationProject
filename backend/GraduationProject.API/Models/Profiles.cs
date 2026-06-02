@@ -36,6 +36,7 @@ namespace GraduationProject.API.Models
         public User User { get; set; } = null!;
         public ICollection<StudentSkill> StudentSkills { get; set; } = new List<StudentSkill>();
         public ICollection<OrganizationFollow> OrganizationFollows { get; set; } = new List<OrganizationFollow>();
+        public ICollection<CompanyFollow> CompanyFollows { get; set; } = new List<CompanyFollow>();
     }
 
     // ===========================

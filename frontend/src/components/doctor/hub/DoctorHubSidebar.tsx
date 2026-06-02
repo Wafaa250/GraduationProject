@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { ROUTES } from "@/routes/paths";
-import { logout } from "@/utils/authSession";
 import { DOCTOR_NAV_ROUTES, doctorNavKeyFromPath } from "@/lib/doctorHubNav";
 import {
   LayoutDashboard,
@@ -10,9 +9,7 @@ import {
   FolderKanban,
   BookOpen,
   MessageCircle,
-  User,
   Settings,
-  LogOut,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
@@ -27,16 +24,10 @@ const nav = [
   { key: "projects", label: "Active Projects", icon: FolderKanban, badgeKey: "supervised" },
   { key: "courses", label: "Courses", icon: BookOpen, badgeKey: "courses" },
   { key: "messages", label: "Messages", icon: MessageCircle, badgeKey: "messages" },
-];
-
-const footerNav = [
-  { key: "profile", label: "Profile", icon: User, to: ROUTES.doctorProfile },
-  { key: "settings", label: "Settings", icon: Settings, to: ROUTES.doctorSettings },
-  { key: "logout", label: "Logout", icon: LogOut, to: null },
+  { key: "settings", label: "Settings", icon: Settings, badgeKey: null as string | null },
 ];
 
 export function DoctorHubSidebar() {
-  const navigate = useNavigate();
   const { pathname } = useLocation();
   const active = doctorNavKeyFromPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
@@ -109,7 +100,8 @@ export function DoctorHubSidebar() {
               to={to}
               className={cn(
                 "group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-smooth relative no-underline",
-                isActive ? "doctor-nav-link--active" : "text-foreground/75 hover:text-doctor-accent hover:bg-doctor-accent-soft/80",
+                "text-foreground/90 bg-[hsl(var(--muted))/0.55] hover:text-doctor-accent hover:bg-doctor-accent-soft/95",
+                isActive && "doctor-nav-link--active",
                 collapsed && "justify-center px-0",
               )}
             >
@@ -137,45 +129,6 @@ export function DoctorHubSidebar() {
         })}
       </nav>
 
-      <div className="doctor-hub__sidebar-footer shrink-0 border-t border-[hsl(var(--sidebar-border))] px-3 py-3 space-y-1">
-        {!collapsed && (
-          <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--sidebar-muted))]">
-            Account
-          </div>
-        )}
-        {footerNav.map((item) => {
-          const Icon = item.icon;
-          if (item.key === "logout") {
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => logout(navigate)}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground/70 hover:text-doctor-accent hover:bg-doctor-accent-soft/80 transition-smooth",
-                  collapsed && "justify-center px-0",
-                )}
-              >
-                <Icon className="h-[17px] w-[17px]" />
-                {!collapsed && <span>{item.label}</span>}
-              </button>
-            );
-          }
-          return (
-            <Link
-              key={item.key}
-              to={item.to!}
-              className={cn(
-                "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground/70 hover:text-doctor-accent hover:bg-doctor-accent-soft/80 transition-smooth no-underline",
-                collapsed && "justify-center px-0",
-              )}
-            >
-              <Icon className="h-[17px] w-[17px]" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
-      </div>
     </aside>
   );
 }

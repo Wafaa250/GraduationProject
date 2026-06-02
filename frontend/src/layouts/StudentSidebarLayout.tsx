@@ -4,7 +4,7 @@ import {
   BookOpen,
   ChevronLeft,
   Compass,
-  GraduationCap,
+  Home,
   LayoutGrid,
   LogOut,
   Menu,
@@ -24,12 +24,18 @@ import {
   NotificationBellButton,
   NotificationCenterDropdown,
 } from "@/components/notifications/NotificationCenter";
-import { WorkspaceThemeToggle } from "@/components/theme/WorkspaceThemeToggle";
+import { StudentSidebarProfileCard } from "@/components/student/sidebar/StudentSidebarProfileCard";
 import { getStudentNotificationTarget } from "@/lib/studentNotificationNavigation";
+import {
+  getStudentProfilePhotoUrl,
+  mergeStudentSkillLabels,
+} from "@/lib/studentSidebarProfile";
 import type { GraduationNotification } from "@/api/notificationsApi";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 import { ROUTES } from "@/routes/paths";
 import { logout } from "@/utils/authSession";
 import { PROFILE_AVATAR_FALLBACK_CLASS, profileInitialsFromName } from "@/lib/profileAvatar";
+import { isStudentProfileRoute } from "@/lib/studentNav";
 import { cn } from "@/components/ui/utils";
 import "@/styles/student-sidebar-layout.css";
 
@@ -37,10 +43,8 @@ type NavItemDef = {
   key: string;
   label: string;
   icon: LucideIcon;
-  to?: string;
-  disabled?: boolean;
-  matchPaths?: string[];
-  showNotificationBadge?: boolean;
+  to: string;
+  matchPaths: string[];
 };
 
 const WORKSPACE_NAV: NavItemDef[] = [
@@ -50,16 +54,6 @@ const WORKSPACE_NAV: NavItemDef[] = [
     icon: LayoutGrid,
     to: ROUTES.dashboard,
     matchPaths: [ROUTES.dashboard],
-  },
-  {
-    key: "graduation-project",
-    label: "My Graduation Project",
-    icon: GraduationCap,
-    to: ROUTES.graduationProjectWorkspace,
-    matchPaths: [
-      ROUTES.graduationProjectWorkspace,
-      ROUTES.createGraduationProject,
-    ],
   },
   {
     key: "browse",
@@ -82,16 +76,6 @@ const WORKSPACE_NAV: NavItemDef[] = [
     to: ROUTES.studentMessages,
     matchPaths: [ROUTES.studentMessages, "/messages"],
   },
-];
-
-const ACCOUNT_NAV: NavItemDef[] = [
-  {
-    key: "profile",
-    label: "Profile",
-    icon: User,
-    to: ROUTES.profile,
-    matchPaths: [ROUTES.profile, ROUTES.editProfile],
-  },
   {
     key: "settings",
     label: "Settings",
@@ -102,9 +86,6 @@ const ACCOUNT_NAV: NavItemDef[] = [
 ];
 
 function isItemActive(pathname: string, item: NavItemDef): boolean {
-  if (!item.matchPaths?.length) {
-    return item.to ? pathname === item.to : false;
-  }
   return item.matchPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
@@ -114,47 +95,26 @@ function NavItemButton({
   item,
   active,
   collapsed,
-  notificationCount,
   onNavigate,
 }: {
   item: NavItemDef;
   active: boolean;
   collapsed: boolean;
-  notificationCount: number;
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
-  const badge =
-    item.showNotificationBadge && notificationCount > 0 ? notificationCount : null;
-
-  const className = cn(
-    "student-sidebar-layout__nav-item",
-    active && "is-active",
-  );
-
-  const content = (
-    <>
-      <Icon className="student-sidebar-layout__nav-icon" aria-hidden />
-      <span className="student-sidebar-layout__nav-label">{item.label}</span>
-      {badge != null && (
-        <span className="student-sidebar-layout__nav-badge" aria-label={`${badge} unread`}>
-          {collapsed ? "" : badge > 9 ? "9+" : badge}
-        </span>
-      )}
-    </>
-  );
-
-  if (item.disabled || !item.to) {
-    return (
-      <button type="button" className={className} disabled title={item.label}>
-        {content}
-      </button>
-    );
-  }
+  const className = cn("student-sidebar-layout__nav-item", active && "is-active");
 
   return (
-    <Link to={item.to} className={className} onClick={onNavigate} aria-current={active ? "page" : undefined}>
-      {content}
+    <Link
+      to={item.to}
+      className={className}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      title={collapsed ? item.label : undefined}
+    >
+      <Icon className="student-sidebar-layout__nav-icon" aria-hidden />
+      <span className="student-sidebar-layout__nav-label">{item.label}</span>
     </Link>
   );
 }
@@ -170,6 +130,10 @@ export function StudentSidebarLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const role = (localStorage.getItem("role") ?? "").toLowerCase();
+
+  const isCommunicationHub =
+    pathname === ROUTES.communicationHub ||
+    pathname.startsWith(`${ROUTES.communicationHub}/`);
 
   const loadSidebarData = useCallback(async () => {
     try {
@@ -232,12 +196,39 @@ export function StudentSidebarLayout() {
 
   const displayName = me?.name?.trim() || localStorage.getItem("name") || "Student";
 
-  const profilePhoto = useMemo(() => {
-    const raw = me?.profilePictureBase64?.trim();
-    if (!raw) return null;
-    if (raw.startsWith("data:")) return raw;
-    return `data:image/jpeg;base64,${raw}`;
-  }, [me?.profilePictureBase64]);
+  const profilePhoto = useMemo(
+    () => getStudentProfilePhotoUrl(me?.profilePictureBase64),
+    [me?.profilePictureBase64],
+  );
+
+  const skills = useMemo(
+    () =>
+      mergeStudentSkillLabels(
+        me?.roles,
+        me?.technicalSkills,
+        me?.tools,
+        me?.generalSkills,
+        me?.majorSkills,
+      ),
+    [me],
+  );
+
+  const sidebarProfile = useMemo(
+    () => ({
+      name: displayName,
+      email: me?.email,
+      major: me?.major,
+      academicYear: me?.academicYear,
+      university: me?.university,
+      faculty: me?.faculty,
+      bio: me?.bio,
+      github: me?.github,
+      linkedin: me?.linkedin,
+      portfolio: me?.portfolio,
+      photoUrl: profilePhoto,
+    }),
+    [displayName, me, profilePhoto],
+  );
 
   const handleLogout = () => {
     setProfileMenuOpen(false);
@@ -252,54 +243,90 @@ export function StudentSidebarLayout() {
     });
   };
 
-  const topActions = (
+  const closeMobile = () => setMobileOpen(false);
+
+  const headerSearch = isCommunicationHub ? <GlobalSearchBar variant="header" /> : null;
+
+  const topActionsInner = (
     <div className="student-sidebar-layout__top-actions">
-      <div ref={notificationsRef} className="relative">
-        <NotificationBellButton
-          unreadCount={inbox.unreadCount}
-          open={inbox.open}
-          onToggle={() => {
-            inbox.toggleOpen();
-            setProfileMenuOpen(false);
-          }}
-          variant="student"
-        />
-        <NotificationCenterDropdown
-          open={inbox.open}
-          unreadCount={inbox.unreadCount}
-          notifications={inbox.notifications}
-          loading={inbox.loading}
-          markingAllRead={inbox.markingAllRead}
-          onMarkAllRead={() => void inbox.handleMarkAllRead()}
-          onNotificationClick={onStudentNotificationClick}
-          getTargetLabel={(n) => (getStudentNotificationTarget(n) ? "View" : null)}
-          variant="student"
-        />
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="relative h-9 w-9 rounded-lg"
-        asChild
-      >
-        <Link
-          to={ROUTES.studentMessages}
-          aria-label="Messages"
-          onClick={() => {
-            inbox.setOpen(false);
-            setProfileMenuOpen(false);
-          }}
+      <div className="student-sidebar-layout__top-actions-group">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "student-sidebar-layout__top-action-btn",
+            pathname === ROUTES.communicationHub && "is-active",
+          )}
+          asChild
         >
-          <MessageCircle className="h-4 w-4" />
-        </Link>
-      </Button>
-      <WorkspaceThemeToggle />
+          <Link
+            to={ROUTES.communicationHub}
+            aria-label="Home"
+            title="Home"
+            onClick={() => {
+              inbox.setOpen(false);
+              setProfileMenuOpen(false);
+            }}
+          >
+            <Home className="h-4 w-4" />
+          </Link>
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "student-sidebar-layout__top-action-btn",
+            pathname === ROUTES.studentMessages && "is-active",
+          )}
+          asChild
+        >
+          <Link
+            to={ROUTES.studentMessages}
+            aria-label="Messages"
+            title="Messages"
+            onClick={() => {
+              inbox.setOpen(false);
+              setProfileMenuOpen(false);
+            }}
+          >
+            <MessageCircle className="h-4 w-4" />
+          </Link>
+        </Button>
+
+        <div ref={notificationsRef} className="relative">
+          <NotificationBellButton
+            unreadCount={inbox.unreadCount}
+            open={inbox.open}
+            onToggle={() => {
+              inbox.toggleOpen();
+              setProfileMenuOpen(false);
+            }}
+            variant="student"
+            className="student-sidebar-layout__top-action-btn"
+          />
+          <NotificationCenterDropdown
+            open={inbox.open}
+            unreadCount={inbox.unreadCount}
+            notifications={inbox.notifications}
+            loading={inbox.loading}
+            markingAllRead={inbox.markingAllRead}
+            onMarkAllRead={() => void inbox.handleMarkAllRead()}
+            onNotificationClick={onStudentNotificationClick}
+            getTargetLabel={(n) => (getStudentNotificationTarget(n) ? "View" : null)}
+            variant="student"
+          />
+        </div>
+      </div>
+
+      <span className="student-sidebar-layout__top-actions-divider" aria-hidden />
+
       <div ref={profileMenuRef} className="relative">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-full p-0"
+          className="student-sidebar-layout__top-profile-btn"
           aria-expanded={profileMenuOpen}
           aria-haspopup="menu"
           aria-label="Account menu"
@@ -310,9 +337,7 @@ export function StudentSidebarLayout() {
         >
           <Avatar className="h-9 w-9 ring-2 ring-primary/20">
             {profilePhoto && <AvatarImage src={profilePhoto} alt="" />}
-            <AvatarFallback
-              className={cn(PROFILE_AVATAR_FALLBACK_CLASS, "text-xs")}
-            >
+            <AvatarFallback className={cn(PROFILE_AVATAR_FALLBACK_CLASS, "text-xs")}>
               {profileInitialsFromName(displayName)}
             </AvatarFallback>
           </Avatar>
@@ -342,6 +367,7 @@ export function StudentSidebarLayout() {
                 <Settings className="h-4 w-4 text-muted-foreground" aria-hidden />
                 Settings
               </Link>
+              <div className="my-1 h-px w-full bg-border/60" aria-hidden />
               <button
                 type="button"
                 role="menuitem"
@@ -358,10 +384,23 @@ export function StudentSidebarLayout() {
     </div>
   );
 
+  const topBar = (
+    <div
+      className={cn(
+        "student-sidebar-layout__top-bar",
+        isCommunicationHub && "student-sidebar-layout__top-bar--hub",
+      )}
+    >
+      {headerSearch}
+      {topActionsInner}
+    </div>
+  );
+
   const layoutClass = cn(
     "student-sidebar-layout student-hub",
     collapsed && "student-sidebar-layout--collapsed",
     mobileOpen && "student-sidebar-layout--mobile-open",
+    isCommunicationHub && "student-sidebar-layout--communication-hub",
   );
 
   if (role !== "student") {
@@ -409,60 +448,42 @@ export function StudentSidebarLayout() {
               </Button>
             </div>
 
-            <nav
-              className="student-sidebar-layout__nav-scroll"
-              aria-label="Workspace navigation"
-            >
-              <p className="student-sidebar-layout__section-label">Workspace</p>
+            <nav className="student-sidebar-layout__nav-scroll" aria-label="Workspace navigation">
+              <div className="student-sidebar-layout__identity">
+                <StudentSidebarProfileCard
+                  profile={sidebarProfile}
+                  skills={skills}
+                  collapsed={collapsed}
+                  active={isStudentProfileRoute(pathname)}
+                  onNavigate={closeMobile}
+                />
+              </div>
+
               <div className="student-sidebar-layout__nav-group">
-                {WORKSPACE_NAV.map((item) => (
+                <NavItemButton
+                  item={WORKSPACE_NAV[0]}
+                  active={
+                    isItemActive(pathname, WORKSPACE_NAV[0]) &&
+                    !isStudentProfileRoute(pathname)
+                  }
+                  collapsed={collapsed}
+                  onNavigate={closeMobile}
+                />
+              </div>
+
+              <div className="student-sidebar-layout__nav-group">
+                {WORKSPACE_NAV.slice(1).map((item) => (
                   <NavItemButton
                     key={item.key}
                     item={item}
                     active={isItemActive(pathname, item)}
                     collapsed={collapsed}
-                    notificationCount={inbox.unreadCount}
-                    onNavigate={() => setMobileOpen(false)}
+                    onNavigate={closeMobile}
                   />
                 ))}
               </div>
             </nav>
 
-            <div className="student-sidebar-layout__bottom">
-              <div className="student-sidebar-layout__section-divider" aria-hidden />
-
-              <nav
-                className="student-sidebar-layout__account-nav"
-                aria-label="Account navigation"
-              >
-                <p className="student-sidebar-layout__section-label">Account</p>
-                <div className="student-sidebar-layout__nav-group">
-                  {ACCOUNT_NAV.map((item) => (
-                    <NavItemButton
-                      key={item.key}
-                      item={item}
-                      active={isItemActive(pathname, item)}
-                      collapsed={collapsed}
-                      notificationCount={inbox.unreadCount}
-                      onNavigate={() => setMobileOpen(false)}
-                    />
-                  ))}
-                </div>
-              </nav>
-
-              <div className="student-sidebar-layout__section-divider" aria-hidden />
-
-              <div className="student-sidebar-layout__user-area">
-                <button
-                  type="button"
-                  className="student-sidebar-layout__logout-btn"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="student-sidebar-layout__nav-icon" aria-hidden />
-                  <span className="student-sidebar-layout__nav-label">Logout</span>
-                </button>
-              </div>
-            </div>
           </div>
         </aside>
 
@@ -479,17 +500,19 @@ export function StudentSidebarLayout() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <BrandLogo
-              size="sm"
-              variant="full"
-              to={ROUTES.dashboard}
-              className="min-w-0 flex-1"
-            />
-            {topActions}
+            {isCommunicationHub ? (
+              <div className="student-sidebar-layout__mobile-search">{headerSearch}</div>
+            ) : (
+              <BrandLogo
+                size="sm"
+                variant="full"
+                to={ROUTES.dashboard}
+                className="min-w-0 flex-1"
+              />
+            )}
+            {topActionsInner}
           </div>
-          <div className="student-sidebar-layout__top-actions-bar hidden lg:flex">
-            {topActions}
-          </div>
+          <div className="student-sidebar-layout__top-actions-bar hidden lg:flex">{topBar}</div>
           <Outlet />
         </div>
       </div>

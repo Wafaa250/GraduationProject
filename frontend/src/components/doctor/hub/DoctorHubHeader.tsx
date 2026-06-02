@@ -1,78 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { doctorHubShowsGlobalSearch } from "@/lib/doctorHubNav";
 import { getDoctorNotificationTarget } from "@/lib/doctorNotificationNavigation";
-import { Search, Command, Menu, User, Settings, LogOut, ChevronDown, MessageCircle } from "lucide-react";
+import { Menu, User, Settings, LogOut, ChevronDown, MessageCircle } from "lucide-react";
 import { useDoctorHubProfile } from "./DoctorHubProfileContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ROUTES, doctorStudentPath } from "@/routes/paths";
+import { ROUTES } from "@/routes/paths";
 import { logout } from "@/utils/authSession";
 import { cn } from "@/lib/utils";
-import { searchPlatform, type SearchResponse, type SearchStudentHit, type SearchDoctorHit } from "@/api/searchApi";
-import { toast } from "@/hooks/use-toast";
 import { useNotificationsInbox } from "@/hooks/useNotificationsInbox";
 import {
   NotificationBellButton,
   NotificationCenterDropdown,
 } from "@/components/notifications/NotificationCenter";
-import { WorkspaceThemeToggle } from "@/components/theme/WorkspaceThemeToggle";
 import type { GraduationNotification } from "@/api/notificationsApi";
 
 export function DoctorHubHeader() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const showGlobalSearch = doctorHubShowsGlobalSearch(pathname);
   const profile = useDoctorHubProfile();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const inbox = useNotificationsInbox({ role: "doctor", showToasts: true, markAllReadOnOpen: true });
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
-  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     void inbox.refresh();
   }, [pathname, inbox.refresh]);
 
   useEffect(() => {
-    if (!showGlobalSearch) {
-      setSearchQuery("");
-      setSearchResults(null);
-      setSearchOpen(false);
-      return;
-    }
-    const q = searchQuery.trim();
-    if (q.length < 2) {
-      setSearchResults(null);
-      setSearchOpen(false);
-      return;
-    }
-    const t = window.setTimeout(() => {
-      setSearching(true);
-      void searchPlatform(q)
-        .then((res) => {
-          setSearchResults(res);
-          setSearchOpen(true);
-        })
-        .catch(() => setSearchResults({ students: [], doctors: [] }))
-        .finally(() => setSearching(false));
-    }, 300);
-    return () => window.clearTimeout(t);
-  }, [searchQuery, showGlobalSearch]);
-
-  useEffect(() => {
-    if (!profileMenuOpen && !inbox.open && !searchOpen) return;
+    if (!profileMenuOpen && !inbox.open) return;
 
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (searchOpen && searchRef.current && !searchRef.current.contains(target)) {
-        setSearchOpen(false);
-      }
       if (inbox.open && notificationsRef.current && !notificationsRef.current.contains(target)) {
         inbox.setOpen(false);
       }
@@ -83,7 +44,6 @@ export function DoctorHubHeader() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setSearchOpen(false);
         inbox.setOpen(false);
         setProfileMenuOpen(false);
       }
@@ -95,7 +55,7 @@ export function DoctorHubHeader() {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [inbox.open, inbox.setOpen, profileMenuOpen, searchOpen]);
+  }, [inbox.open, inbox.setOpen, profileMenuOpen]);
 
   const handleLogout = () => {
     setProfileMenuOpen(false);
@@ -110,25 +70,6 @@ export function DoctorHubHeader() {
     });
   };
 
-  const handleSearchStudent = (student: SearchStudentHit) => {
-    setSearchOpen(false);
-    setSearchQuery("");
-    navigate(doctorStudentPath(student.id));
-  };
-
-  const handleSearchDoctor = (doctor: SearchDoctorHit) => {
-    setSearchOpen(false);
-    setSearchQuery("");
-    if (profile.userId != null && doctor.id === profile.userId) {
-      navigate(ROUTES.doctorProfile);
-      return;
-    }
-    toast({
-      title: doctor.name,
-      description: "Colleague directory lookup only — no public faculty profile page in the doctor hub yet.",
-    });
-  };
-
   return (
     <header className="sticky top-0 z-30 glass border-b border-border">
       <div className="px-5 lg:px-8 py-3 flex items-center gap-4 min-h-[60px]">
@@ -136,74 +77,20 @@ export function DoctorHubHeader() {
           <Menu className="h-5 w-5" />
         </button>
 
-        {showGlobalSearch && (
-          <div ref={searchRef} className="hidden md:flex flex-1 max-w-md relative">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                placeholder="Search students and faculty…"
-                className="w-full h-10 rounded-xl border border-border bg-card/60 pl-9 pr-14 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 focus:bg-card transition-smooth"
-                aria-label="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => searchResults && setSearchOpen(true)}
-              />
-              <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground pointer-events-none">
-                <Command className="h-3 w-3" /> K
-              </kbd>
-            </div>
-            {searchOpen && searchResults && (
-              <Card className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 shadow-elevated border-border/70 max-h-72 overflow-y-auto">
-                <CardContent className="p-2 bg-card">
-                  {searching ? (
-                    <p className="py-3 text-center text-sm text-muted-foreground">Searching…</p>
-                  ) : searchResults.students.length === 0 && searchResults.doctors.length === 0 ? (
-                    <p className="py-3 text-center text-sm text-muted-foreground">No results</p>
-                  ) : (
-                    <>
-                      {searchResults.students.length > 0 && (
-                        <p className="px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground">
-                          Students
-                        </p>
-                      )}
-                      {searchResults.students.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          className="w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-accent"
-                          onClick={() => handleSearchStudent(s)}
-                        >
-                          <span className="font-medium">{s.name}</span>
-                          <span className="text-xs text-muted-foreground block">{s.major}</span>
-                        </button>
-                      ))}
-                      {searchResults.doctors.length > 0 && (
-                        <p className="px-2 py-1 mt-1 text-[10px] font-semibold uppercase text-muted-foreground">
-                          Doctors
-                        </p>
-                      )}
-                      {searchResults.doctors.map((d) => (
-                        <button
-                          key={d.id}
-                          type="button"
-                          className="w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-accent"
-                          onClick={() => handleSearchDoctor(d)}
-                        >
-                          <span className="font-medium">{d.name}</span>
-                          <span className="text-xs text-muted-foreground block">
-                            {d.specialization}
-                          </span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-
         <div className="ml-auto flex items-center gap-2 shrink-0">
+          <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-lg" asChild>
+            <Link
+              to={ROUTES.doctorMessages}
+              aria-label="Messages"
+              onClick={() => {
+                inbox.setOpen(false);
+                setProfileMenuOpen(false);
+              }}
+            >
+              <MessageCircle className="h-4 w-4" />
+            </Link>
+          </Button>
+
           <div ref={notificationsRef} className="relative">
             <NotificationBellButton
               unreadCount={inbox.unreadCount}
@@ -228,21 +115,6 @@ export function DoctorHubHeader() {
               variant="doctor"
             />
           </div>
-
-          <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-lg" asChild>
-            <Link
-              to={ROUTES.doctorMessages}
-              aria-label="Messages"
-              onClick={() => {
-                inbox.setOpen(false);
-                setProfileMenuOpen(false);
-              }}
-            >
-              <MessageCircle className="h-4 w-4" />
-            </Link>
-          </Button>
-
-          <WorkspaceThemeToggle />
 
           <div ref={profileMenuRef} className="relative">
             <button
@@ -303,6 +175,7 @@ export function DoctorHubHeader() {
                     <Settings className="h-4 w-4 text-primary/80" aria-hidden />
                     Settings
                   </Link>
+                  <div className="my-1 h-px w-full bg-border/60" aria-hidden />
                   <button
                     type="button"
                     role="menuitem"

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -11,14 +11,12 @@ import {
   ChevronDown,
   Users,
   Bookmark,
-  LogOut,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
 import { useCompanySidebarCollapsed } from "@/hooks/useCompanySidebarCollapsed";
 import { isCompanyOwner } from "@/lib/companyWorkspace";
-import { companySignOut } from "@/components/company/CompanyProfileMenu";
 
 const workspaceNav = [
   { title: "Dashboard", to: COMPANY_ROUTES.dashboard, icon: LayoutDashboard },
@@ -161,7 +159,6 @@ function SectionLabel({ collapsed, children }: { collapsed: boolean; children: s
 }
 
 export function CompanySidebar() {
-  const navigate = useNavigate();
   const { collapsed, toggle } = useCompanySidebarCollapsed();
   const showMembers = isCompanyOwner();
 
@@ -235,45 +232,18 @@ export function CompanySidebar() {
         <div>
           <SectionLabel collapsed={collapsed}>Account</SectionLabel>
           <div className="space-y-0.5">
-            {accountNav.map((item) => (
-              <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
-            ))}
             {showMembers
               ? ownerNav.map((item) => (
                   <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
                 ))
               : null}
+            {accountNav.map((item) => (
+              <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
+            ))}
           </div>
         </div>
       </nav>
 
-      <div
-        className={cn(
-          "cw-sidebar-footer shrink-0 border-t border-border/80 mt-auto transition-[padding] duration-300",
-          collapsed ? "px-1.5 py-2" : "px-2 py-2",
-        )}
-      >
-        <button
-          type="button"
-          title={collapsed ? "Logout" : undefined}
-          data-tooltip={collapsed ? "Logout" : undefined}
-          className={cn(
-            "cw-sidebar-link w-full",
-            collapsed && "cw-sidebar-link--collapsed",
-          )}
-          onClick={() => companySignOut(navigate)}
-        >
-          <LogOut className="h-4 w-4 shrink-0" aria-hidden />
-          <span
-            className={cn(
-              "whitespace-nowrap overflow-hidden transition-[opacity,width,margin] duration-300 ease-in-out",
-              collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100",
-            )}
-          >
-            Logout
-          </span>
-        </button>
-      </div>
     </aside>
   );
 }

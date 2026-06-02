@@ -1,0 +1,333 @@
+.global-search {
+  position: relative;
+  width: 100%;
+}
+
+.global-search--header {
+  flex: 0 1 auto;
+}
+
+.global-search__field {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  position: relative;
+}
+
+.global-search__field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.global-search__spinner {
+  position: absolute;
+  right: 0.85rem;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+}
+
+.global-search__dropdown {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  right: 0;
+  z-index: 80;
+  max-height: min(32rem, 72vh);
+  overflow-y: auto;
+  border-radius: 0.85rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow:
+    0 16px 40px -12px hsl(224 40% 14% / 0.28),
+    0 4px 12px hsl(224 40% 14% / 0.08);
+  padding: 0.5rem 0;
+}
+
+.global-search__status {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  font-size: 0.88rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.global-search__group {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid hsl(var(--border) / 0.55);
+}
+
+.global-search__group--flat {
+  border-bottom: 1px solid hsl(var(--border) / 0.55);
+}
+
+.global-search__group:last-of-type {
+  border-bottom: none;
+}
+
+.global-search__group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.35rem 1rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: hsl(var(--muted-foreground));
+}
+
+.global-search__recent {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.global-search__recent:hover,
+.global-search__recent:focus-visible {
+  background: hsl(var(--muted) / 0.65);
+  outline: none;
+}
+
+.global-search__result {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.55rem 1rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.global-search__result:hover,
+.global-search__result:focus-visible {
+  background: hsl(var(--muted) / 0.65);
+  outline: none;
+}
+
+.global-search__result-avatar {
+  width: 2.1rem;
+  height: 2.1rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.global-search__result-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.global-search__result-avatar--student {
+  background: hsl(262 72% 96%);
+  color: hsl(260 62% 52%);
+}
+
+.global-search__result-avatar--doctor {
+  background: hsl(272 58% 95%);
+  color: hsl(272 48% 37%);
+}
+
+.global-search__result-avatar--company {
+  background: hsl(210 90% 96%);
+  color: hsl(215 78% 44%);
+}
+
+.global-search__result-avatar--association {
+  background: hsl(30 92% 94%);
+  color: hsl(28 90% 45%);
+}
+
+.global-search__result-avatar--project,
+.global-search__result-avatar--project-request,
+.global-search__result-avatar--recruitment,
+.global-search__result-avatar--event,
+.global-search__result-avatar--opportunity {
+  background: hsl(220 16% 94%);
+  color: hsl(220 12% 42%);
+  border-radius: 0.55rem;
+}
+
+.global-search__result-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.global-search__result-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.global-search__result-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.global-search__result-subtitle {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: hsl(var(--muted-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-search__badge {
+  flex-shrink: 0;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.global-search__badge--student {
+  background: hsl(262 72% 94%);
+  color: hsl(260 62% 48%);
+}
+
+.global-search__badge--doctor {
+  background: hsl(272 48% 22%);
+  color: hsl(270 40% 96%);
+}
+
+.global-search__badge--company {
+  background: hsl(210 90% 94%);
+  color: hsl(215 78% 40%);
+}
+
+.global-search__badge--association {
+  background: hsl(30 92% 92%);
+  color: hsl(28 90% 40%);
+}
+
+.global-search__badge--project,
+.global-search__badge--project-request,
+.global-search__badge--recruitment,
+.global-search__badge--event,
+.global-search__badge--opportunity {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.global-search__footer {
+  padding: 0.35rem 0.75rem 0.55rem;
+  border-top: 1px solid hsl(var(--border) / 0.55);
+}
+
+.global-search__view-all {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: none;
+  border-radius: 0.55rem;
+  background: hsl(var(--muted) / 0.45);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.global-search__view-all:hover,
+.global-search__view-all:focus-visible {
+  background: hsl(var(--muted) / 0.85);
+  outline: none;
+}
+
+/* Full results page */
+.global-search-page {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 2.5rem;
+}
+
+.global-search-page__header {
+  margin-bottom: 1.5rem;
+}
+
+.global-search-page__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.global-search-page__query {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.global-search-page__back {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: hsl(260 62% 48%);
+  text-decoration: none;
+}
+
+.global-search-page__back:hover {
+  text-decoration: underline;
+}
+
+.global-search-page__status {
+  padding: 2rem 0;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.92rem;
+}
+
+.global-search-page__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.global-search-page__group {
+  padding: 0.75rem 0 0.25rem;
+}
+
+.global-search-page__group .global-search__group-title {
+  font-size: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.global-search-page__list {
+  display: flex;
+  flex-direction: column;
+}

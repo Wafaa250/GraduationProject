@@ -83,34 +83,3 @@
   padding: 0;
   visibility: hidden;
 }
-
-.assoc-sidebar-logout-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.assoc-sidebar--collapsed .assoc-sidebar-logout-btn {
-  justify-content: center;
-  padding-inline: 10px;
-}
-
-.assoc-sidebar--collapsed .assoc-sidebar-logout-label {
-  width: 0;
-  opacity: 0;
-  overflow: hidden;
-  visibility: hidden;
-}

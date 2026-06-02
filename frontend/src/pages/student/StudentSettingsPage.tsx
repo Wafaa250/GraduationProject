@@ -59,8 +59,8 @@ function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="student-ws-card p-6">
-      <div className="mb-5">
+    <section className="student-ws-card p-6 text-left">
+      <div className="mb-5 text-center">
         <h2 className="text-base font-semibold text-foreground">{title}</h2>
         {description ? (
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
@@ -268,16 +268,18 @@ export default function StudentSettingsPage() {
   }
 
   return (
-    <main className="student-hub min-h-full p-6 lg:p-8">
-      <header className="student-ws-page-header">
-        <p className="student-ws-eyebrow">Account</p>
-        <h1 className="student-ws-title">Settings</h1>
-        <p className="student-ws-description">
+    <main className="student-hub student-settings-page flex min-h-full flex-col items-center p-6 lg:p-8">
+      <header className="student-ws-page-header w-full max-w-2xl text-center">
+        <div className="flex flex-wrap items-baseline justify-center gap-x-2.5 gap-y-1">
+          <h1 className="student-ws-title m-0">Account</h1>
+          <h2 className="student-ws-title m-0">Settings</h2>
+        </div>
+        <p className="student-ws-description mx-auto">
           Manage your account, security, notifications, and preferences.
         </p>
       </header>
 
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="w-full max-w-2xl space-y-6">
         <SettingsSection
           title="Account settings"
           description="Your name and profile photo are shown across SkillSwap."

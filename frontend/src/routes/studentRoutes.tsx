@@ -6,6 +6,8 @@ import StudentProfilePage from "@/pages/student/StudentProfilePage";
 import StudentProfileEditPage from "@/pages/student/StudentProfileEditPage";
 import CreateGraduationProjectPage from "@/pages/student/CreateGraduationProjectPage";
 import GraduationProjectWorkspacePage from "@/pages/student/GraduationProjectWorkspacePage";
+import CommunicationHubPage from "@/pages/communication/CommunicationHubPage";
+import { getRoleDashboardPath } from "@/utils/homeNavigation";
 
 /** Student dashboard — other roles redirect away (legacy App.tsx). */
 export function StudentDashboardRoute() {
@@ -45,5 +47,12 @@ export function StudentGraduationProjectWorkspaceRoute() {
 export function StudentOnlyRoute({ children }: { children: ReactNode }) {
   const role = (localStorage.getItem("role") ?? "").toLowerCase();
   if (role === "student") return <>{children}</>;
-  return <Navigate to={ROUTES.home} replace />;
+  return <Navigate to={getRoleDashboardPath()} replace />;
+}
+
+/** Communication Hub — students only; other roles go to their workspace dashboard. */
+export function StudentCommunicationHubRoute() {
+  const role = (localStorage.getItem("role") ?? "").toLowerCase();
+  if (role === "student") return <CommunicationHubPage />;
+  return <Navigate to={getRoleDashboardPath()} replace />;
 }

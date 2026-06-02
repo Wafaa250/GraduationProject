@@ -40,7 +40,6 @@ export function AssociationDashboardLayout({
       <AssociationSidebar
         mobileOpen={sidebarMobileOpen}
         onCloseMobile={onSidebarClose}
-        onLogout={onLogout}
       />
       <div
         style={{

@@ -85,6 +85,8 @@ builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRec
 builder.Services.AddHttpClient<IRecruitmentApplicantAnalysisService, OpenAiRecruitmentApplicantAnalysisService>();
 builder.Services.AddScoped<IRecruitmentApplicationWorkflowService, RecruitmentApplicationWorkflowService>();
 builder.Services.AddScoped<IOrganizationMembershipService, OrganizationMembershipService>();
+builder.Services.AddScoped<IFeedService, FeedService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddHttpClient<ICompanyAnalysisService, OpenAiCompanyAnalysisService>();
 builder.Services.AddHttpClient("CompanyWebFetch", client =>
 {

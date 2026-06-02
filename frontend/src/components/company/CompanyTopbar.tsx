@@ -1,6 +1,5 @@
 import { CompanyNotificationBell } from '@/components/company/CompanyNotificationBell'
 import { CompanyProfileMenu } from '@/components/company/CompanyProfileMenu'
-import { WorkspaceThemeToggle } from '@/components/theme/WorkspaceThemeToggle'
 import { getStoredCompanyDisplayName } from '@/layouts/useCompanyWorkspaceBootstrap'
 
 export function CompanyTopbar() {
@@ -16,7 +15,6 @@ export function CompanyTopbar() {
 
       <div className="cw-workspace-header-actions flex items-center gap-2">
         <CompanyNotificationBell />
-        <WorkspaceThemeToggle />
         <CompanyProfileMenu />
       </div>
     </header>
