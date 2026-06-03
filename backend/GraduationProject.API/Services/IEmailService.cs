@@ -4,7 +4,7 @@ namespace GraduationProject.API.Services
 {
     public interface IEmailService
     {
-        Task SendPasswordResetEmailAsync(string toEmail, string resetUrl);
+        Task SendPasswordResetOtpEmailAsync(string toEmail, string verificationCode, string? recipientName = null);
 
         /// <summary>
         /// Sends workspace onboarding credentials. Throws <see cref="EmailSendException"/> on failure.

@@ -5,6 +5,9 @@ export const ROUTES = {
   changePassword: "/change-password",
   register: "/register",
   forgotPassword: "/forgot-password",
+  forgotPasswordVerify: "/forgot-password/verify",
+  forgotPasswordNew: "/forgot-password/new-password",
+  forgotPasswordSuccess: "/forgot-password/success",
   resetPassword: "/reset-password",
   registerAssociation: "/register/association",
   /** Post-login landing for students (Student Dashboard). */

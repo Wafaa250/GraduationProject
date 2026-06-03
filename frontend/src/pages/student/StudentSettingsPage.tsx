@@ -19,8 +19,8 @@ import { toast } from "@/hooks/use-toast";
 import { PROFILE_AVATAR_FALLBACK_CLASS, profileInitialsFromName } from "@/lib/profileAvatar";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
 import { cn } from "@/components/ui/utils";
-import { ROUTES } from "@/routes/paths";
 import type { ThemePreference } from "@/lib/theme";
+import { ROUTES } from "@/routes/paths";
 import "@/styles/student-hub.css";
 import "@/styles/student-workspace-pages.css";
 
@@ -355,18 +355,15 @@ export default function StudentSettingsPage() {
               />
             </FieldGroup>
           </div>
-          <p className="mt-4 text-sm">
+          <p className="mt-4 text-sm text-muted-foreground">
+            Cannot remember your current password?{" "}
             <Link
               to={ROUTES.forgotPassword}
               state={{ email }}
               className="font-medium text-primary hover:underline"
             >
-              Forgot password?
+              Forgot Current Password?
             </Link>
-            <span className="text-muted-foreground">
-              {" "}
-              — request a reset link if you cannot remember your current password.
-            </span>
           </p>
           <div className="mt-6 flex justify-end">
             <button

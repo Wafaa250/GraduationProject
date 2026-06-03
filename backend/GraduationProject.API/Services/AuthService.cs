@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using GraduationProject.API.Data;
@@ -26,18 +28,24 @@ namespace GraduationProject.API.Services
         Task<(AuthResponseDto? result, string? error)> ChangePasswordAsync(int userId, ChangePasswordDto dto);
         Task<(AuthResponseDto? result, string? error)> GoogleLoginAsync(GoogleLoginDto dto);
         Task<string> ForgotPasswordAsync(ForgotPasswordDto dto);
+        Task<(bool success, string? error)> VerifyResetCodeAsync(VerifyResetCodeDto dto);
         Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto);
     }
 
     public class AuthService : IAuthService
     {
         private const string ForgotPasswordSuccessMessage =
-            "If an account exists for that email, you will receive password reset instructions shortly.";
+            "If an account exists, a verification code has been sent.";
+
+        private static readonly Regex PasswordComplexityRegex = new(
+            @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$",
+            RegexOptions.Compiled);
 
         private readonly ApplicationDbContext _db;
         private readonly IConfiguration _config;
         private readonly IEmailService _emailService;
         private readonly ILogger<AuthService> _logger;
+        private readonly IMemoryCache _cache;
         private readonly ICompanyUniquenessService _companyUniqueness;
         private readonly ICompanyWorkspaceService _companyWorkspace;
 
@@ -46,6 +54,7 @@ namespace GraduationProject.API.Services
             IConfiguration config,
             IEmailService emailService,
             ILogger<AuthService> logger,
+            IMemoryCache cache,
             ICompanyUniquenessService companyUniqueness,
             ICompanyWorkspaceService companyWorkspace)
         {
@@ -53,6 +62,7 @@ namespace GraduationProject.API.Services
             _config = config;
             _emailService = emailService;
             _logger = logger;
+            _cache = cache;
             _companyUniqueness = companyUniqueness;
             _companyWorkspace = companyWorkspace;
         }
@@ -233,9 +243,7 @@ namespace GraduationProject.API.Services
             }
 
             int profileId = await GetProfileIdAsync(user);
-            string? companyRole = null;
-            if (user.Role == "company")
-                companyRole = await GetCompanyRoleAsync(user.Id);
+            var companyRole = await GetCompanyRoleAsync(user.Id);
 
             return (BuildResponse(user, profileId, companyRole, user.MustChangePassword), null);
         }
@@ -262,9 +270,7 @@ namespace GraduationProject.API.Services
             await _db.SaveChangesAsync();
 
             int profileId = await GetProfileIdAsync(user);
-            string? companyRole = null;
-            if (user.Role == "company")
-                companyRole = await GetCompanyRoleAsync(user.Id);
+            var companyRole = await GetCompanyRoleAsync(user.Id);
 
             return (BuildResponse(user, profileId, companyRole, false), null);
         }
@@ -465,15 +471,13 @@ namespace GraduationProject.API.Services
 
             // ── 3. ارجع الـ JWT ───────────────────────────────────────────────
             int profileId = await GetProfileIdAsync(user);
-            string? companyRole = null;
-            if (user.Role == "company")
-                companyRole = await GetCompanyRoleAsync(user.Id);
+            var companyRole = await GetCompanyRoleAsync(user.Id);
 
             return (BuildResponse(user, profileId, companyRole), null);
         }
 
         // ===========================
-        // FORGOT PASSWORD
+        // FORGOT PASSWORD (OTP)
         // ===========================
         public async Task<string> ForgotPasswordAsync(ForgotPasswordDto dto)
         {
@@ -482,81 +486,264 @@ namespace GraduationProject.API.Services
 
             if (user != null)
             {
+                _logger.LogInformation(
+                    "Password reset send requested for user {UserId} ({Email})",
+                    user.Id,
+                    email);
+
+                var (rateLimitReason, retryAfterSeconds) = await CheckSendRateLimitAsync(email);
+                if (rateLimitReason != null)
+                {
+                    _logger.LogWarning(
+                        "Rate limit triggered for password reset ({Reason}) user {UserId} ({Email}). RetryAfterSeconds={RetryAfterSeconds}",
+                        rateLimitReason,
+                        user.Id,
+                        email,
+                        retryAfterSeconds);
+                    return ForgotPasswordSuccessMessage;
+                }
+
                 var now = DateTime.UtcNow;
-                var activeTokens = await _db.PasswordResetTokens
-                    .Where(t => t.UserId == user.Id && t.UsedAt == null && t.ExpiresAt > now)
+                var unusedCodes = await _db.PasswordResetCodes
+                    .Where(c => c.UserId == user.Id && !c.IsUsed)
                     .ToListAsync();
 
-                foreach (var token in activeTokens)
-                    token.UsedAt = now;
+                foreach (var existing in unusedCodes)
+                {
+                    existing.IsUsed = true;
+                    existing.UsedAt = now;
+                }
 
-                var rawToken = PasswordResetTokenHelper.GenerateRawToken();
-                var expirationMinutes = _config.GetValue<int>("PasswordReset:TokenExpirationMinutes", 60);
+                if (unusedCodes.Count > 0)
+                {
+                    _logger.LogInformation(
+                        "Invalidated {Count} previous unused verification code(s) for user {UserId} ({Email})",
+                        unusedCodes.Count,
+                        user.Id,
+                        email);
+                }
 
-                _db.PasswordResetTokens.Add(new PasswordResetToken
+                var rawCode = PasswordResetCodeHelper.GenerateCode();
+                var expirationMinutes = _config.GetValue<int>("PasswordReset:CodeExpirationMinutes", 2);
+                var expiresAt = now.AddMinutes(expirationMinutes);
+
+                _db.PasswordResetCodes.Add(new PasswordResetCode
                 {
                     UserId = user.Id,
-                    TokenHash = PasswordResetTokenHelper.HashToken(rawToken),
-                    ExpiresAt = now.AddMinutes(expirationMinutes),
+                    Email = email,
+                    CodeHash = PasswordResetCodeHelper.HashCode(rawCode),
+                    ExpiresAt = expiresAt,
                     CreatedAt = now,
+                    IsUsed = false,
                 });
                 await _db.SaveChangesAsync();
 
-                var resetBaseUrl = (_config["PasswordReset:FrontendResetUrl"] ?? "http://localhost:5173/reset-password")
-                    .TrimEnd('/');
-                var resetUrl = $"{resetBaseUrl}?token={Uri.EscapeDataString(rawToken)}";
+                _logger.LogInformation(
+                    "Generated verification code for user {UserId} ({Email}). ExpiresAt={ExpiresAt:O} (hash stored only)",
+                    user.Id,
+                    email,
+                    expiresAt);
+
+                ClearVerifyAttempts(email);
+
+                _logger.LogInformation(
+                    "Email send started for password reset OTP to {Email} (user {UserId})",
+                    user.Email,
+                    user.Id);
 
                 try
                 {
-                    await _emailService.SendPasswordResetEmailAsync(user.Email, resetUrl);
+                    await _emailService.SendPasswordResetOtpEmailAsync(user.Email, rawCode, user.Name);
+                    _logger.LogInformation(
+                        "Email send succeeded for password reset OTP to {Email} (user {UserId})",
+                        user.Email,
+                        user.Id);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send password reset email for user {UserId}", user.Id);
+                    _logger.LogError(
+                        ex,
+                        "Email send failed for password reset OTP to {Email} (user {UserId})",
+                        user.Email,
+                        user.Id);
                 }
+            }
+            else
+            {
+                _logger.LogInformation("Password reset requested for unknown email {Email}", email);
             }
 
             return ForgotPasswordSuccessMessage;
         }
 
+        public async Task<(bool success, string? error)> VerifyResetCodeAsync(VerifyResetCodeDto dto)
+        {
+            var email = dto.Email.ToLower().Trim();
+            var code = dto.Code.Trim();
+
+            if (IsVerifyLockedOut(email))
+                return (false, "Too many failed attempts. Please request a new verification code.");
+
+            var (resetCode, lookupError) = await LookupResetCodeAsync(email, code);
+            if (resetCode == null)
+            {
+                RecordFailedVerifyAttempt(email);
+                _logger.LogWarning("Invalid password reset code verification attempt for {Email}", email);
+                return (false, lookupError ?? InvalidResetCodeMessage);
+            }
+
+            ClearVerifyAttempts(email);
+            _logger.LogInformation(
+                "Password reset code verified for user {UserId} ({Email})",
+                resetCode.UserId,
+                email);
+            return (true, null);
+        }
+
         // ===========================
-        // RESET PASSWORD
+        // RESET PASSWORD (OTP)
         // ===========================
         public async Task<(bool success, string? error)> ResetPasswordAsync(ResetPasswordDto dto)
         {
-            if (dto.Password != dto.ConfirmPassword)
-                return (false, "Passwords do not match.");
+            var email = dto.Email.ToLower().Trim();
+            var code = dto.Code.Trim();
 
-            if (string.IsNullOrWhiteSpace(dto.Token))
-                return (false, "Invalid or expired reset link.");
+            if (!PasswordComplexityRegex.IsMatch(dto.NewPassword))
+                return (false, "Password must include uppercase, lowercase, and a number.");
 
-            var tokenHash = PasswordResetTokenHelper.HashToken(dto.Token.Trim());
+            if (IsVerifyLockedOut(email))
+                return (false, "Too many failed attempts. Please request a new verification code.");
+
+            var (resetCode, lookupError) = await LookupResetCodeAsync(email, code);
+            if (resetCode?.User == null)
+            {
+                RecordFailedVerifyAttempt(email);
+                _logger.LogWarning("Invalid password reset attempt for {Email}", email);
+                return (false, lookupError ?? InvalidResetCodeMessage);
+            }
+
             var now = DateTime.UtcNow;
+            resetCode.User.Password = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            resetCode.User.MustChangePassword = false;
+            resetCode.IsUsed = true;
+            resetCode.UsedAt = now;
 
-            var resetToken = await _db.PasswordResetTokens
-                .Include(t => t.User)
-                .FirstOrDefaultAsync(t =>
-                    t.TokenHash == tokenHash &&
-                    t.UsedAt == null &&
-                    t.ExpiresAt > now);
-
-            if (resetToken?.User == null)
-                return (false, "Invalid or expired reset link.");
-
-            resetToken.User.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
-            resetToken.User.MustChangePassword = false;
-            resetToken.UsedAt = now;
-
-            var otherActive = await _db.PasswordResetTokens
-                .Where(t => t.UserId == resetToken.UserId && t.Id != resetToken.Id && t.UsedAt == null)
+            var otherActive = await _db.PasswordResetCodes
+                .Where(c => c.UserId == resetCode.UserId && c.Id != resetCode.Id && !c.IsUsed)
                 .ToListAsync();
 
-            foreach (var t in otherActive)
-                t.UsedAt = now;
+            foreach (var active in otherActive)
+            {
+                active.IsUsed = true;
+                active.UsedAt = now;
+            }
 
             await _db.SaveChangesAsync();
+            ClearVerifyAttempts(email);
+
+            _logger.LogInformation(
+                "Password reset completed for user {UserId} ({Email})",
+                resetCode.UserId,
+                email);
             return (true, null);
         }
+
+        private const string ExpiredResetCodeMessage =
+            "Verification code has expired. Please request a new code.";
+
+        private const string InvalidResetCodeMessage =
+            "Invalid or expired verification code.";
+
+        private async Task<(PasswordResetCode? code, string? error)> LookupResetCodeAsync(string email, string code)
+        {
+            var codeHash = PasswordResetCodeHelper.HashCode(code);
+            var now = DateTime.UtcNow;
+
+            var candidate = await _db.PasswordResetCodes
+                .Include(c => c.User)
+                .Where(c => c.Email == email && c.CodeHash == codeHash)
+                .OrderByDescending(c => c.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (candidate == null)
+                return (null, InvalidResetCodeMessage);
+
+            if (candidate.IsUsed)
+                return (null, InvalidResetCodeMessage);
+
+            if (candidate.ExpiresAt <= now)
+                return (null, ExpiredResetCodeMessage);
+
+            return (candidate, null);
+        }
+
+        /// <summary>
+        /// Resend cooldown aligns with the 2-minute forgot-password flow (ResendCooldownSeconds).
+        /// Abuse cap uses a minute-based rolling window, not hourly buckets.
+        /// </summary>
+        private async Task<(string? reason, int? retryAfterSeconds)> CheckSendRateLimitAsync(string email)
+        {
+            var cooldownSeconds = _config.GetValue<int>("PasswordReset:ResendCooldownSeconds", 120);
+            var maxInWindow = _config.GetValue<int>("PasswordReset:MaxAttemptsPerWindow", 10);
+            var windowMinutes = _config.GetValue<int>("PasswordReset:RateLimitWindowMinutes", 30);
+            var now = DateTime.UtcNow;
+
+            var lastSentAt = await _db.PasswordResetCodes
+                .Where(c => c.Email == email)
+                .OrderByDescending(c => c.CreatedAt)
+                .Select(c => (DateTime?)c.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (lastSentAt.HasValue)
+            {
+                var elapsedSeconds = (int)(now - lastSentAt.Value).TotalSeconds;
+                if (elapsedSeconds < cooldownSeconds)
+                {
+                    return ("resend_cooldown", cooldownSeconds - elapsedSeconds);
+                }
+            }
+
+            var windowStart = now.AddMinutes(-windowMinutes);
+            var attemptsInWindow = await _db.PasswordResetCodes
+                .CountAsync(c => c.Email == email && c.CreatedAt > windowStart);
+
+            if (attemptsInWindow >= maxInWindow)
+            {
+                return ("abuse_window", null);
+            }
+
+            return (null, null);
+        }
+
+        private string VerifyAttemptsCacheKey(string email) =>
+            $"pwd-reset-verify:{email.ToLowerInvariant()}";
+
+        private bool IsVerifyLockedOut(string email)
+        {
+            var maxAttempts = _config.GetValue<int>("PasswordReset:MaxVerifyAttempts", 5);
+            return _cache.TryGetValue(VerifyAttemptsCacheKey(email), out int attempts) && attempts >= maxAttempts;
+        }
+
+        private void RecordFailedVerifyAttempt(string email)
+        {
+            var maxAttempts = _config.GetValue<int>("PasswordReset:MaxVerifyAttempts", 5);
+            var expirationMinutes = _config.GetValue<int>("PasswordReset:CodeExpirationMinutes", 2);
+            var key = VerifyAttemptsCacheKey(email);
+            var attempts = _cache.TryGetValue(key, out int current) ? current + 1 : 1;
+
+            _cache.Set(key, attempts, TimeSpan.FromMinutes(expirationMinutes));
+
+            if (attempts >= maxAttempts)
+            {
+                _logger.LogWarning(
+                    "Password reset verification locked out for {Email} after {Attempts} failed attempts",
+                    email,
+                    attempts);
+            }
+        }
+
+        private void ClearVerifyAttempts(string email) =>
+            _cache.Remove(VerifyAttemptsCacheKey(email));
 
     }
 }

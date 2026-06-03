@@ -57,6 +57,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
+builder.Services.AddMemoryCache();
 
 // ===========================
 // SERVICES
@@ -194,6 +195,8 @@ static void ApplyEmailSettingsFromEnvironment(IConfigurationBuilder configuratio
     SetIfPresent("Email__Password", "Email:Password");
     SetIfPresent("Email__FromAddress", "Email:FromAddress");
     SetIfPresent("Email__FromName", "Email:FromName");
+    SetIfPresent("Email__ReplyToAddress", "Email:ReplyToAddress");
+    SetIfPresent("Email__ReplyToName", "Email:ReplyToName");
     SetIfPresent("App__FrontendLoginUrl", "App:FrontendLoginUrl");
 
     if (updates.Count == 0)

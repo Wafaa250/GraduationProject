@@ -1,10 +1,12 @@
 using System;
 using System.Threading.Tasks;
+using GraduationProject.API.Services.Email;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MimeKit;
+using MimeKit.Utils;
 
 namespace GraduationProject.API.Services
 {
@@ -19,15 +21,18 @@ namespace GraduationProject.API.Services
             _logger = logger;
         }
 
-        public async Task SendPasswordResetEmailAsync(string toEmail, string resetUrl)
+        public async Task SendPasswordResetOtpEmailAsync(
+            string toEmail,
+            string verificationCode,
+            string? recipientName = null)
         {
             var enabled = _config.GetValue<bool>("Email:Enabled");
+
             if (!enabled)
             {
                 _logger.LogWarning(
-                    "Email is disabled. Password reset link for {Email}: {ResetUrl}",
-                    toEmail,
-                    resetUrl);
+                    "Email send failed: Email:Enabled is false. Password reset OTP for {Email} was not sent.",
+                    toEmail);
                 return;
             }
 
@@ -35,22 +40,40 @@ namespace GraduationProject.API.Services
             if (string.IsNullOrWhiteSpace(host))
             {
                 _logger.LogWarning(
-                    "Email:SmtpHost is not configured. Password reset link for {Email}: {ResetUrl}",
-                    toEmail,
-                    resetUrl);
+                    "Email send failed: Email:SmtpHost is not configured. Password reset OTP for {Email} was not sent.",
+                    toEmail);
                 return;
             }
 
-            var body = $"""
-                <p>Hello,</p>
-                <p>We received a request to reset your SkillSwap password.</p>
-                <p><a href="{resetUrl}">Reset your password</a></p>
-                <p>This link expires in {_config.GetValue<int>("PasswordReset:TokenExpirationMinutes", 60)} minutes.</p>
-                <p>If you did not request this, you can ignore this email.</p>
-                <p>— SkillSwap</p>
-                """;
+            var expirationMinutes = _config.GetValue<int>("PasswordReset:CodeExpirationMinutes", 2);
+            var (html, plainText) = SkillSwapEmailTemplates.BuildPasswordResetOtpEmail(
+                new SkillSwapEmailTemplates.PasswordResetOtpEmailContent
+                {
+                    VerificationCode = verificationCode,
+                    ExpirationMinutes = expirationMinutes,
+                    SupportEmail = GetSupportEmail(),
+                });
 
-            await SendOptionalEmailAsync(toEmail, "Reset your SkillSwap password", body);
+            _logger.LogInformation(
+                "SMTP password reset delivery: host={Host}, port={Port}, to={Email}",
+                host,
+                _config.GetValue<int>("Email:SmtpPort", 587),
+                toEmail);
+
+            try
+            {
+                await SendEmailCoreAsync(
+                    toEmail,
+                    SkillSwapEmailTemplates.SubjectPasswordResetOtp,
+                    html,
+                    plainText);
+                _logger.LogInformation("Email send succeeded via SMTP to {Email}", toEmail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Email send failed via SMTP to {Email}", toEmail);
+                throw;
+            }
         }
 
         public async Task SendCompanyMemberWelcomeEmailAsync(
@@ -61,31 +84,40 @@ namespace GraduationProject.API.Services
             string temporaryPassword,
             string loginUrl)
         {
-            var safeName = System.Net.WebUtility.HtmlEncode(fullName);
-            var safeCompany = System.Net.WebUtility.HtmlEncode(
-                string.IsNullOrWhiteSpace(companyName) ? "your company" : companyName);
-            var safeEmail = System.Net.WebUtility.HtmlEncode(loginEmail);
-            var safePassword = System.Net.WebUtility.HtmlEncode(temporaryPassword);
-            var safeLoginUrl = System.Net.WebUtility.HtmlEncode(loginUrl);
+            var publicLoginUrl = EmailUrlHelper.ResolveLoginUrl(_config, loginUrl);
+            var displayName = string.IsNullOrWhiteSpace(fullName) ? "there" : fullName.Trim();
+            var displayCompany = string.IsNullOrWhiteSpace(companyName) ? "your organization" : companyName.Trim();
 
-            var body = $"""
-                <p>Hello {safeName},</p>
-                <p>You have been added to the <strong>{safeCompany}</strong> workspace on SkillSwap.</p>
-                <p><strong>Email:</strong><br />{safeEmail}</p>
-                <p><strong>Temporary Password:</strong><br />{safePassword}</p>
-                <p>For security reasons, you will be required to change this password immediately after your first login.</p>
-                <p><strong>Login URL:</strong><br /><a href="{safeLoginUrl}">{safeLoginUrl}</a></p>
-                <p>Thank you,<br />SkillSwap</p>
-                """;
+            var (html, plainText) = SkillSwapEmailTemplates.BuildWelcomeEmail(
+                new SkillSwapEmailTemplates.WelcomeEmailContent
+                {
+                    RecipientName = displayName,
+                    CompanyName = displayCompany,
+                    LoginEmail = loginEmail,
+                    SignInValue = temporaryPassword,
+                    LoginUrl = publicLoginUrl,
+                    SupportEmail = GetSupportEmail(),
+                });
 
-            await SendRequiredEmailAsync(toEmail, "Welcome to SkillSwap", body);
+            await SendRequiredEmailAsync(
+                toEmail,
+                SkillSwapEmailTemplates.SubjectWelcome,
+                html,
+                plainText);
         }
 
-        private async Task SendOptionalEmailAsync(string toEmail, string subject, string htmlBody)
+        private string GetSupportEmail() =>
+            (_config["Email:ReplyToAddress"] ?? _config["Email:FromAddress"] ?? "skillswap742@gmail.com").Trim();
+
+        private async Task SendOptionalEmailAsync(
+            string toEmail,
+            string subject,
+            string htmlBody,
+            string plainTextBody)
         {
             try
             {
-                await SendEmailCoreAsync(toEmail, subject, htmlBody);
+                await SendEmailCoreAsync(toEmail, subject, htmlBody, plainTextBody);
                 _logger.LogInformation("Email sent to {Email} with subject {Subject}", toEmail, subject);
             }
             catch (Exception ex)
@@ -94,7 +126,11 @@ namespace GraduationProject.API.Services
             }
         }
 
-        private async Task SendRequiredEmailAsync(string toEmail, string subject, string htmlBody)
+        private async Task SendRequiredEmailAsync(
+            string toEmail,
+            string subject,
+            string htmlBody,
+            string plainTextBody)
         {
             if (!_config.GetValue<bool>("Email:Enabled"))
             {
@@ -110,7 +146,7 @@ namespace GraduationProject.API.Services
 
             try
             {
-                await SendEmailCoreAsync(toEmail, subject, htmlBody);
+                await SendEmailCoreAsync(toEmail, subject, htmlBody, plainTextBody);
                 _logger.LogInformation("Email sent to {Email} with subject {Subject}", toEmail, subject);
             }
             catch (EmailSendException)
@@ -124,7 +160,11 @@ namespace GraduationProject.API.Services
             }
         }
 
-        private async Task SendEmailCoreAsync(string toEmail, string subject, string htmlBody)
+        private async Task SendEmailCoreAsync(
+            string toEmail,
+            string subject,
+            string htmlBody,
+            string plainTextBody)
         {
             var host = _config["Email:SmtpHost"];
             if (string.IsNullOrWhiteSpace(host))
@@ -132,23 +172,86 @@ namespace GraduationProject.API.Services
 
             var port = _config.GetValue<int>("Email:SmtpPort", 587);
             var useSsl = _config.GetValue<bool>("Email:UseSsl", true);
-            var fromAddress = _config["Email:FromAddress"] ?? "noreply@skillswap.local";
-            var fromName = _config["Email:FromName"] ?? "SkillSwap";
-            var username = _config["Email:Username"];
+            var fromAddress = (_config["Email:FromAddress"] ?? "skillswap742@gmail.com").Trim();
+            var fromName = (_config["Email:FromName"] ?? "SkillSwap Support").Trim();
+            var replyToAddress = (_config["Email:ReplyToAddress"] ?? fromAddress).Trim();
+            var replyToName = (_config["Email:ReplyToName"] ?? fromName).Trim();
+            var username = _config["Email:Username"]?.Trim();
             var password = _config["Email:Password"];
 
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(fromName, fromAddress));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = subject;
-            message.Body = new TextPart("html") { Text = htmlBody };
+            if (!string.IsNullOrWhiteSpace(username)
+                && !string.Equals(username, fromAddress, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(
+                    "Email:FromAddress ({From}) does not match Email:Username ({User}). Align them for SPF/DKIM alignment and fewer spam filters.",
+                    fromAddress,
+                    username);
+            }
+
+            var message = BuildMimeMessage(
+                toEmail,
+                subject,
+                htmlBody,
+                plainTextBody,
+                fromName,
+                fromAddress,
+                replyToName,
+                replyToAddress);
 
             using var client = new SmtpClient();
+            _logger.LogDebug("SMTP connecting to {Host}:{Port}", host, port);
             await client.ConnectAsync(host, port, useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto);
             if (!string.IsNullOrWhiteSpace(username))
+            {
+                _logger.LogDebug("SMTP authenticating as {Username}", username);
                 await client.AuthenticateAsync(username, password);
+            }
+
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
+            _logger.LogDebug("SMTP disconnected after send to {Email}", toEmail);
+        }
+
+        private static MimeMessage BuildMimeMessage(
+            string toEmail,
+            string subject,
+            string htmlBody,
+            string plainTextBody,
+            string fromName,
+            string fromAddress,
+            string replyToName,
+            string replyToAddress)
+        {
+            var fromMailbox = new MailboxAddress(fromName, fromAddress);
+            var replyMailbox = new MailboxAddress(replyToName, replyToAddress);
+            var messageDomain = fromAddress.Contains('@', StringComparison.Ordinal)
+                ? fromAddress.Split('@')[1]
+                : "skillswap.app";
+
+            var message = new MimeMessage
+            {
+                Date = DateTimeOffset.UtcNow,
+                Subject = subject,
+                MessageId = MimeUtils.GenerateMessageId(messageDomain),
+            };
+
+            message.From.Add(fromMailbox);
+            message.Sender = fromMailbox;
+            message.To.Add(MailboxAddress.Parse(toEmail));
+            message.ReplyTo.Add(replyMailbox);
+
+            message.Headers.Add(HeaderId.Organization, "SkillSwap");
+            message.Headers.Add("Auto-Submitted", "auto-generated");
+            message.Headers.Add("X-Auto-Response-Suppress", "OOF, AutoReply");
+
+            var bodyBuilder = new BodyBuilder
+            {
+                TextBody = plainTextBody,
+                HtmlBody = htmlBody,
+            };
+            message.Body = bodyBuilder.ToMessageBody();
+
+            return message;
         }
     }
 }

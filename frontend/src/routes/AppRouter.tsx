@@ -31,6 +31,9 @@ import DoctorSettingsPage from "@/pages/doctor/DoctorSettingsPage";
 import { LandingPage } from "@/pages/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
+import ForgotPasswordVerifyPage from "@/pages/auth/ForgotPasswordVerifyPage";
+import ForgotPasswordNewPasswordPage from "@/pages/auth/ForgotPasswordNewPasswordPage";
+import ForgotPasswordSuccessPage from "@/pages/auth/ForgotPasswordSuccessPage";
 import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import { ChangePasswordPage } from "@/pages/auth/ChangePasswordPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
@@ -74,6 +77,9 @@ export function AppRouter() {
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
         <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
+        <Route path={ROUTES.forgotPasswordVerify} element={<ForgotPasswordVerifyPage />} />
+        <Route path={ROUTES.forgotPasswordNew} element={<ForgotPasswordNewPasswordPage />} />
+        <Route path={ROUTES.forgotPasswordSuccess} element={<ForgotPasswordSuccessPage />} />
         <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
         <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
         <Route path={ROUTES.register} element={<RegisterPage />} />
