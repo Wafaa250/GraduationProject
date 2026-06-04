@@ -18,7 +18,7 @@ import {
   updateCompanyProfile,
   type CompanyProfile,
 } from "@/api/companyApi";
-import { setStoredCompanyRole } from "@/lib/companyWorkspace";
+import { isCompanyOwner, setStoredCompanyRole } from "@/lib/companyWorkspace";
 
 function normalizeUrl(url: string): string {
   const trimmed = url.trim();
@@ -128,7 +128,7 @@ export function CompanyProfilePage() {
   }, []);
 
   const name = companyName || profile?.companyName || "Company";
-  const isOwner = (profile?.workspaceRole ?? "owner") === "owner";
+  const canEditProfile = isCompanyOwner();
   const initials = name
     .split(" ")
     .map((w) => w[0])
@@ -229,9 +229,9 @@ export function CompanyProfilePage() {
         eyebrow="Public presence"
         title="Company Profile"
         description={
-          isOwner
+          canEditProfile
             ? "How students discover you when SkillSwap recommends your company — keep it sharp and complete."
-            : "Shared workspace profile. Contact an owner to request changes."
+            : "Company identity and contact details. Contact your company owner to request changes."
         }
       />
 
@@ -281,8 +281,8 @@ export function CompanyProfilePage() {
                     onChange={(e) => setCompanyName(e.target.value)}
                     className="rounded-xl"
                     placeholder="Enter company name"
-                    disabled={!isOwner}
-                    readOnly={!isOwner}
+                    disabled={!canEditProfile}
+                    readOnly={!canEditProfile}
                   />
                 </Field>
 
@@ -293,8 +293,8 @@ export function CompanyProfilePage() {
                     rows={4}
                     className="rounded-xl resize-none"
                     placeholder="Describe your company and what students can expect."
-                    disabled={!isOwner}
-                    readOnly={!isOwner}
+                    disabled={!canEditProfile}
+                    readOnly={!canEditProfile}
                   />
                 </Field>
 
@@ -305,8 +305,8 @@ export function CompanyProfilePage() {
                       onChange={(e) => setIndustry(e.target.value)}
                       className="rounded-xl"
                       placeholder="No industry specified"
-                      disabled={!isOwner}
-                      readOnly={!isOwner}
+                      disabled={!canEditProfile}
+                      readOnly={!canEditProfile}
                     />
                   </Field>
                   <Field label="Headquarters / location">
@@ -315,8 +315,8 @@ export function CompanyProfilePage() {
                       onChange={(e) => setHeadquartersLocation(e.target.value)}
                       className="rounded-xl"
                       placeholder="No headquarters specified"
-                      disabled={!isOwner}
-                      readOnly={!isOwner}
+                      disabled={!canEditProfile}
+                      readOnly={!canEditProfile}
                     />
                   </Field>
                   <Field label="Working style">
@@ -325,8 +325,8 @@ export function CompanyProfilePage() {
                       onChange={(e) => setWorkingStyle(e.target.value)}
                       className="rounded-xl"
                       placeholder="No working style specified"
-                      disabled={!isOwner}
-                      readOnly={!isOwner}
+                      disabled={!canEditProfile}
+                      readOnly={!canEditProfile}
                     />
                   </Field>
                 </div>
@@ -334,7 +334,7 @@ export function CompanyProfilePage() {
                 <div>
                   <Label className="cw-form-label mb-1.5 block">Areas of interest</Label>
                   <div className="space-y-2.5">
-                    {isOwner ? (
+                    {canEditProfile ? (
                       <Input
                         value={newInterest}
                         onChange={(e) => setNewInterest(e.target.value)}
@@ -351,12 +351,12 @@ export function CompanyProfilePage() {
                             key={tag}
                             className={cn(
                               "cw-request-skill-badge rounded-md",
-                              isOwner && "cursor-pointer hover:bg-primary/15",
+                              canEditProfile && "cursor-pointer hover:bg-primary/15",
                             )}
-                            title={isOwner ? "Click to remove" : undefined}
-                            onClick={isOwner ? () => removeInterest(tag) : undefined}
+                            title={canEditProfile ? "Click to remove" : undefined}
+                            onClick={canEditProfile ? () => removeInterest(tag) : undefined}
                           >
-                            {tag} {isOwner ? "×" : ""}
+                            {tag} {canEditProfile ? "×" : ""}
                           </Badge>
                         ))}
                       </div>
@@ -366,7 +366,7 @@ export function CompanyProfilePage() {
                   </div>
                 </div>
 
-                {isOwner ? (
+                {canEditProfile ? (
                 <div className="flex justify-end pt-1">
                   <Button
                     type="submit"
@@ -390,8 +390,8 @@ export function CompanyProfilePage() {
                   onChange={(e) => setLinkedInUrl(e.target.value)}
                   className="rounded-xl"
                   placeholder="No LinkedIn specified"
-                  disabled={!isOwner}
-                  readOnly={!isOwner}
+                  disabled={!canEditProfile}
+                  readOnly={!canEditProfile}
                 />
               </Field>
 
@@ -401,8 +401,8 @@ export function CompanyProfilePage() {
                   onChange={(e) => setOptionalContactLink(e.target.value)}
                   className="rounded-xl"
                   placeholder="No contact link specified"
-                  disabled={!isOwner}
-                  readOnly={!isOwner}
+                  disabled={!canEditProfile}
+                  readOnly={!canEditProfile}
                 />
               </Field>
 

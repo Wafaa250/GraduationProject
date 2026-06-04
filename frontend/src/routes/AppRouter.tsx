@@ -77,6 +77,7 @@ import OrganizationPublicProfilePage from "@/pages/student/OrganizationPublicPro
 import CompanyPublicProfilePage from "@/pages/student/CompanyPublicProfilePage";
 import { CompanyTalentRequestDetailPage } from "@/pages/company/CompanyTalentRequestDetailPage";
 import { StudentCommunicationHubRoute } from "@/routes/studentRoutes";
+import { StudentCompanyRequestDetailRoute } from "@/routes/StudentCompanyRequestDetailRoute";
 
 export function AppRouter() {
   return (
@@ -92,6 +93,42 @@ export function AppRouter() {
         <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
         <Route path={ROUTES.register} element={<RegisterPage />} />
         <Route path={ROUTES.registerAssociation} element={<StudentAssociationRegisterPage />} />
+
+        <Route
+          path={COMPANY_ROUTES.root}
+          element={
+            <ProtectedRoute>
+              <CompanyRoute>
+                <CompanyWorkspaceLayout />
+              </CompanyRoute>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<CompanyDashboardPage />} />
+          <Route path="requests" element={<CompanyRequestsPage />} />
+          <Route path="requests/new" element={<CompanyNewRequestPage />} />
+          <Route path="requests/:id/edit" element={<CompanyNewRequestPage />} />
+          <Route path="requests/:id/recommendations" element={<CompanyRequestRecommendationsPage />} />
+          <Route
+            path="requests/:requestId/teams/:teamId"
+            element={<CompanyTeamDiscoveryProfilePage />}
+          />
+          <Route
+            path="requests/:requestId/students/:studentProfileId"
+            element={<CompanyStudentDiscoveryProfilePage />}
+          />
+          <Route path="requests/:id" element={<CompanyRequestDetailPage />} />
+          <Route path="talent-requests/:id" element={<CompanyTalentRequestDetailPage />} />
+          <Route path="matches" element={<Navigate to={COMPANY_ROUTES.requests} replace />} />
+          <Route path="discover" element={<Navigate to={COMPANY_ROUTES.requests} replace />} />
+          <Route path="collaborations" element={<Navigate to={COMPANY_ROUTES.dashboard} replace />} />
+          <Route path="messages" element={<Navigate to={COMPANY_ROUTES.dashboard} replace />} />
+          <Route path="profile" element={<CompanyProfilePage />} />
+          <Route path="members" element={<CompanyMembersPage />} />
+          <Route path="saved" element={<CompanySavedRecommendationsPage />} />
+          <Route path="settings" element={<CompanySettingsPage />} />
+          <Route path="themes" element={<CompanyThemeShowcasePage />} />
+        </Route>
 
         <Route
           element={
@@ -111,8 +148,7 @@ export function AppRouter() {
             path="/association/recruitment/:campaignId"
             element={<OrganizationRecruitmentCampaignDetailsPage />}
           />
-          <Route path="/company/requests/:id" element={<CompanyRequestDetailPage />} />
-          <Route path="/company/talent-requests/:id" element={<CompanyTalentRequestDetailPage />} />
+          <Route path="/company/requests/:id" element={<StudentCompanyRequestDetailRoute />} />
           <Route path={ROUTES.profile} element={<StudentProfilePage />} />
           <Route path={ROUTES.editProfile} element={<StudentProfileEditPage />} />
           <Route path={ROUTES.createGraduationProject} element={<CreateGraduationProjectPage />} />
@@ -192,42 +228,6 @@ export function AppRouter() {
           <Route path={ASSOCIATION_ROUTES.leadership} element={<OrganizationTeamMembersPage />} />
           <Route path={ASSOCIATION_ROUTES.profile} element={<AssociationProfilePage />} />
           <Route path={ASSOCIATION_ROUTES.settings} element={<AssociationProfilePage />} />
-        </Route>
-
-        <Route
-          path={COMPANY_ROUTES.root}
-          element={
-            <ProtectedRoute>
-              <CompanyRoute>
-                <CompanyWorkspaceLayout />
-              </CompanyRoute>
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<CompanyDashboardPage />} />
-          <Route path="requests" element={<CompanyRequestsPage />} />
-          <Route path="requests/new" element={<CompanyNewRequestPage />} />
-          <Route path="requests/:id/edit" element={<CompanyNewRequestPage />} />
-          <Route path="requests/:id/recommendations" element={<CompanyRequestRecommendationsPage />} />
-          <Route
-            path="requests/:requestId/teams/:teamId"
-            element={<CompanyTeamDiscoveryProfilePage />}
-          />
-          <Route
-            path="requests/:requestId/students/:studentProfileId"
-            element={<CompanyStudentDiscoveryProfilePage />}
-          />
-          <Route path="requests/:id" element={<CompanyRequestDetailPage />} />
-          <Route path="talent-requests/:id" element={<CompanyTalentRequestDetailPage />} />
-          <Route path="matches" element={<Navigate to={COMPANY_ROUTES.requests} replace />} />
-          <Route path="discover" element={<Navigate to={COMPANY_ROUTES.requests} replace />} />
-          <Route path="collaborations" element={<Navigate to={COMPANY_ROUTES.dashboard} replace />} />
-          <Route path="messages" element={<Navigate to={COMPANY_ROUTES.dashboard} replace />} />
-          <Route path="profile" element={<CompanyProfilePage />} />
-          <Route path="members" element={<CompanyMembersPage />} />
-          <Route path="saved" element={<CompanySavedRecommendationsPage />} />
-          <Route path="settings" element={<CompanySettingsPage />} />
-          <Route path="themes" element={<CompanyThemeShowcasePage />} />
         </Route>
 
         <Route element={<PublicLayout />}>

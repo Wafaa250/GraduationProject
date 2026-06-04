@@ -38,7 +38,7 @@ namespace GraduationProject.API.Controllers
             return role switch
             {
                 "student"     => await GetStudentInfo(userId),
-                "company"     => await GetCompanyInfo(userId),
+                "company" or "companymember" => await GetCompanyInfo(userId),
                 "studentassociation" or "association" => await GetStudentAssociationInfo(userId),
                 "admin"       => await GetAdminInfo(userId),
                 _             => Unauthorized(new { message = "Unknown role." })
@@ -166,9 +166,11 @@ namespace GraduationProject.API.Controllers
             if (profile.User == null)
                 await _db.Entry(profile).Reference(c => c.User).LoadAsync();
 
+            var accountRole = NormalizeRole(profile.User?.Role);
+
             return Ok(new
             {
-                role          = "company",
+                role          = accountRole,
                 userId        = profile.UserId,
                 profileId     = profile.Id,
                 name          = profile.User.Name,
@@ -177,6 +179,7 @@ namespace GraduationProject.API.Controllers
                 industry      = profile.Industry,
                 description   = profile.Description,
                 workspaceRole = resolved.Context.Member.Role,
+                isWorkspaceOwner = resolved.Context.IsOwner,
             });
         }
 

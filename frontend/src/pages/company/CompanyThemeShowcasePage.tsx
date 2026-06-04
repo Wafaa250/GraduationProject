@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { ArrowRight, Check, LayoutDashboard, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/companyThemes";
 import { useCompanyTheme } from "@/hooks/useCompanyTheme";
 import { COMPANY_ROUTES } from "@/routes/paths";
+import { isCompanyOwner } from "@/lib/companyWorkspace";
 
 function ThemePreviewMock({ themeId }: { themeId: CompanyThemeId }) {
   return (
@@ -52,6 +53,10 @@ function ThemePreviewMock({ themeId }: { themeId: CompanyThemeId }) {
 }
 
 export function CompanyThemeShowcasePage() {
+  if (!isCompanyOwner()) {
+    return <Navigate to={COMPANY_ROUTES.dashboard} replace />;
+  }
+
   const nav = useNavigate();
   const { theme: activeTheme, applyTheme } = useCompanyTheme();
   const [selected, setSelected] = useState<CompanyThemeId>(activeTheme);

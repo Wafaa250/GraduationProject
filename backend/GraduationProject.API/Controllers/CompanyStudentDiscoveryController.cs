@@ -8,7 +8,7 @@ namespace GraduationProject.API.Controllers
 {
     [ApiController]
     [Route("api/company/requests/{requestId:int}/students")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.CompanyWorkspace)]
     public class CompanyStudentDiscoveryController : ControllerBase
     {
         private readonly ICompanyStudentDiscoveryService _discovery;

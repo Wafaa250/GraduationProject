@@ -40,6 +40,8 @@ import {
 import type { GraduationNotification } from "@/api/notificationsApi";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 import { ROUTES } from "@/routes/paths";
+import { isCompanyWorkspaceAccountRole } from "@/lib/companyAccountRole";
+import { getRoleDashboardPath } from "@/utils/homeNavigation";
 import { logout } from "@/utils/authSession";
 import { PROFILE_AVATAR_FALLBACK_CLASS, profileInitialsFromName } from "@/lib/profileAvatar";
 import { isStudentProfileRoute } from "@/lib/studentNav";
@@ -476,6 +478,10 @@ export function StudentSidebarLayout() {
     mobileOpen && "student-sidebar-layout--mobile-open",
     isCommunicationHub && "student-sidebar-layout--communication-hub",
   );
+
+  if (isCompanyWorkspaceAccountRole(role)) {
+    return <Navigate to={getRoleDashboardPath()} replace />;
+  }
 
   if (role !== "student") {
     return <Navigate to={ROUTES.home} replace />;

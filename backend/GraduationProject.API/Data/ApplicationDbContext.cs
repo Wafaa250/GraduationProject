@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
 
 namespace GraduationProject.API.Data
@@ -88,7 +89,9 @@ namespace GraduationProject.API.Data
             // ── USERS ────────────────────────────────────────────────────────
             modelBuilder.Entity<User>(e =>
             {
-                e.ToTable("users");
+                e.ToTable("users", t => t.HasCheckConstraint(
+                    UserRoles.UsersRoleCheckConstraintName,
+                    UserRoles.UsersRoleCheckSql));
                 e.HasKey(u => u.Id);
                 e.HasIndex(u => u.Email).IsUnique();
             });

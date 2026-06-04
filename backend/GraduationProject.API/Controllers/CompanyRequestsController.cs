@@ -13,7 +13,7 @@ namespace GraduationProject.API.Controllers
     /// </summary>
     [ApiController]
     [Route("api/company/requests")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.CompanyWorkspace)]
     public class CompanyRequestsController : ControllerBase
     {
         private readonly ICompanyRequestService _requests;
@@ -68,7 +68,7 @@ namespace GraduationProject.API.Controllers
             try
             {
                 var userId = AuthorizationHelper.GetUserId(User);
-                var saved = await _requests.SaveDraftAsync(context.Profile.Id, dto, userId);
+                var saved = await _requests.SaveDraftAsync(context!.Profile.Id, dto, userId);
                 return Ok(saved);
             }
             catch (System.ArgumentException ex)
@@ -83,7 +83,7 @@ namespace GraduationProject.API.Controllers
             var (context, workspaceError) = await RequireWorkspaceAsync();
             if (workspaceError != null) return workspaceError;
 
-            await _requests.DeleteDraftAsync(context.Profile.Id);
+            await _requests.DeleteDraftAsync(context!.Profile.Id);
             return NoContent();
         }
 
@@ -98,7 +98,7 @@ namespace GraduationProject.API.Controllers
             try
             {
                 var userId = AuthorizationHelper.GetUserId(User);
-                var created = await _requests.SubmitAsync(context.Profile.Id, dto, userId);
+                var created = await _requests.SubmitAsync(context!.Profile.Id, dto, userId);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
             }
             catch (System.ArgumentException ex)
@@ -118,7 +118,7 @@ namespace GraduationProject.API.Controllers
             try
             {
                 var userId = AuthorizationHelper.GetUserId(User);
-                var updated = await _requests.UpdateAsync(context.Profile.Id, id, dto, userId);
+                var updated = await _requests.UpdateAsync(context!.Profile.Id, id, dto, userId);
                 return updated == null ? NotFound() : Ok(updated);
             }
             catch (System.ArgumentException ex)
@@ -133,7 +133,7 @@ namespace GraduationProject.API.Controllers
             var (context, workspaceError) = await RequireWorkspaceAsync();
             if (workspaceError != null) return workspaceError;
 
-            var deleted = await _requests.DeleteAsync(context.Profile.Id, id);
+            var deleted = await _requests.DeleteAsync(context!.Profile.Id, id);
             return deleted ? NoContent() : NotFound();
         }
 
@@ -146,7 +146,7 @@ namespace GraduationProject.API.Controllers
             if (workspaceError != null) return workspaceError;
 
             var userId = AuthorizationHelper.GetUserId(User);
-            var updated = await _requests.UpdateStatusAsync(context.Profile.Id, id, dto.Status, userId);
+            var updated = await _requests.UpdateStatusAsync(context!.Profile.Id, id, dto.Status, userId);
             return updated == null ? BadRequest(new { message = "Invalid status or request not found." }) : Ok(updated);
         }
 

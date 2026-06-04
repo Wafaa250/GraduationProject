@@ -9,7 +9,7 @@ namespace GraduationProject.API.Controllers
 {
     [ApiController]
     [Route("api/company/members")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.Company)]
     public class CompanyMembersController : ControllerBase
     {
         private readonly ICompanyMemberService _members;
@@ -29,9 +29,6 @@ namespace GraduationProject.API.Controllers
             var (workspace, error) = await CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
             if (error != null)
                 return error;
-
-            if (!workspace!.IsOwner)
-                return Forbid();
 
             var userId = AuthorizationHelper.GetUserId(User);
             var list = await _members.ListAsync(userId);

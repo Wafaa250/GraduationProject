@@ -31,10 +31,9 @@ function isProjectRequestsPath(pathname: string) {
   );
 }
 
-const accountNav = [
-  { title: "Company Profile", to: COMPANY_ROUTES.profile, icon: Building2 },
-  { title: "Settings", to: COMPANY_ROUTES.settings, icon: Settings },
-];
+const profileNav = [{ title: "Company Profile", to: COMPANY_ROUTES.profile, icon: Building2 }];
+
+const settingsNav = [{ title: "Settings", to: COMPANY_ROUTES.settings, icon: Settings }];
 
 const ownerNav = [{ title: "Company Members", to: COMPANY_ROUTES.members, icon: Users }];
 
@@ -178,7 +177,7 @@ function SectionLabel({ collapsed, children }: { collapsed: boolean; children: s
 export function CompanySidebar() {
   const navigate = useNavigate();
   const { collapsed, toggle } = useCompanySidebarCollapsed();
-  const showMembers = isCompanyOwner();
+  const showOwnerAccountNav = isCompanyOwner();
   return (
     <aside
       className={cn(
@@ -249,14 +248,19 @@ export function CompanySidebar() {
         <div>
           <SectionLabel collapsed={collapsed}>Workspace</SectionLabel>
           <div className="space-y-0.5">
-            {showMembers
+            {showOwnerAccountNav
               ? ownerNav.map((item) => (
                   <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
                 ))
               : null}
-            {accountNav.map((item) => (
+            {profileNav.map((item) => (
               <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
             ))}
+            {showOwnerAccountNav
+              ? settingsNav.map((item) => (
+                  <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
+                ))
+              : null}
           </div>
         </div>
       </nav>

@@ -11,7 +11,7 @@ export function normalizeRoleTheme(role: string | null | undefined): RoleThemeId
   const value = (role ?? "").toLowerCase().replace(/[\s_-]/g, "");
   if (value === "student") return "student";
   if (value === "doctor") return "doctor";
-  if (value === "company") return "company";
+  if (value === "company" || value === "companymember") return "company";
   if (value === "studentassociation" || value === "association") return "association";
   return null;
 }

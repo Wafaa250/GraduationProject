@@ -10,7 +10,7 @@ namespace GraduationProject.API.Controllers
 {
     [ApiController]
     [Route("api/company/requests/{requestId:int}/recommendations")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.CompanyWorkspace)]
     public class CompanyRequestRecommendationsController : ControllerBase
     {
         private readonly ICompanyRequestRecommendationService _recommendations;

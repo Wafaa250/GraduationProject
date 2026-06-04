@@ -14,7 +14,7 @@ namespace GraduationProject.API.Controllers
 {
     [ApiController]
     [Route("api/company")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.CompanyWorkspace)]
     public class CompanyController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
@@ -48,6 +48,7 @@ namespace GraduationProject.API.Controllers
         }
 
         [HttpPut("profile")]
+        [Authorize(Roles = UserRoles.Company)]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateCompanyProfileDto dto)
         {
             if (!ModelState.IsValid)
@@ -56,9 +57,6 @@ namespace GraduationProject.API.Controllers
             var (context, workspaceError) = await RequireWorkspaceAsync(trackChanges: true);
             if (workspaceError != null)
                 return workspaceError;
-
-            if (!context!.IsOwner)
-                return Forbid();
 
             var profile = await _db.CompanyProfiles
                 .FirstOrDefaultAsync(c => c.Id == context.Profile.Id);

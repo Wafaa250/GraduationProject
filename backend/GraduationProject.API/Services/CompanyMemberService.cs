@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
+using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -16,7 +17,8 @@ namespace GraduationProject.API.Services
     {
         private static readonly HashSet<string> EligibleMemberAccountRoles = new(StringComparer.OrdinalIgnoreCase)
         {
-            "company",
+            UserRoles.Company,
+            UserRoles.CompanyMember,
             "student",
         };
 
@@ -100,7 +102,7 @@ namespace GraduationProject.API.Services
                     return (null, "This user already belongs to another company workspace.", false);
                 }
 
-                if (string.Equals(existingUser.Role, "company", StringComparison.OrdinalIgnoreCase))
+                if (UserRoles.IsCompanyOwnerAccount(existingUser.Role))
                 {
                     var ownsSeparateWorkspace = await _db.CompanyProfiles
                         .AnyAsync(c => c.UserId == existingUser.Id);
@@ -110,6 +112,12 @@ namespace GraduationProject.API.Services
                 }
 
                 existingUser.Name = fullName;
+
+                if (!UserRoles.IsCompanyOwnerAccount(existingUser.Role) &&
+                    !string.Equals(existingUser.Role, "student", StringComparison.OrdinalIgnoreCase))
+                {
+                    existingUser.Role = UserRoles.CompanyMember;
+                }
             }
             else
             {
@@ -119,7 +127,7 @@ namespace GraduationProject.API.Services
                     Name = fullName,
                     Email = email,
                     Password = BCrypt.Net.BCrypt.HashPassword(temporaryPassword),
-                    Role = "company",
+                    Role = UserRoles.CompanyMember,
                     MustChangePassword = true,
                     CreatedAt = DateTime.UtcNow,
                 };
@@ -259,7 +267,16 @@ namespace GraduationProject.API.Services
         private async Task<CompanyWorkspaceContext?> RequireOwnerContextAsync(int actingUserId)
         {
             var context = await _workspace.GetWorkspaceAsync(actingUserId);
-            if (context == null || !context.IsOwner)
+            if (context == null)
+                return null;
+
+            var accountRole = await _db.Users
+                .AsNoTracking()
+                .Where(u => u.Id == actingUserId)
+                .Select(u => u.Role)
+                .FirstOrDefaultAsync();
+
+            if (!UserRoles.IsCompanyOwnerAccount(accountRole))
                 return null;
 
             return context;

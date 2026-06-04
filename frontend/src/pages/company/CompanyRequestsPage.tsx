@@ -40,7 +40,7 @@ function formatDate(iso: string): string {
 }
 
 function requestDetailPath(id: number): string {
-  return `${COMPANY_ROUTES.requests}/${id}`;
+  return COMPANY_ROUTES.requestDetail(id);
 }
 
 function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {

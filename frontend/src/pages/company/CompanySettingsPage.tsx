@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import {
   Eye,
   EyeOff,
@@ -315,6 +315,10 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 ];
 
 export function CompanySettingsPage() {
+  if (!isCompanyOwner()) {
+    return <Navigate to={COMPANY_ROUTES.dashboard} replace />;
+  }
+
   const { themePreference, setThemePreference } = useTheme();
   const showMembersLink = isCompanyOwner();
   const [active, setActive] = useState<SectionId>("security");

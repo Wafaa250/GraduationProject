@@ -9,7 +9,7 @@ namespace GraduationProject.API.Controllers
 {
     [ApiController]
     [Route("api/company/saved-recommendations")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.CompanyWorkspace)]
     public class CompanySavedRecommendationsController : ControllerBase
     {
         private readonly ICompanySavedRecommendationService _saved;

@@ -1,4 +1,5 @@
 using GraduationProject.API.Data;
+using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -77,7 +78,7 @@ namespace GraduationProject.API.Services
                     membership.Role,
                     endpoint ?? "(unknown)");
 
-                return Success(
+                return await SuccessAsync(
                     membership.CompanyProfile,
                     membership,
                     "company_member");
@@ -101,7 +102,7 @@ namespace GraduationProject.API.Services
                     ownerMember.Id,
                     endpoint ?? "(unknown)");
 
-                return Success(ownedProfile, ownerMember, "owned_profile_repaired");
+                return await SuccessAsync(ownedProfile, ownerMember, "owned_profile_repaired");
             }
 
             var repairedFromPrefs = await TryRepairFromNotificationPreferencesAsync(userId, endpoint);
@@ -113,7 +114,7 @@ namespace GraduationProject.API.Services
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             var dbRole = user?.Role ?? "(unknown)";
-            var isCompanyRole = string.Equals(dbRole, "company", StringComparison.OrdinalIgnoreCase);
+            var isCompanyAccount = UserRoles.IsCompanyWorkspaceAccount(dbRole);
 
             _logger.LogWarning(
                 "Company workspace not found. UserId={UserId} DbRole={DbRole} Email={Email} HasCompanyProfile={HasProfile} HasCompanyMembership={HasMembership} Endpoint={Endpoint}",
@@ -124,7 +125,7 @@ namespace GraduationProject.API.Services
                 false,
                 endpoint ?? "(unknown)");
 
-            if (!isCompanyRole)
+            if (!isCompanyAccount)
             {
                 return new CompanyWorkspaceResolveResult
                 {
@@ -178,7 +179,7 @@ namespace GraduationProject.API.Services
                 member.Id,
                 endpoint ?? "(unknown)");
 
-            return Success(profile, member, "notification_preferences_repaired");
+            return await SuccessAsync(profile, member, "notification_preferences_repaired");
         }
 
         private async Task<CompanyMember> EnsureMembershipAsync(
@@ -205,11 +206,18 @@ namespace GraduationProject.API.Services
             return member;
         }
 
-        private static CompanyWorkspaceResolveResult Success(
+        private async Task<CompanyWorkspaceResolveResult> SuccessAsync(
             CompanyProfile profile,
             CompanyMember member,
-            string resolutionPath) =>
-            new()
+            string resolutionPath)
+        {
+            var accountRole = await _db.Users
+                .AsNoTracking()
+                .Where(u => u.Id == member.UserId)
+                .Select(u => u.Role)
+                .FirstOrDefaultAsync() ?? UserRoles.Company;
+
+            return new CompanyWorkspaceResolveResult
             {
                 Context = new CompanyWorkspaceContext
                 {
@@ -217,10 +225,11 @@ namespace GraduationProject.API.Services
                     Member = member,
                 },
                 UserId = member.UserId,
-                UserRole = "company",
+                UserRole = accountRole,
                 CompanyProfileId = profile.Id,
                 CompanyMemberId = member.Id,
                 ResolutionPath = resolutionPath,
             };
+        }
     }
 }

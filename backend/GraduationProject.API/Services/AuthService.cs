@@ -129,7 +129,7 @@ namespace GraduationProject.API.Services
             if (!uniqueness.isAllowed)
                 return (null, uniqueness.error);
 
-            var user = CreateUser(dto.ContactName.Trim(), dto.Email, dto.Password, "company");
+            var user = CreateUser(dto.ContactName.Trim(), dto.Email, dto.Password, UserRoles.Company);
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
@@ -235,7 +235,7 @@ namespace GraduationProject.API.Services
             if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.Password))
                 return (null, "Invalid email or password.");
 
-            if (string.Equals(user.Role, "company", StringComparison.OrdinalIgnoreCase))
+            if (UserRoles.IsCompanyWorkspaceAccount(user.Role))
             {
                 var workspace = await _companyWorkspace.ResolveWorkspaceAsync(user.Id);
                 if (!workspace.Success)
@@ -321,7 +321,7 @@ namespace GraduationProject.API.Services
             {
                 "student"     => (await _db.StudentProfiles.FirstOrDefaultAsync(s => s.UserId == user.Id))?.Id ?? 0,
                 "doctor"      => (await _db.DoctorProfiles.FirstOrDefaultAsync(d => d.UserId == user.Id))?.Id ?? 0,
-                "company"     => await GetCompanyProfileIdAsync(user.Id),
+                "company" or "companymember" => await GetCompanyProfileIdAsync(user.Id),
                 "studentassociation" or "association" =>
                     (await _db.StudentAssociationProfiles.FirstOrDefaultAsync(a => a.UserId == user.Id))?.Id ?? 0,
                 _             => 0

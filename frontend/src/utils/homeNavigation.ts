@@ -1,6 +1,7 @@
 import type { NavigateFunction } from "react-router-dom";
 import { ASSOCIATION_ROUTES, COMPANY_ROUTES, ROUTES } from "@/routes/paths";
 import { isAssociationRole } from "@/api/associationApi";
+import { isCompanyWorkspaceAccountRole } from "@/lib/companyAccountRole";
 
 export function getHomePath(): string {
   const role = localStorage.getItem("role");
@@ -19,7 +20,7 @@ export function getHomePath(): string {
     return ROUTES.doctorDashboard;
   }
 
-  if (roleLower === "company") {
+  if (isCompanyWorkspaceAccountRole(role)) {
     return COMPANY_ROUTES.dashboard;
   }
 
@@ -48,7 +49,7 @@ export function getRoleDashboardPath(): string {
     return ROUTES.doctorDashboard;
   }
 
-  if (roleLower === "company") {
+  if (isCompanyWorkspaceAccountRole(role)) {
     return COMPANY_ROUTES.dashboard;
   }
 

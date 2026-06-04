@@ -9,7 +9,7 @@ namespace GraduationProject.API.Controllers
 {
     [ApiController]
     [Route("api/company/settings")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.Company)]
     public class CompanySettingsController : ControllerBase
     {
         private readonly ICompanySettingsService _settings;

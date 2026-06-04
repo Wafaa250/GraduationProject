@@ -19,7 +19,7 @@
           var roleClass = null;
           if (r === "student") roleClass = "role-student";
           else if (r === "doctor") roleClass = "role-doctor";
-          else if (r === "company") roleClass = "role-company";
+          else if (r === "company" || r === "companymember") roleClass = "role-company";
           else if (r === "studentassociation" || r === "association") roleClass = "role-association";
           if (roleClass) document.documentElement.classList.add(roleClass);
         }

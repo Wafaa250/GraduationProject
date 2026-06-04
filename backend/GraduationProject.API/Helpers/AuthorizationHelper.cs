@@ -32,5 +32,9 @@ namespace GraduationProject.API.Helpers
         {
             return user.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
         }
+
+        /// <summary>Account-level company owner (users.role === company), not workspace membership.</summary>
+        public static bool IsCompanyOwnerAccount(ClaimsPrincipal user) =>
+            UserRoles.IsCompanyOwnerAccount(GetRole(user));
     }
 }

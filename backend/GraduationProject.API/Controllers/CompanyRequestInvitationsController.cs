@@ -10,7 +10,7 @@ namespace GraduationProject.API.Controllers
 {
     [ApiController]
     [Route("api/company")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.CompanyWorkspace)]
     public class CompanyRequestInvitationsController : ControllerBase
     {
         private readonly ICompanyRequestInvitationService _invitations;

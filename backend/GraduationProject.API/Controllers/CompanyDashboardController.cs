@@ -8,7 +8,7 @@ namespace GraduationProject.API.Controllers
 {
     [ApiController]
     [Route("api/company/dashboard")]
-    [Authorize(Roles = "company")]
+    [Authorize(Roles = UserRoles.CompanyWorkspace)]
     public class CompanyDashboardController : ControllerBase
     {
         private readonly ICompanyDashboardService _dashboard;

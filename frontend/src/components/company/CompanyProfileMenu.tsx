@@ -4,6 +4,7 @@ import { LogOut, Settings, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { COMPANY_ROUTES, ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
+import { isCompanyOwner } from "@/lib/companyWorkspace";
 
 function signOut(navigate: ReturnType<typeof useNavigate>) {
   localStorage.removeItem("token");
@@ -47,6 +48,7 @@ export function CompanyProfileMenu() {
   }, [open]);
 
   const close = () => setOpen(false);
+  const showSettings = isCompanyOwner();
 
   return (
     <div ref={rootRef} className="relative">
@@ -89,15 +91,17 @@ export function CompanyProfileMenu() {
               <User className="h-4 w-4 text-muted-foreground" aria-hidden />
               My Profile
             </Link>
-            <Link
-              role="menuitem"
-              to={COMPANY_ROUTES.settings}
-              className="cw-profile-menu-item"
-              onClick={close}
-            >
-              <Settings className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Settings
-            </Link>
+            {showSettings ? (
+              <Link
+                role="menuitem"
+                to={COMPANY_ROUTES.settings}
+                className="cw-profile-menu-item"
+                onClick={close}
+              >
+                <Settings className="h-4 w-4 text-muted-foreground" aria-hidden />
+                Settings
+              </Link>
+            ) : null}
           </div>
 
           <div className="border-t py-1">
