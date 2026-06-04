@@ -332,6 +332,10 @@
   object-fit: cover;
 }
 
+.student-hub .student-messages-conv-wrap {
+  position: relative;
+}
+
 .student-hub .student-messages-conv {
   display: flex;
   width: 100%;
@@ -341,6 +345,43 @@
   padding: 0.75rem;
   text-align: left;
   transition: background 0.15s ease;
+}
+
+.student-hub .student-messages-conv--deletable {
+  padding-right: 2.5rem;
+}
+
+.student-hub .student-messages-conv-wrap:hover .student-messages-conv-delete,
+.student-hub .student-messages-conv-delete:focus-visible {
+  opacity: 1;
+}
+
+.student-hub .student-messages-conv-delete {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+}
+
+.student-hub .messages-delete-btn {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  color: hsl(var(--destructive));
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.student-hub .messages-delete-btn:hover {
+  background: hsl(var(--destructive) / 0.1);
+}
+
+.student-hub .student-messages-panel__delete {
+  margin-left: auto;
 }
 
 .student-hub .student-messages-conv:hover {
@@ -476,4 +517,155 @@
   justify-content: center;
   padding: 3rem;
   color: hsl(var(--muted-foreground));
+}
+
+/* Following page — list rows (no cards/grid) */
+.student-hub .following-tabs {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.student-hub .following-section {
+  margin-bottom: 0.25rem;
+}
+
+.student-hub .following-section-title {
+  margin: 0 0 0.5rem;
+  padding: 0 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.student-hub .following-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(0 0% 100%);
+  overflow: hidden;
+}
+
+.dark .student-hub .following-list {
+  background: hsl(var(--card));
+}
+
+.student-hub .following-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 4rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.65);
+}
+
+.student-hub .following-row:last-child {
+  border-bottom: none;
+}
+
+.student-hub .following-row__main {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.student-hub .following-row__avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  object-fit: cover;
+  border: 1px solid hsl(var(--border) / 0.8);
+  background: hsl(var(--secondary) / 0.35);
+}
+
+.student-hub .following-row__avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+}
+
+.student-hub .following-row__info {
+  min-width: 0;
+}
+
+.student-hub .following-row__name {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-hub .following-row__detail {
+  margin: 0.125rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-hub .following-row__detail--muted {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.student-hub .following-row__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.student-hub .following-empty {
+  max-width: 32rem;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(0 0% 100%);
+}
+
+.dark .student-hub .following-empty {
+  background: hsl(var(--card));
+}
+
+.student-hub .following-empty__text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+@media (max-width: 640px) {
+  .student-hub .following-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .student-hub .following-row__name,
+  .student-hub .following-row__detail {
+    white-space: normal;
+  }
+
+  .student-hub .following-row__actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
 }

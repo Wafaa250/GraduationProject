@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowUpRight,
   GraduationCap,
@@ -85,6 +85,8 @@ function mergeMySkills(me: Awaited<ReturnType<typeof getMe>>): string[] {
 
 export default function StudentBrowseProjectsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const deepLinkProjectId = Number(searchParams.get("projectId") ?? 0);
   const [loading, setLoading] = useState(true);
   const [hasTeam, setHasTeam] = useState(false);
   const [myProfileId, setMyProfileId] = useState(0);
@@ -147,6 +149,12 @@ export default function StudentBrowseProjectsPage() {
         teamStatus: getBrowseTeamStatus(p),
       }));
   }, [hasTeam, myProfileId, myFaculty, myMajor, projects, mySkills]);
+
+  useEffect(() => {
+    if (!deepLinkProjectId || loading || hasTeam || rows.length === 0) return;
+    const match = rows.find((p) => p.id === deepLinkProjectId);
+    if (match) setDetail(match);
+  }, [deepLinkProjectId, loading, hasTeam, rows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

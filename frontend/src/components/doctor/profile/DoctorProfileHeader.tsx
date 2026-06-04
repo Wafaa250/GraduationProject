@@ -12,6 +12,8 @@ type DoctorProfileHeaderProps = {
   department: string;
   specialization: string;
   photoUrl: string | null;
+  /** Hide when viewing another doctor's profile (e.g. from search). */
+  showEditButton?: boolean;
 };
 
 export function DoctorProfileHeader({
@@ -21,6 +23,7 @@ export function DoctorProfileHeader({
   department,
   specialization,
   photoUrl,
+  showEditButton = true,
 }: DoctorProfileHeaderProps) {
   const initials = initialsFromName(name || "?");
 
@@ -47,12 +50,14 @@ export function DoctorProfileHeader({
                 <MetaItem label="Specialization" value={specialization} className="sm:col-span-2" />
               </dl>
             </div>
-            <Button asChild className="shrink-0">
-              <Link to={ROUTES.doctorEditProfile}>
-                <Pencil className="h-4 w-4" />
-                Edit Profile
-              </Link>
-            </Button>
+            {showEditButton ? (
+              <Button asChild className="shrink-0">
+                <Link to={ROUTES.doctorEditProfile}>
+                  <Pencil className="h-4 w-4" />
+                  Edit Profile
+                </Link>
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>

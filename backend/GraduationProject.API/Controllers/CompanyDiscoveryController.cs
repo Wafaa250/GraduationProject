@@ -2,11 +2,13 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using GraduationProject.API.Data;
+using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GraduationProject.API.Controllers
 {
@@ -16,11 +18,16 @@ namespace GraduationProject.API.Controllers
     public class CompanyDiscoveryController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
+        private readonly ILogger<CompanyDiscoveryController> _logger;
 
-        public CompanyDiscoveryController(ApplicationDbContext db) => _db = db;
+        public CompanyDiscoveryController(ApplicationDbContext db, ILogger<CompanyDiscoveryController> logger)
+        {
+            _db = db;
+            _logger = logger;
+        }
 
         [HttpGet("public")]
-        public async Task<IActionResult> ListPublic()
+        public async Task<IActionResult> ListPublic([FromQuery] string? search)
         {
             var studentProfileId = await GetCurrentStudentProfileIdAsync();
             var followingIds = studentProfileId.HasValue
@@ -32,19 +39,133 @@ namespace GraduationProject.API.Controllers
 
             var followingSet = followingIds.ToHashSet();
 
-            var items = await _db.CompanyProfiles.AsNoTracking()
+            var query = _db.CompanyProfiles.AsNoTracking().Include(c => c.User).AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var pattern = $"%{search.Trim()}%";
+                query = query.Where(CompanySearchHelper.MatchesPattern(pattern));
+            }
+
+            var profileRows = await query
                 .OrderBy(c => c.CompanyName)
+                .Take(40)
+                .ToListAsync();
+
+            var items = profileRows
                 .Select(c => new
                 {
                     id = c.Id,
-                    companyName = c.CompanyName,
+                    userId = c.UserId,
+                    companyName = CompanySearchHelper.DisplayName(c),
                     industry = c.Industry,
                     description = c.Description,
+                    areasOfInterest = c.AreasOfInterest,
                     isFollowing = studentProfileId.HasValue && followingSet.Contains(c.Id),
+                    canFollow = true,
                 })
-                .ToListAsync();
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var pattern = $"%{search.Trim()}%";
+                var profileUserIds = profileRows.Select(c => c.UserId).ToHashSet();
+                var orphans = await _db.Users
+                    .AsNoTracking()
+                    .Where(u => u.Role == "company")
+                    .Where(u => !profileUserIds.Contains(u.Id))
+                    .Where(u => !_db.CompanyProfiles.Any(c => c.UserId == u.Id))
+                    .Where(u =>
+                        EF.Functions.ILike(u.Name, pattern)
+                        || EF.Functions.ILike(u.Email, pattern))
+                    .OrderBy(u => u.Name)
+                    .Take(20)
+                    .ToListAsync();
+
+                items.AddRange(orphans.Select(u => new
+                {
+                    id = 0,
+                    userId = u.Id,
+                    companyName = string.IsNullOrWhiteSpace(u.Name) ? u.Email : u.Name.Trim(),
+                    industry = (string?)null,
+                    description = (string?)null,
+                    areasOfInterest = (string?)null,
+                    isFollowing = false,
+                    canFollow = false,
+                }));
+            }
 
             return Ok(items);
+        }
+
+        /// <summary>GET /api/companies/{companyProfileId}/opportunities/{requestId} — visible company project request for students.</summary>
+        [HttpGet("{companyProfileId:int}/opportunities/{requestId:int}")]
+        public async Task<IActionResult> GetOpportunity(int companyProfileId, int requestId)
+        {
+            var row = await _db.CompanyRequests
+                .AsNoTracking()
+                .Include(r => r.CompanyProfile)
+                .Include(r => r.Roles).ThenInclude(role => role.Skills)
+                .FirstOrDefaultAsync(r =>
+                    r.Id == requestId
+                    && r.CompanyProfileId == companyProfileId
+                    && r.Status != CompanyRequestStatus.Draft
+                    && r.Status != CompanyRequestStatus.Archived
+                    && r.RequestStatus != CompanyRequestLifecycleStatus.Closed);
+
+            if (row == null)
+                return NotFound(new { message = "Opportunity not found." });
+
+            var company = row.CompanyProfile;
+            var skills = FeedMappingHelper.CollectCompanySkills(row);
+            return Ok(new PublicCompanyOpportunityDetailDto
+            {
+                Id = row.Id,
+                CompanyProfileId = row.CompanyProfileId,
+                CompanyName = company?.CompanyName ?? "Company",
+                Industry = company?.Industry,
+                Title = row.Title,
+                Description = row.Description,
+                Category = row.Category,
+                RequestType = row.RequestType,
+                CollaborationFormat = FeedMappingHelper.FormatCollaboration(row.CollaborationFormat),
+                DurationLabel = FeedMappingHelper.FormatCompanyDuration(row),
+                Skills = string.IsNullOrWhiteSpace(skills)
+                    ? new List<string>()
+                    : skills.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList(),
+                RoleCount = row.Roles.Count,
+                PublishedAt = row.SubmittedAt ?? row.UpdatedAt,
+            });
+        }
+
+        /// <summary>GET /api/companies/{companyProfileId}/talent-requests/{talentRequestId}</summary>
+        [HttpGet("{companyProfileId:int}/talent-requests/{talentRequestId:int}")]
+        public async Task<IActionResult> GetTalentRequest(int companyProfileId, int talentRequestId)
+        {
+            var row = await _db.CompanyTalentRequests
+                .AsNoTracking()
+                .Include(t => t.CompanyProfile)
+                .FirstOrDefaultAsync(t =>
+                    t.Id == talentRequestId && t.CompanyProfileId == companyProfileId);
+
+            if (row == null)
+                return NotFound(new { message = "Talent request not found." });
+
+            var company = row.CompanyProfile;
+            return Ok(new PublicCompanyTalentRequestDetailDto
+            {
+                Id = row.Id,
+                CompanyProfileId = row.CompanyProfileId,
+                CompanyName = company?.CompanyName ?? "Company",
+                Industry = company?.Industry,
+                Title = row.Title,
+                Description = row.Description,
+                EngagementType = row.EngagementType,
+                Duration = row.Duration,
+                PreferredMajor = row.PreferredMajor,
+                Skills = SkillHelper.ParseStringList(row.RequiredSkills),
+                CreatedAt = row.CreatedAt,
+            });
         }
 
         [HttpGet("{companyProfileId:int}/follow-status")]
@@ -67,7 +188,8 @@ namespace GraduationProject.API.Controllers
         public async Task<IActionResult> Follow(int companyProfileId)
         {
             var studentProfileId = await RequireStudentProfileIdAsync();
-            if (!studentProfileId.HasValue) return Forbid();
+            if (!studentProfileId.HasValue)
+                return NotFound(new { message = "Student profile not found." });
 
             var exists = await _db.CompanyProfiles.AsNoTracking()
                 .AnyAsync(c => c.Id == companyProfileId);
@@ -78,13 +200,24 @@ namespace GraduationProject.API.Controllers
             if (duplicate)
                 return Ok(new { message = "Already following.", isFollowing = true });
 
-            _db.CompanyFollows.Add(new CompanyFollow
+            try
             {
-                CompanyProfileId = companyProfileId,
-                StudentProfileId = studentProfileId.Value,
-                FollowedAt = DateTime.UtcNow,
-            });
-            await _db.SaveChangesAsync();
+                _db.CompanyFollows.Add(new CompanyFollow
+                {
+                    CompanyProfileId = companyProfileId,
+                    StudentProfileId = studentProfileId.Value,
+                    FollowedAt = DateTime.UtcNow,
+                });
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to follow company {CompanyProfileId}", companyProfileId);
+                return StatusCode(500, new
+                {
+                    message = "Could not save follow. Restart the API so database tables can be created, or run Scripts/apply-communication-feed.sql.",
+                });
+            }
 
             return Ok(new { message = "You are now following this company.", isFollowing = true });
         }

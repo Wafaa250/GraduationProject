@@ -13,7 +13,9 @@ import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { StudentMessagesConversationList } from "@/components/student/messages/StudentMessagesConversationList";
 import { StudentMessagesThread } from "@/components/student/messages/StudentMessagesThread";
 import { toast } from "@/hooks/use-toast";
-import { studentMessageThreadPath } from "@/routes/paths";
+import { ROUTES, studentMessageThreadPath } from "@/routes/paths";
+import { ConversationDeleteConfirm } from "@/components/messaging/ConversationDeleteConfirm";
+import { useConversationDelete } from "@/hooks/useConversationDelete";
 import "@/styles/student-hub.css";
 import "@/styles/student-workspace-pages.css";
 
@@ -31,7 +33,15 @@ export default function StudentMessagesPage() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [query, setQuery] = useState("");
+
+  const { pendingId, deleting, requestDelete, cancelDelete, confirmDelete } =
+    useConversationDelete((deletedId) => {
+      setConversations((prev) => prev.filter((c) => c.id !== deletedId));
+      if (selectedId === deletedId) {
+        setThread(null);
+        navigate(ROUTES.studentMessages);
+      }
+    });
 
   const loadList = useCallback(async () => {
     setLoadingList(true);
@@ -133,10 +143,8 @@ export default function StudentMessagesPage() {
             conversations={conversations}
             selectedId={selectedId}
             currentUserId={currentUserId}
-            query={query}
-            onQueryChange={setQuery}
             onSelect={handleSelect}
-            onConversationsRefresh={loadList}
+            onRequestDelete={requestDelete}
           />
           <StudentMessagesThread
             loading={loadingThread && selectedId != null}
@@ -149,9 +157,17 @@ export default function StudentMessagesPage() {
             onSend={() => void handleSend()}
             focusComposer={focusComposer}
             onComposerFocused={() => setFocusComposer(false)}
+            onRequestDelete={selectedId != null ? () => requestDelete(selectedId) : undefined}
           />
         </div>
       </div>
+
+      <ConversationDeleteConfirm
+        open={pendingId != null}
+        loading={deleting}
+        onConfirm={() => void confirmDelete()}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 }

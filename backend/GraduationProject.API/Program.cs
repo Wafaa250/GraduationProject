@@ -86,6 +86,7 @@ builder.Services.AddHttpClient<IRecruitmentApplicantAnalysisService, OpenAiRecru
 builder.Services.AddScoped<IRecruitmentApplicationWorkflowService, RecruitmentApplicationWorkflowService>();
 builder.Services.AddScoped<IOrganizationMembershipService, OrganizationMembershipService>();
 builder.Services.AddScoped<IFeedService, FeedService>();
+builder.Services.AddScoped<IStudentRecommendationService, StudentRecommendationService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddHttpClient<ICompanyAnalysisService, OpenAiCompanyAnalysisService>();
 builder.Services.AddHttpClient("CompanyWebFetch", client =>
@@ -275,6 +276,7 @@ app.MapControllers();
 app.MapHub<NotificationsHub>("/hubs/notifications");
 
 await RunCompanyWorkspaceStartupRepairAsync(app);
+await RunCommunicationFeedSchemaRepairAsync(app);
 
 app.Run();
 
@@ -292,5 +294,22 @@ static async Task RunCompanyWorkspaceStartupRepairAsync(WebApplication app)
     {
         var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("CompanyWorkspace");
         log.LogError(ex, "Company workspace startup repair failed");
+    }
+}
+
+static async Task RunCommunicationFeedSchemaRepairAsync(WebApplication app)
+{
+    try
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var log = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("CommunicationFeed");
+        await CommunicationFeedSchemaStartupRepair.RunAsync(db, log);
+    }
+    catch (Exception ex)
+    {
+        var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("CommunicationFeed");
+        log.LogError(ex, "Communication feed schema repair failed");
     }
 }

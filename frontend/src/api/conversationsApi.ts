@@ -72,6 +72,11 @@ export async function markConversationSeen(conversationId: number): Promise<void
   await api.post(`/messages/${conversationId}/seen`);
 }
 
+/** DELETE /api/conversations/{id} */
+export async function deleteConversation(conversationId: number): Promise<void> {
+  await api.delete(`/conversations/${conversationId}`);
+}
+
 /** POST /api/conversations/start/{targetUserId} */
 export async function startConversation(targetUserId: number): Promise<number> {
   const { data } = await api.post<{ conversationId: number }>(

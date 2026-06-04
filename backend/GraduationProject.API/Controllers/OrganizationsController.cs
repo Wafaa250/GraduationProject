@@ -274,7 +274,6 @@ namespace GraduationProject.API.Controllers
             if (profile == null)
                 return NotFound(new { message = "Organization not found." });
 
-            var now = DateTime.UtcNow;
             var campaign = await _db.StudentOrganizationRecruitmentCampaigns
                 .AsNoTracking()
                 .Include(c => c.Positions)
@@ -283,8 +282,7 @@ namespace GraduationProject.API.Controllers
                 .FirstOrDefaultAsync(c =>
                     c.Id == campaignId &&
                     c.OrganizationProfileId == organizationId &&
-                    c.IsPublished &&
-                    c.ApplicationDeadline >= now);
+                    c.IsPublished);
 
             if (campaign == null)
                 return NotFound(new { message = "Recruitment campaign not found." });
@@ -326,8 +324,10 @@ namespace GraduationProject.API.Controllers
             if (profile == null)
                 return NotFound(new { message = "Organization not found." });
 
-            var entity = await GetUpcomingEventsQuery(organizationId)
-                .FirstOrDefaultAsync(e => e.Id == eventId);
+            var entity = await _db.StudentOrganizationEvents
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e =>
+                    e.Id == eventId && e.OrganizationProfileId == organizationId);
 
             if (entity == null)
                 return NotFound(new { message = "Event not found." });

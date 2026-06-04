@@ -6,6 +6,7 @@ import {
   formatStudentMessageTime,
   getStudentConversationDisplayName,
 } from "@/lib/studentMessagesNavigation";
+import { ConversationDeleteButton } from "@/components/messaging/ConversationDeleteButton";
 import { StudentMessagesEmptyState } from "./StudentMessagesEmptyState";
 
 function initials(name: string): string {
@@ -29,6 +30,7 @@ type StudentMessagesThreadProps = {
   onSend: () => void;
   focusComposer?: boolean;
   onComposerFocused?: () => void;
+  onRequestDelete?: () => void;
 };
 
 export function StudentMessagesThread({
@@ -42,6 +44,7 @@ export function StudentMessagesThread({
   onSend,
   focusComposer = false,
   onComposerFocused,
+  onRequestDelete,
 }: StudentMessagesThreadProps) {
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
@@ -91,10 +94,19 @@ export function StudentMessagesThread({
         >
           {isTeam ? <Users2 className="h-4 w-4" /> : initials(title)}
         </div>
-        <div className="min-w-0 leading-tight">
+        <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-sm font-semibold">{title}</p>
           <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>
         </div>
+        {onRequestDelete ? (
+          <ConversationDeleteButton
+            className="student-messages-panel__delete"
+            onClick={(e) => {
+              e.preventDefault();
+              onRequestDelete();
+            }}
+          />
+        ) : null}
       </header>
 
       <div className="student-messages-feed space-y-4">

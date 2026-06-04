@@ -46,8 +46,11 @@ namespace GraduationProject.API.Controllers
                 query = query.Where(d =>
                     (d.User.Name != null && d.User.Name.ToLower().Contains(term)) ||
                     (d.User.Email != null && d.User.Email.ToLower().Contains(term)) ||
+                    (d.Department != null && d.Department.ToLower().Contains(term)) ||
                     (d.Specialization != null && d.Specialization.ToLower().Contains(term)) ||
                     (d.Faculty != null && d.Faculty.ToLower().Contains(term)) ||
+                    (d.ResearchSkills != null && d.ResearchSkills.ToLower().Contains(term)) ||
+                    (d.TechnicalSkills != null && d.TechnicalSkills.ToLower().Contains(term)) ||
                     matchingDoctorIdsByCourse.Contains(d.Id));
             }
 
@@ -73,6 +76,7 @@ namespace GraduationProject.API.Controllers
                 faculty = d.Faculty ?? string.Empty,
                 university = d.University ?? string.Empty,
                 department = d.Department ?? string.Empty,
+                profilePicture = d.ProfilePictureBase64,
                 coursesCount = courseCounts.TryGetValue(d.Id, out var count) ? count : 0,
             });
 

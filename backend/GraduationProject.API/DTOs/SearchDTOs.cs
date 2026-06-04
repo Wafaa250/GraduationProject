@@ -7,6 +7,8 @@ namespace GraduationProject.API.DTOs
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Subtitle { get; set; }
+        public string? Email { get; set; }
+        public string? Username { get; set; }
         public string? AvatarUrl { get; set; }
         public string? AvatarBase64 { get; set; }
         /// <summary>student | doctor | company | association | project | projectRequest | recruitment | event | opportunity</summary>
@@ -15,6 +17,10 @@ namespace GraduationProject.API.DTOs
         public string Url { get; set; } = string.Empty;
         /// <summary>Parent organization id when relevant (events, recruitment).</summary>
         public int? OrganizationId { get; set; }
+        /// <summary>False for legacy company users without a company_profiles row.</summary>
+        public bool Followable { get; set; } = true;
+        /// <summary>users.id when Id is 0 (orphan company account).</summary>
+        public int? UserId { get; set; }
     }
 
     public class SearchSuggestionsResponseDto

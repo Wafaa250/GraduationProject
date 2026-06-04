@@ -3,7 +3,6 @@ import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-d
 import {
   BookOpen,
   ChevronLeft,
-  Compass,
   Home,
   LayoutGrid,
   LogOut,
@@ -11,6 +10,7 @@ import {
   MessageCircle,
   Settings,
   User,
+  UserCheck,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -18,13 +18,20 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getDashboardSummary, getStudentAiMatchStatus, type StudentAiMatchStatus } from "@/api/dashboardApi";
+import { getFollowing } from "@/api/followingApi";
+import { getEnrolledCourses } from "@/api/studentCoursesApi";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
 import { useNotificationsInbox } from "@/hooks/useNotificationsInbox";
 import {
   NotificationBellButton,
   NotificationCenterDropdown,
 } from "@/components/notifications/NotificationCenter";
-import { StudentSidebarProfileCard } from "@/components/student/sidebar/StudentSidebarProfileCard";
+import { StudentAiMatchStatusCard } from "@/components/student/sidebar/StudentAiMatchStatusCard";
+import {
+  StudentSidebarProfileCard,
+  type StudentSidebarStats,
+} from "@/components/student/sidebar/StudentSidebarProfileCard";
 import { getStudentNotificationTarget } from "@/lib/studentNotificationNavigation";
 import {
   getStudentProfilePhotoUrl,
@@ -38,6 +45,24 @@ import { PROFILE_AVATAR_FALLBACK_CLASS, profileInitialsFromName } from "@/lib/pr
 import { isStudentProfileRoute } from "@/lib/studentNav";
 import { cn } from "@/components/ui/utils";
 import "@/styles/student-sidebar-layout.css";
+
+const SIDEBAR_LG_MEDIA = "(min-width: 1024px)";
+
+function useIsSidebarLgUp(): boolean {
+  const [isLgUp, setIsLgUp] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(SIDEBAR_LG_MEDIA).matches : true,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia(SIDEBAR_LG_MEDIA);
+    const onChange = () => setIsLgUp(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  return isLgUp;
+}
 
 type NavItemDef = {
   key: string;
@@ -56,11 +81,11 @@ const WORKSPACE_NAV: NavItemDef[] = [
     matchPaths: [ROUTES.dashboard],
   },
   {
-    key: "browse",
-    label: "Browse Projects",
-    icon: Compass,
-    to: ROUTES.browseProjects,
-    matchPaths: [ROUTES.browseProjects],
+    key: "profile",
+    label: "My Profile",
+    icon: User,
+    to: ROUTES.profile,
+    matchPaths: [ROUTES.profile, "/student/profile"],
   },
   {
     key: "courses",
@@ -75,6 +100,13 @@ const WORKSPACE_NAV: NavItemDef[] = [
     icon: MessageCircle,
     to: ROUTES.studentMessages,
     matchPaths: [ROUTES.studentMessages, "/messages"],
+  },
+  {
+    key: "following",
+    label: "Following",
+    icon: UserCheck,
+    to: ROUTES.following,
+    matchPaths: [ROUTES.following],
   },
   {
     key: "settings",
@@ -95,15 +127,18 @@ function NavItemButton({
   item,
   active,
   collapsed,
+  badge,
   onNavigate,
 }: {
   item: NavItemDef;
   active: boolean;
   collapsed: boolean;
+  badge?: number;
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
   const className = cn("student-sidebar-layout__nav-item", active && "is-active");
+  const showBadge = (badge ?? 0) > 0;
 
   return (
     <Link
@@ -115,6 +150,11 @@ function NavItemButton({
     >
       <Icon className="student-sidebar-layout__nav-icon" aria-hidden />
       <span className="student-sidebar-layout__nav-label">{item.label}</span>
+      {showBadge ? (
+        <span className="student-sidebar-layout__nav-badge" aria-label={`${badge} unread`}>
+          {badge! > 99 ? "99+" : badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -129,6 +169,17 @@ export function StudentSidebarLayout() {
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isSidebarLgUp = useIsSidebarLgUp();
+  const iconOnlySidebar = collapsed && isSidebarLgUp;
+  const [sidebarStats, setSidebarStats] = useState<StudentSidebarStats>({
+    connections: 0,
+    projects: 0,
+    courses: 0,
+  });
+  const [matchStatus, setMatchStatus] = useState<StudentAiMatchStatus | null>(null);
+  const [matchStatusLoading, setMatchStatusLoading] = useState(true);
+  const [followingCompanyCount, setFollowingCompanyCount] = useState(0);
+  const [followingAssociationCount, setFollowingAssociationCount] = useState(0);
   const role = (localStorage.getItem("role") ?? "").toLowerCase();
 
   const isCommunicationHub =
@@ -136,11 +187,34 @@ export function StudentSidebarLayout() {
     pathname.startsWith(`${ROUTES.communicationHub}/`);
 
   const loadSidebarData = useCallback(async () => {
+    setMatchStatusLoading(true);
     try {
-      const profile = await getMe();
+      const [profile, courses, dashboard, aiMatch, following] = await Promise.all([
+        getMe(),
+        getEnrolledCourses().catch(() => []),
+        getDashboardSummary().catch(() => null),
+        getStudentAiMatchStatus().catch(() => null),
+        getFollowing().catch(() => ({ companies: [], associations: [] })),
+      ]);
       setMe(profile);
+      setMatchStatus(aiMatch);
+      setFollowingCompanyCount(following.companies.length);
+      setFollowingAssociationCount(following.associations.length);
+      const projectCount =
+        (dashboard?.myProject ? 1 : 0) + (dashboard?.matchedGraduationProjectsCount ?? 0);
+      setSidebarStats({
+        courses: courses.length,
+        projects: projectCount,
+        connections: dashboard?.suggestedTeammatesCount ?? 0,
+      });
     } catch {
       setMe(null);
+      setMatchStatus(null);
+      setFollowingCompanyCount(0);
+      setFollowingAssociationCount(0);
+      setSidebarStats({ connections: 0, projects: 0, courses: 0 });
+    } finally {
+      setMatchStatusLoading(false);
     }
   }, []);
 
@@ -448,41 +522,53 @@ export function StudentSidebarLayout() {
               </Button>
             </div>
 
-            <nav className="student-sidebar-layout__nav-scroll" aria-label="Workspace navigation">
-              <div className="student-sidebar-layout__identity">
-                <StudentSidebarProfileCard
-                  profile={sidebarProfile}
-                  skills={skills}
-                  collapsed={collapsed}
-                  active={isStudentProfileRoute(pathname)}
-                  onNavigate={closeMobile}
-                />
-              </div>
-
-              <div className="student-sidebar-layout__nav-group">
-                <NavItemButton
-                  item={WORKSPACE_NAV[0]}
-                  active={
-                    isItemActive(pathname, WORKSPACE_NAV[0]) &&
-                    !isStudentProfileRoute(pathname)
-                  }
-                  collapsed={collapsed}
-                  onNavigate={closeMobile}
-                />
-              </div>
-
-              <div className="student-sidebar-layout__nav-group">
-                {WORKSPACE_NAV.slice(1).map((item) => (
-                  <NavItemButton
-                    key={item.key}
-                    item={item}
-                    active={isItemActive(pathname, item)}
-                    collapsed={collapsed}
+            <div className="student-sidebar-layout__body">
+              {!iconOnlySidebar ? (
+                <div
+                  className="student-sidebar-layout__profile-stack"
+                  aria-label="Student profile"
+                >
+                  <StudentSidebarProfileCard
+                    profile={sidebarProfile}
+                    skills={skills}
+                    stats={sidebarStats}
                     onNavigate={closeMobile}
                   />
-                ))}
-              </div>
-            </nav>
+                </div>
+              ) : null}
+
+              <nav
+                className="student-sidebar-layout__nav-panel"
+                aria-label="Workspace navigation"
+              >
+                <div className="student-sidebar-layout__nav-group">
+                  {WORKSPACE_NAV.map((item) => (
+                    <NavItemButton
+                      key={item.key}
+                      item={item}
+                      active={
+                        item.key === "profile"
+                          ? isStudentProfileRoute(pathname)
+                          : isItemActive(pathname, item)
+                      }
+                      collapsed={collapsed}
+                      badge={item.key === "messages" ? inbox.unreadCount : undefined}
+                      onNavigate={closeMobile}
+                    />
+                  ))}
+                </div>
+              </nav>
+
+              {!iconOnlySidebar ? (
+                <StudentAiMatchStatusCard
+                  status={matchStatus}
+                  loading={matchStatusLoading}
+                  followingCompanyCount={followingCompanyCount}
+                  followingAssociationCount={followingAssociationCount}
+                  onNavigate={closeMobile}
+                />
+              ) : null}
+            </div>
 
           </div>
         </aside>

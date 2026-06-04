@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, MapPin, Pencil, Users, Wifi } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { resolveApiFileUrl } from '@/api/axiosInstance'
@@ -8,6 +8,8 @@ import {
   parseApiErrorMessage,
   type StudentOrganizationEvent,
 } from '@/api/organizationEventsApi'
+import { getPublicOrganizationEvent } from '@/api/organizationsPublicApi'
+import { ROUTES } from '@/routes/paths'
 import { AssociationAvatar } from '@/components/association/associationBrand'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
 import { assocCard, assocDash } from '../dashboard/associationDashTokens'
@@ -16,8 +18,11 @@ import { useAssociationShell } from './useAssociationShell'
 
 export default function OrganizationEventDetailsPage() {
   const { eventId } = useParams<{ eventId: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const shell = useAssociationShell()
+  const isStudent = (localStorage.getItem('role') ?? '').toLowerCase() === 'student'
+  const orgIdFromQuery = Number(searchParams.get('orgId') ?? 0)
   const [event, setEvent] = useState<StudentOrganizationEvent | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -30,11 +35,33 @@ export default function OrganizationEventDetailsPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const data = await getOrganizationEvent(id)
-        if (!cancelled) setEvent(data)
+        if (isStudent) {
+          const orgId = orgIdFromQuery
+          if (!Number.isFinite(orgId) || orgId <= 0) throw new Error('Invalid event link.')
+          const pub = await getPublicOrganizationEvent(orgId, id)
+          if (!cancelled) {
+            setEvent({
+              id: pub.id,
+              title: pub.title,
+              description: pub.description,
+              eventType: pub.eventType,
+              category: pub.category,
+              coverImageUrl: pub.coverImageUrl ?? null,
+              eventDate: pub.eventDate,
+              registrationDeadline: pub.registrationDeadline ?? null,
+              location: pub.location ?? null,
+              isOnline: pub.isOnline,
+              organizationName: pub.organizationName,
+              organizationLogoUrl: pub.organizationLogoUrl ?? null,
+            } as StudentOrganizationEvent)
+          }
+        } else {
+          const data = await getOrganizationEvent(id)
+          if (!cancelled) setEvent(data)
+        }
       } catch (err) {
         toast.error(parseApiErrorMessage(err))
-        if (!cancelled) navigate('/association/events')
+        if (!cancelled) navigate(isStudent ? ROUTES.communicationHub : '/association/events')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -42,7 +69,42 @@ export default function OrganizationEventDetailsPage() {
     return () => {
       cancelled = true
     }
-  }, [eventId, navigate])
+  }, [eventId, navigate, isStudent, orgIdFromQuery])
+
+  if (isStudent) {
+    const cover = event?.coverImageUrl ? resolveApiFileUrl(event.coverImageUrl) : null
+    return (
+      <div className="student-hub min-h-full bg-hero px-4 py-6 sm:px-6">
+        <Link
+          to={ROUTES.communicationHub}
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
+        >
+          <ArrowLeft size={16} aria-hidden />
+          Back to feed
+        </Link>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading event…</p>
+        ) : event ? (
+          <article className="hub-card max-w-3xl overflow-hidden p-0">
+            {cover ? (
+              <img src={cover} alt="" className="h-48 w-full object-cover sm:h-56" />
+            ) : null}
+            <div className="p-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {event.organizationName}
+              </p>
+              <h1 className="mt-1 font-display text-2xl font-bold">{event.title}</h1>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {new Date(event.eventDate).toLocaleString()}
+                {event.isOnline ? ' · Online' : event.location ? ` · ${event.location}` : ''}
+              </p>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{event.description}</p>
+            </div>
+          </article>
+        ) : null}
+      </div>
+    )
+  }
 
   const cover = event?.coverImageUrl ? resolveApiFileUrl(event.coverImageUrl) : null
   const orgName = event?.organizationName ?? shell.profile?.associationName ?? shell.name

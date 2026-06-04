@@ -1,13 +1,13 @@
 import { Loader2, Users2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConversationListItem } from "@/api/conversationsApi";
-import { MessagesUserSearchBox } from "@/components/messaging/MessagesUserSearchBox";
 import {
   formatStudentMessageTime,
   getStudentConversationDisplayName,
   getStudentConversationPreview,
   getStudentConversationSubtitle,
 } from "@/lib/studentMessagesNavigation";
+import { ConversationDeleteButton } from "@/components/messaging/ConversationDeleteButton";
 import { StudentMessagesEmptyState } from "./StudentMessagesEmptyState";
 
 function initials(name: string): string {
@@ -25,10 +25,8 @@ type StudentMessagesConversationListProps = {
   conversations: ConversationListItem[];
   selectedId: number | null;
   currentUserId: number | null;
-  query: string;
-  onQueryChange: (value: string) => void;
   onSelect: (id: number) => void;
-  onConversationsRefresh: () => Promise<void>;
+  onRequestDelete?: (id: number) => void;
 };
 
 export function StudentMessagesConversationList({
@@ -36,32 +34,13 @@ export function StudentMessagesConversationList({
   conversations,
   selectedId,
   currentUserId,
-  query,
-  onQueryChange,
   onSelect,
-  onConversationsRefresh,
+  onRequestDelete,
 }: StudentMessagesConversationListProps) {
-  const q = query.trim().toLowerCase();
-  const filtered = conversations.filter((c) => {
-    if (!q) return true;
-    const name = getStudentConversationDisplayName(c, currentUserId).toLowerCase();
-    const preview = getStudentConversationPreview(c).toLowerCase();
-    return name.includes(q) || preview.includes(q);
-  });
-
   return (
     <aside className="student-messages-sidebar">
       <div className="student-messages-sidebar__head">
-        <h2 className="font-display text-lg font-semibold">Messages</h2>
-        <MessagesUserSearchBox
-          variant="student"
-          query={query}
-          onQueryChange={onQueryChange}
-          conversations={conversations}
-          currentUserId={currentUserId}
-          onConversationOpen={onSelect}
-          onConversationsRefresh={onConversationsRefresh}
-        />
+        <h2 className="font-display text-lg font-semibold">Conversations</h2>
       </div>
 
       <div className="student-messages-sidebar__list">
@@ -69,34 +48,27 @@ export function StudentMessagesConversationList({
           <div className="student-messages-loading">
             <Loader2 className="h-8 w-8 animate-spin" aria-label="Loading conversations" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : conversations.length === 0 ? (
           <StudentMessagesEmptyState
-            title={
-              conversations.length === 0
-                ? "No conversations yet"
-                : "No matching conversations"
-            }
-            description={
-              conversations.length === 0
-                ? "When you message a supervisor or team, it will appear here."
-                : "Try a different search term."
-            }
+            title="No conversations yet"
+            description="When you message a supervisor or team, it will appear here."
           />
         ) : (
           <ul className="space-y-0.5">
-            {filtered.map((c) => {
+            {conversations.map((c) => {
               const name = getStudentConversationDisplayName(c, currentUserId);
               const active = selectedId === c.id;
               const unread = c.unseenCount ?? 0;
               const isTeam = c.courseTeamId != null || c.type === "Team";
               return (
-                <li key={c.id}>
+                <li key={c.id} className="student-messages-conv-wrap">
                   <button
                     type="button"
                     onClick={() => onSelect(c.id)}
                     className={cn(
                       "student-messages-conv",
                       active && "student-messages-conv--active",
+                      onRequestDelete && "student-messages-conv--deletable",
                     )}
                   >
                     <div
@@ -142,6 +114,15 @@ export function StudentMessagesConversationList({
                       </span>
                     )}
                   </button>
+                  {onRequestDelete ? (
+                    <ConversationDeleteButton
+                      className="student-messages-conv-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestDelete(c.id);
+                      }}
+                    />
+                  ) : null}
                 </li>
               );
             })}

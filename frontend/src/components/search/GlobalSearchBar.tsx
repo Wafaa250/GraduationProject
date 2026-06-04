@@ -1,37 +1,26 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Briefcase,
-  Building2,
-  Calendar,
-  Clock,
-  FolderKanban,
-  GraduationCap,
-  Loader2,
-  Megaphone,
-  Search,
-  Stethoscope,
-  UserRound,
-  Users,
-} from "lucide-react";
+import { Building2, Loader2, Search, Stethoscope, UserRound, Users } from "lucide-react";
 import { cn } from "@/components/ui/utils";
 import {
-  fetchSearchSuggestions,
-  globalSearch,
-  type GlobalSearchResponse,
-  type SearchHit,
-  type SearchSuggestionsResponse,
-} from "@/api/searchApi";
-import { ROUTES } from "@/routes/paths";
-import { addRecentSearch, getRecentSearches } from "@/lib/searchRecent";
+  followCompany,
+  followOrganization,
+  searchCommunicationHub,
+  unfollowCompany,
+  unfollowOrganization,
+  type CommunicationHubSearchResults,
+  type FeedSearchResultRow,
+} from "@/api/feedApi";
+import { parseApiErrorMessage } from "@/api/axiosInstance";
+import { toast } from "@/hooks/use-toast";
 import { SearchResultRow } from "@/components/search/SearchResultRow";
+import { searchResultProfilePath } from "@/lib/feedDiscoverNavigation";
 import "@/styles/global-search.css";
 
 const DEBOUNCE_MS = 300;
-const RESULTS_LIMIT = 5;
 
 type SearchGroup = {
-  key: keyof GlobalSearchResponse;
+  key: keyof CommunicationHubSearchResults;
   label: string;
   icon: typeof UserRound;
 };
@@ -41,24 +30,7 @@ const GROUPS: SearchGroup[] = [
   { key: "doctors", label: "Doctors", icon: Stethoscope },
   { key: "companies", label: "Companies", icon: Building2 },
   { key: "associations", label: "Associations", icon: Users },
-  { key: "projects", label: "Projects", icon: GraduationCap },
-  { key: "projectRequests", label: "Project requests", icon: Briefcase },
-  { key: "recruitmentCampaigns", label: "Recruitment", icon: Megaphone },
-  { key: "events", label: "Events", icon: Calendar },
-  { key: "opportunities", label: "Opportunities", icon: FolderKanban },
 ];
-
-const EMPTY_RESULTS: GlobalSearchResponse = {
-  students: [],
-  doctors: [],
-  companies: [],
-  associations: [],
-  projects: [],
-  projectRequests: [],
-  recruitmentCampaigns: [],
-  events: [],
-  opportunities: [],
-};
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -80,28 +52,14 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<GlobalSearchResponse | null>(null);
-  const [suggestions, setSuggestions] = useState<SearchSuggestionsResponse | null>(null);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches());
+  const [results, setResults] = useState<CommunicationHubSearchResults | null>(null);
+  const [followBusyId, setFollowBusyId] = useState<string | null>(null);
+  const searchGenerationRef = useRef(0);
 
   const debounced = useDebouncedValue(value, DEBOUNCE_MS);
   const isHeader = variant === "header";
   const trimmed = debounced.trim();
-  const hasQuery = value.trim().length > 0;
-
-  const loadSuggestions = useCallback(async () => {
-    setSuggestionsLoading(true);
-    try {
-      const data = await fetchSearchSuggestions(RESULTS_LIMIT);
-      setSuggestions(data);
-    } catch (err) {
-      console.error("Search suggestions failed", err);
-      setSuggestions({ students: [], companies: [], associations: [] });
-    } finally {
-      setSuggestionsLoading(false);
-    }
-  }, []);
+  const hasQuery = trimmed.length > 0;
 
   const runSearch = useCallback(async (term: string) => {
     if (!term) {
@@ -109,15 +67,18 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
       setLoading(false);
       return;
     }
+    const generation = ++searchGenerationRef.current;
     setLoading(true);
     try {
-      const data = await globalSearch(term, RESULTS_LIMIT);
+      const data = await searchCommunicationHub(term);
+      if (generation !== searchGenerationRef.current) return;
       setResults(data);
     } catch (err) {
-      console.error("Global search failed", err);
-      setResults({ ...EMPTY_RESULTS });
+      if (generation !== searchGenerationRef.current) return;
+      console.error("Communication Hub search failed", err);
+      setResults(null);
     } finally {
-      setLoading(false);
+      if (generation === searchGenerationRef.current) setLoading(false);
     }
   }, []);
 
@@ -127,6 +88,7 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
       setLoading(false);
       return;
     }
+    setResults(null);
     void runSearch(trimmed);
   }, [trimmed, runSearch]);
 
@@ -148,59 +110,64 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
     };
   }, [open]);
 
-  useEffect(() => {
-    if (open && !hasQuery && !suggestions && !suggestionsLoading) {
-      void loadSuggestions();
-    }
-  }, [open, hasQuery, suggestions, suggestionsLoading, loadSuggestions]);
-
-  const showDropdown = open;
-  const showEmptyPanel = !hasQuery;
+  const showDropdown = open && hasQuery;
   const totalHits = results
     ? GROUPS.reduce((sum, g) => sum + (results[g.key]?.length ?? 0), 0)
     : 0;
+  const showEmptyState = hasQuery && !loading && results !== null && totalHits === 0;
 
-  const refreshRecent = () => setRecentSearches(getRecentSearches());
+  const handleSelect = (hit: FeedSearchResultRow) => {
+    const type = hit.entityType.toLowerCase();
+    if (hit.followable && (type === "company" || type === "association")) return;
 
-  const goToFullResults = (term: string) => {
-    const q = term.trim();
-    if (!q) return;
-    addRecentSearch(q);
-    refreshRecent();
-    setOpen(false);
-    navigate(`${ROUTES.globalSearch}?q=${encodeURIComponent(q)}`);
-  };
-
-  const handleSelect = (hit: SearchHit, queryForRecent?: string) => {
-    const recentLabel = queryForRecent?.trim() || hit.title.trim();
-    if (recentLabel) {
-      addRecentSearch(recentLabel);
-      refreshRecent();
-    }
+    const path = searchResultProfilePath(hit);
     setOpen(false);
     setValue("");
     setResults(null);
-    if (hit.url) navigate(hit.url);
+    navigate(path);
   };
 
-  const handleRecentClick = (term: string) => {
-    setValue(term);
-    setOpen(true);
+  const updateFollowState = (
+    bucket: "companies" | "associations",
+    entityId: number,
+    isFollowing: boolean,
+  ) => {
+    setResults((prev) => {
+      if (!prev) return prev;
+      const list = prev[bucket].map((row) =>
+        row.entityId === entityId ? { ...row, isFollowing } : row,
+      );
+      return { ...prev, [bucket]: list };
+    });
   };
 
-  const suggestionSections = [
-    { key: "students" as const, label: "Suggested Students", hits: suggestions?.students ?? [] },
-    { key: "companies" as const, label: "Suggested Companies", hits: suggestions?.companies ?? [] },
-    {
-      key: "associations" as const,
-      label: "Suggested Associations",
-      hits: suggestions?.associations ?? [],
-    },
-  ];
-
-  const hasSuggestionContent = suggestionSections.some((s) => s.hits.length > 0);
-  const showEmptyState =
-    hasQuery && !loading && results !== null && totalHits === 0;
+  const handleFollow = async (hit: FeedSearchResultRow) => {
+    const type = hit.entityType.toLowerCase();
+    const busyKey = `${type}-${hit.entityId}`;
+    const following = hit.isFollowing === true;
+    setFollowBusyId(busyKey);
+    try {
+      if (type === "company") {
+        if (following) await unfollowCompany(hit.entityId);
+        else await followCompany(hit.entityId);
+        updateFollowState("companies", hit.entityId, !following);
+        toast({ title: following ? "Unfollowed company" : "Now following company" });
+      } else if (type === "association") {
+        if (following) await unfollowOrganization(hit.entityId);
+        else await followOrganization(hit.entityId);
+        updateFollowState("associations", hit.entityId, !following);
+        toast({ title: following ? "Unfollowed association" : "Now following association" });
+      }
+    } catch (err) {
+      toast({
+        title: "Could not update follow",
+        description: parseApiErrorMessage(err),
+        variant: "destructive",
+      });
+    } finally {
+      setFollowBusyId(null);
+    }
+  };
 
   return (
     <div
@@ -225,17 +192,10 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
             setOpen(true);
           }}
           onFocus={() => {
-            setOpen(true);
-            setRecentSearches(getRecentSearches());
+            if (value.trim()) setOpen(true);
           }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && value.trim()) {
-              e.preventDefault();
-              goToFullResults(value);
-            }
-          }}
-          placeholder="Search SkillSwap…"
-          aria-label="Search students, doctors, companies, projects, and more"
+          placeholder="Search…"
+          aria-label="Search students, doctors, companies, and associations"
           aria-expanded={showDropdown}
           aria-controls={showDropdown ? listboxId : undefined}
           aria-autocomplete="list"
@@ -248,98 +208,37 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
 
       {showDropdown ? (
         <div id={listboxId} className="global-search__dropdown" role="listbox">
-          {showEmptyPanel ? (
-            <>
-              {recentSearches.length > 0 ? (
-                <section className="global-search__group global-search__group--flat">
-                  <h3 className="global-search__group-title">
-                    <Clock className="h-3.5 w-3.5" aria-hidden />
-                    Recent Searches
-                  </h3>
-                  {recentSearches.map((term) => (
-                    <button
-                      key={term}
-                      type="button"
-                      className="global-search__recent"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => handleRecentClick(term)}
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </section>
-              ) : null}
-
-              {suggestionsLoading && !hasSuggestionContent ? (
-                <p className="global-search__status">Loading suggestions…</p>
-              ) : (
-                suggestionSections.map((section) => {
-                  if (section.hits.length === 0) return null;
-                  const Icon =
-                    section.key === "students"
-                      ? UserRound
-                      : section.key === "companies"
-                        ? Building2
-                        : Users;
-                  return (
-                    <section key={section.key} className="global-search__group">
-                      <h3 className="global-search__group-title">
-                        <Icon className="h-3.5 w-3.5" aria-hidden />
-                        {section.label}
-                      </h3>
-                      {section.hits.map((hit) => (
-                        <SearchResultRow
-                          key={`${section.key}-${hit.id}`}
-                          hit={hit}
-                          groupKey={section.key}
-                          onSelect={() => handleSelect(hit)}
-                        />
-                      ))}
-                    </section>
-                  );
-                })
-              )}
-            </>
-          ) : loading && !results ? (
+          {loading && !results ? (
             <p className="global-search__status">Searching…</p>
           ) : showEmptyState ? (
             <p className="global-search__status">No results found.</p>
           ) : (
-            <>
-              {GROUPS.map((group) => {
-                const hits = results?.[group.key] ?? [];
-                if (hits.length === 0) return null;
-                const Icon = group.icon;
-                return (
-                  <section key={group.key} className="global-search__group">
-                    <h3 className="global-search__group-title">
-                      <Icon className="h-3.5 w-3.5" aria-hidden />
-                      {group.label}
-                    </h3>
-                    {hits.map((hit) => (
+            GROUPS.map((group) => {
+              const hits = results?.[group.key] ?? [];
+              if (hits.length === 0) return null;
+              const Icon = group.icon;
+              return (
+                <section key={group.key} className="global-search__group">
+                  <h3 className="global-search__group-title">
+                    <Icon className="h-3.5 w-3.5" aria-hidden />
+                    {group.label} ({hits.length})
+                  </h3>
+                  {hits.map((hit) => {
+                    const busyKey = `${hit.entityType}-${hit.entityId}-${hit.userId ?? 0}`;
+                    return (
                       <SearchResultRow
-                        key={`${group.key}-${hit.id}`}
+                        key={`${group.key}-${hit.entityType}-${hit.entityId}-${hit.userId ?? 0}`}
                         hit={hit}
                         groupKey={group.key}
-                        onSelect={() => handleSelect(hit, trimmed)}
+                        onSelect={() => handleSelect(hit)}
+                        onFollow={() => void handleFollow(hit)}
+                        followBusy={followBusyId === busyKey}
                       />
-                    ))}
-                  </section>
-                );
-              })}
-              {totalHits > 0 ? (
-                <div className="global-search__footer">
-                  <button
-                    type="button"
-                    className="global-search__view-all"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => goToFullResults(trimmed)}
-                  >
-                    View All Results
-                  </button>
-                </div>
-              ) : null}
-            </>
+                    );
+                  })}
+                </section>
+              );
+            })
           )}
         </div>
       ) : null}

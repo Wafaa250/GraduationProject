@@ -74,6 +74,7 @@ namespace GraduationProject.API.Services
 
             var companies = await _db.CompanyProfiles
                 .AsNoTracking()
+                .Include(c => c.User)
                 .OrderByDescending(c => c.Id)
                 .Take(SuggestionPoolSize)
                 .ToListAsync();
@@ -88,14 +89,7 @@ namespace GraduationProject.API.Services
                 .OrderByDescending(x => x.Score)
                 .ThenBy(x => x.Company.CompanyName)
                 .Take(take)
-                .Select(x => new SearchHitDto
-                {
-                    Id = x.Company.Id,
-                    Title = x.Company.CompanyName,
-                    Subtitle = TruncateDescription(x.Company.Description, x.Company.Industry),
-                    RoleType = "company",
-                    Url = "/browse-projects",
-                })
+                .Select(x => CompanySearchHelper.MapProfileHit(x.Company))
                 .ToList();
 
             var orgQuery = _db.StudentAssociationProfiles.AsNoTracking().AsQueryable();
@@ -164,17 +158,12 @@ namespace GraduationProject.API.Services
 
             var companies = await _db.CompanyProfiles
                 .AsNoTracking()
+                .Include(c => c.User)
                 .OrderByDescending(c => c.Id)
                 .Take(take)
-                .Select(c => new SearchHitDto
-                {
-                    Id = c.Id,
-                    Title = c.CompanyName,
-                    Subtitle = c.Industry ?? "Company",
-                    RoleType = "company",
-                    Url = "/browse-projects",
-                })
                 .ToListAsync();
+
+            var companyHits = companies.Select(CompanySearchHelper.MapProfileHit).ToList();
 
             var associations = await _db.StudentAssociationProfiles
                 .AsNoTracking()
@@ -194,7 +183,7 @@ namespace GraduationProject.API.Services
             return new SearchSuggestionsResponseDto
             {
                 Students = students,
-                Companies = companies,
+                Companies = companyHits,
                 Associations = associations,
             };
         }
@@ -230,6 +219,7 @@ namespace GraduationProject.API.Services
                 .Include(s => s.StudentSkills).ThenInclude(ss => ss.Skill)
                 .Where(s =>
                     EF.Functions.ILike(s.User.Name, pattern)
+                    || EF.Functions.ILike(s.User.Email, pattern)
                     || (s.StudentId != null && EF.Functions.ILike(s.StudentId, pattern))
                     || (s.Major != null && EF.Functions.ILike(s.Major, pattern))
                     || (s.Faculty != null && EF.Functions.ILike(s.Faculty, pattern))
@@ -246,6 +236,8 @@ namespace GraduationProject.API.Services
                 Id = s.UserId,
                 Title = s.User?.Name ?? "Student",
                 Subtitle = s.Major ?? "Student",
+                Email = s.User?.Email,
+                Username = !string.IsNullOrWhiteSpace(s.StudentId) ? s.StudentId.Trim() : null,
                 AvatarBase64 = s.ProfilePictureBase64,
                 RoleType = "student",
                 Url = $"/students/{s.UserId}",
@@ -259,6 +251,7 @@ namespace GraduationProject.API.Services
                 .Include(d => d.User)
                 .Where(d =>
                     EF.Functions.ILike(d.User.Name, pattern)
+                    || EF.Functions.ILike(d.User.Email, pattern)
                     || EF.Functions.ILike(d.Department, pattern)
                     || (d.Specialization != null && EF.Functions.ILike(d.Specialization, pattern))
                     || (d.Faculty != null && EF.Functions.ILike(d.Faculty, pattern))
@@ -273,6 +266,7 @@ namespace GraduationProject.API.Services
                 Id = d.UserId,
                 Title = d.User?.Name ?? "Doctor",
                 Subtitle = !string.IsNullOrWhiteSpace(d.Department) ? d.Department : d.Specialization,
+                Email = d.User?.Email,
                 AvatarBase64 = d.ProfilePictureBase64,
                 RoleType = "doctor",
                 Url = $"/doctors/{d.UserId}",
@@ -283,23 +277,32 @@ namespace GraduationProject.API.Services
         {
             var rows = await _db.CompanyProfiles
                 .AsNoTracking()
-                .Where(c =>
-                    EF.Functions.ILike(c.CompanyName, pattern)
-                    || (c.Industry != null && EF.Functions.ILike(c.Industry, pattern))
-                    || (c.Description != null && EF.Functions.ILike(c.Description, pattern))
-                    || (c.AreasOfInterest != null && EF.Functions.ILike(c.AreasOfInterest, pattern)))
+                .Include(c => c.User)
+                .Where(CompanySearchHelper.MatchesPattern(pattern))
                 .OrderBy(c => c.CompanyName)
                 .Take(limit)
                 .ToListAsync();
 
-            return rows.Select(c => new SearchHitDto
-            {
-                Id = c.Id,
-                Title = c.CompanyName,
-                Subtitle = TruncateDescription(c.Description, c.Industry),
-                RoleType = "company",
-                Url = $"/browse-projects",
-            }).ToList();
+            var hits = rows.Select(CompanySearchHelper.MapProfileHit).ToList();
+            if (hits.Count >= limit)
+                return hits;
+
+            var remaining = limit - hits.Count;
+            var profileUserIds = rows.Select(c => c.UserId).ToHashSet();
+            var orphans = await _db.Users
+                .AsNoTracking()
+                .Where(u => u.Role == "company")
+                .Where(u => !profileUserIds.Contains(u.Id))
+                .Where(u => !_db.CompanyProfiles.Any(c => c.UserId == u.Id))
+                .Where(u =>
+                    EF.Functions.ILike(u.Name, pattern)
+                    || EF.Functions.ILike(u.Email, pattern))
+                .OrderBy(u => u.Name)
+                .Take(remaining)
+                .ToListAsync();
+
+            hits.AddRange(orphans.Select(CompanySearchHelper.MapOrphanUserHit));
+            return hits;
         }
 
         private async Task<List<SearchHitDto>> SearchAssociationsAsync(string pattern, int limit)
@@ -320,7 +323,8 @@ namespace GraduationProject.API.Services
             {
                 Id = a.Id,
                 Title = a.AssociationName,
-                Subtitle = a.Faculty ?? a.Category ?? "Student Association",
+                Subtitle = FormatAssociationSubtitle(a.Faculty, a.Category),
+                Username = !string.IsNullOrWhiteSpace(a.Username) ? a.Username.Trim() : null,
                 AvatarUrl = a.LogoUrl,
                 RoleType = "association",
                 Url = $"/organizations/{a.Id}",
@@ -509,6 +513,21 @@ namespace GraduationProject.API.Services
             if (string.IsNullOrWhiteSpace(text)) return fallback;
             if (text.Length <= maxLen) return text;
             return text[..maxLen].TrimEnd() + "…";
+        }
+
+        private static string FormatCompanySubtitle(string? industry, string? description)
+        {
+            if (!string.IsNullOrWhiteSpace(industry)) return industry.Trim();
+            return TruncateDescription(description, "Company") ?? "Company";
+        }
+
+        private static string FormatAssociationSubtitle(string? faculty, string? category)
+        {
+            var parts = new[] { faculty?.Trim(), category?.Trim() }
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .ToList();
+            if (parts.Count == 0) return "Student Association";
+            return string.Join(" · ", parts);
         }
     }
 }

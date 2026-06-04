@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,11 +29,15 @@ import {
   requestTypeLabel,
 } from "@/lib/companyRequestDisplay";
 import { collaborationFormatLabel } from "@/constants/companyRequestCatalog";
-import { COMPANY_ROUTES } from "@/routes/paths";
+import { getPublicCompanyOpportunity } from "@/api/organizationsPublicApi";
+import { COMPANY_ROUTES, ROUTES } from "@/routes/paths";
 
 export function CompanyRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const nav = useNavigate();
+  const isStudent = (localStorage.getItem("role") ?? "").toLowerCase() === "student";
+  const companyProfileId = Number(searchParams.get("companyId") ?? 0);
   const [request, setRequest] = useState<CompanyProjectRequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +56,29 @@ export function CompanyRequestDetailPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getCompanyProjectRequest(numId)
+    const load = isStudent
+      ? getPublicCompanyOpportunity(companyProfileId, numId).then((pub) => ({
+          id: pub.id,
+          requestType: pub.requestType,
+          status: "submitted",
+          requestStatus: "active",
+          title: pub.title,
+          description: pub.description,
+          category: pub.category,
+          collaborationType: pub.collaborationFormat ?? "",
+          durationLabel: pub.durationLabel ?? undefined,
+          roles: Array.from({ length: pub.roleCount }, (_, i) => ({
+            id: i + 1,
+            roleName: `Role ${i + 1}`,
+            skills: pub.skills.map((skillName, j) => ({ id: j, skillName })),
+          })),
+          createdAt: pub.publishedAt ?? new Date().toISOString(),
+          updatedAt: pub.publishedAt ?? new Date().toISOString(),
+          submittedAt: pub.publishedAt ?? undefined,
+        } as CompanyProjectRequestDetail))
+      : getCompanyProjectRequest(numId);
+
+    load
       .then((data) => {
         if (!cancelled) setRequest(data);
       })
@@ -65,7 +91,7 @@ export function CompanyRequestDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [numId]);
+  }, [numId, isStudent, companyProfileId]);
 
   const reviewSkills = useMemo(() => {
     if (!request?.roles) return [];
@@ -73,6 +99,44 @@ export function CompanyRequestDetailPage() {
     request.roles.forEach((r) => r.skills.forEach((s) => set.add(s.skillName)));
     return [...set];
   }, [request]);
+
+  if (isStudent) {
+    return (
+      <div className="student-hub min-h-full bg-hero px-4 py-6 sm:px-6">
+        <Link
+          to={ROUTES.communicationHub}
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Back to feed
+        </Link>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading opportunity…</p>
+        ) : error ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : request ? (
+          <article className="hub-card max-w-3xl p-6">
+            <h1 className="font-display text-2xl font-bold">{request.title}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {[request.category, requestTypeLabel(request.requestType), request.durationLabel]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+            <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{request.description}</p>
+            {reviewSkills.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {reviewSkills.map((s) => (
+                  <span key={s} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        ) : null}
+      </div>
+    );
+  }
 
   const isIndividual = request?.requestType === "individual";
   const isTeam = request?.requestType === "ai-built-team";

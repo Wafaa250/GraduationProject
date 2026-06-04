@@ -2,13 +2,13 @@ import { Loader2, Users2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDoctorHubRelativeTime, initialsFromName } from "@/lib/doctorHubMappers";
 import type { ConversationListItem } from "@/api/conversationsApi";
-import { MessagesUserSearchBox } from "@/components/messaging/MessagesUserSearchBox";
 import {
   getDoctorConversationDisplayName,
   getDoctorConversationKind,
   getDoctorConversationPreview,
   type DoctorConversationKind,
 } from "@/lib/doctorMessagesNavigation";
+import { ConversationDeleteButton } from "@/components/messaging/ConversationDeleteButton";
 import { DoctorMessagesEmptyState } from "./DoctorMessagesEmptyState";
 
 export type DoctorMessagesFilter = "all" | DoctorConversationKind;
@@ -29,12 +29,10 @@ type DoctorMessagesConversationListProps = {
   conversations: ConversationListItem[];
   selectedId: number | null;
   currentUserId: number | null;
-  query: string;
   filter: DoctorMessagesFilter;
-  onQueryChange: (value: string) => void;
   onFilterChange: (filter: DoctorMessagesFilter) => void;
   onSelect: (id: number) => void;
-  onConversationsRefresh: () => Promise<void>;
+  onRequestDelete?: (id: number) => void;
 };
 
 export function DoctorMessagesConversationList({
@@ -42,36 +40,21 @@ export function DoctorMessagesConversationList({
   conversations,
   selectedId,
   currentUserId,
-  query,
   filter,
-  onQueryChange,
   onFilterChange,
   onSelect,
-  onConversationsRefresh,
+  onRequestDelete,
 }: DoctorMessagesConversationListProps) {
-  const q = query.trim().toLowerCase();
   const filtered = conversations.filter((c) => {
     const kind = getDoctorConversationKind(c);
-    if (filter !== "all" && kind !== filter) return false;
-    if (!q) return true;
-    const name = getDoctorConversationDisplayName(c, currentUserId).toLowerCase();
-    const preview = getDoctorConversationPreview(c).toLowerCase();
-    return name.includes(q) || preview.includes(q);
+    if (filter === "all") return true;
+    return kind === filter;
   });
 
   return (
     <aside className="doctor-messages-sidebar">
       <div className="doctor-messages-sidebar__head">
         <p className="doctor-messages-sidebar__label">Inbox</p>
-        <MessagesUserSearchBox
-          variant="doctor"
-          query={query}
-          onQueryChange={onQueryChange}
-          conversations={conversations}
-          currentUserId={currentUserId}
-          onConversationOpen={onSelect}
-          onConversationsRefresh={onConversationsRefresh}
-        />
         <div className="doctor-messages-segment" role="tablist" aria-label="Filter conversations">
           {FILTERS.map((item) => (
             <button
@@ -98,11 +81,11 @@ export function DoctorMessagesConversationList({
           </div>
         ) : filtered.length === 0 ? (
           <DoctorMessagesEmptyState
-            title={conversations.length === 0 ? "No conversations yet." : "No matching conversations."}
+            title={conversations.length === 0 ? "No conversations yet." : "No conversations in this filter."}
             description={
               conversations.length === 0
                 ? "Messages with supervised students and course teams will appear here."
-                : "Try another search term or filter."
+                : "Try another filter tab."
             }
           />
         ) : (
@@ -115,7 +98,7 @@ export function DoctorMessagesConversationList({
               const hasUnread = conversation.unseenCount > 0;
 
               return (
-                <li key={conversation.id}>
+                <li key={conversation.id} className="doctor-messages-convo-wrap">
                   <button
                     type="button"
                     onClick={() => onSelect(conversation.id)}
@@ -123,6 +106,7 @@ export function DoctorMessagesConversationList({
                       "doctor-messages-convo",
                       isSelected && "doctor-messages-convo--selected",
                       hasUnread && "doctor-messages-convo--unread",
+                      onRequestDelete && "doctor-messages-convo--deletable",
                     )}
                   >
                     <span
@@ -169,6 +153,15 @@ export function DoctorMessagesConversationList({
                       </span>
                     </span>
                   </button>
+                  {onRequestDelete ? (
+                    <ConversationDeleteButton
+                      className="doctor-messages-convo-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestDelete(conversation.id);
+                      }}
+                    />
+                  ) : null}
                 </li>
               );
             })}

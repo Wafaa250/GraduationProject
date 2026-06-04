@@ -9,6 +9,7 @@ import {
   getDoctorStudentProfilePath,
 } from "@/lib/doctorMessagesNavigation";
 import { DoctorMessagesEmptyState } from "./DoctorMessagesEmptyState";
+import { ConversationDeleteButton } from "@/components/messaging/ConversationDeleteButton";
 import { DoctorMessagesComposer } from "./DoctorMessagesComposer";
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/gi;
@@ -54,6 +55,7 @@ type DoctorMessagesThreadProps = {
   headerBadge?: string;
   /** Hide header actions (used when context badge is shown on the page header). */
   suppressHeaderActions?: boolean;
+  onRequestDelete?: () => void;
 };
 
 export function DoctorMessagesThread({
@@ -67,6 +69,7 @@ export function DoctorMessagesThread({
   onViewStudent,
   headerBadge,
   suppressHeaderActions = false,
+  onRequestDelete,
 }: DoctorMessagesThreadProps) {
   const senderNames = useMemo(() => {
     const map = new Map<number, string>();
@@ -112,20 +115,31 @@ export function DoctorMessagesThread({
               {thread.participantCount} participant{thread.participantCount === 1 ? "" : "s"}
             </p>
           </div>
-          {headerBadge ? (
-            <span className="doctor-messages-context-badge shrink-0">{headerBadge}</span>
-          ) : showViewStudent ? (
-            <div className="doctor-messages-panel__actions flex flex-wrap gap-2 shrink-0">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="doctor-messages-action-btn"
-                onClick={onViewStudent}
-              >
-                View Student
-                <ExternalLink className="ml-1.5 h-3 w-3" />
-              </Button>
+          {headerBadge || showViewStudent || onRequestDelete ? (
+            <div className="doctor-messages-panel__actions flex flex-wrap items-center gap-2 shrink-0">
+              {headerBadge ? (
+                <span className="doctor-messages-context-badge">{headerBadge}</span>
+              ) : showViewStudent ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="doctor-messages-action-btn"
+                  onClick={onViewStudent}
+                >
+                  View Student
+                  <ExternalLink className="ml-1.5 h-3 w-3" />
+                </Button>
+              ) : null}
+              {onRequestDelete ? (
+                <ConversationDeleteButton
+                  className="doctor-messages-panel__delete"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onRequestDelete();
+                  }}
+                />
+              ) : null}
             </div>
           ) : null}
         </div>

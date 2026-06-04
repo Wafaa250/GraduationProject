@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles,
   Users,
@@ -195,6 +195,8 @@ function splitSpecialization(spec: string): string[] {
 
 export default function GraduationProjectWorkspacePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryProjectId = Number(searchParams.get("projectId") ?? 0);
   const aiSectionRef = useRef<HTMLElement>(null);
 
   const [loading, setLoading] = useState(true);
@@ -292,7 +294,21 @@ export default function GraduationProjectWorkspacePage() {
       setMe(profile);
       setEnvelopeRole(envelope.role);
 
+      if (
+        queryProjectId > 0 &&
+        envelope.project?.id !== queryProjectId &&
+        envelope.role !== "owner" &&
+        envelope.role !== "member"
+      ) {
+        navigate(`${ROUTES.browseProjects}?projectId=${queryProjectId}`, { replace: true });
+        return;
+      }
+
       if (!envelope.project) {
+        if (queryProjectId > 0) {
+          navigate(`${ROUTES.browseProjects}?projectId=${queryProjectId}`, { replace: true });
+          return;
+        }
         navigate(ROUTES.dashboard, { replace: true });
         return;
       }
@@ -354,7 +370,7 @@ export default function GraduationProjectWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, queryProjectId]);
 
   useEffect(() => {
     void loadWorkspace();

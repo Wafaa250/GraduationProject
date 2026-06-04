@@ -5,6 +5,9 @@ namespace GraduationProject.API.Helpers
         public const string AssociationEvent = "association_event";
         public const string AssociationRecruitment = "association_recruitment";
         public const string CompanyOpportunity = "company_opportunity";
+        public const string CompanyTalentRequest = "company_talent_request";
+        public const string AssociationRecruitmentPosition = "association_recruitment_position";
+        public const string DoctorCourseProject = "doctor_course_project";
         public const string DoctorAnnouncement = "doctor_announcement";
         public const string DoctorProject = "doctor_project";
         public const string StudentCollaboration = "student_collaboration";

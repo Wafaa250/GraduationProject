@@ -712,6 +712,10 @@
   scrollbar-color: hsl(var(--primary) / 0.25) transparent;
 }
 
+.doctor-hub .doctor-messages-convo-wrap {
+  position: relative;
+}
+
 .doctor-hub .doctor-messages-convo {
   position: relative;
   display: flex;
@@ -729,6 +733,40 @@
     border-color 0.18s ease,
     box-shadow 0.18s ease,
     transform 0.12s ease;
+}
+
+.doctor-hub .doctor-messages-convo--deletable {
+  padding-right: 2.75rem;
+}
+
+.doctor-hub .doctor-messages-convo-wrap:hover .doctor-messages-convo-delete,
+.doctor-hub .doctor-messages-convo-delete:focus-visible {
+  opacity: 1;
+}
+
+.doctor-hub .doctor-messages-convo-delete {
+  position: absolute;
+  right: 0.625rem;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+  opacity: 0;
+}
+
+.doctor-hub .messages-delete-btn {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  color: hsl(var(--destructive));
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.doctor-hub .messages-delete-btn:hover {
+  background: hsl(var(--destructive) / 0.1);
 }
 
 .doctor-hub .doctor-messages-convo:hover {

@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
+using GraduationProject.API.Services;
 
 namespace GraduationProject.API.Controllers
 {
@@ -24,7 +25,13 @@ namespace GraduationProject.API.Controllers
     public class DashboardController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
-        public DashboardController(ApplicationDbContext db) => _db = db;
+        private readonly IStudentRecommendationService _recommendations;
+
+        public DashboardController(ApplicationDbContext db, IStudentRecommendationService recommendations)
+        {
+            _db = db;
+            _recommendations = recommendations;
+        }
 
         // =====================================================================
         // GET /api/dashboard/summary
@@ -96,6 +103,18 @@ namespace GraduationProject.API.Controllers
         // GET /api/dashboard/profile-strength
         // Returns a scored breakdown of how complete the student's profile is.
         // =====================================================================
+        /// <summary>AI match summary for the student sidebar widget.</summary>
+        [HttpGet("match-status")]
+        [Authorize(Roles = "student")]
+        public async Task<IActionResult> GetMatchStatus()
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized();
+
+            var result = await _recommendations.GetAiMatchStatusForUserAsync(userId.Value);
+            return Ok(result);
+        }
+
         [HttpGet("profile-strength")]
         public async Task<IActionResult> GetProfileStrength()
         {

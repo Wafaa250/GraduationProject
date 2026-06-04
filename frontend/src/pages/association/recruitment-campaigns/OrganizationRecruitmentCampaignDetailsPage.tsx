@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState, type CSSProperties } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
   CalendarClock,
@@ -15,12 +15,20 @@ import toast from 'react-hot-toast'
 import { resolveApiFileUrl } from '@/api/axiosInstance'
 import {
   getOrganizationRecruitmentCampaign,
+  getPublicRecruitmentCampaign,
   listRecruitmentCampaignQuestions,
   parseApiErrorMessage,
   parseSkillsList,
+  type PublicRecruitmentCampaignDetail,
   type RecruitmentCampaign,
   type RecruitmentQuestion,
 } from '@/api/recruitmentCampaignsApi'
+import {
+  getMyRecruitmentApplication,
+  submitRecruitmentApplication,
+  type RecruitmentApplicationAnswerInput,
+} from '@/api/recruitmentApplicationsApi'
+import { ROUTES } from '@/routes/paths'
 import { countQuestionsForPosition } from '@/utils/recruitmentFormFields'
 import { sortByLeadershipRole } from '@/utils/leadershipRoleSort'
 import {
@@ -49,8 +57,12 @@ const blockGap = 24
 
 export default function OrganizationRecruitmentCampaignDetailsPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const shell = useAssociationShell()
+  const isStudent = (localStorage.getItem('role') ?? '').toLowerCase() === 'student'
+  const orgIdFromQuery = Number(searchParams.get('orgId') ?? 0)
+  const initialPositionId = Number(searchParams.get('positionId') ?? 0) || null
   const [campaign, setCampaign] = useState<RecruitmentCampaign | null>(null)
   const [questions, setQuestions] = useState<RecruitmentQuestion[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,6 +81,10 @@ export default function OrganizationRecruitmentCampaignDetailsPage() {
     Record<number, RecruitmentApplicantAnalysisResult[]>
   >({})
   const [applicationsCount, setApplicationsCount] = useState<number | null>(null)
+  const [studentPositionId, setStudentPositionId] = useState<number | null>(initialPositionId)
+  const [studentAnswers, setStudentAnswers] = useState<Record<number, string>>({})
+  const [studentSubmitting, setStudentSubmitting] = useState(false)
+  const [studentApplied, setStudentApplied] = useState(false)
 
   useEffect(() => {
     const id = Number(campaignId)
@@ -79,17 +95,42 @@ export default function OrganizationRecruitmentCampaignDetailsPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const [data, qs] = await Promise.all([
-          getOrganizationRecruitmentCampaign(id),
-          listRecruitmentCampaignQuestions(id),
-        ])
-        if (!cancelled) {
-          setCampaign(data)
-          setQuestions(qs)
+        if (isStudent) {
+          const orgId = orgIdFromQuery
+          if (!Number.isFinite(orgId) || orgId <= 0) throw new Error('Invalid campaign link.')
+          const data: PublicRecruitmentCampaignDetail = await getPublicRecruitmentCampaign(orgId, id)
+          if (!cancelled) {
+            setCampaign({
+              id: data.id,
+              organizationProfileId: data.organizationId,
+              title: data.title,
+              description: data.description,
+              applicationDeadline: data.applicationDeadline,
+              coverImageUrl: data.coverImageUrl ?? null,
+              isPublished: true,
+              createdAt: data.applicationDeadline,
+              organizationName: data.organizationName,
+              organizationLogoUrl: data.organizationLogoUrl ?? null,
+              positions: data.positions,
+            })
+            setQuestions(data.questions ?? [])
+            if (!studentPositionId && data.positions.length === 1) {
+              setStudentPositionId(data.positions[0].id)
+            }
+          }
+        } else {
+          const [data, qs] = await Promise.all([
+            getOrganizationRecruitmentCampaign(id),
+            listRecruitmentCampaignQuestions(id),
+          ])
+          if (!cancelled) {
+            setCampaign(data)
+            setQuestions(qs)
+          }
         }
       } catch (err) {
         toast.error(parseApiErrorMessage(err))
-        if (!cancelled) navigate('/association/recruitment')
+        if (!cancelled) navigate(isStudent ? ROUTES.communicationHub : '/association/recruitment')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -97,7 +138,124 @@ export default function OrganizationRecruitmentCampaignDetailsPage() {
     return () => {
       cancelled = true
     }
-  }, [campaignId, navigate])
+  }, [campaignId, navigate, isStudent, orgIdFromQuery, studentPositionId])
+
+  useEffect(() => {
+    if (!isStudent || !campaign || !studentPositionId || orgIdFromQuery <= 0) return
+    const campId = campaign.id
+    void getMyRecruitmentApplication(orgIdFromQuery, campId, studentPositionId)
+      .then((s) => setStudentApplied(!!s.hasSubmitted))
+      .catch(() => setStudentApplied(false))
+  }, [isStudent, campaign, studentPositionId, orgIdFromQuery])
+
+  if (isStudent) {
+    const cover = campaign?.coverImageUrl ? resolveApiFileUrl(campaign.coverImageUrl) : null
+    const studentQuestions = studentPositionId
+      ? questions.filter((q) => q.positionId == null || q.positionId === studentPositionId)
+      : []
+    return (
+      <div className="student-hub min-h-full bg-hero px-4 py-6 sm:px-6">
+        <Link
+          to={ROUTES.communicationHub}
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
+        >
+          <ArrowLeft size={16} aria-hidden />
+          Back to feed
+        </Link>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading campaign…</p>
+        ) : campaign ? (
+          <article className="hub-card max-w-3xl overflow-hidden p-0">
+            {cover ? (
+              <img src={cover} alt="" className="h-48 w-full object-cover sm:h-56" />
+            ) : null}
+            <div className="p-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {campaign.organizationName}
+              </p>
+              <h1 className="mt-1 font-display text-2xl font-bold">{campaign.title}</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Apply by {formatEventDate(campaign.applicationDeadline)}
+              </p>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{campaign.description}</p>
+              <h2 className="mt-8 font-display text-lg font-bold">Open positions</h2>
+              <div className="mt-3 space-y-2">
+                {campaign.positions.map((pos) => (
+                  <button
+                    key={pos.id}
+                    type="button"
+                    onClick={() => {
+                      setStudentPositionId(pos.id)
+                      setStudentAnswers({})
+                      setStudentApplied(false)
+                    }}
+                    className={`w-full rounded-xl border p-4 text-left ${
+                      studentPositionId === pos.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border'
+                    }`}
+                  >
+                    <p className="font-semibold">{pos.roleTitle}</p>
+                  </button>
+                ))}
+              </div>
+              {studentPositionId && !studentApplied ? (
+                <div className="mt-6 space-y-3">
+                  {studentQuestions.map((q) => (
+                    <label key={q.id} className="block text-sm">
+                      {q.questionTitle}
+                      {q.isRequired ? ' *' : ''}
+                      <input
+                        className="student-ws-input mt-1 w-full"
+                        value={studentAnswers[q.id] ?? ''}
+                        onChange={(e) =>
+                          setStudentAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                        }
+                      />
+                    </label>
+                  ))}
+                  <button
+                    type="button"
+                    className="student-ws-btn-primary"
+                    disabled={studentSubmitting}
+                    onClick={() => {
+                      void (async () => {
+                        setStudentSubmitting(true)
+                        try {
+                          const payload: RecruitmentApplicationAnswerInput[] = studentQuestions.map(
+                            (q) => ({
+                              questionId: q.id,
+                              value: studentAnswers[q.id] ?? '',
+                            }),
+                          )
+                          await submitRecruitmentApplication(
+                            orgIdFromQuery,
+                            campaign.id,
+                            studentPositionId,
+                            payload,
+                          )
+                          toast.success('Application submitted')
+                          setStudentApplied(true)
+                        } catch (err) {
+                          toast.error(parseApiErrorMessage(err))
+                        } finally {
+                          setStudentSubmitting(false)
+                        }
+                      })()
+                    }}
+                  >
+                    {studentSubmitting ? 'Submitting…' : 'Apply now'}
+                  </button>
+                </div>
+              ) : studentApplied ? (
+                <p className="mt-6 text-sm text-muted-foreground">You have already applied.</p>
+              ) : null}
+            </div>
+          </article>
+        ) : null}
+      </div>
+    )
+  }
 
   function parseCommaList(value: string): string[] {
     return value

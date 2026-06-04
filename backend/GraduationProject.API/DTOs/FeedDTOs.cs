@@ -26,6 +26,14 @@ namespace GraduationProject.API.DTOs
         /// <summary>Underlying activity type (e.g. company_opportunity, association_event).</summary>
         public string RelatedEntityType { get; set; } = string.Empty;
         public int RelatedEntityId { get; set; }
+        /// <summary>Company profile id or association org id — used for Follow on feed cards.</summary>
+        public int FollowEntityId { get; set; }
+        public int? EventId { get; set; }
+        public int? RecruitmentCampaignId { get; set; }
+        public int? PositionId { get; set; }
+        public int? CompanyRequestId { get; set; }
+        public int? CompanyProfileId { get; set; }
+        public int? OrganizationProfileId { get; set; }
         public DateTime CreatedAt { get; set; }
         public string ActionText { get; set; } = "View details";
         public string? ActionUrl { get; set; }
@@ -58,6 +66,12 @@ namespace GraduationProject.API.DTOs
         public List<FeedItemMetadataDto> Metadata { get; set; } = new();
         public string ActionLabel { get; set; } = "View details";
         public string? ActionPath { get; set; }
+        public int? EventId { get; set; }
+        public int? RecruitmentCampaignId { get; set; }
+        public int? PositionId { get; set; }
+        public int? CompanyRequestId { get; set; }
+        public int? CompanyProfileId { get; set; }
+        public int? OrganizationProfileId { get; set; }
     }
 
     public class FeedSidebarSummaryDto
@@ -112,7 +126,35 @@ namespace GraduationProject.API.DTOs
         public List<FeedSuggestedCompanyDto> SuggestedCompanies { get; set; } = new();
         public List<FeedSuggestedAssociationDto> SuggestedAssociations { get; set; } = new();
         public List<FeedDiscoverMemberDto> DiscoverMembers { get; set; } = new();
-        public List<FeedTrendingItemDto> TrendingOpportunities { get; set; } = new();
+        public FeedRecommendedForYouDto RecommendedForYou { get; set; } = new();
+    }
+
+    public class FeedRecommendedForYouDto
+    {
+        public List<FeedRecommendedStudentDto> Students { get; set; } = new();
+        public List<FeedRecommendedDoctorDto> Doctors { get; set; } = new();
+        public List<FeedSuggestedCompanyDto> Companies { get; set; } = new();
+        public List<FeedSuggestedAssociationDto> Associations { get; set; } = new();
+    }
+
+    public class FeedRecommendedDoctorDto
+    {
+        public int UserId { get; set; }
+        public int ProfileId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Subtitle { get; set; }
+        public string? AvatarBase64 { get; set; }
+        public int MatchScore { get; set; }
+    }
+
+    public class FeedRecommendedStudentDto
+    {
+        public int UserId { get; set; }
+        public int ProfileId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Subtitle { get; set; }
+        public string? AvatarBase64 { get; set; }
+        public int MatchScore { get; set; }
     }
 
     public class FeedDiscoverMemberDto
@@ -130,6 +172,9 @@ namespace GraduationProject.API.DTOs
         public int CompanyProfileId { get; set; }
         public string CompanyName { get; set; } = string.Empty;
         public string? Industry { get; set; }
+        public string? LogoUrl { get; set; }
+        public string? Category { get; set; }
+        public int MatchScore { get; set; }
         public bool IsFollowing { get; set; }
     }
 
@@ -140,16 +185,8 @@ namespace GraduationProject.API.DTOs
         public string? Category { get; set; }
         public string? Faculty { get; set; }
         public string? LogoUrl { get; set; }
+        public int MatchScore { get; set; }
         public bool IsFollowing { get; set; }
-    }
-
-    public class FeedTrendingItemDto
-    {
-        public string PostKey { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string AuthorName { get; set; } = string.Empty;
-        public string Kind { get; set; } = string.Empty;
-        public DateTime PublishedAt { get; set; }
     }
 
     public class FeedPostCommentDto

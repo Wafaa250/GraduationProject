@@ -70,14 +70,22 @@ const GROUP_FALLBACK: Record<string, SearchRoleType> = {
   companies: "company",
   associations: "association",
   projects: "project",
-  projectRequests: "projectRequest",
-  recruitmentCampaigns: "recruitment",
   events: "event",
   opportunities: "opportunity",
 };
 
+const ENTITY_TYPE_ALIASES: Record<string, SearchRoleType> = {
+  company_opportunity: "opportunity",
+  association_event: "event",
+  association_recruitment: "recruitment",
+  doctor_project: "project",
+  doctor_announcement: "doctor",
+  student_collaboration: "project",
+};
+
 export function resolveSearchRole(roleType?: string | null, groupKey?: string): SearchRoleType {
   if (roleType && META[roleType]) return roleType;
+  if (roleType && ENTITY_TYPE_ALIASES[roleType]) return ENTITY_TYPE_ALIASES[roleType];
   if (groupKey && GROUP_FALLBACK[groupKey]) return GROUP_FALLBACK[groupKey];
   return "student";
 }

@@ -25,8 +25,6 @@ export const ROUTES = {
   studentCourseProjectDetail: "/courses/:courseId/projects/:projectId",
   /** Communication Hub — university community feed. */
   communicationHub: "/feed",
-  /** Full-page global search results. */
-  globalSearch: "/search",
   /** Public student directory profile (by user id). */
   studentDirectoryProfile: (userId: number | string) => `/students/${userId}`,
   /** Public doctor profile (by user id). */
@@ -34,6 +32,11 @@ export const ROUTES = {
   /** Public student association profile. */
   organizationPublicProfile: (organizationId: number | string) =>
     `/organizations/${organizationId}`,
+  /** Public company profile (read-only for visitors). */
+  companyPublicProfile: (companyProfileId: number | string) =>
+    `/companies/${companyProfileId}`,
+  /** Companies and associations the student follows. */
+  following: "/following",
   /** Student direct messages. */
   studentMessages: "/messages",
   studentMessageThread: "/messages/:conversationId",
@@ -125,6 +128,8 @@ export const COMPANY_ROUTES = {
   teamDiscoveryProfile: (requestId: number | string, teamId: number | string) =>
     `/company/requests/${requestId}/teams/${teamId}`,
   newRequest: "/company/requests/new",
+  talentRequestDetail: (talentRequestId: number | string, companyProfileId: number | string) =>
+    `/company/talent-requests/${talentRequestId}?companyId=${companyProfileId}`,
   matches: "/company/matches",
   discover: "/company/discover",
   collaborations: "/company/collaborations",

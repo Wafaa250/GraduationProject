@@ -384,7 +384,6 @@ export default function OrganizationTeamMembersPage() {
                   <span className="lt-roster-count">
                     {members.length} position{members.length === 1 ? '' : 's'}
                   </span>
-                  <span className="lt-roster-hint">Public profile preview</span>
                 </div>
                 <div className="lt-profile-grid">
                   {sortedMembers.map((m) => (
@@ -621,10 +620,6 @@ function PageStyles() {
       }
 
       .lt-roster-bar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
         margin-bottom: 12px;
         padding: 0 4px;
       }
@@ -634,11 +629,6 @@ function PageStyles() {
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: ${assocDash.subtle};
-      }
-
-      .lt-roster-hint {
-        font-size: 12px;
         color: ${assocDash.subtle};
       }
 

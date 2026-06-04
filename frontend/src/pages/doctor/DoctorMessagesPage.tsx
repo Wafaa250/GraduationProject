@@ -9,8 +9,10 @@ import {
   type ConversationListItem,
 } from "@/api/conversationsApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
-import { doctorMessageThreadPath } from "@/routes/paths";
+import { ROUTES, doctorMessageThreadPath } from "@/routes/paths";
 import { toast } from "@/hooks/use-toast";
+import { ConversationDeleteConfirm } from "@/components/messaging/ConversationDeleteConfirm";
+import { useConversationDelete } from "@/hooks/useConversationDelete";
 import { useDoctorHubProfile } from "@/components/doctor/hub/DoctorHubProfileContext";
 import {
   DoctorMessagesConversationList,
@@ -31,8 +33,17 @@ export default function DoctorMessagesPage() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<DoctorMessagesFilter>("all");
+
+  const { pendingId, deleting, requestDelete, cancelDelete, confirmDelete } =
+    useConversationDelete((deletedId) => {
+      setConversations((prev) => prev.filter((c) => c.id !== deletedId));
+      if (selectedId === deletedId) {
+        setThread(null);
+        navigate(ROUTES.doctorMessages);
+      }
+    });
+
   const loadList = useCallback(async () => {
     setLoadingList(true);
     try {
@@ -129,12 +140,10 @@ export default function DoctorMessagesPage() {
             conversations={conversations}
             selectedId={selectedId}
             currentUserId={profile.userId}
-            query={query}
             filter={filter}
-            onQueryChange={setQuery}
             onFilterChange={setFilter}
             onSelect={handleSelectConversation}
-            onConversationsRefresh={loadList}
+            onRequestDelete={requestDelete}
           />
 
           <DoctorMessagesThread
@@ -146,9 +155,17 @@ export default function DoctorMessagesPage() {
             onDraftChange={setDraft}
             onSend={() => void handleSend()}
             onViewStudent={handleViewStudent}
+            onRequestDelete={selectedId != null ? () => requestDelete(selectedId) : undefined}
           />
         </div>
       </div>
+
+      <ConversationDeleteConfirm
+        open={pendingId != null}
+        loading={deleting}
+        onConfirm={() => void confirmDelete()}
+        onCancel={cancelDelete}
+      />
     </main>
   );
 }

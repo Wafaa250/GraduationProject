@@ -11,6 +11,9 @@ namespace GraduationProject.API.Helpers
     {
         public static FeedItemDto MapToFeedItem(FeedPostDto post)
         {
+            var orgId = post.AuthorType == FeedAuthorTypes.Association ? post.AuthorId : (int?)null;
+            var companyId = post.AuthorType == FeedAuthorTypes.Company ? post.AuthorId : (int?)null;
+
             return new FeedItemDto
             {
                 Id = post.PostKey,
@@ -23,6 +26,15 @@ namespace GraduationProject.API.Helpers
                 Description = post.Content,
                 RelatedEntityType = post.SourceType,
                 RelatedEntityId = post.EntityId,
+                FollowEntityId = post.AuthorType is FeedAuthorTypes.Company or FeedAuthorTypes.Association
+                    ? post.AuthorId
+                    : 0,
+                OrganizationProfileId = post.OrganizationProfileId ?? orgId,
+                CompanyProfileId = post.CompanyProfileId ?? companyId,
+                EventId = post.EventId,
+                RecruitmentCampaignId = post.RecruitmentCampaignId,
+                PositionId = post.PositionId,
+                CompanyRequestId = post.CompanyRequestId,
                 CreatedAt = post.PublishedAt,
                 ActionText = post.ActionLabel,
                 ActionUrl = post.ActionPath,
@@ -86,6 +98,17 @@ namespace GraduationProject.API.Helpers
             string.Equals(requestType, CompanyRequestType.AiBuiltTeam, StringComparison.OrdinalIgnoreCase)
                 ? "Team request"
                 : "Individual request";
+
+        public static string CompanyOpportunityActionLabel(CompanyRequest request)
+        {
+            var category = (request.Category ?? string.Empty).Trim();
+            var haystack = $"{category} {request.Title} {request.Description}".ToLowerInvariant();
+            if (haystack.Contains("intern"))
+                return "View Internship";
+            if (haystack.Contains("recruit") || haystack.Contains("hire"))
+                return "View Recruitment";
+            return "View Opportunity";
+        }
 
         public static string Truncate(string? value, int max)
         {

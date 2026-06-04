@@ -11,6 +11,7 @@ import GraduationProjectWorkspacePage from "@/pages/student/GraduationProjectWor
 import StudentBrowseProjectsPage from "@/pages/student/StudentBrowseProjectsPage";
 import StudentMessagesPage from "@/pages/student/StudentMessagesPage";
 import StudentSettingsPage from "@/pages/student/StudentSettingsPage";
+import FollowingPage from "@/pages/student/FollowingPage";
 import StudentManageCoursesPage from "@/pages/student/StudentManageCoursesPage";
 import StudentCourseProjectDetailsPage from "@/pages/student/StudentCourseProjectDetailsPage";
 import DoctorDashboardPage from "@/pages/doctor/DoctorDashboardPage";
@@ -67,9 +68,10 @@ import OrganizationRecruitmentCampaignEditPage from "@/pages/association/recruit
 import OrganizationRecruitmentPositionFormPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentPositionFormPage";
 import OrganizationRecruitmentApplicationDetailPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentApplicationDetailPage";
 import StudentDirectoryProfilePage from "@/pages/student/StudentDirectoryProfilePage";
-import GlobalSearchResultsPage from "@/pages/search/GlobalSearchResultsPage";
 import DoctorPublicProfilePage from "@/pages/student/DoctorPublicProfilePage";
 import OrganizationPublicProfilePage from "@/pages/student/OrganizationPublicProfilePage";
+import CompanyPublicProfilePage from "@/pages/student/CompanyPublicProfilePage";
+import { CompanyTalentRequestDetailPage } from "@/pages/company/CompanyTalentRequestDetailPage";
 import { StudentCommunicationHubRoute } from "@/routes/studentRoutes";
 
 export function AppRouter() {
@@ -93,10 +95,17 @@ export function AppRouter() {
         >
           <Route path={ROUTES.dashboard} element={<StudentDashboardPage />} />
           <Route path={ROUTES.communicationHub} element={<StudentCommunicationHubRoute />} />
-          <Route path={ROUTES.globalSearch} element={<GlobalSearchResultsPage />} />
           <Route path="/students/:userId" element={<StudentDirectoryProfilePage />} />
           <Route path="/doctors/:userId" element={<DoctorPublicProfilePage />} />
           <Route path="/organizations/:organizationId" element={<OrganizationPublicProfilePage />} />
+          <Route path="/companies/:companyProfileId" element={<CompanyPublicProfilePage />} />
+          <Route path="/association/events/:eventId" element={<OrganizationEventDetailsPage />} />
+          <Route
+            path="/association/recruitment/:campaignId"
+            element={<OrganizationRecruitmentCampaignDetailsPage />}
+          />
+          <Route path="/company/requests/:id" element={<CompanyRequestDetailPage />} />
+          <Route path="/company/talent-requests/:id" element={<CompanyTalentRequestDetailPage />} />
           <Route path={ROUTES.profile} element={<StudentProfilePage />} />
           <Route path={ROUTES.editProfile} element={<StudentProfileEditPage />} />
           <Route path={ROUTES.createGraduationProject} element={<CreateGraduationProjectPage />} />
@@ -113,6 +122,7 @@ export function AppRouter() {
           />
           <Route path={ROUTES.studentMessages} element={<StudentMessagesPage />} />
           <Route path={ROUTES.studentMessageThread} element={<StudentMessagesPage />} />
+          <Route path={ROUTES.following} element={<FollowingPage />} />
           <Route path={ROUTES.settings} element={<StudentSettingsPage />} />
         </Route>
 
@@ -201,6 +211,7 @@ export function AppRouter() {
             element={<CompanyStudentDiscoveryProfilePage />}
           />
           <Route path="requests/:id" element={<CompanyRequestDetailPage />} />
+          <Route path="talent-requests/:id" element={<CompanyTalentRequestDetailPage />} />
           <Route path="matches" element={<Navigate to={COMPANY_ROUTES.requests} replace />} />
           <Route path="discover" element={<Navigate to={COMPANY_ROUTES.requests} replace />} />
           <Route path="collaborations" element={<Navigate to={COMPANY_ROUTES.dashboard} replace />} />
