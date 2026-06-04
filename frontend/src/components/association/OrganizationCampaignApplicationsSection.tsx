@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -9,7 +9,7 @@ import {
   type RecruitmentApplicationListItem,
   type RecruitmentApplicationStatus,
 } from '@/api/recruitmentApplicationsApi'
-import { assocCard, assocDash } from '@/pages/association/dashboard/associationDashTokens'
+import { assocCard, assocDash, assocSemantic } from '@/pages/association/dashboard/associationDashTokens'
 import { formatEventDate } from '@/pages/association/events/eventFormUtils'
 
 const STATUS_OPTIONS: Array<RecruitmentApplicationStatus | ''> = [
@@ -199,12 +199,12 @@ function ApplicationTable({
 function StatusBadge({ status }: { status: RecruitmentApplicationStatus }) {
   const colors =
     status === 'Accepted'
-      ? { bg: '#ecfdf5', color: '#047857', border: '#bbf7d0' }
+      ? assocSemantic.success
       : status === 'Rejected'
-        ? { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }
+        ? assocSemantic.error
         : status === 'AiSuggested'
-          ? { bg: assocDash.accentMuted, color: assocDash.accentDark, border: assocDash.accentBorder }
-          : { bg: '#fffbeb', color: '#b45309', border: '#fde68a' }
+          ? assocSemantic.warning
+          : assocSemantic.neutral
 
   return (
     <span

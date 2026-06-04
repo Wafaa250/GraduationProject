@@ -13,6 +13,8 @@ type Props = {
   placeholder?: string;
   allowCustom?: boolean;
   className?: string;
+  hideLabel?: boolean;
+  inputClassName?: string;
 };
 
 export function SearchableSelect({
@@ -23,6 +25,8 @@ export function SearchableSelect({
   placeholder = "Search…",
   allowCustom = false,
   className,
+  hideLabel = false,
+  inputClassName,
 }: Props) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -69,7 +73,7 @@ export function SearchableSelect({
 
   return (
     <div ref={rootRef} className={cn("relative", className)}>
-      <Label className="mb-1.5 block text-sm font-medium">{label}</Label>
+      {hideLabel ? null : <Label className="cw-wizard-field-label mb-0">{label}</Label>}
       <div className="relative">
         <Input
           value={query}
@@ -80,7 +84,7 @@ export function SearchableSelect({
           }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="rounded-xl pr-9"
+          className={cn("cw-wizard-input pr-9", inputClassName)}
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}

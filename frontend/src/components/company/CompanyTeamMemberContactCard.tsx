@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { ExternalLink, Mail, Github, Globe, Linkedin } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -112,8 +111,8 @@ export function CompanyTeamMemberContactCard({ member, requestId, teamId }: Prop
   const contact = mapStudentDiscoveryContact(member);
 
   return (
-    <Card className="cw-card-elevated h-full border border-border/50">
-      <CardContent className="p-4 flex flex-col h-full">
+    <article className="cw-lux-panel h-full flex flex-col">
+      <div className="p-4 flex flex-col h-full">
         <div className="flex items-center gap-3 mb-4">
           <Avatar className="h-11 w-11 shrink-0">
             <AvatarFallback className="cw-candidate-avatar-fallback text-sm font-medium">
@@ -144,7 +143,7 @@ export function CompanyTeamMemberContactCard({ member, requestId, teamId }: Prop
             View full profile
           </Link>
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   );
 }

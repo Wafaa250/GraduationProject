@@ -1,31 +1,38 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Sparkles,
   Plus,
   FileText,
   Bookmark,
   Users,
   UsersRound,
   TrendingUp,
-  Inbox,
   ArrowRight,
   UserRound,
+  Building2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getCompanyDashboard, type CompanyDashboard } from "@/api/companyApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { CompanyMatchScoreBadge } from "@/components/company/CompanyMatchScoreBadge";
+import { CompanyEmptyState } from "@/components/company/CompanyEmptyState";
+import { DashboardSkeleton } from "@/components/company/CompanySkeleton";
+import {
+  CompanyLuxHero,
+  CompanyLuxStat,
+  CompanyLuxPanel,
+} from "@/components/company/CompanyPremiumUI";
 import {
   requestLifecycleStatusBadgeClass,
   requestLifecycleStatusLabel,
 } from "@/lib/companyRequestDisplay";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
-import { cwLayout } from "@/lib/companyLayout";
+import { isCompanyOwner } from "@/lib/companyWorkspace";
 import { cn } from "@/lib/utils";
+
+const RECENT_ACTIVITY_LIMIT = 5;
 
 function formatDate(iso: string): string {
   try {
@@ -54,58 +61,6 @@ function formatRelativeTime(iso: string): string {
   } catch {
     return "";
   }
-}
-
-function EmptyBlock({
-  icon: Icon,
-  message,
-  action,
-}: {
-  icon: typeof Inbox;
-  message: string;
-  action?: { label: string; to: string };
-}) {
-  return (
-    <div className="cw-empty-state">
-      <div className="cw-empty-state-icon-sm mb-4">
-        <Icon className="h-6 w-6" />
-      </div>
-      <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">{message}</p>
-      {action && (
-        <Button asChild variant="outline" size="sm" className="mt-6 rounded-xl">
-          <Link to={action.to}>{action.label}</Link>
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  icon: Icon,
-  loading,
-}: {
-  label: string;
-  value: number;
-  icon: typeof FileText;
-  loading: boolean;
-}) {
-  return (
-    <Card className="cw-card-elevated cw-metric-card">
-      <CardContent className={cwLayout.cardPadding}>
-        <div className="flex items-start justify-between mb-3">
-          <div className="cw-metric-icon">
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-        <div className="text-3xl font-semibold tabular-nums tracking-tight">
-          {loading ? "—" : value}
-        </div>
-        <div className="text-sm font-medium mt-0.5 text-muted-foreground">{label}</div>
-      </CardContent>
-    </Card>
-  );
 }
 
 export function CompanyDashboardPage() {
@@ -137,335 +92,329 @@ export function CompanyDashboardPage() {
 
   const companyName = dashboard?.companyName?.trim() || "Your company";
   const activeRequests = dashboard?.activeRequests ?? 0;
+  const savedStudents = dashboard?.savedStudents ?? 0;
+  const savedTeams = dashboard?.savedTeams ?? 0;
   const previewCount = dashboard?.activeRequestsPreview.length ?? 0;
   const hasMoreRequests = activeRequests > previewCount;
+  const showMembersLink = isCompanyOwner();
+
+  const recentActivity = useMemo(
+    () => (dashboard?.recentActivity ?? []).slice(0, RECENT_ACTIVITY_LIMIT),
+    [dashboard?.recentActivity],
+  );
+
+  if (loading) {
+    return (
+      <CompanyPageShell>
+        <DashboardSkeleton />
+      </CompanyPageShell>
+    );
+  }
 
   return (
-    <CompanyPageShell>
-      {/* Hero */}
-      <div className={cwLayout.hero}>
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="max-w-2xl space-y-2">
-            <Badge className="cw-badge-ai">
-              <Sparkles className="h-3 w-3 mr-1" /> AI Discovery Workspace
-            </Badge>
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
-              Welcome back,{" "}
-              <span className="cw-gradient-text">{companyName}</span>
-            </h1>
-            <p className="text-muted-foreground max-w-xl">
-              Discover students and AI-generated teams that match your project needs.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <Button asChild size="lg" className="rounded-xl cw-btn-gradient border-0">
+    <CompanyPageShell className="space-y-7">
+      <CompanyLuxHero
+        eyebrow="AI Discovery Workspace"
+        title={
+          <>
+            Welcome back,{" "}
+            <span className="text-[hsl(var(--cw-accent))]">{companyName}</span>
+          </>
+        }
+        description="Discover students and AI-generated teams that match your project needs."
+        actions={
+          <>
+            <Button asChild size="default" className="rounded-lg h-10 cw-btn-gradient border-0 px-5 shadow-md">
               <Link to={COMPANY_ROUTES.newRequest}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create New Request
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="rounded-xl">
+            <Button asChild size="default" variant="outline" className="rounded-lg h-10 px-5 bg-background/60">
               <Link to={COMPANY_ROUTES.saved}>
                 View Saved Recommendations
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Link>
             </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Metrics */}
-      <div className={cn("grid grid-cols-2 lg:grid-cols-4", cwLayout.gridDense)}>
-        <MetricCard
-          label="Active Requests"
-          value={dashboard?.activeRequests ?? 0}
-          icon={FileText}
-          loading={loading}
-        />
-        <MetricCard
-          label="Saved Students"
-          value={dashboard?.savedStudents ?? 0}
-          icon={UserRound}
-          loading={loading}
-        />
-        <MetricCard
-          label="Saved Teams"
-          value={dashboard?.savedTeams ?? 0}
-          icon={UsersRound}
-          loading={loading}
-        />
-        <MetricCard
-          label="Workspace Members"
-          value={dashboard?.workspaceMembers ?? 0}
-          icon={Users}
-          loading={loading}
-        />
-      </div>
+          </>
+        }
+      />
 
       {loadError ? (
-        <Card className="cw-card-elevated">
-          <CardContent>
-            <EmptyBlock
-              icon={Inbox}
-              message={loadError}
-            />
-          </CardContent>
-        </Card>
+        <div className="cw-lux-panel">
+          <div className="cw-lux-panel-body">
+            <CompanyEmptyState icon={Building2} title="Unable to load dashboard" message={loadError} />
+          </div>
+        </div>
       ) : (
         <>
-          {/* Row 1: Active Requests + Activity */}
-          <div className={cn("grid lg:grid-cols-3", cwLayout.grid)}>
-            <Card className="cw-card-elevated lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <div>
-                  <CardTitle className="text-base font-semibold tracking-tight">
-                    Active Requests
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Your open collaboration requests and saved shortlists.
-                  </p>
-                </div>
-                {hasMoreRequests && (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link to={COMPANY_ROUTES.requests}>View all</Link>
-                  </Button>
-                )}
-              </CardHeader>
-              <CardContent className="pt-0">
-                {loading ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
-                ) : activeRequests === 0 ? (
-                  <EmptyBlock
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 cw-animate-stagger">
+            <CompanyLuxStat
+              label="Active Requests"
+              value={activeRequests}
+              icon={FileText}
+              href={COMPANY_ROUTES.requests}
+              delay={0}
+            />
+            <CompanyLuxStat
+              label="Saved Students"
+              value={savedStudents}
+              icon={UserRound}
+              href={COMPANY_ROUTES.saved}
+              accent="ai"
+              delay={60}
+            />
+            <CompanyLuxStat
+              label="Saved Teams"
+              value={savedTeams}
+              icon={UsersRound}
+              href={COMPANY_ROUTES.saved}
+              delay={120}
+            />
+            <CompanyLuxStat
+              label="Workspace Members"
+              value={dashboard?.workspaceMembers ?? 0}
+              icon={Users}
+              href={showMembersLink ? COMPANY_ROUTES.members : undefined}
+              delay={180}
+            />
+          </div>
+
+          <div className="cw-bento-grid cw-bento-grid--dashboard gap-5">
+            <div className="cw-bento-span-8 space-y-5">
+              <CompanyLuxPanel
+                title="Active Requests"
+                description="Your open collaboration requests and saved shortlists."
+                action={
+                  hasMoreRequests ? (
+                    <Button asChild variant="ghost" size="sm" className="h-8 text-xs rounded-lg">
+                      <Link to={COMPANY_ROUTES.requests}>View all</Link>
+                    </Button>
+                  ) : null
+                }
+              >
+                {activeRequests === 0 ? (
+                  <CompanyEmptyState
+                    compact
                     icon={FileText}
                     message="Create your first collaboration request to start discovering students and AI-generated teams."
                     action={{ label: "Create Request", to: COMPANY_ROUTES.newRequest }}
                   />
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2 -mx-1">
                     {dashboard?.activeRequestsPreview.map((request) => (
-                      <div key={request.id} className="cw-list-row">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold text-sm">
-                                {request.title?.trim() || "Untitled project request"}
-                              </h3>
-                              <Badge
-                                variant="outline"
-                                className={`rounded-md text-[11px] ${requestLifecycleStatusBadgeClass(request.status)}`}
-                              >
-                                {requestLifecycleStatusLabel(request.status)}
-                              </Badge>
-                            </div>
-                            {request.requestedRole && request.requestedRole !== "—" && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {request.requestedRole}
-                              </p>
-                            )}
-                            <p className="text-[11px] text-muted-foreground mt-2">
-                              Created {formatDate(request.createdAt)}
+                      <div key={request.id} className="cw-pipeline-lux-row">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              to={COMPANY_ROUTES.requestDetail(request.id)}
+                              className="font-semibold text-sm hover:text-[hsl(var(--cw-accent))] transition-colors"
+                            >
+                              {request.title?.trim() || "Untitled project request"}
+                            </Link>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "rounded-md text-[10px] h-5",
+                                requestLifecycleStatusBadgeClass(request.status),
+                              )}
+                            >
+                              {requestLifecycleStatusLabel(request.status)}
+                            </Badge>
+                          </div>
+                          {request.requestedRole && request.requestedRole !== "—" ? (
+                            <p className="text-sm text-muted-foreground mt-1 truncate max-w-md">
+                              {request.requestedRole}
+                            </p>
+                          ) : null}
+                          <p className="text-[11px] text-muted-foreground mt-2">
+                            Created {formatDate(request.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex gap-5 text-center shrink-0">
+                          <div>
+                            <p className="text-lg font-semibold tabular-nums text-[hsl(var(--cw-accent))]">
+                              {request.savedStudentsCount}
+                            </p>
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                              Students
                             </p>
                           </div>
-                          <div className="flex gap-4 text-center shrink-0">
-                            <div>
-                              <div className="font-semibold text-lg cw-gradient-text tabular-nums">
-                                {request.savedStudentsCount}
-                              </div>
-                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                                Students
-                              </div>
-                            </div>
-                            <div>
-                              <div className="font-semibold text-lg cw-gradient-text tabular-nums">
-                                {request.savedTeamsCount}
-                              </div>
-                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                                Teams
-                              </div>
-                            </div>
+                          <div>
+                            <p className="text-lg font-semibold tabular-nums text-[hsl(var(--cw-accent))]">
+                              {request.savedTeamsCount}
+                            </p>
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                              Teams
+                            </p>
                           </div>
                         </div>
-                        <div className="mt-3">
-                          <Button asChild size="sm" variant="outline" className="rounded-xl">
-                            <Link to={COMPANY_ROUTES.requestDetail(request.id)}>
-                              View Request
-                            </Link>
-                          </Button>
-                        </div>
+                        <Button asChild size="sm" variant="outline" className="rounded-lg h-8 shrink-0">
+                          <Link to={COMPANY_ROUTES.requestDetail(request.id)}>View Request</Link>
+                        </Button>
                       </div>
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </CompanyLuxPanel>
 
-            <Card className="cw-card-elevated">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Workspace Activity
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {loading ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
-                ) : !dashboard?.recentActivity.length ? (
-                  <EmptyBlock
+              <div className="grid md:grid-cols-2 gap-5">
+                <CompanyLuxPanel
+                  variant="glass"
+                  title="Recently Saved Candidates"
+                  action={
+                    savedStudents > 0 ? (
+                      <Button asChild variant="ghost" size="sm" className="h-8 text-xs">
+                        <Link to={COMPANY_ROUTES.saved}>View all</Link>
+                      </Button>
+                    ) : null
+                  }
+                >
+                  {!dashboard?.recentSavedStudents.length ? (
+                    <CompanyEmptyState
+                      compact
+                      icon={Bookmark}
+                      message="Shortlisted candidates from your requests will appear here."
+                      action={
+                        activeRequests > 0
+                          ? { label: "Browse recommendations", to: COMPANY_ROUTES.requests }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      {dashboard.recentSavedStudents.map((student) => (
+                        <div
+                          key={`${student.companyRequestId}-${student.studentProfileId}`}
+                          className="cw-shortlist-lux"
+                        >
+                          <div className="h-10 w-10 rounded-full cw-avatar-solid flex items-center justify-center text-xs shrink-0 font-semibold">
+                            {student.studentName
+                              .split(" ")
+                              .map((p) => p[0])
+                              .join("")
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{student.studentName}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {[student.university, student.major].filter(Boolean).join(" · ") || "—"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Saved {formatDate(student.savedAt)}
+                            </p>
+                          </div>
+                          {student.matchScore != null ? (
+                            <CompanyMatchScoreBadge score={student.matchScore} size="sm" />
+                          ) : null}
+                          <Button asChild size="sm" variant="outline" className="h-8 rounded-lg shrink-0">
+                            <Link
+                              to={COMPANY_ROUTES.studentDiscoveryProfile(
+                                student.companyRequestId,
+                                student.studentProfileId,
+                              )}
+                            >
+                              View Profile
+                            </Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CompanyLuxPanel>
+
+                <CompanyLuxPanel
+                  variant="glass"
+                  title="Recently Saved Teams"
+                  action={
+                    savedTeams > 0 ? (
+                      <Button asChild variant="ghost" size="sm" className="h-8 text-xs">
+                        <Link to={COMPANY_ROUTES.saved}>View all</Link>
+                      </Button>
+                    ) : null
+                  }
+                >
+                  {!dashboard?.recentSavedTeams.length ? (
+                    <CompanyEmptyState
+                      compact
+                      icon={UsersRound}
+                      message="AI-generated teams you save will appear here."
+                      action={
+                        activeRequests > 0
+                          ? { label: "Browse requests", to: COMPANY_ROUTES.requests }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      {dashboard.recentSavedTeams.map((team) => (
+                        <div
+                          key={`${team.companyRequestId}-${team.teamRecommendationId}`}
+                          className="cw-shortlist-lux"
+                        >
+                          <div className="h-10 w-10 rounded-xl cw-lux-stat-icon grid place-items-center shrink-0">
+                            <UsersRound className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{team.teamName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {team.memberCount} member{team.memberCount === 1 ? "" : "s"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Saved {formatDate(team.savedAt)}
+                            </p>
+                          </div>
+                          {team.matchScore > 0 ? (
+                            <CompanyMatchScoreBadge score={team.matchScore} size="sm" />
+                          ) : null}
+                          <Button asChild size="sm" variant="outline" className="h-8 rounded-lg shrink-0">
+                            <Link
+                              to={COMPANY_ROUTES.teamDiscoveryProfile(
+                                team.companyRequestId,
+                                team.teamRecommendationId,
+                              )}
+                            >
+                              View Team
+                            </Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CompanyLuxPanel>
+              </div>
+            </div>
+
+            <div className="cw-bento-span-4">
+              <CompanyLuxPanel
+                title="Workspace Activity"
+                action={
+                  (dashboard?.recentActivity.length ?? 0) > RECENT_ACTIVITY_LIMIT ? (
+                    <span className="text-[11px] text-muted-foreground">Last {RECENT_ACTIVITY_LIMIT}</span>
+                  ) : null
+                }
+              >
+                {!recentActivity.length ? (
+                  <CompanyEmptyState
+                    compact
                     icon={TrendingUp}
                     message="Workspace actions from your team will appear here."
                   />
                 ) : (
-                  <ol className="relative border-l border-border ml-2 space-y-5">
-                    {dashboard.recentActivity.map((item) => (
-                      <li key={item.id} className="pl-4 relative">
-                        <div className="absolute -left-[7px] top-1 h-3 w-3 rounded-full bg-primary ring-4 ring-card" />
+                  <ul className="cw-activity-timeline space-y-4">
+                    {recentActivity.map((item) => (
+                      <li key={item.id} className="cw-activity-timeline-item">
                         <p className="text-sm leading-snug">{item.description}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {formatRelativeTime(item.createdAt)}
                         </p>
                       </li>
                     ))}
-                  </ol>
+                  </ul>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Row 2: Saved Students + Saved Teams */}
-          <div className={cn("grid lg:grid-cols-2", cwLayout.grid)}>
-            <Card className="cw-card-elevated">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-base font-semibold tracking-tight">
-                  Recently Saved Candidates
-                </CardTitle>
-                {(dashboard?.savedStudents ?? 0) > 0 && (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link to={COMPANY_ROUTES.saved}>View all</Link>
-                  </Button>
-                )}
-              </CardHeader>
-              <CardContent className="pt-0">
-                {loading ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
-                ) : !dashboard?.recentSavedStudents.length ? (
-                  <EmptyBlock
-                    icon={Bookmark}
-                    message="Shortlisted candidates from your requests will appear here."
-                    action={
-                      activeRequests > 0
-                        ? { label: "Browse recommendations", to: COMPANY_ROUTES.requests }
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {dashboard.recentSavedStudents.map((student) => (
-                      <div
-                        key={`${student.companyRequestId}-${student.studentProfileId}`}
-                        className="cw-inner-card flex items-center gap-3 p-3"
-                      >
-                        <div className="h-10 w-10 rounded-full cw-avatar-gradient flex items-center justify-center font-semibold text-sm shrink-0">
-                          {student.studentName
-                            .split(" ")
-                            .map((p) => p[0])
-                            .join("")
-                            .slice(0, 2)
-                            .toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{student.studentName}</div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {[student.university, student.major].filter(Boolean).join(" · ") ||
-                              "—"}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">
-                            Saved {formatDate(student.savedAt)}
-                          </div>
-                        </div>
-                        {student.matchScore != null && (
-                          <CompanyMatchScoreBadge score={student.matchScore} size="sm" />
-                        )}
-                        <Button asChild size="sm" variant="outline" className="rounded-xl shrink-0">
-                          <Link
-                            to={COMPANY_ROUTES.studentDiscoveryProfile(
-                              student.companyRequestId,
-                              student.studentProfileId,
-                            )}
-                          >
-                            View Profile
-                          </Link>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="cw-card-elevated relative overflow-hidden">
-              <div className="absolute top-0 right-0 h-32 w-32 bg-primary/10 blur-2xl rounded-full pointer-events-none" />
-              <CardHeader className="flex flex-row items-center justify-between pb-3 relative">
-                <CardTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
-                  <UsersRound className="h-4 w-4 text-primary" />
-                  Recently Saved Teams
-                </CardTitle>
-                {(dashboard?.savedTeams ?? 0) > 0 && (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link to={COMPANY_ROUTES.saved}>View all</Link>
-                  </Button>
-                )}
-              </CardHeader>
-              <CardContent className="pt-0 relative">
-                {loading ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
-                ) : !dashboard?.recentSavedTeams.length ? (
-                  <EmptyBlock
-                    icon={UsersRound}
-                    message="AI-generated teams you save will appear here."
-                    action={
-                      activeRequests > 0
-                        ? { label: "Browse requests", to: COMPANY_ROUTES.requests }
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {dashboard.recentSavedTeams.map((team) => (
-                      <div
-                        key={`${team.companyRequestId}-${team.teamRecommendationId}`}
-                        className="cw-inner-card p-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="font-semibold">{team.teamName}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {team.memberCount} member{team.memberCount === 1 ? "" : "s"}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground mt-1">
-                              Saved {formatDate(team.savedAt)}
-                            </div>
-                          </div>
-                          {team.matchScore > 0 && (
-                            <CompanyMatchScoreBadge score={team.matchScore} size="sm" />
-                          )}
-                        </div>
-                        <Button asChild size="sm" variant="outline" className="rounded-xl mt-3">
-                          <Link
-                            to={COMPANY_ROUTES.teamDiscoveryProfile(
-                              team.companyRequestId,
-                              team.teamRecommendationId,
-                            )}
-                          >
-                            View Team
-                          </Link>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </CompanyLuxPanel>
+            </div>
           </div>
         </>
       )}

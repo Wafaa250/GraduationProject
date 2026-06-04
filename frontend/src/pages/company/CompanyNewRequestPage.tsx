@@ -6,14 +6,12 @@ import {
   ArrowRight,
   ArrowLeft,
   Plus,
-  Trash2,
   CheckCircle2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -23,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanySkeleton } from "@/components/company/CompanySkeleton";
 import { cwLayout } from "@/lib/companyLayout";
 import { CompanyRequestStepper } from "@/components/company/CompanyRequestStepper";
 import {
@@ -45,6 +44,14 @@ import {
   type DurationUnit,
 } from "@/constants/companyRequestCatalog";
 import { DurationFields } from "@/components/company/DurationFields";
+import {
+  WizardStepPanel,
+  WizardFormSection,
+  WizardFormField,
+  WizardFormPanel,
+  WizardRoleCard,
+  WizardAddRoleButton,
+} from "@/components/company/CompanyWizardForm";
 import {
   createCompanyProjectRequest,
   getCompanyProjectRequest,
@@ -300,7 +307,7 @@ export function CompanyNewRequestPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-xl"
+                  className="rounded-lg"
                   onClick={() => nav(COMPANY_ROUTES.dashboard)}
                 >
                   Back to dashboard
@@ -309,8 +316,8 @@ export function CompanyNewRequestPage() {
             </>
           }
         >
-          <div className="py-8 text-center">
-            <div className="cw-request-success-icon mb-4">
+          <div className="py-10 text-center">
+            <div className="cw-wizard-success-icon">
               <CheckCircle2 className="h-9 w-9" aria-hidden />
             </div>
           </div>
@@ -323,7 +330,7 @@ export function CompanyNewRequestPage() {
     <>
       <Button
         variant="ghost"
-        className="rounded-xl"
+        className="rounded-lg"
         disabled={step === 0}
         onClick={() => setStep((s) => Math.max(0, s - 1))}
       >
@@ -342,7 +349,7 @@ export function CompanyNewRequestPage() {
           {!isEdit && (
             <Button
               variant="outline"
-              className="rounded-xl"
+              className="rounded-lg"
               onClick={saveDraft}
               disabled={savingDraft || submitting}
             >
@@ -373,9 +380,10 @@ export function CompanyNewRequestPage() {
         title={isEdit ? "Edit Project Request" : "Create Project Request"}
         subtitle={
           isEdit
-            ? "Update your project details, roles, and scope. Changes apply to this request immediately."
+            ? "Update roles and scope for this request."
             : "Describe what you need — from any field or industry. SkillSwap matches university students to your roles."
         }
+        compactHeader={!isEdit}
         actions={
           isEdit && editRequestId ? (
             <Button asChild variant="outline" className="rounded-xl">
@@ -392,232 +400,250 @@ export function CompanyNewRequestPage() {
         footer={draftLoading ? undefined : wizardFooter}
       >
         {draftLoading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">Loading draft…</div>
+          <div className="space-y-4 py-4">
+            <CompanySkeleton className="h-12 w-full rounded-lg" />
+            <CompanySkeleton className="h-64 w-full rounded-xl" />
+          </div>
         ) : (
-          <div key={step} className="cw-request-step-content">
-              {step === 0 && (
-                <div className={cn("grid md:grid-cols-2", cwLayout.grid)}>
-              <button
-                type="button"
-                onClick={() => setType("individual")}
-                className={cn(
-                  "cw-request-type-card",
-                  type === "individual" && "is-selected",
-                )}
-              >
-                <div className="cw-request-type-icon mb-4">
-                  <UserRound className="h-6 w-6" />
-                </div>
-                <div className="font-semibold">Individual Contributor</div>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  One student for a specific role on your project.
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setType("ai-built-team")}
-                className={cn(
-                  "cw-request-type-card",
-                  type === "ai-built-team" && "is-selected",
-                )}
-              >
-                <div className="cw-request-type-icon mb-4">
-                  <UsersRound className="h-6 w-6" />
-                </div>
-                <div className="font-semibold">AI-Built Team</div>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  Multiple required roles — AI suggests separate students per role to form a team
-                  composition.
-                </p>
-              </button>
-            </div>
-          )}
+          <div key={step} className="cw-wizard-form">
+            <WizardStepPanel
+              stepLabel={steps[step]}
+              className={step === 0 ? "cw-wizard-step-panel--request-type" : undefined}
+            >
+            {step === 0 && (
+              <div className="cw-request-type-grid">
+                <button
+                  type="button"
+                  onClick={() => setType("individual")}
+                  className={cn(
+                    "cw-request-type-card",
+                    type === "individual" && "is-selected",
+                  )}
+                >
+                  <div className="cw-request-type-icon">
+                    <UserRound className="h-6 w-6" />
+                  </div>
+                  <div className="cw-request-type-card-body">
+                    <div className="font-semibold">Individual Contributor</div>
+                    <p className="cw-request-type-desc">
+                      One student for a specific role on your project.
+                    </p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType("ai-built-team")}
+                  className={cn(
+                    "cw-request-type-card",
+                    type === "ai-built-team" && "is-selected",
+                  )}
+                >
+                  <div className="cw-request-type-icon">
+                    <UsersRound className="h-6 w-6" />
+                  </div>
+                  <div className="cw-request-type-card-body">
+                    <div className="font-semibold">AI-Built Team</div>
+                    <p className="cw-request-type-desc">
+                      Multiple required roles — AI suggests separate students per role to form a
+                      team composition.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            )}
 
-          {step === 1 && (
-            <div className={cn("grid lg:grid-cols-2", cwLayout.grid, "items-start")}>
-              <div className="cw-request-form-stack">
-                <div>
-                  <Label className="text-sm font-medium">Project title</Label>
+            {step === 1 && (
+              <WizardFormSection>
+                <WizardFormField label="Project title" htmlFor="project-title" required>
                   <Input
+                    id="project-title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Mobile booking app MVP"
-                    className="rounded-xl mt-1.5 h-11"
+                    className="cw-wizard-input"
                   />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Description</Label>
+                </WizardFormField>
+
+                {categoryChoice === "Other" ? (
+                  <div className="cw-wizard-fields-row cw-wizard-fields-row--2">
+                    <WizardFormField label="Category" required>
+                      <SearchableSelect
+                        hideLabel
+                        label="Category"
+                        value={categoryChoice}
+                        onChange={setCategoryChoice}
+                        options={PROJECT_CATEGORIES}
+                        placeholder="Search categories…"
+                      />
+                    </WizardFormField>
+                    <WizardFormField label="Custom category" htmlFor="category-other" required>
+                      <Input
+                        id="category-other"
+                        value={categoryOther}
+                        onChange={(e) => setCategoryOther(e.target.value)}
+                        placeholder="Describe your project category"
+                        className="cw-wizard-input"
+                      />
+                    </WizardFormField>
+                  </div>
+                ) : (
+                  <WizardFormField label="Category" required>
+                    <SearchableSelect
+                      hideLabel
+                      label="Category"
+                      value={categoryChoice}
+                      onChange={setCategoryChoice}
+                      options={PROJECT_CATEGORIES}
+                      placeholder="Search categories…"
+                    />
+                  </WizardFormField>
+                )}
+
+                <WizardFormField label="Description" htmlFor="project-description" required>
                   <Textarea
+                    id="project-description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={5}
+                    rows={6}
                     placeholder="What should collaborators build or contribute?"
-                    className="rounded-xl mt-1.5"
+                    className="cw-wizard-input min-h-[9rem]"
                   />
-                </div>
-              </div>
-              <div className="cw-request-form-stack">
-                <SearchableSelect
-                  label="Category"
-                  value={categoryChoice}
-                  onChange={setCategoryChoice}
-                  options={PROJECT_CATEGORIES}
-                  placeholder="Search categories…"
-                />
-                {categoryChoice === "Other" && (
-                  <div>
-                    <Label className="text-sm font-medium">Custom category</Label>
-                    <Input
-                      value={categoryOther}
-                      onChange={(e) => setCategoryOther(e.target.value)}
-                      placeholder="Describe your project category"
-                      className="rounded-xl mt-1.5 h-11"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                </WizardFormField>
+              </WizardFormSection>
+            )}
 
-          {step === 2 && type === "individual" && (
-            <div className={cn("grid lg:grid-cols-2", cwLayout.grid, "items-start")}>
-              <SearchableSelect
-                label="Role"
-                value={targetRole}
-                onChange={setTargetRole}
-                options={COMPANY_ROLE_OPTIONS}
-                placeholder="Search or select a role..."
-                allowCustom
-              />
-              <MultiSelectTags
-                label="Required skills & tools"
-                selected={individualSkills}
-                onChange={setIndividualSkills}
-                options={COMPANY_SKILL_OPTIONS}
-                placeholder="Search skills..."
-              />
-            </div>
-          )}
+            {step === 2 && type === "individual" && (
+              <WizardFormSection>
+                <WizardFormField label="Role" required>
+                  <SearchableSelect
+                    hideLabel
+                    label="Role"
+                    value={targetRole}
+                    onChange={setTargetRole}
+                    options={COMPANY_ROLE_OPTIONS}
+                    placeholder="Search or select a role..."
+                    allowCustom
+                  />
+                </WizardFormField>
+                <WizardFormField label="Skills" required>
+                  <MultiSelectTags
+                    hideLabel
+                    label="Skills"
+                    selected={individualSkills}
+                    onChange={setIndividualSkills}
+                    options={COMPANY_SKILL_OPTIONS}
+                    placeholder="Search skills..."
+                  />
+                </WizardFormField>
+              </WizardFormSection>
+            )}
 
-          {step === 2 && type === "ai-built-team" && (
-            <div className={cwLayout.section}>
-              {teamRoles.map((role) => {
-                const taken = rolesTakenByOthers(role.id);
-                const roleOptions = COMPANY_ROLE_OPTIONS.filter(
-                  (o) =>
-                    o.toLowerCase() === role.roleName.toLowerCase() ||
-                    !taken.some((t) => t.toLowerCase() === o.toLowerCase()),
-                );
+            {step === 2 && type === "ai-built-team" && (
+              <div className={cn("cw-wizard-step-body-wide flex flex-col", cwLayout.section)}>
+                {teamRoles.map((role, roleIndex) => {
+                  const taken = rolesTakenByOthers(role.id);
+                  const roleOptions = COMPANY_ROLE_OPTIONS.filter(
+                    (o) =>
+                      o.toLowerCase() === role.roleName.toLowerCase() ||
+                      !taken.some((t) => t.toLowerCase() === o.toLowerCase()),
+                  );
 
-                return (
-                  <div key={role.id} className="cw-request-role-card space-y-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="text-base font-semibold text-foreground leading-tight">
-                          {role.roleName || "Select a role"}
-                        </h3>
-                        {role.roleName && role.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {role.skills.map((s) => (
-                              <Badge
-                                key={s}
-                                className="cw-request-skill-badge rounded-md text-[10px]"
-                              >
-                                {s}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                  const preview =
+                    role.roleName && role.skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {role.skills.map((s) => (
+                          <Badge
+                            key={s}
+                            className="cw-request-skill-badge rounded-md text-[10px]"
+                          >
+                            {s}
+                          </Badge>
+                        ))}
                       </div>
-                      {teamRoles.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 shrink-0 text-muted-foreground"
-                          onClick={() =>
-                            setTeamRoles((prev) => prev.filter((r) => r.id !== role.id))
+                    ) : null;
+
+                  return (
+                    <WizardRoleCard
+                      key={role.id}
+                      index={roleIndex + 1}
+                      title={role.roleName || "Select a role"}
+                      preview={preview}
+                      onRemove={
+                        teamRoles.length > 1
+                          ? () => setTeamRoles((prev) => prev.filter((r) => r.id !== role.id))
+                          : undefined
+                      }
+                    >
+                      <WizardFormField label="Role" required>
+                        <SearchableSelect
+                          hideLabel
+                          label="Role"
+                          value={role.roleName}
+                          onChange={(name) =>
+                            setTeamRoles((prev) =>
+                              prev.map((r) =>
+                                r.id === role.id ? { ...r, roleName: name } : r,
+                              ),
+                            )
                           }
-                          aria-label="Remove role"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
+                          options={roleOptions}
+                          placeholder="Search or select a role..."
+                          allowCustom
+                        />
+                      </WizardFormField>
 
-                    <SearchableSelect
-                      label="Role"
-                      value={role.roleName}
-                      onChange={(name) =>
-                        setTeamRoles((prev) =>
-                          prev.map((r) => (r.id === role.id ? { ...r, roleName: name } : r)),
-                        )
-                      }
-                      options={roleOptions}
-                      placeholder="Search or select a role..."
-                      allowCustom
-                    />
+                      <WizardFormField label="Skills for this role" required>
+                        <MultiSelectTags
+                          hideLabel
+                          label="Skills for this role"
+                          selected={role.skills}
+                          onChange={(skills) =>
+                            setTeamRoles((prev) =>
+                              prev.map((r) => (r.id === role.id ? { ...r, skills } : r)),
+                            )
+                          }
+                          options={COMPANY_SKILL_OPTIONS}
+                          placeholder="Search skills…"
+                        />
+                      </WizardFormField>
 
-                    <MultiSelectTags
-                      label="Skills for this role"
-                      selected={role.skills}
-                      onChange={(skills) =>
-                        setTeamRoles((prev) =>
-                          prev.map((r) => (r.id === role.id ? { ...r, skills } : r)),
-                        )
-                      }
-                      options={COMPANY_SKILL_OPTIONS}
-                      placeholder="Search skills…"
-                    />
+                      <WizardFormField
+                        label="Optional notes"
+                        htmlFor={`role-notes-${role.id}`}
+                      >
+                        <Textarea
+                          id={`role-notes-${role.id}`}
+                          value={role.notes ?? ""}
+                          onChange={(e) =>
+                            setTeamRoles((prev) =>
+                              prev.map((r) =>
+                                r.id === role.id ? { ...r, notes: e.target.value } : r,
+                              ),
+                            )
+                          }
+                          rows={3}
+                          placeholder="Scope, seniority, or collaboration expectations"
+                          className="cw-wizard-input min-h-[5rem]"
+                        />
+                      </WizardFormField>
+                    </WizardRoleCard>
+                  );
+                })}
+                <WizardAddRoleButton onClick={() => setTeamRoles((prev) => [...prev, newRole()])}>
+                  <Plus className="h-4 w-4" />
+                  Add another role
+                </WizardAddRoleButton>
+              </div>
+            )}
 
-                    <div>
-                      <Label className="text-sm font-medium">Optional notes</Label>
-                      <Textarea
-                        value={role.notes ?? ""}
-                        onChange={(e) =>
-                          setTeamRoles((prev) =>
-                            prev.map((r) =>
-                              r.id === role.id ? { ...r, notes: e.target.value } : r,
-                            ),
-                          )
-                        }
-                        rows={2}
-                        placeholder="Scope, seniority, or collaboration expectations"
-                        className="rounded-xl mt-1.5"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl w-full border-dashed"
-                onClick={() => setTeamRoles((prev) => [...prev, newRole()])}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Add another role
-              </Button>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className={cn("grid lg:grid-cols-2", cwLayout.grid, "items-start")}>
-              <DurationFields
-                ongoing={durationOngoing}
-                onOngoingChange={setDurationOngoing}
-                value={durationValue}
-                onValueChange={setDurationValue}
-                unit={durationUnit}
-                onUnitChange={setDurationUnit}
-              />
-              <div className="cw-request-form-stack">
-                <div>
-                  <Label className="text-sm font-medium">Collaboration format</Label>
+            {step === 3 && (
+              <WizardFormSection>
+                <WizardFormField label="Collaboration format" required>
                   <Select value={collaborationType} onValueChange={setCollaborationType}>
-                    <SelectTrigger className="rounded-xl mt-1.5 h-11">
+                    <SelectTrigger className="cw-wizard-input h-11 w-full">
                       <SelectValue placeholder="Select format" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="cw-select-popover">
                       {COLLABORATION_FORMATS.map((f) => (
                         <SelectItem key={f.value} value={f.value}>
                           {f.label}
@@ -625,24 +651,40 @@ export function CompanyNewRequestPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Additional notes (optional)</Label>
+                </WizardFormField>
+
+                <div className="cw-wizard-field-divider" aria-hidden />
+
+                <WizardFormField label="Duration" required>
+                  <WizardFormPanel>
+                    <DurationFields
+                      hideLabel
+                      ongoing={durationOngoing}
+                      onOngoingChange={setDurationOngoing}
+                      value={durationValue}
+                      onValueChange={setDurationValue}
+                      unit={durationUnit}
+                      onUnitChange={setDurationUnit}
+                    />
+                  </WizardFormPanel>
+                </WizardFormField>
+
+                <WizardFormField label="Notes" htmlFor="scope-notes">
                   <Textarea
+                    id="scope-notes"
                     value={scopeNotes}
                     onChange={(e) => setScopeNotes(e.target.value)}
                     rows={4}
-                    placeholder="Meeting cadence, deliverables, or anything else students should know"
-                    className="rounded-xl mt-1.5"
+                    placeholder="Optional"
+                    className="cw-wizard-input min-h-[5.5rem]"
                   />
-                </div>
-              </div>
-            </div>
-          )}
+                </WizardFormField>
+              </WizardFormSection>
+            )}
 
-          {step === 4 && (
-            <div className={cwLayout.section}>
-              <div className="cw-request-review-hero">
+            {step === 4 && (
+              <div className="cw-wizard-review-wrap">
+                <div className="cw-wizard-review-hero">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
                   Summary
                 </p>
@@ -747,15 +789,16 @@ export function CompanyNewRequestPage() {
               {scopeNotes.trim() && (
                 <div className="cw-request-review-section">
                   <p className="cw-request-review-section-title">Additional notes</p>
-                  <p className="text-sm leading-relaxed">{scopeNotes}</p>
+                  <p className="cw-scope-notes">{scopeNotes}</p>
                 </div>
               )}
 
-              <CompanyRequestReviewAiBanner />
-            </div>
-          )}
-            </div>
-          )}
+                <CompanyRequestReviewAiBanner />
+              </div>
+            )}
+            </WizardStepPanel>
+          </div>
+        )}
       </CompanyRequestWizardLayout>
     </CompanyPageShell>
   );

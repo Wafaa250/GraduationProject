@@ -1,7 +1,7 @@
-﻿import type { CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import { BadgeCheck } from 'lucide-react'
 import { resolveApiFileUrl } from '@/api/axiosInstance'
-import { assocDash } from '@/pages/association/dashboard/associationDashTokens'
+import { assocDash, assocSemantic } from '@/pages/association/dashboard/associationDashTokens'
 
 export function getAssociationInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -42,7 +42,7 @@ export function AssociationAvatar({ name, logoUrl, size = 'md', style }: Associa
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(15,23,42,0.06)',
+    boxShadow: assocDash.shadow,
     ...style,
   }
 
@@ -84,9 +84,9 @@ export function VerifiedBadge({ style }: { style?: CSSProperties }) {
         borderRadius: 999,
         fontSize: 12,
         fontWeight: 700,
-        background: '#ecfdf5',
-        color: '#047857',
-        border: '1px solid #a7f3d0',
+        background: assocSemantic.success.bg,
+        color: assocSemantic.success.color,
+        border: `1px solid ${assocSemantic.success.border}`,
         ...style,
       }}
     >

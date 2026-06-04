@@ -6,27 +6,19 @@ import { SectionHeading } from "@/components/landing/SectionHeading";
 const faqs = [
   {
     q: "What is SkillSwap?",
-    a: "SkillSwap is an AI-powered platform that intelligently matches students, supervisors, companies, and organizations based on skills, interests, and project needs.",
+    a: "SkillSwap is an AI-powered platform that matches students, supervisors, companies, and organizations based on skills, interests, and project needs.",
   },
   {
     q: "How does AI matching work?",
-    a: "Our engine analyzes profiles, skills, and project requirements to compute compatibility scores, then generates ranked, explainable recommendations.",
+    a: "Profiles, skills, and project requirements are analyzed to produce compatibility scores and ranked, explainable recommendations.",
   },
   {
     q: "Can companies use the platform?",
     a: "Yes. Companies publish recruitment requests and receive AI-recommended students who match the required skills and role profile.",
   },
   {
-    q: "Can organizations recruit students?",
-    a: "Absolutely. Organizations and associations can publish volunteer or member opportunities and receive curated candidate suggestions.",
-  },
-  {
     q: "Can supervisors participate?",
-    a: "Supervisors can create projects, monitor teams, review students, and let the AI propose balanced teams from applicants.",
-  },
-  {
-    q: "How are recommendations generated?",
-    a: "Recommendations combine skill analysis, profile analysis, requirement matching, and compatibility scoring — all surfaced with the reasoning behind each match.",
+    a: "Supervisors create projects, monitor teams, review students, and use AI to propose balanced teams from applicants.",
   },
 ];
 
@@ -34,7 +26,7 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section className="py-20 lg:py-32 relative">
+    <section id="faq" className="py-16 lg:py-24 relative scroll-mt-28">
       <div className="container max-w-3xl">
         <SectionHeading
           eyebrow="FAQ"
@@ -43,7 +35,7 @@ export function FAQSection() {
               Frequently asked <span className="text-gradient-primary">questions</span>
             </>
           }
-          subtitle="Everything you need to know about SkillSwap and the AI engine behind it."
+          subtitle="Quick answers about how SkillSwap works for your role."
         />
         <div className="mt-12 space-y-3">
           {faqs.map((faq, index) => {

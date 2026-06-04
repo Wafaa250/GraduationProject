@@ -5,9 +5,9 @@ type Props = {
 
 export function CompanyRequestReviewStat({ label, value }: Props) {
   return (
-    <div className="cw-request-review-stat">
-      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</div>
-      <div className="font-medium mt-0.5 text-sm">{value}</div>
+    <div className="cw-review-stat-lux">
+      <div className="cw-review-stat-lux-label">{label}</div>
+      <div className="cw-review-stat-lux-value">{value}</div>
     </div>
   );
 }

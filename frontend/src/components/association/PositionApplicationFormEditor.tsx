@@ -45,6 +45,7 @@ import {
 } from '@/utils/recruitmentFormFields'
 import { ApplicationFormPreview } from './ApplicationFormPreview'
 import { assocDash } from '@/pages/association/dashboard/associationDashTokens'
+import '@/styles/association-registration-form-builder.css'
 
 const EDITOR_FIELD_TYPES = [
   'ShortText',
@@ -219,11 +220,16 @@ export function PositionApplicationFormEditor({
   }
 
   return (
-    <div style={builderRoot}>
+    <div className="position-app-form-builder" style={builderRoot}>
       {previewMode ? (
         <>
-          <header style={previewTopBar}>
-            <button type="button" onClick={() => setPreviewMode(false)} style={previewExitBtn}>
+          <header className="erf-builder-preview-bar" style={previewTopBar}>
+            <button
+              type="button"
+              onClick={() => setPreviewMode(false)}
+              className="erf-toolbar-ghost"
+              style={previewExitBtn}
+            >
               <ArrowLeft size={16} />
               Exit preview
             </button>
@@ -232,7 +238,7 @@ export function PositionApplicationFormEditor({
               <p style={previewTopBarEvent}>{roleName}</p>
             </div>
           </header>
-          <div style={previewModeScroll}>
+          <div className="erf-builder-preview-scroll" style={previewModeScroll}>
             {loading ? (
               <div style={previewModeLoading}>
                 <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading form…</p>
@@ -253,7 +259,7 @@ export function PositionApplicationFormEditor({
         </>
       ) : (
         <>
-          <header style={topBar}>
+          <header className="erf-builder-topbar" style={topBar}>
             <div style={topBarLeft}>
               <Link to={backTo} style={backLink}>
                 <ArrowLeft size={16} />
@@ -263,14 +269,14 @@ export function PositionApplicationFormEditor({
               <div style={{ minWidth: 0 }}>
                 <h1 style={topBarTitle}>{formTitle}</h1>
                 <div style={headerMetaRow}>
-                  <span style={headerMetaChip}>
+                  <span className="erf-header-meta-chip" style={headerMetaChip}>
                     <Briefcase size={13} strokeWidth={2.25} aria-hidden />
                     {roleName}
                   </span>
-                  <span style={headerMetaChip}>
+                  <span className="erf-header-meta-chip" style={headerMetaChip}>
                     <strong>{questions.length}</strong> question{questions.length === 1 ? '' : 's'}
                   </span>
-                  <span style={headerMetaChip}>
+                  <span className="erf-header-meta-chip" style={headerMetaChip}>
                     <strong>{requiredCount}</strong> required
                   </span>
                 </div>
@@ -278,7 +284,12 @@ export function PositionApplicationFormEditor({
             </div>
 
             <div style={topBarActions}>
-              <button type="button" onClick={() => setPreviewMode(true)} style={toolbarGhostBtn}>
+              <button
+                type="button"
+                onClick={() => setPreviewMode(true)}
+                className="erf-toolbar-ghost"
+                style={toolbarGhostBtn}
+              >
                 <Eye size={16} />
                 Preview form
               </button>
@@ -286,12 +297,19 @@ export function PositionApplicationFormEditor({
                 type="button"
                 onClick={handleSaveChanges}
                 disabled={saving}
+                className="erf-toolbar-ghost"
                 style={toolbarGhostBtn}
               >
                 <Save size={16} />
                 Save changes
               </button>
-              <button type="button" onClick={openAddField} style={addFieldTopBtn} disabled={saving}>
+              <button
+                type="button"
+                onClick={openAddField}
+                className="erf-toolbar-add"
+                style={addFieldTopBtn}
+                disabled={saving}
+              >
                 <Plus size={18} strokeWidth={2.5} />
                 Add question
               </button>
@@ -303,15 +321,15 @@ export function PositionApplicationFormEditor({
               <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading form…</p>
             </div>
           ) : (
-            <div style={workspace}>
-              <nav style={fieldRail} aria-label="Form questions">
-                <div style={railHeader}>
+            <div className="erf-builder-workspace" style={workspace}>
+              <nav className="erf-builder-rail" style={fieldRail} aria-label="Form questions">
+                <div className="erf-rail-header" style={railHeader}>
                   <span style={railTitle}>Questions</span>
-                  <span style={railCount}>{questions.length}</span>
+                  <span className="erf-rail-count" style={railCount}>{questions.length}</span>
                 </div>
-                <div style={railList}>
+                <div className="erf-rail-list" style={railList}>
                   {sortedQuestions.length === 0 ? (
-                    <div style={railEmpty}>
+                    <div className="erf-rail-empty" style={railEmpty}>
                       <p style={{ margin: 0, fontSize: 12, color: assocDash.subtle, lineHeight: 1.5 }}>
                         Questions you add will appear here and on the student application form.
                       </p>
@@ -324,6 +342,7 @@ export function PositionApplicationFormEditor({
                         <button
                           key={q.id}
                           type="button"
+                          className={`erf-rail-item${selected ? ' erf-rail-item--selected' : ''}`}
                           style={{
                             ...railItem,
                             ...(selected ? railItemSelected : {}),
@@ -335,9 +354,9 @@ export function PositionApplicationFormEditor({
                         >
                           <GripVertical size={14} color={assocDash.subtle} style={{ flexShrink: 0 }} />
                           <FieldTypeIcon type={q.questionType} />
-                          <span style={railItemBody}>
-                            <span style={railItemLabel}>{q.questionTitle}</span>
-                            <span style={railItemMeta}>
+                          <span className="erf-rail-item-body" style={railItemBody}>
+                            <span className="erf-rail-item-label" style={railItemLabel}>{q.questionTitle}</span>
+                            <span className="erf-rail-item-meta" style={railItemMeta}>
                               {fieldTypeLabel(q.questionType)}
                               {q.isRequired ? ' · Required' : ''}
                             </span>
@@ -350,7 +369,7 @@ export function PositionApplicationFormEditor({
                 </div>
               </nav>
 
-              <section style={canvasZone} aria-label="Application form canvas">
+              <section className="erf-builder-canvas" style={canvasZone} aria-label="Application form canvas">
                 <div style={canvasInner}>
                   <ApplicationFormPreview
                     fields={questions}
@@ -370,7 +389,7 @@ export function PositionApplicationFormEditor({
                 </div>
               </section>
 
-              <aside style={inspectorPanel} aria-label="Properties">
+              <aside className="erf-builder-inspector" style={inspectorPanel} aria-label="Properties">
                 {selection != null && draft ? (
                   <FieldInspector
                     draft={draft}
@@ -432,15 +451,15 @@ function PositionFormPropertiesPanel({
   requiredCount: number
 }) {
   return (
-    <div style={inspectorShell}>
-      <div style={inspectorHead}>
+    <div className="erf-inspector-shell" style={inspectorShell}>
+      <div className="erf-inspector-head" style={inspectorHead}>
         <div style={{ minWidth: 0 }}>
           <h2 style={inspectorHeadTitle}>Application form</h2>
           <p style={inspectorHeadSub}>Form for students applying to {roleName}</p>
         </div>
       </div>
-      <div style={inspectorBody}>
-        <div style={formSummaryCard}>
+      <div className="erf-inspector-body" style={inspectorBody}>
+        <div className="erf-form-summary-card" style={formSummaryCard}>
           <p style={formSummaryStat}>
             <span style={headerMetaChipInline}>
               <Briefcase size={12} aria-hidden />
@@ -491,7 +510,7 @@ function FieldInspector({
   const usesOptions = fieldUsesOptions(draft.questionType)
 
   return (
-    <div style={inspectorShell}>
+    <div className="erf-inspector-shell" style={inspectorShell}>
       <InspectorHeader
         title={isNew ? 'New question' : 'Question properties'}
         subtitle={
@@ -499,11 +518,12 @@ function FieldInspector({
         }
         onClose={onClose}
       />
-      <div style={inspectorBody}>
+      <div className="erf-inspector-body" style={inspectorBody}>
         <p style={sectionTag}>Question</p>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Label
           <input
+            className="erf-inspector-input"
             style={input}
             value={draft.questionTitle}
             onChange={(e) => onChange({ questionTitle: e.target.value })}
@@ -511,9 +531,10 @@ function FieldInspector({
             disabled={saving}
           />
         </label>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Type
           <select
+            className="erf-inspector-input erf-inspector-select"
             style={input}
             value={draft.questionType}
             onChange={(e) =>
@@ -531,7 +552,7 @@ function FieldInspector({
             ))}
           </select>
         </label>
-        <label style={checkLabel}>
+        <label className="erf-inspector-check" style={checkLabel}>
           <input
             type="checkbox"
             checked={draft.isRequired}
@@ -542,9 +563,10 @@ function FieldInspector({
         </label>
 
         <p style={{ ...sectionTag, marginTop: sp.lg }}>Display</p>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Help text
           <textarea
+            className="erf-inspector-input"
             style={{ ...input, minHeight: 64, resize: 'vertical' as const }}
             value={draft.helpText}
             onChange={(e) => onChange({ helpText: e.target.value })}
@@ -552,9 +574,10 @@ function FieldInspector({
             disabled={saving}
           />
         </label>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Placeholder
           <input
+            className="erf-inspector-input"
             style={input}
             value={draft.placeholder}
             onChange={(e) => onChange({ placeholder: e.target.value })}
@@ -569,6 +592,7 @@ function FieldInspector({
               <div key={i} style={optionRow}>
                 <span style={optNum}>{i + 1}</span>
                 <input
+                  className="erf-inspector-input"
                   style={{ ...input, flex: 1, marginTop: 0 }}
                   value={opt}
                   onChange={(e) => {
@@ -581,6 +605,7 @@ function FieldInspector({
                 {draft.options.length > 2 ? (
                   <button
                     type="button"
+                    className="erf-opt-remove"
                     style={optRemove}
                     onClick={() => onChange({ options: draft.options.filter((_, j) => j !== i) })}
                     disabled={saving}
@@ -592,6 +617,7 @@ function FieldInspector({
             ))}
             <button
               type="button"
+              className="erf-add-opt"
               style={addOptBtn}
               onClick={() => onChange({ options: [...draft.options, ''] })}
               disabled={saving}
@@ -605,10 +631,22 @@ function FieldInspector({
           <>
             <p style={{ ...sectionTag, marginTop: sp.lg }}>Order</p>
             <div style={reorderRow}>
-              <button type="button" style={reorderBtn} onClick={onMoveUp} disabled={saving || !canMoveUp}>
+              <button
+                type="button"
+                className="erf-reorder-btn"
+                style={reorderBtn}
+                onClick={onMoveUp}
+                disabled={saving || !canMoveUp}
+              >
                 <ArrowUp size={15} /> Up
               </button>
-              <button type="button" style={reorderBtn} onClick={onMoveDown} disabled={saving || !canMoveDown}>
+              <button
+                type="button"
+                className="erf-reorder-btn"
+                style={reorderBtn}
+                onClick={onMoveDown}
+                disabled={saving || !canMoveDown}
+              >
                 <ArrowDown size={15} /> Down
               </button>
             </div>
@@ -636,12 +674,18 @@ function InspectorHeader({
   onClose: () => void
 }) {
   return (
-    <div style={inspectorHead}>
+    <div className="erf-inspector-head" style={inspectorHead}>
       <div style={{ minWidth: 0 }}>
         <h2 style={inspectorHeadTitle}>{title}</h2>
         <p style={inspectorHeadSub}>{subtitle}</p>
       </div>
-      <button type="button" onClick={onClose} style={closeBtn} aria-label="Close panel">
+      <button
+        type="button"
+        onClick={onClose}
+        className="erf-inspector-close"
+        style={closeBtn}
+        aria-label="Close panel"
+      >
         <X size={18} />
       </button>
     </div>
@@ -662,15 +706,33 @@ function InspectorFooter({
   saving?: boolean
 }) {
   return (
-    <div style={inspectorFoot}>
-      <button type="button" onClick={onPrimary} disabled={saving} style={inspectorPrimaryBtn}>
+    <div className="erf-inspector-foot" style={inspectorFoot}>
+      <button
+        type="button"
+        onClick={onPrimary}
+        disabled={saving}
+        className="erf-inspector-primary"
+        style={inspectorPrimaryBtn}
+      >
         {primaryLabel}
       </button>
-      <button type="button" onClick={onCancel} disabled={saving} style={inspectorGhostBtn}>
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={saving}
+        className="erf-inspector-ghost"
+        style={inspectorGhostBtn}
+      >
         Cancel
       </button>
       {onDelete ? (
-        <button type="button" onClick={onDelete} disabled={saving} style={inspectorDeleteBtn}>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={saving}
+          className="erf-inspector-delete"
+          style={inspectorDeleteBtn}
+        >
           <Trash2 size={15} />
           Delete
         </button>

@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { Sparkles, UserRound } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -31,45 +30,42 @@ export function CompanyTeamMemberDiscoveryCard({ member, requestId, teamId }: Pr
     (member.highlights.length > 0 ? member.highlights[0] : "");
 
   return (
-    <Card className="cw-card-elevated h-full border border-border/50">
-      <CardContent className="p-5 flex flex-col h-full">
+    <article className="cw-lux-panel cw-member-discovery-card h-full flex flex-col">
+      <div className="p-5 flex flex-col h-full">
         <div className="flex items-start gap-3">
-          <Avatar className="h-12 w-12 shrink-0">
-            <AvatarFallback className="cw-candidate-avatar-fallback text-sm font-medium">
+          <Avatar className="h-12 w-12 shrink-0 ring-2 ring-background">
+            <AvatarFallback className="cw-avatar-solid text-sm font-semibold">
               {initials(member.studentName)}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <Badge
-              variant="outline"
-              className="rounded-md text-[10px] font-normal border-primary/25 text-primary mb-1.5"
-            >
+            <Badge variant="secondary" className="rounded-md text-[10px] font-medium mb-1.5">
               {member.roleName}
             </Badge>
             <h3 className="font-semibold text-base leading-tight truncate">{member.studentName}</h3>
-            {subtitle && (
+            {subtitle ? (
               <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
-            )}
+            ) : null}
           </div>
           <CompatibilityRing value={member.roleScore} size={48} />
         </div>
 
-        {explanation && (
+        {explanation ? (
           <div className="mt-4 cw-insight-panel flex-1">
-            <p className="text-[11px] font-medium text-primary flex items-center gap-1">
+            <p className="text-[11px] font-semibold text-[hsl(var(--cw-accent))] flex items-center gap-1.5">
               <Sparkles className="h-3 w-3 shrink-0" aria-hidden />
               Role fit
             </p>
-            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed line-clamp-4">
+            <p className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-4">
               {explanation}
             </p>
           </div>
-        )}
+        ) : null}
 
         <Button
           asChild
           size="sm"
-          className="mt-4 rounded-xl cw-btn-gradient border-0 shadow-sm w-full"
+          className="mt-4 rounded-lg cw-btn-gradient border-0 w-full h-9"
         >
           <Link
             to={COMPANY_ROUTES.studentDiscoveryProfile(
@@ -82,7 +78,7 @@ export function CompanyTeamMemberDiscoveryCard({ member, requestId, teamId }: Pr
             View full profile
           </Link>
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   );
 }

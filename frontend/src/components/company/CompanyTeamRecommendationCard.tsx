@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { Bookmark, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CompatibilityRing } from "@/components/company/CompatibilityRing";
 import type { CompanyRequestTeamRecommendation } from "@/api/companyApi";
@@ -70,8 +69,8 @@ export function CompanyTeamRecommendationCard({
         : "Balanced role coverage";
 
   return (
-    <Card className="cw-card-elevated cw-candidate-card h-full">
-      <CardContent className="p-5 flex flex-col h-full">
+    <article className="cw-card-elevated cw-candidate-card h-full flex flex-col overflow-hidden">
+      <div className="p-5 flex flex-col h-full">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="font-semibold text-base tracking-tight">Team #{team.teamRank}</h3>
@@ -153,7 +152,7 @@ export function CompanyTeamRecommendationCard({
             </Button>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   );
 }

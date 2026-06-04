@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, MapPin, Pencil, Users, Wifi } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -86,7 +86,7 @@ export default function OrganizationEventDetailsPage() {
               border: `1px solid ${assocDash.border}`,
               background: cover
                 ? `center/cover no-repeat url(${cover})`
-                : `linear-gradient(135deg, ${assocDash.accentMuted} 0%, #fff 70%)`,
+                : assocDash.gradientCard,
               minHeight: 200,
               position: 'relative',
             }}
@@ -95,10 +95,10 @@ export default function OrganizationEventDetailsPage() {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: cover ? 'linear-gradient(to top, rgba(15,23,42,0.75) 0%, transparent 55%)' : 'none',
+                background: cover ? 'linear-gradient(to top, hsl(var(--aw-overlay) / 0.75) 0%, transparent 55%)' : 'none',
               }}
             />
-            <div style={{ position: 'relative', padding: '48px 28px 28px', color: cover ? '#fff' : assocDash.text }}>
+            <div style={{ position: 'relative', padding: '48px 28px 28px', color: cover ? assocDash.white : assocDash.text }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                 <Badge light={!!cover}>{event.eventType}</Badge>
                 {event.category && <Badge light={!!cover} muted>{event.category}</Badge>}
@@ -135,7 +135,7 @@ export default function OrganizationEventDetailsPage() {
                 padding: '10px 18px',
                 borderRadius: assocDash.radiusMd,
                 background: assocDash.gradient,
-                color: '#fff',
+                color: assocDash.white,
                 fontSize: 14,
                 fontWeight: 600,
                 textDecoration: 'none',
@@ -264,8 +264,8 @@ function Badge({
         fontWeight: 600,
         padding: '4px 10px',
         borderRadius: 6,
-        background: light ? 'rgba(255,255,255,0.2)' : muted ? '#f1f5f9' : assocDash.accentMuted,
-        color: light ? '#fff' : muted ? assocDash.muted : assocDash.accentDark,
+        background: light ? 'hsl(0 0% 100% / 0.2)' : muted ? assocDash.bg : assocDash.accentMuted,
+        color: light ? assocDash.white : muted ? assocDash.muted : assocDash.accentDark,
         border: light ? '1px solid rgba(255,255,255,0.35)' : `1px solid ${muted ? assocDash.border : assocDash.accentBorder}`,
       }}
     >

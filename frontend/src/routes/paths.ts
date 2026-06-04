@@ -125,6 +125,7 @@ export const COMPANY_ROUTES = {
   members: "/company/members",
   saved: "/company/saved",
   settings: "/company/settings",
+  themeShowcase: "/company/themes",
 } as const;
 
 /** Student association workspace (post-login, association role). */

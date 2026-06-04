@@ -1,4 +1,4 @@
-﻿import { Mail, Pencil, X } from 'lucide-react'
+import { Mail, Pencil, X } from 'lucide-react'
 import { AssociationAvatar, CategoryBadge, VerifiedBadge } from './associationBrand'
 import { assocCard, assocDash } from '@/pages/association/dashboard/associationDashTokens'
 import type { StudentAssociationProfile } from '@/api/associationApi'

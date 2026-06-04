@@ -47,6 +47,7 @@ import {
 } from '@/utils/eventRegistrationFormFields'
 import { ApplicationFormPreview } from './ApplicationFormPreview'
 import { assocDash } from '@/pages/association/dashboard/associationDashTokens'
+import '@/styles/association-registration-form-builder.css'
 
 type Props = {
   eventId: number
@@ -288,13 +289,14 @@ export function EventRegistrationFormEditor({
   }
 
   return (
-    <div style={builderRoot}>
+    <div className="event-reg-form-builder" style={builderRoot}>
       {previewMode ? (
         <>
-          <header style={previewTopBar}>
+          <header className="erf-builder-preview-bar" style={previewTopBar}>
             <button
               type="button"
               onClick={() => setPreviewMode(false)}
+              className="erf-toolbar-ghost"
               style={previewExitBtn}
             >
               <ArrowLeft size={16} />
@@ -305,7 +307,7 @@ export function EventRegistrationFormEditor({
               <p style={previewTopBarEvent}>{eventName}</p>
             </div>
           </header>
-          <div style={previewModeScroll}>
+          <div className="erf-builder-preview-scroll" style={previewModeScroll}>
             {loading ? (
               <div style={previewModeLoading}>
                 <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading form…</p>
@@ -325,7 +327,7 @@ export function EventRegistrationFormEditor({
         </>
       ) : (
         <>
-          <header style={topBar}>
+          <header className="erf-builder-topbar" style={topBar}>
             <div style={topBarLeft}>
               <Link to={backTo} style={backLink}>
                 <ArrowLeft size={16} />
@@ -345,20 +347,39 @@ export function EventRegistrationFormEditor({
               <button
                 type="button"
                 onClick={() => setPreviewMode(true)}
+                className="erf-toolbar-ghost"
                 style={toolbarGhostBtn}
               >
                 <Eye size={16} />
                 Preview form
               </button>
-              <button type="button" onClick={() => void saveMeta()} disabled={saving} style={toolbarGhostBtn}>
+              <button
+                type="button"
+                onClick={() => void saveMeta()}
+                disabled={saving}
+                className="erf-toolbar-ghost"
+                style={toolbarGhostBtn}
+              >
                 <Save size={16} />
                 Save draft
               </button>
-              <button type="button" onClick={openAddField} style={addFieldTopBtn} disabled={saving}>
+              <button
+                type="button"
+                onClick={openAddField}
+                className="erf-toolbar-add"
+                style={addFieldTopBtn}
+                disabled={saving}
+              >
                 <Plus size={18} strokeWidth={2.5} />
                 Add field
               </button>
-              <button type="button" onClick={() => void publishForm()} disabled={saving} style={publishBtn}>
+              <button
+                type="button"
+                onClick={() => void publishForm()}
+                disabled={saving}
+                className="erf-toolbar-publish"
+                style={publishBtn}
+              >
                 <Send size={16} />
                 Publish form
               </button>
@@ -370,15 +391,15 @@ export function EventRegistrationFormEditor({
               <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading form…</p>
             </div>
           ) : (
-            <div style={workspace}>
-          <nav style={fieldRail} aria-label="Form fields">
-            <div style={railHeader}>
+            <div className="erf-builder-workspace" style={workspace}>
+          <nav className="erf-builder-rail" style={fieldRail} aria-label="Form fields">
+            <div className="erf-rail-header" style={railHeader}>
               <span style={railTitle}>Questions</span>
-              <span style={railCount}>{fields.length}</span>
+              <span className="erf-rail-count" style={railCount}>{fields.length}</span>
             </div>
-            <div style={railList}>
+            <div className="erf-rail-list" style={railList}>
               {sortedFields.length === 0 ? (
-                <div style={railEmpty}>
+                <div className="erf-rail-empty" style={railEmpty}>
                   <p style={{ margin: 0, fontSize: 12, color: assocDash.subtle, lineHeight: 1.5 }}>
                     Questions you add will appear here and on the student registration form.
                   </p>
@@ -391,6 +412,7 @@ export function EventRegistrationFormEditor({
                     <button
                       key={f.id}
                       type="button"
+                      className={`erf-rail-item${selected ? ' erf-rail-item--selected' : ''}`}
                       style={{
                         ...railItem,
                         ...(selected ? railItemSelected : {}),
@@ -402,9 +424,9 @@ export function EventRegistrationFormEditor({
                     >
                       <GripVertical size={14} color={assocDash.subtle} style={{ flexShrink: 0 }} />
                       <FieldTypeIcon type={f.fieldType} />
-                      <span style={railItemBody}>
-                        <span style={railItemLabel}>{f.label}</span>
-                        <span style={railItemMeta}>
+                      <span className="erf-rail-item-body" style={railItemBody}>
+                        <span className="erf-rail-item-label" style={railItemLabel}>{f.label}</span>
+                        <span className="erf-rail-item-meta" style={railItemMeta}>
                           {eventFieldTypeLabel(f.fieldType)}
                           {f.isRequired ? ' · Required' : ''}
                         </span>
@@ -417,7 +439,7 @@ export function EventRegistrationFormEditor({
             </div>
           </nav>
 
-          <section style={canvasZone} aria-label="Registration form canvas">
+          <section className="erf-builder-canvas" style={canvasZone} aria-label="Registration form canvas">
             <div style={canvasInner}>
               <ApplicationFormPreview
                 fields={previewFields}
@@ -437,7 +459,7 @@ export function EventRegistrationFormEditor({
             </div>
           </section>
 
-          <aside style={inspectorPanel} aria-label="Properties">
+          <aside className="erf-builder-inspector" style={inspectorPanel} aria-label="Properties">
             {selection != null && draft ? (
               <FieldInspector
                 draft={draft}
@@ -508,8 +530,8 @@ function FormStatusBadge({ status }: { status: 'draft' | 'published' }) {
         letterSpacing: '0.03em',
         flexShrink: 0,
         ...(isPublished
-          ? { background: '#ecfdf5', color: '#166534', border: '1px solid #bbf7d0' }
-          : { background: '#f8fafc', color: assocDash.muted, border: `1px solid ${assocDash.border}` }),
+          ? { background: assocDash.successMuted, color: assocDash.success, border: `1px solid ${assocDash.successBorder}` }
+          : { background: assocDash.bg, color: assocDash.muted, border: `1px solid ${assocDash.border}` }),
       }}
     >
       {isPublished ? 'Published' : 'Draft'}
@@ -541,15 +563,15 @@ function FormPropertiesPanel({
   saving?: boolean
 }) {
   return (
-    <div style={inspectorShell}>
-      <div style={inspectorHead}>
+    <div className="erf-inspector-shell" style={inspectorShell}>
+      <div className="erf-inspector-head" style={inspectorHead}>
         <div style={{ minWidth: 0 }}>
           <h2 style={inspectorHeadTitle}>Registration form</h2>
           <p style={inspectorHeadSub}>Settings shown to students before they answer questions</p>
         </div>
       </div>
-      <div style={inspectorBody}>
-        <div style={formSummaryCard}>
+      <div className="erf-inspector-body" style={inspectorBody}>
+        <div className="erf-form-summary-card" style={formSummaryCard}>
           <p style={formSummaryStat}>
             <strong>{fieldCount}</strong> question{fieldCount === 1 ? '' : 's'}
             <span style={formSummaryDot}> · </span>
@@ -564,9 +586,10 @@ function FormPropertiesPanel({
           </p>
         </div>
         <p style={sectionTag}>Form intro</p>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Title
           <input
+            className="erf-inspector-input"
             style={input}
             value={metaTitle}
             onChange={(e) => onTitleChange(e.target.value)}
@@ -574,9 +597,10 @@ function FormPropertiesPanel({
             disabled={saving}
           />
         </label>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Description
           <textarea
+            className="erf-inspector-input"
             style={{ ...input, minHeight: 88, resize: 'vertical' as const }}
             value={metaDescription}
             onChange={(e) => onDescriptionChange(e.target.value)}
@@ -588,8 +612,14 @@ function FormPropertiesPanel({
           Select a question on the canvas to edit its label, placeholder, help text, and validation.
         </p>
       </div>
-      <div style={inspectorFoot}>
-        <button type="button" onClick={onSave} disabled={saving} style={inspectorPrimaryBtn}>
+      <div className="erf-inspector-foot" style={inspectorFoot}>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="erf-inspector-primary"
+          style={inspectorPrimaryBtn}
+        >
           {saving ? 'Saving…' : 'Save form settings'}
         </button>
       </div>
@@ -625,17 +655,18 @@ function FieldInspector({
   const usesOptions = eventFieldUsesOptions(draft.fieldType)
 
   return (
-    <div style={inspectorShell}>
+    <div className="erf-inspector-shell" style={inspectorShell}>
       <InspectorHeader
         title={isNew ? 'New question' : 'Question properties'}
         subtitle={isNew ? 'Add to the student registration form' : draft.label.trim() || 'Untitled question'}
         onClose={onClose}
       />
-      <div style={inspectorBody}>
+      <div className="erf-inspector-body" style={inspectorBody}>
         <p style={sectionTag}>Question</p>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Label
           <input
+            className="erf-inspector-input"
             style={input}
             value={draft.label}
             onChange={(e) => onChange({ label: e.target.value })}
@@ -643,9 +674,10 @@ function FieldInspector({
             disabled={saving}
           />
         </label>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Type
           <select
+            className="erf-inspector-input erf-inspector-select"
             style={input}
             value={draft.fieldType}
             onChange={(e) =>
@@ -663,7 +695,7 @@ function FieldInspector({
             ))}
           </select>
         </label>
-        <label style={checkLabel}>
+        <label className="erf-inspector-check" style={checkLabel}>
           <input
             type="checkbox"
             checked={draft.isRequired}
@@ -674,9 +706,10 @@ function FieldInspector({
         </label>
 
         <p style={{ ...sectionTag, marginTop: sp.lg }}>Display</p>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Help text
           <textarea
+            className="erf-inspector-input"
             style={{ ...input, minHeight: 64, resize: 'vertical' as const }}
             value={draft.helpText}
             onChange={(e) => onChange({ helpText: e.target.value })}
@@ -684,9 +717,10 @@ function FieldInspector({
             disabled={saving}
           />
         </label>
-        <label style={label}>
+        <label className="erf-inspector-label" style={label}>
           Placeholder
           <input
+            className="erf-inspector-input"
             style={input}
             value={draft.placeholder}
             onChange={(e) => onChange({ placeholder: e.target.value })}
@@ -701,6 +735,7 @@ function FieldInspector({
               <div key={i} style={optionRow}>
                 <span style={optNum}>{i + 1}</span>
                 <input
+                  className="erf-inspector-input"
                   style={{ ...input, flex: 1, marginTop: 0 }}
                   value={opt}
                   onChange={(e) => {
@@ -713,6 +748,7 @@ function FieldInspector({
                 {draft.options.length > 2 ? (
                   <button
                     type="button"
+                    className="erf-opt-remove"
                     style={optRemove}
                     onClick={() => onChange({ options: draft.options.filter((_, j) => j !== i) })}
                     disabled={saving}
@@ -724,6 +760,7 @@ function FieldInspector({
             ))}
             <button
               type="button"
+              className="erf-add-opt"
               style={addOptBtn}
               onClick={() => onChange({ options: [...draft.options, ''] })}
               disabled={saving}
@@ -737,10 +774,22 @@ function FieldInspector({
           <>
             <p style={{ ...sectionTag, marginTop: sp.lg }}>Order</p>
             <div style={reorderRow}>
-              <button type="button" style={reorderBtn} onClick={onMoveUp} disabled={saving || !canMoveUp}>
+              <button
+                type="button"
+                className="erf-reorder-btn"
+                style={reorderBtn}
+                onClick={onMoveUp}
+                disabled={saving || !canMoveUp}
+              >
                 <ArrowUp size={15} /> Up
               </button>
-              <button type="button" style={reorderBtn} onClick={onMoveDown} disabled={saving || !canMoveDown}>
+              <button
+                type="button"
+                className="erf-reorder-btn"
+                style={reorderBtn}
+                onClick={onMoveDown}
+                disabled={saving || !canMoveDown}
+              >
                 <ArrowDown size={15} /> Down
               </button>
             </div>
@@ -768,12 +817,18 @@ function InspectorHeader({
   onClose: () => void
 }) {
   return (
-    <div style={inspectorHead}>
+    <div className="erf-inspector-head" style={inspectorHead}>
       <div style={{ minWidth: 0 }}>
         <h2 style={inspectorHeadTitle}>{title}</h2>
         <p style={inspectorHeadSub}>{subtitle}</p>
       </div>
-      <button type="button" onClick={onClose} style={closeBtn} aria-label="Close panel">
+      <button
+        type="button"
+        onClick={onClose}
+        className="erf-inspector-close"
+        style={closeBtn}
+        aria-label="Close panel"
+      >
         <X size={18} />
       </button>
     </div>
@@ -794,15 +849,33 @@ function InspectorFooter({
   saving?: boolean
 }) {
   return (
-    <div style={inspectorFoot}>
-      <button type="button" onClick={onPrimary} disabled={saving} style={inspectorPrimaryBtn}>
+    <div className="erf-inspector-foot" style={inspectorFoot}>
+      <button
+        type="button"
+        onClick={onPrimary}
+        disabled={saving}
+        className="erf-inspector-primary"
+        style={inspectorPrimaryBtn}
+      >
         {primaryLabel}
       </button>
-      <button type="button" onClick={onCancel} disabled={saving} style={inspectorGhostBtn}>
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={saving}
+        className="erf-inspector-ghost"
+        style={inspectorGhostBtn}
+      >
         Cancel
       </button>
       {onDelete ? (
-        <button type="button" onClick={onDelete} disabled={saving} style={inspectorDeleteBtn}>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={saving}
+          className="erf-inspector-delete"
+          style={inspectorDeleteBtn}
+        >
           <Trash2 size={15} />
           Delete
         </button>

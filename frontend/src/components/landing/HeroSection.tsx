@@ -8,14 +8,15 @@ import {
   Database,
   GraduationCap,
   Palette,
-  Play,
   Sparkles,
   Users,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ROUTES } from "@/routes/paths";
 
 export function HeroSection() {
   return (
-    <section id="home" className="relative pt-32 lg:pt-40 pb-20 overflow-hidden">
+    <section id="home" className="relative pt-32 lg:pt-40 pb-12 lg:pb-16 overflow-hidden scroll-mt-0">
       <div className="absolute inset-0 grid-pattern opacity-40 pointer-events-none" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-radial opacity-60 pointer-events-none" />
 
@@ -51,37 +52,13 @@ export function HeroSection() {
               using skills, interests, project requirements, and AI-powered recommendations.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                className="group inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-primary text-white font-semibold rounded-xl shadow-[0_8px_30px_hsl(var(--primary)/0.4)] hover:shadow-[0_12px_40px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5"
-              >
-                Get Started
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </button>
-              <button
-                type="button"
-                className="group inline-flex items-center gap-2 px-6 py-3.5 glass rounded-xl font-semibold hover:bg-white/10 transition-all"
-              >
-                <Play className="w-4 h-4 fill-current" />
-                Watch Demo
-              </button>
-            </div>
-
-            <div className="mt-10 flex items-center gap-6 text-xs text-muted-foreground">
-              <div className="flex -space-x-2">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="w-8 h-8 rounded-full border-2 border-background bg-gradient-to-br from-primary to-accent"
-                  />
-                ))}
-              </div>
-              <span>
-                Trusted by <span className="text-foreground font-semibold">1,200+</span> students
-                &amp; supervisors
-              </span>
-            </div>
+            <Link
+              to={ROUTES.register}
+              className="mt-7 inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-primary text-white font-semibold rounded-xl shadow-[0_8px_30px_hsl(var(--primary)/0.4)] hover:shadow-[0_12px_40px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 group"
+            >
+              Get Started
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </Link>
           </motion.div>
 
           <HeroVisual />

@@ -1,5 +1,4 @@
 import { Sparkles } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildAiMatchDisplay } from "@/lib/companyRecommendationDisplay";
 
 type Props = {
@@ -27,50 +26,44 @@ export function CompanyAiMatchExplanationCard({
   }
 
   return (
-    <Card className="cw-card-elevated cw-match-explanation-card">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg cw-btn-gradient grid place-items-center shrink-0">
-            <Sparkles className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
-          AI match explanation
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5 text-sm">
-        {summary && (
+    <section className="cw-lux-section cw-match-explanation-lux">
+      <div className="cw-lux-section-head">
+        <span className="cw-ai-cta-icon h-9 w-9 rounded-lg shrink-0">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <h2 className="cw-lux-section-title">AI match explanation</h2>
+      </div>
+      <div className="cw-lux-section-body space-y-5 text-sm">
+        {summary ? (
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
-              AI match summary
-            </p>
+            <p className="cw-section-label mb-2">AI match summary</p>
             <p className="text-muted-foreground leading-relaxed">{summary}</p>
           </div>
-        )}
+        ) : null}
 
-        {keyReasons.length > 0 && (
+        {keyReasons.length > 0 ? (
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
-              Key match reasons
-            </p>
-            <ul className="space-y-2">
+            <p className="cw-section-label mb-2">Key match reasons</p>
+            <ul className="space-y-2.5">
               {keyReasons.map((line) => (
-                <li key={line} className="flex gap-2 text-muted-foreground leading-snug">
-                  <span className="text-primary shrink-0 mt-0.5">•</span>
+                <li key={line} className="flex gap-2.5 text-muted-foreground leading-snug">
+                  <span className="text-[hsl(var(--cw-accent))] shrink-0 font-bold">·</span>
                   <span>{line}</span>
                 </li>
               ))}
             </ul>
           </div>
-        )}
+        ) : null}
 
-        {suggestedRole && (
-          <div className="pt-1 border-t border-border/60">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">
-              Suggested role for your request
+        {suggestedRole ? (
+          <div className="pt-4 border-t border-border/50">
+            <p className="cw-section-label mb-1.5">Suggested role for your request</p>
+            <p className="font-semibold text-[hsl(var(--cw-accent))] text-lg leading-tight">
+              {suggestedRole}
             </p>
-            <p className="font-semibold cw-gradient-text text-lg leading-tight">{suggestedRole}</p>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        ) : null}
+      </div>
+    </section>
   );
 }

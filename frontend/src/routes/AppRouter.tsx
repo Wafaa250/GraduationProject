@@ -53,6 +53,7 @@ import { CompanyProfilePage } from "@/pages/company/CompanyProfilePage";
 import { CompanyMembersPage } from "@/pages/company/CompanyMembersPage";
 import { CompanySavedRecommendationsPage } from "@/pages/company/CompanySavedRecommendationsPage";
 import { CompanySettingsPage } from "@/pages/company/CompanySettingsPage";
+import { CompanyThemeShowcasePage } from "@/pages/company/CompanyThemeShowcasePage";
 import { ASSOCIATION_ROUTES, COMPANY_ROUTES, ROUTES } from "@/routes/paths";
 import { AssociationRoute } from "@/routes/associationRoutes";
 import AssociationDashboardPage from "@/pages/association/AssociationDashboardPage";
@@ -205,6 +206,7 @@ export function AppRouter() {
           <Route path="members" element={<CompanyMembersPage />} />
           <Route path="saved" element={<CompanySavedRecommendationsPage />} />
           <Route path="settings" element={<CompanySettingsPage />} />
+          <Route path="themes" element={<CompanyThemeShowcasePage />} />
         </Route>
 
         <Route element={<PublicLayout />}>

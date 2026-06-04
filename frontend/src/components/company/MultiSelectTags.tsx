@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { normalizeCustomEntry } from "@/constants/companyRequestCatalog";
@@ -13,6 +12,7 @@ type Props = {
   options: readonly string[];
   placeholder?: string;
   className?: string;
+  hideLabel?: boolean;
 };
 
 export function MultiSelectTags({
@@ -22,6 +22,7 @@ export function MultiSelectTags({
   options,
   placeholder = "Search skills…",
   className,
+  hideLabel = false,
 }: Props) {
   const [query, setQuery] = useState("");
 
@@ -58,7 +59,7 @@ export function MultiSelectTags({
 
   return (
     <div className={cn("space-y-2.5", className)}>
-      <Label className="text-sm font-medium">{label}</Label>
+      {hideLabel ? null : <label className="cw-wizard-field-label">{label}</label>}
 
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -85,7 +86,7 @@ export function MultiSelectTags({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="rounded-xl"
+        className="cw-wizard-input"
         onKeyDown={(e) => {
           if (e.key === "Enter" && canAddCustom) {
             e.preventDefault();

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, FileText, Sparkles } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyLuxHero, CompanyLuxStat } from "@/components/company/CompanyPremiumUI";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanyEmptyState } from "@/components/company/CompanyEmptyState";
+import { CompanySkeleton } from "@/components/company/CompanySkeleton";
 import { cwLayout } from "@/lib/companyLayout";
 import {
   listCompanyProjectRequests,
@@ -49,26 +50,26 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
   const isViewOnly = isRequestViewOnly(lifecycleStatus);
 
   return (
-    <Card className="cw-card-elevated cw-request-list-card">
-      <CardContent className={cwLayout.cardPaddingLg}>
+    <article className="cw-lux-panel cw-request-list-card">
+      <div className="cw-lux-panel-body !pt-6">
         <div className="flex flex-col lg:flex-row lg:items-start gap-5">
           <div className="flex-1 min-w-0 space-y-4">
             <div className="flex flex-wrap items-start gap-2">
-              <h3 className="font-semibold text-lg tracking-tight leading-snug">
+              <h3 className="font-semibold text-base tracking-tight leading-snug">
                 <Link
                   to={requestDetailPath(request.id)}
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-[hsl(var(--cw-accent))] transition-colors"
                 >
                   {request.title}
                 </Link>
               </h3>
-              <Badge variant="outline" className="shrink-0 rounded-md text-xs font-normal">
+              <Badge variant="outline" className="shrink-0 rounded-md text-[10px] font-medium h-5">
                 {requestTypeLabel(request.requestType)}
               </Badge>
               <Badge
                 variant="outline"
                 className={cn(
-                  "shrink-0 rounded-md text-xs font-normal capitalize",
+                  "shrink-0 rounded-md text-[10px] font-medium h-5 capitalize",
                   requestLifecycleStatusBadgeClass(lifecycleStatus),
                 )}
               >
@@ -78,12 +79,10 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
 
             {roles.length > 0 && (
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-1.5">
-                  Roles
-                </p>
+                <p className="cw-section-label mb-2">Roles</p>
                 <div className="flex flex-wrap gap-1.5">
                   {roles.map((role) => (
-                    <Badge key={role} className="cw-request-skill-badge rounded-md text-xs font-normal">
+                    <Badge key={role} variant="secondary" className="rounded-md text-xs font-normal">
                       {role}
                     </Badge>
                   ))}
@@ -93,15 +92,18 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
 
             {skills.length > 0 && (
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-1.5">
-                  Skills
-                </p>
+                <p className="cw-section-label mb-2">Skills</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {skills.map((skill) => (
-                    <Badge key={skill} className="cw-request-skill-badge rounded-md text-xs">
+                  {skills.slice(0, 8).map((skill) => (
+                    <Badge key={skill} variant="outline" className="rounded-md text-xs font-normal">
                       {skill}
                     </Badge>
                   ))}
+                  {skills.length > 8 ? (
+                    <Badge variant="outline" className="rounded-md text-xs font-normal">
+                      +{skills.length - 8}
+                    </Badge>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -115,28 +117,35 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
             </p>
           </div>
 
-          <div className="shrink-0 flex flex-col gap-2 lg:pt-0.5">
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-xl w-full lg:w-auto"
-              asChild
-            >
+          <div className="shrink-0 flex flex-row lg:flex-col gap-2 lg:min-w-[10.5rem]">
+            <Button size="sm" variant="outline" className="rounded-lg h-9 flex-1 lg:flex-none" asChild>
               <Link to={requestDetailPath(request.id)}>View details</Link>
             </Button>
             <Button
               size="sm"
-              className="rounded-xl w-full lg:w-auto cw-btn-gradient border-0 shadow-sm"
+              className="rounded-lg h-9 flex-1 lg:flex-none cw-btn-gradient border-0"
               asChild
             >
               <Link to={COMPANY_ROUTES.requestRecommendations(request.id)}>
-                {isViewOnly ? "View recommendations" : "AI recommendations"}
+                <Sparkles className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                {isViewOnly ? "View matches" : "AI recommendations"}
               </Link>
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
+  );
+}
+
+function RequestsSkeleton() {
+  return (
+    <div className="space-y-4">
+      <CompanySkeleton className="h-10 w-48 rounded-lg" />
+      {Array.from({ length: 3 }).map((_, i) => (
+        <CompanySkeleton key={i} className="h-44 rounded-xl" />
+      ))}
+    </div>
   );
 }
 
@@ -144,6 +153,17 @@ export function CompanyRequestsPage() {
   const [requests, setRequests] = useState<CompanyProjectRequestSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const statusCounts = useMemo(() => {
+    const counts = { active: 0, paused: 0, closed: 0 };
+    for (const r of requests) {
+      const status = getRequestLifecycleStatus(r);
+      if (status === "active") counts.active += 1;
+      else if (status === "paused") counts.paused += 1;
+      else if (status === "closed") counts.closed += 1;
+    }
+    return counts;
+  }, [requests]);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,78 +188,62 @@ export function CompanyRequestsPage() {
   }, []);
 
   return (
-    <CompanyPageShell>
-      <CompanyPageHeader
+    <CompanyPageShell className="space-y-6">
+      <CompanyLuxHero
+        eyebrow="Hiring pipeline"
         title="Project Requests"
-        subtitle="Requests for AI matching — individual contributors or AI-built team compositions."
+        description="Your ATS-style workspace — define roles, track lifecycle, and launch AI recommendations per request."
         actions={
-          <Button asChild className="rounded-xl cw-btn-gradient shadow-sm">
+          <Button asChild className="rounded-lg h-10 cw-btn-gradient border-0 shadow-md">
             <Link to={COMPANY_ROUTES.newRequest}>
-              <Plus className="h-4 w-4 mr-1" /> Create Project Request
+              <Plus className="h-4 w-4 mr-2" /> New request
             </Link>
           </Button>
         }
       />
 
-      {loading && (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading requests…
-          </CardContent>
-        </Card>
-      )}
+      {loading && <RequestsSkeleton />}
 
       {!loading && error && (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center">
-            <p className="text-sm text-muted-foreground">{error}</p>
+        <div className="cw-card-elevated">
+          <div className="py-8 text-center">
+            <CompanyEmptyState icon={FileText} title="Could not load requests" message={error} />
             <Button
               variant="outline"
-              className="rounded-xl mt-4"
+              className="rounded-lg mt-4"
               onClick={() => window.location.reload()}
             >
               Retry
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {!loading && !error && requests.length === 0 && (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 md:py-20 px-6 text-center">
-            <div className="cw-request-success-icon mb-5">
-              <FileText className="h-8 w-8" aria-hidden />
-            </div>
-            <h2 className="text-lg font-semibold tracking-tight">No project requests yet</h2>
-            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
-              Create your first request and let SkillSwap AI recommend students that match your
-              requirements.
-            </p>
-            <Button asChild className="mt-8 rounded-xl cw-btn-gradient shadow-sm" size="lg">
-              <Link to={COMPANY_ROUTES.newRequest}>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Create Request
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="cw-card-elevated">
+          <CompanyEmptyState
+            icon={FileText}
+            title="No project requests yet"
+            message="Create your first request and let SkillSwap AI recommend students and teams that match your requirements."
+            action={{ label: "Create request", to: COMPANY_ROUTES.newRequest }}
+          />
+        </div>
       )}
 
       {!loading && !error && requests.length > 0 && (
-        <div className={cwLayout.section}>
-          <div className="cw-page-meta">
-            <p>
-              <span className="font-medium text-foreground">{requests.length}</span>{" "}
-              project request{requests.length === 1 ? "" : "s"}
-            </p>
-            <p className="text-xs flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-              Open AI recommendations from any active request
-            </p>
+        <div className={cn(cwLayout.section, "space-y-5")}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 cw-animate-stagger">
+            <CompanyLuxStat label="Total" value={requests.length} icon={FileText} delay={0} />
+            <CompanyLuxStat label="Active" value={statusCounts.active} icon={Sparkles} accent="ai" delay={60} />
+            <CompanyLuxStat label="Paused" value={statusCounts.paused} icon={FileText} delay={120} />
+            <CompanyLuxStat label="Closed" value={statusCounts.closed} icon={FileText} delay={180} />
           </div>
-          {requests.map((r) => (
-            <RequestCard key={r.id} request={r} />
-          ))}
+
+          <div className="space-y-4">
+            {requests.map((r) => (
+              <RequestCard key={r.id} request={r} />
+            ))}
+          </div>
         </div>
       )}
     </CompanyPageShell>

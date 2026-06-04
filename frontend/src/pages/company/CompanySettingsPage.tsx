@@ -5,7 +5,6 @@ import {
   EyeOff,
   Loader2,
   Shield,
-  ShieldCheck,
   Building2,
   Bell,
   ChevronRight,
@@ -21,12 +20,12 @@ import {
 import { useTheme } from "@/context/ThemeContext";
 import type { ThemePreference } from "@/lib/theme";
 import toast from "react-hot-toast";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { CompanyLuxHero } from "@/components/company/CompanyPremiumUI";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { cwLayout } from "@/lib/companyLayout";
 import { COMPANY_ROUTES } from "@/routes/paths";
@@ -210,13 +209,11 @@ function SectionCard({
     <section className="cw-card-elevated overflow-hidden transition-shadow hover:shadow-md">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-6 md:p-8 cw-section-card-header">
         <div className="flex items-start gap-4 min-w-0">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl cw-btn-gradient shrink-0">
-            <Icon className="h-5 w-5 text-white" />
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg cw-kpi-icon shrink-0">
+            <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary/80">
-              {eyebrow}
-            </p>
+            <p className="cw-page-eyebrow">{eyebrow}</p>
             <h2 className="mt-1 text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
               {title}
             </h2>
@@ -450,27 +447,11 @@ export function CompanySettingsPage() {
 
   return (
     <CompanyPageShell>
-      {/* Hero */}
-      <div className={cwLayout.hero}>
-        <div className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-        <div className="relative flex items-start gap-4 sm:gap-5">
-          <div className="hidden sm:flex cw-hero-icon-box h-12 w-12 rounded-2xl">
-            <ShieldCheck className="h-6 w-6" strokeWidth={1.75} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <Badge className="cw-badge-ai mb-3">
-              <Building2 className="h-3 w-3 mr-1.5" />
-              Company Workspace
-            </Badge>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight">
-              Settings
-            </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground max-w-xl">
-              Manage workspace security, notifications, and team access.
-            </p>
-          </div>
-        </div>
-      </div>
+      <CompanyLuxHero
+        eyebrow="Control center"
+        title="Settings"
+        description="Security, notifications, appearance, and workspace governance — enterprise-grade control without complexity."
+      />
 
       {/* Layout */}
       <div className={cwLayout.sidebarGrid}>
@@ -616,6 +597,20 @@ export function CompanySettingsPage() {
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
                 Stored on this device only. &quot;System&quot; follows your OS light/dark setting.
               </p>
+              <div className="mt-6 pt-6 border-t border-border/70">
+                <p className="text-sm font-medium">Company workspace palette</p>
+                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                  Five hiring themes — copper, forest, champagne, terracotta, sage — with live
+                  previews.
+                </p>
+                <Button asChild className="mt-4 rounded-xl cw-btn-gradient gap-2">
+                  <Link to={COMPANY_ROUTES.themeShowcase}>
+                    <Palette className="h-4 w-4" />
+                    Open theme gallery
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
             </SectionCard>
           )}
 

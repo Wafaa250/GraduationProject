@@ -6,6 +6,7 @@ import { COMPANY_ROUTES } from "@/routes/paths";
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, FileText, Sparkles, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCompanyTheme } from "@/hooks/useCompanyTheme";
 
 const mobileNav = [
   { to: COMPANY_ROUTES.dashboard, icon: LayoutDashboard, label: "Home" },
@@ -16,9 +17,13 @@ const mobileNav = [
 
 export function CompanyWorkspaceLayout() {
   useCompanyWorkspaceBootstrap();
+  const { theme } = useCompanyTheme();
 
   return (
-    <div className="company-workspace cw-shell flex w-full">
+    <div
+      className="company-workspace cw-shell flex w-full"
+      data-cw-theme={theme}
+    >
       <CompanySidebar />
       <div className="cw-shell-main flex flex-col">
         <CompanyTopbar />

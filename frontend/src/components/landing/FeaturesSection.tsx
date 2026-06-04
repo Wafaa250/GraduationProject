@@ -1,14 +1,5 @@
 import { motion } from "framer-motion";
-import {
-  Bell,
-  BookOpen,
-  Brain,
-  Building2,
-  GraduationCap,
-  MessageCircle,
-  Search,
-  UserPlus,
-} from "lucide-react";
+import { BookOpen, Brain, Building2, GraduationCap, Search, UserPlus } from "lucide-react";
 import { SectionHeading } from "@/components/landing/SectionHeading";
 
 const features = [
@@ -42,21 +33,11 @@ const features = [
     title: "Organization Talent Discovery",
     desc: "Find volunteers and members with relevant skills for any initiative.",
   },
-  {
-    icon: MessageCircle,
-    title: "Real-Time Communication",
-    desc: "Connect and collaborate instantly inside the platform.",
-  },
-  {
-    icon: Bell,
-    title: "Smart Notifications",
-    desc: "Stay updated on matches, requests, and opportunities as they happen.",
-  },
 ];
 
 export function FeaturesSection() {
   return (
-    <section id="features" className="py-20 lg:py-32 relative">
+    <section id="features" className="py-16 lg:py-24 relative scroll-mt-28">
       <div className="container">
         <SectionHeading
           eyebrow="Core Features"
@@ -69,7 +50,7 @@ export function FeaturesSection() {
           subtitle="A complete toolkit for students, supervisors, companies, and organizations — powered by intelligent matching."
         />
 
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}

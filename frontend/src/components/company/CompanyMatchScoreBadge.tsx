@@ -23,7 +23,7 @@ export function CompanyMatchScoreBadge({ score, size = "md", className }: Props)
     >
       <div className="absolute inset-[3px] rounded-full bg-card flex items-center justify-center">
         <div className="flex flex-col items-center leading-none">
-          <span className="font-semibold cw-gradient-text tabular-nums">{score}</span>
+          <span className="font-semibold text-[hsl(var(--cw-accent))] tabular-nums">{score}</span>
           {size !== "sm" && (
             <span className="text-[8px] uppercase tracking-wider text-muted-foreground mt-0.5">
               match

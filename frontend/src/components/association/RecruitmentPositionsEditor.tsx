@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ClipboardList,
@@ -437,7 +437,7 @@ function Field({
   return (
     <label className={className} style={{ display: 'block', fontSize: 13, fontWeight: 600, color: assocDash.text }}>
       {label}
-      {required ? <span style={{ color: '#ef4444' }}> *</span> : null}
+      {required ? <span style={{ color: assocDash.error }}> *</span> : null}
       {optional ? <span style={{ fontWeight: 400, color: assocDash.muted }}> (optional)</span> : null}
       {hint ? (
         <span style={{ display: 'block', fontWeight: 400, color: assocDash.muted, fontSize: 11 }}>
@@ -467,7 +467,7 @@ function EditorStyles() {
 
       .open-position-card--editing {
         border-color: ${assocDash.accentBorder};
-        box-shadow: 0 4px 20px rgba(245, 158, 11, 0.08);
+        box-shadow: ${assocDash.shadow};
       }
 
       .open-position-card-top {
@@ -539,13 +539,13 @@ function EditorStyles() {
       }
 
       .open-position-action--delete {
-        border-color: #fecaca;
-        background: #fff;
-        color: #b91c1c;
+        border-color: ${assocDash.errorBorder};
+        background: ${assocDash.surface};
+        color: ${assocDash.error};
       }
 
       .open-position-action--delete:hover:not(:disabled) {
-        background: #fef2f2;
+        background: ${assocDash.errorMuted};
       }
 
       .open-position-action:disabled {
@@ -638,7 +638,7 @@ function EditorStyles() {
         padding: 18px 20px;
         border-radius: ${assocDash.radiusLg}px;
         border: 2px dashed ${assocDash.accentBorder};
-        background: linear-gradient(135deg, ${assocDash.accentMuted} 0%, #fff 100%);
+        background: ${assocDash.gradientCard};
         cursor: pointer;
         font-family: inherit;
         text-align: left;
@@ -704,7 +704,7 @@ const inputStyle: CSSProperties = {
   boxSizing: 'border-box',
 }
 
-const errStyle: CSSProperties = { display: 'block', marginTop: 4, fontSize: 12, color: '#b91c1c' }
+const errStyle: CSSProperties = { display: 'block', marginTop: 4, fontSize: 12, color: assocDash.error }
 
 const formLinkWrap: CSSProperties = {
   marginTop: 16,

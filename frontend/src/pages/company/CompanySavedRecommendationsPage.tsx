@@ -9,7 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyLuxHero, CompanyLuxStat } from "@/components/company/CompanyPremiumUI";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { cwLayout } from "@/lib/companyLayout";
 import { cn } from "@/lib/utils";
@@ -196,15 +196,17 @@ export function CompanySavedRecommendationsPage() {
 
   return (
     <CompanyPageShell>
-      <CompanyPageHeader
+      <CompanyLuxHero
+        eyebrow="Talent shortlist"
         title="Saved Recommendations"
-        subtitle="Your workspace shortlist — students and teams saved from AI recommendations, organised by project request. Add notes before contacting externally."
-        actions={
+        description="Your flagship shortlist — students and AI teams organised by request, with notes before outreach."
+        aside={
           totalCount > 0 ? (
-            <Badge className="cw-status-primary rounded-lg px-3 py-1 text-xs font-medium">
-              {totalCount} saved across {groups.length} request{groups.length === 1 ? "" : "s"}
-            </Badge>
-          ) : null
+            <div className="grid grid-cols-2 gap-2 w-full cw-lux-hero-aside-stats">
+              <CompanyLuxStat label="Saved" value={totalCount} icon={Bookmark} />
+              <CompanyLuxStat label="Requests" value={groups.length} icon={Sparkles} accent="ai" />
+            </div>
+          ) : undefined
         }
       />
 
@@ -219,8 +221,8 @@ export function CompanySavedRecommendationsPage() {
       ) : (
         <div className={cwLayout.section}>
           {groups.map((group) => (
-            <Card key={group.companyRequestId} className="cw-card-elevated overflow-hidden">
-              <CardHeader className="cw-card-header-accent py-5 px-6">
+            <Card key={group.companyRequestId} className="cw-lux-panel overflow-hidden border-0 shadow-none">
+              <CardHeader className="cw-lux-panel-head !border-b py-5 px-6">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div className="min-w-0">
                     <CardTitle className="text-lg font-semibold tracking-tight truncate">

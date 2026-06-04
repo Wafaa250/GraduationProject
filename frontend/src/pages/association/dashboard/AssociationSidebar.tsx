@@ -1,4 +1,4 @@
-﻿import {
+import {
   Building2,
   CalendarDays,
   ChevronsLeft,
@@ -48,7 +48,7 @@ export function AssociationSidebar({ mobileOpen, onCloseMobile, onLogout }: Prop
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15,23,42,0.4)',
+            background: 'hsl(var(--aw-overlay) / 0.42)',
             zIndex: 40,
             border: 'none',
             cursor: 'pointer',
@@ -129,12 +129,7 @@ export function AssociationSidebar({ mobileOpen, onCloseMobile, onLogout }: Prop
                 to={to}
                 onClick={onCloseMobile}
                 title={desktopCollapsed ? label : undefined}
-                className="assoc-sidebar-nav-link"
-                style={{
-                  color: active ? assocDash.accentDark : assocDash.muted,
-                  background: active ? assocDash.accentMuted : 'transparent',
-                  borderColor: active ? assocDash.accentBorder : 'transparent',
-                }}
+                className={active ? 'assoc-sidebar-nav-link active' : 'assoc-sidebar-nav-link'}
               >
                 <Icon size={18} strokeWidth={2} className="shrink-0" />
                 <span className="assoc-sidebar-nav-label">{label}</span>

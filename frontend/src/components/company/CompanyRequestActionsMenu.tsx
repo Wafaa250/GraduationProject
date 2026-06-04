@@ -63,9 +63,9 @@ export function CompanyRequestActionsMenu({
     <div ref={rootRef} className="relative">
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="icon"
-        className="rounded-xl shrink-0"
+        className="h-8 w-8 rounded-lg shrink-0 text-muted-foreground hover:text-foreground"
         aria-label="Request actions"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -77,7 +77,7 @@ export function CompanyRequestActionsMenu({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-50 mt-1.5 min-w-[220px] rounded-xl border bg-card py-1 shadow-lg"
+          className="absolute right-0 top-full z-[200] mt-1.5 min-w-[220px] rounded-xl border bg-card py-1 shadow-lg"
         >
           {!isViewOnly ? (
             <Link

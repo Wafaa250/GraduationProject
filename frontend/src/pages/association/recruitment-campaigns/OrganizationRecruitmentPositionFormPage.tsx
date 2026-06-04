@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
@@ -10,6 +10,7 @@ import {
   positionApplicationFormPath,
 } from '@/components/association/PositionApplicationFormEditor'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
+import { assocDash } from '../dashboard/associationDashTokens'
 import { useAssociationShell } from '../events/useAssociationShell'
 
 export default function OrganizationRecruitmentPositionFormPage() {
@@ -69,7 +70,7 @@ export default function OrganizationRecruitmentPositionFormPage() {
       wideContent
     >
       {loading || shell.loading ? (
-        <p style={{ color: '#64748b', fontSize: 14 }}>Loading…</p>
+        <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading…</p>
       ) : Number.isFinite(campaignNum) && Number.isFinite(positionNum) ? (
         <PositionApplicationFormEditor
           campaignId={campaignNum}

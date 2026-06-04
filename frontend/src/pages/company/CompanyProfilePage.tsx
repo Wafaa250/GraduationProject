@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
-import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyLuxHero } from "@/components/company/CompanyPremiumUI";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { cwLayout } from "@/lib/companyLayout";
 import {
@@ -225,11 +225,12 @@ export function CompanyProfilePage() {
 
   return (
     <CompanyPageShell>
-      <CompanyPageHeader
+      <CompanyLuxHero
+        eyebrow="Public presence"
         title="Company Profile"
-        subtitle={
+        description={
           isOwner
-            ? "This is the information students see when SkillSwap recommends your company."
+            ? "How students discover you when SkillSwap recommends your company — keep it sharp and complete."
             : "Shared workspace profile. Contact an owner to request changes."
         }
       />
@@ -248,11 +249,12 @@ export function CompanyProfilePage() {
         <div className={cn("grid lg:grid-cols-3 items-start", cwLayout.grid)}>
           {/* Left — main profile */}
           <Card className="cw-card-elevated lg:col-span-2 overflow-hidden">
-            <div className="h-24 cw-hero-bg relative opacity-95">
-              <div className="absolute inset-0 cw-hero-overlay" />
+            <div className="relative h-28 overflow-hidden">
+              <div className="cw-lux-hero-mesh absolute inset-0 opacity-90" aria-hidden />
+              <div className="cw-lux-hero-grid absolute inset-0 opacity-40" aria-hidden />
             </div>
 
-            <CardContent className="p-6 pt-0">
+            <CardContent className="relative z-10 bg-card p-6 pt-0">
               <div className="flex flex-col md:flex-row md:items-end gap-5 -mt-10">
                 <Avatar className="h-20 w-20 rounded-2xl ring-4 ring-card shadow-lg shrink-0">
                   <AvatarFallback className="rounded-2xl cw-avatar-gradient text-xl">
@@ -270,8 +272,6 @@ export function CompanyProfilePage() {
                       "Profile from registration"}
                   </p>
                 </div>
-
-                <Badge className="cw-status-active shrink-0">Onboarded</Badge>
               </div>
 
               <form className="mt-6 space-y-5" onSubmit={onSave}>

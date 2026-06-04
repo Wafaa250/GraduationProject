@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Briefcase,
@@ -19,7 +19,7 @@ import {
   type RecruitmentCampaign,
 } from '@/api/recruitmentCampaignsApi'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
-import { assocCard, assocDash } from '../dashboard/associationDashTokens'
+import { assocCard, assocDash, assocSemantic } from '../dashboard/associationDashTokens'
 import {
   formatRegistrationCloseDate,
   getRegistrationDeadlineStatus,
@@ -238,10 +238,10 @@ function OpportunityCard({
 
   const statusTone =
     statusLabel === 'Draft'
-      ? { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' }
+      ? assocSemantic.neutral
       : statusLabel === 'Closed'
-        ? { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }
-        : { bg: '#ecfdf5', color: '#15803d', border: '#bbf7d0' }
+        ? assocSemantic.error
+        : assocSemantic.success
 
   return (
     <article
@@ -254,8 +254,8 @@ function OpportunityCard({
         display: 'flex',
         flexDirection: 'column',
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-        boxShadow: hovered ? assocDash.shadowLg : assocDash.shadow,
-        borderColor: hovered ? '#cbd5e1' : assocDash.border,
+        boxShadow: hovered ? assocDash.shadowHover : assocDash.shadow,
+        borderColor: hovered ? assocDash.accentBorder : assocDash.border,
         transition: 'transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease',
       }}
     >
@@ -266,7 +266,7 @@ function OpportunityCard({
             width: '100%',
             background: cover
               ? `center/cover no-repeat url(${cover})`
-              : `linear-gradient(145deg, ${assocDash.accentMuted} 0%, #fff7ed 45%, #fff 100%)`,
+              : assocDash.gradientCard,
             transform: hovered && cover ? 'scale(1.04)' : 'scale(1)',
             transition: 'transform 0.4s ease',
           }}
@@ -276,8 +276,8 @@ function OpportunityCard({
             position: 'absolute',
             inset: 0,
             background: cover
-              ? 'linear-gradient(to top, rgba(15,23,42,0.22) 0%, transparent 55%)'
-              : 'linear-gradient(to top, rgba(217,119,6,0.06) 0%, transparent 50%)',
+              ? 'linear-gradient(to top, hsl(var(--aw-overlay) / 0.22) 0%, transparent 55%)'
+              : 'linear-gradient(to top, hsl(var(--aw-accent) / 0.06) 0%, transparent 50%)',
             pointerEvents: 'none',
           }}
         />
@@ -461,7 +461,7 @@ function ApplicationDeadlineStatus({
   closeDate: string
 }) {
   const dotColor =
-    status === 'closed' ? '#ef4444' : status === 'closing-soon' ? '#f59e0b' : '#22c55e'
+    status === 'closed' ? assocDash.error : status === 'closing-soon' ? assocDash.accent : assocDash.success
   const message =
     status === 'closed' ? 'Applications closed' : `Applications close ${closeDate}`
 
@@ -519,7 +519,7 @@ function OpportunityCardMenu({ deleting, onDelete }: { deleting: boolean; onDele
         onMouseLeave={() => setHovered(false)}
         style={{
           ...menuTriggerStyle,
-          background: open || hovered ? '#f1f5f9' : 'transparent',
+          background: open || hovered ? assocDash.bg : 'transparent',
           color: open || hovered ? assocDash.textSecondary : assocDash.subtle,
         }}
       >
@@ -617,7 +617,7 @@ const menuPanelStyle: React.CSSProperties = {
   minWidth: 168,
   padding: 4,
   borderRadius: 10,
-  background: '#fff',
+  background: assocDash.surface,
   border: `1px solid ${assocDash.border}`,
   boxShadow: assocDash.shadowLg,
   zIndex: 10,
@@ -634,7 +634,7 @@ const menuItemDangerStyle: React.CSSProperties = {
   background: 'transparent',
   fontSize: 13,
   fontWeight: 500,
-  color: '#b91c1c',
+  color: assocDash.error,
   cursor: 'pointer',
   fontFamily: 'inherit',
   textAlign: 'left',
