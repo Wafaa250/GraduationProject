@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -11,7 +11,9 @@ import {
   ChevronDown,
   Users,
   Bookmark,
+  LogOut,
 } from "lucide-react";
+import { companySignOut } from "@/components/company/CompanyProfileMenu";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { cn } from "@/lib/utils";
@@ -174,6 +176,7 @@ function SectionLabel({ collapsed, children }: { collapsed: boolean; children: s
 }
 
 export function CompanySidebar() {
+  const navigate = useNavigate();
   const { collapsed, toggle } = useCompanySidebarCollapsed();
   const showMembers = isCompanyOwner();
   return (

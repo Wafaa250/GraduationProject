@@ -1,6 +1,3 @@
-import { CompanyNotificationBell } from '@/components/company/CompanyNotificationBell'
-import { CompanyProfileMenu } from '@/components/company/CompanyProfileMenu'
-import { getStoredCompanyDisplayName } from '@/layouts/useCompanyWorkspaceBootstrap'
 import { useLocation } from "react-router-dom";
 import { CompanyNotificationBell } from "@/components/company/CompanyNotificationBell";
 import { CompanyProfileMenu } from "@/components/company/CompanyProfileMenu";
