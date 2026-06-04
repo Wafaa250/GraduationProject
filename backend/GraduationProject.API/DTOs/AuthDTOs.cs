@@ -209,15 +209,34 @@ namespace GraduationProject.API.DTOs
 
     public class ResetPasswordDto
     {
-        [Required(ErrorMessage = "Reset token is required")]
-        public string Token { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Password is required")]
+        [Required(ErrorMessage = "Verification code is required")]
+        [RegularExpression(@"^\d{6}$", ErrorMessage = "Verification code must be 6 digits.")]
+        public string Code { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required")]
         [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
-        public string Password { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
 
-        [Required(ErrorMessage = "Please confirm your password")]
-        public string ConfirmPassword { get; set; } = string.Empty;
+    public class VerifyResetCodeDto
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Verification code is required")]
+        [RegularExpression(@"^\d{6}$", ErrorMessage = "Verification code must be 6 digits.")]
+        public string Code { get; set; } = string.Empty;
+    }
+
+    public class AuthSuccessResponseDto
+    {
+        public bool Success { get; set; } = true;
+        public string Message { get; set; } = string.Empty;
     }
 
     public class MessageResponseDto

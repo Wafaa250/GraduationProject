@@ -19,6 +19,7 @@ type Props = {
   unit: DurationUnit | "";
   onUnitChange: (u: DurationUnit | "") => void;
   className?: string;
+  hideLabel?: boolean;
 };
 
 export function DurationFields({
@@ -29,12 +30,13 @@ export function DurationFields({
   unit,
   onUnitChange,
   className,
+  hideLabel = false,
 }: Props) {
   return (
     <div className={cn("space-y-4", className)}>
-      <Label className="text-sm font-medium">Duration</Label>
+      {hideLabel ? null : <label className="cw-wizard-field-label">Duration</label>}
 
-      <label className="flex items-center gap-3 rounded-xl border bg-secondary/20 px-4 py-3.5 cursor-pointer hover:bg-secondary/40 transition-colors">
+      <label className="cw-wizard-duration-toggle">
         <Checkbox
           checked={ongoing}
           onCheckedChange={(c) => onOngoingChange(c === true)}
@@ -43,11 +45,11 @@ export function DurationFields({
       </label>
 
       {!ongoing && (
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="duration-value" className="text-sm">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="cw-wizard-field">
+            <label htmlFor="duration-value" className="cw-wizard-field-label text-xs">
               Length
-            </Label>
+            </label>
             <Input
               id="duration-value"
               type="number"
@@ -60,19 +62,19 @@ export function DurationFields({
                 else onValueChange(Math.min(99, Math.max(1, parseInt(v, 10) || 1)));
               }}
               placeholder="e.g. 3"
-              className="rounded-xl mt-1.5"
+              className="cw-wizard-input mt-1.5"
             />
           </div>
-          <div>
-            <Label className="text-sm">Unit</Label>
+          <div className="cw-wizard-field">
+            <Label className="cw-wizard-field-label text-xs">Unit</Label>
             <Select
               value={unit || undefined}
               onValueChange={(u) => onUnitChange(u as DurationUnit)}
             >
-              <SelectTrigger className="rounded-xl mt-1.5">
+              <SelectTrigger className="cw-wizard-input mt-1.5 h-11">
                 <SelectValue placeholder="Select unit" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="cw-select-popover">
                 {DURATION_UNITS.map((u) => (
                   <SelectItem key={u} value={u}>
                     {u}

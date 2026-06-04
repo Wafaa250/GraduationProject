@@ -8,6 +8,7 @@ import {
 } from '@/api/eventRegistrationFormApi'
 import { EventRegistrationFormEditor } from '@/components/association/EventRegistrationFormEditor'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
+import { assocDash } from '../dashboard/associationDashTokens'
 import { useAssociationShell } from './useAssociationShell'
 
 export default function OrganizationEventRegistrationFormPage() {
@@ -64,7 +65,7 @@ export default function OrganizationEventRegistrationFormPage() {
       wideContent
     >
       {loading || shell.loading ? (
-        <p style={{ color: '#64748b', fontSize: 14 }}>Loading…</p>
+        <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading…</p>
       ) : form ? (
         <EventRegistrationFormEditor
           eventId={id}

@@ -1,4 +1,4 @@
-﻿import type { CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 
 export const assocDash = {
   font: 'DM Sans, ui-sans-serif, system-ui, sans-serif',
@@ -15,11 +15,52 @@ export const assocDash = {
   accentDark: 'hsl(var(--aw-accent-dark))',
   accentMuted: 'hsl(var(--aw-accent-muted))',
   accentBorder: 'hsl(var(--aw-accent-border))',
+  accentSoft: 'hsl(var(--aw-accent-soft))',
+  accentInk: 'hsl(var(--aw-accent-ink))',
+  accentBar: 'hsl(var(--aw-accent-bar))',
+  navActive: 'hsl(var(--aw-nav-active))',
+  white: '#fff',
+  overlay: 'hsl(var(--aw-overlay) / 0.42)',
+  success: 'hsl(var(--aw-success))',
+  successMuted: 'hsl(var(--aw-success-muted))',
+  successBorder: 'hsl(var(--aw-success-border))',
+  error: 'hsl(var(--aw-error))',
+  errorMuted: 'hsl(var(--aw-error-muted))',
+  errorBorder: 'hsl(var(--aw-error-border))',
   radiusLg: 16,
   radiusMd: 12,
   shadow: 'var(--aw-shadow)',
   shadowLg: 'var(--aw-shadow-lg)',
-  gradient: 'linear-gradient(135deg, hsl(var(--aw-accent)), hsl(var(--aw-accent-dark)))',
+  shadowHover: 'var(--aw-shadow-hover)',
+  gradient: 'var(--aw-gradient)',
+  gradientCard: 'var(--aw-gradient-card)',
+  gradientCover: 'var(--aw-gradient-cover)',
+  gradientSurface: 'var(--aw-gradient-surface)',
+  focusShadow: '0 0 0 3px hsl(var(--aw-accent) / 0.14)',
+} as const
+
+/** Status chips — one palette everywhere */
+export const assocSemantic = {
+  success: {
+    bg: assocDash.successMuted,
+    color: assocDash.success,
+    border: assocDash.successBorder,
+  },
+  error: {
+    bg: assocDash.errorMuted,
+    color: assocDash.error,
+    border: assocDash.errorBorder,
+  },
+  warning: {
+    bg: assocDash.accentMuted,
+    color: assocDash.accentDark,
+    border: assocDash.accentBorder,
+  },
+  neutral: {
+    bg: assocDash.bg,
+    color: assocDash.muted,
+    border: assocDash.border,
+  },
 } as const
 
 /** Typography scale for association dashboard pages. */
@@ -52,7 +93,7 @@ export const assocType = {
     lineHeight: 1.3,
     letterSpacing: '0.05em',
     textTransform: 'uppercase' as const,
-    color: assocDash.accentDark,
+    color: assocDash.accent,
   },
   body: {
     fontSize: 15,

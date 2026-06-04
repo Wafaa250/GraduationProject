@@ -50,7 +50,10 @@ export function ApplicationFormPreview({
 
   if (sorted.length === 0) {
     return (
-      <div style={builderMode ? emptyWrapBuilder : emptyWrap}>
+      <div
+        className={builderMode ? 'app-form-preview--builder app-form-preview--empty' : undefined}
+        style={builderMode ? emptyWrapBuilder : emptyWrap}
+      >
         <p style={emptyTitle}>
           {builderMode
             ? builderVariant === 'position'
@@ -66,7 +69,7 @@ export function ApplicationFormPreview({
             : 'Add questions from the editor panel. They will appear here exactly as students will see them.'}
         </p>
         {showBuilderChrome && onAddField ? (
-          <button type="button" onClick={onAddField} style={emptyAddBtn}>
+          <button type="button" onClick={onAddField} className="app-form-preview-add" style={emptyAddBtn}>
             <Plus size={16} />
             Add first question
           </button>
@@ -76,7 +79,7 @@ export function ApplicationFormPreview({
   }
 
   return (
-    <div style={shell}>
+    <div className={builderMode ? 'app-form-preview--builder' : undefined} style={shell}>
       <header style={builderMode ? formHeaderBuilder : undefined}>
         <h3 style={heading}>{title}</h3>
         {description?.trim() ? (
@@ -108,7 +111,7 @@ export function ApplicationFormPreview({
         ))}
       </div>
       {showBuilderChrome && onAddField ? (
-        <button type="button" onClick={onAddField} style={inlineAddBtn}>
+        <button type="button" onClick={onAddField} className="app-form-preview-add" style={inlineAddBtn}>
           <Plus size={16} strokeWidth={2.25} />
           Add question
         </button>
@@ -179,6 +182,11 @@ function PreviewField({
 
   return (
     <div
+      className={
+        builderMode && interactive
+          ? `app-form-preview-field${selected ? ' app-form-preview-field--selected' : ''}${hovered && !selected ? ' app-form-preview-field--hover' : ''}`
+          : undefined
+      }
       style={wrapperStyle}
       onMouseEnter={() => onHover?.(field.id)}
       onMouseLeave={() => onHover?.(null)}
@@ -198,6 +206,7 @@ function PreviewField({
     >
       {showToolbar && (hovered || selected) ? (
         <div
+          className="app-form-preview-toolbar"
           style={fieldToolbar}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
@@ -261,6 +270,7 @@ function ToolbarBtn({
     <button
       type="button"
       onClick={onClick}
+      className={danger ? 'app-form-preview-toolbar-btn--danger' : 'app-form-preview-toolbar-btn'}
       style={{
         ...toolbarBtn,
         ...(danger ? toolbarBtnDanger : {}),

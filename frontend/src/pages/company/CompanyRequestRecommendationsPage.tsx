@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Sparkles, UserRound, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyLuxHero, CompanyLuxStat } from "@/components/company/CompanyPremiumUI";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanySkeleton } from "@/components/company/CompanySkeleton";
+import { CompanyEmptyState } from "@/components/company/CompanyEmptyState";
 import { cwLayout } from "@/lib/companyLayout";
 import { CompanyRequestRecommendationSummary } from "@/components/company/CompanyRequestRecommendationSummary";
 import { CompanyCandidateCard } from "@/components/company/CompanyCandidateCard";
@@ -36,6 +37,7 @@ import type { RecommendationCandidate } from "@/types/companyRecommendation";
 import { mapStudentDiscoveryContact } from "@/lib/studentDiscoveryContact";
 import { getRequestLifecycleStatus, isRequestViewOnly } from "@/lib/companyRequestDisplay";
 import { COMPANY_ROUTES } from "@/routes/paths";
+import { cn } from "@/lib/utils";
 
 export function CompanyRequestRecommendationsPage() {
   const { id } = useParams<{ id: string }>();
@@ -270,62 +272,90 @@ export function CompanyRequestRecommendationsPage() {
     }
   };
 
+  const matchCount = isTeamRequest ? teamRecommendations.length : candidates.length;
+  const savedCount = isTeamRequest ? savedTeamIds.size : savedStudentIds.size;
+
+  const heroTitle = isTeamRequest ? "AI Team Recommendations" : "AI Student Recommendations";
+  const heroDesc = isTeamRequest
+    ? "Complete student teams ranked for your project — review composition, chemistry, and contact members externally."
+    : "Students ranked by skill fit, experience, and project alignment — open profiles to contact them directly.";
+
   return (
-    <CompanyPageShell>
-      <CompanyPageHeader
-        title={isTeamRequest ? "AI Team Recommendations" : "AI Student Recommendations"}
-        subtitle={
-          isTeamRequest
-            ? "Complete student teams ranked for your project — review composition, chemistry, and contact members externally."
-            : "Students ranked by skill fit, experience, and project alignment — open profiles to contact them directly."
+    <CompanyPageShell className="space-y-6">
+      <CompanyLuxHero
+        eyebrow="AI recommendations"
+        title={heroTitle}
+        description={heroDesc}
+        aside={
+          request && !loadingRecommendations && matchCount > 0 ? (
+            <div className="grid grid-cols-2 gap-2 w-full cw-lux-hero-aside-stats">
+              <CompanyLuxStat
+                label={isTeamRequest ? "Teams" : "Students"}
+                value={matchCount}
+                icon={isTeamRequest ? Users : UserRound}
+                accent="ai"
+              />
+              <CompanyLuxStat label="Saved" value={savedCount} icon={Sparkles} />
+            </div>
+          ) : undefined
         }
         actions={
-          <Button asChild variant="outline" className="rounded-xl">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
+          >
             <Link to={detailHref}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back to request
+              <ArrowLeft className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Back to request</span>
+              <span className="sm:hidden">Back</span>
             </Link>
           </Button>
         }
       />
 
       {loading && (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading request context…
-          </CardContent>
-        </Card>
+        <>
+          <CompanySkeleton className="h-40 w-full rounded-xl" />
+          <div className={cwLayout.cardGrid}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <CompanySkeleton key={i} className="h-72 rounded-xl" />
+            ))}
+          </div>
+        </>
       )}
 
       {!loading && pageError && (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center px-6">
-            <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              {pageError}
-            </p>
-            <Button asChild variant="outline" className="rounded-xl mt-6">
-              <Link to={detailHref}>Back to request</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="cw-lux-panel">
+          <div className="cw-lux-panel-body">
+            <CompanyEmptyState icon={Sparkles} message={pageError} />
+            <div className="flex justify-center mt-4">
+              <Button asChild variant="outline" className="rounded-lg">
+                <Link to={detailHref}>Back to request</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {!loading && !pageError && error && isIndividualRequest && (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center px-6">
-            <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              {error}
-            </p>
-            <Button asChild variant="outline" className="rounded-xl mt-6">
-              <Link to={detailHref}>Back to request</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="cw-lux-panel">
+          <div className="cw-lux-panel-body">
+            <CompanyEmptyState icon={UserRound} message={error} />
+            <div className="flex justify-center mt-4">
+              <Button asChild variant="outline" className="rounded-lg">
+                <Link to={detailHref}>Back to request</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {!loading && !pageError && request && !(error && isIndividualRequest) && (
         <>
           {isPaused && (
-            <div className="cw-status-banner cw-status-banner--paused mb-6">
+            <div className="cw-status-banner cw-status-banner--paused">
               <div>
                 <p className="text-sm font-medium">Request Paused</p>
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -336,7 +366,7 @@ export function CompanyRequestRecommendationsPage() {
               <Button
                 type="button"
                 size="sm"
-                className="rounded-xl shrink-0 cw-btn-gradient border-0 shadow-sm"
+                className="rounded-lg shrink-0 cw-btn-gradient border-0"
                 disabled={reactivating}
                 onClick={() => void handleReactivate()}
               >
@@ -346,7 +376,7 @@ export function CompanyRequestRecommendationsPage() {
           )}
 
           {isClosed && (
-            <div className="cw-status-banner cw-status-banner--closed mb-6">
+            <div className="cw-status-banner cw-status-banner--closed">
               <div>
                 <p className="text-sm font-medium">This request has been closed.</p>
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -362,22 +392,6 @@ export function CompanyRequestRecommendationsPage() {
             variant={isTeamRequest ? "team" : "individual"}
           />
 
-          {isIndividualRequest && (
-            <div className="cw-page-meta mb-4">
-              <p className="flex items-center gap-2">
-                <Users className="h-4 w-4 shrink-0 text-primary" />
-                <span>
-                  <span className="font-medium text-foreground">{candidates.length}</span>{" "}
-                  AI-ranked {candidates.length === 1 ? "student" : "students"}
-                </span>
-              </p>
-              <p className="text-xs flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-                Contact students outside SkillSwap after reviewing profiles
-              </p>
-            </div>
-          )}
-
           {isTeamRequest && !loadingRecommendations && teamRecommendations.length > 0 && !isViewOnly && (
             <CompanyTeamRecommendationsToolbar
               teamCount={teamRecommendations.length}
@@ -387,7 +401,7 @@ export function CompanyRequestRecommendationsPage() {
           )}
 
           {isIndividualRequest && candidates.length > 0 ? (
-            <div className={cwLayout.cardGrid}>
+            <div className={cn(cwLayout.cardGrid, "cw-animate-stagger")}>
               {candidates.map((candidate) => (
                 <CompanyCandidateCard
                   key={candidate.id}
@@ -414,7 +428,7 @@ export function CompanyRequestRecommendationsPage() {
               onRegenerate={() => void regenerateTeams()}
             />
           ) : isTeamRequest && teamRecommendations.length > 0 ? (
-            <div className={cwLayout.cardGrid}>
+            <div className={cn(cwLayout.cardGrid, "cw-animate-stagger")}>
               {teamRecommendations.map((team) => (
                 <CompanyTeamRecommendationCard
                   key={team.teamId}
@@ -434,10 +448,10 @@ export function CompanyRequestRecommendationsPage() {
               onRegenerate={() => void regenerateTeams()}
             />
           ) : (
-            <Card className="cw-card-elevated cw-team-state-panel">
-              <CardContent className="py-16 md:py-20 px-6 text-center">
-                <div className="cw-request-success-icon mb-5 mx-auto">
-                  <UserRound className="h-8 w-8" aria-hidden />
+            <div className="cw-lux-panel cw-team-state-panel">
+              <div className="cw-lux-panel-body py-14 text-center">
+                <div className="cw-empty-state-icon mx-auto mb-4">
+                  <UserRound className="h-7 w-7" />
                 </div>
                 <h2 className="text-lg font-semibold tracking-tight">No recommendations yet</h2>
                 <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
@@ -445,15 +459,14 @@ export function CompanyRequestRecommendationsPage() {
                     ? "SkillSwap AI is analyzing your request against student profiles."
                     : "We could not surface matches right now. Refine roles or skills on your request and try again."}
                 </p>
-                <Button asChild variant="outline" className="rounded-xl mt-8">
+                <Button asChild variant="outline" className="rounded-lg mt-8">
                   <Link to={detailHref}>Edit request</Link>
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </>
       )}
-
     </CompanyPageShell>
   );
 }

@@ -1,4 +1,4 @@
-﻿import { Facebook, Instagram, Linkedin, ExternalLink } from 'lucide-react'
+import { Facebook, Instagram, Linkedin, ExternalLink } from 'lucide-react'
 import { assocDash } from '@/pages/association/dashboard/associationDashTokens'
 
 type LinkItem = {
@@ -117,11 +117,11 @@ export function SocialLinksList({ instagramUrl, facebookUrl, linkedInUrl }: Prop
         .assoc-social-link:hover {
           border-color: ${assocDash.accentBorder};
           background: ${assocDash.accentMuted};
-          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.14);
+          box-shadow: ${assocDash.shadow};
           transform: translateY(-1px);
         }
         .assoc-social-link:focus-visible {
-          outline: 2px solid #f59e0b;
+          outline: 2px solid ${assocDash.accent};
           outline-offset: 2px;
         }
         .assoc-social-link:hover svg:last-child {

@@ -1,5 +1,4 @@
 import { Bookmark, Sparkles, Mail } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -39,33 +38,33 @@ export function CompanyCandidateCard({
   );
 
   return (
-    <Card className="cw-card-elevated cw-candidate-card h-full">
-      <CardContent className="p-5 flex flex-col h-full">
+    <article className="cw-card-elevated cw-candidate-card h-full flex flex-col overflow-hidden">
+      <div className="p-5 flex flex-col h-full">
         <div className="flex items-start justify-between gap-3">
           <div className="flex gap-3 min-w-0">
-            <Avatar className="h-12 w-12 shrink-0">
-              <AvatarFallback className="cw-candidate-avatar-fallback text-sm font-medium">
+            <Avatar className="h-11 w-11 shrink-0 border border-border/60">
+              <AvatarFallback className="cw-avatar-solid text-sm">
                 {initials(candidate.name)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <h3 className="font-semibold text-base leading-tight truncate">{candidate.name}</h3>
+              <h3 className="font-semibold text-[0.9375rem] tracking-tight leading-tight truncate">
+                {candidate.name}
+              </h3>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">{candidate.major}</p>
               <p className="text-[11px] text-muted-foreground truncate">
                 {candidate.university} · {candidate.year}
               </p>
             </div>
           </div>
-          <CompatibilityRing value={candidate.matchScore} size={56} />
+          <CompatibilityRing value={candidate.matchScore} size={52} />
         </div>
 
         <div className="mt-4">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-1.5">
-            Matching skills
-          </p>
+          <p className="cw-section-label mb-2">Matching skills</p>
           <div className="flex flex-wrap gap-1.5">
             {candidate.matchingSkills.map((skill) => (
-              <Badge key={skill} className="cw-candidate-skill-badge rounded-md text-[10px]">
+              <Badge key={skill} variant="secondary" className="rounded-md text-[10px] font-normal">
                 {skill}
               </Badge>
             ))}
@@ -73,27 +72,30 @@ export function CompanyCandidateCard({
         </div>
 
         <div className="mt-4 cw-insight-panel flex-1">
-          <p className="text-[11px] font-medium text-primary flex items-center gap-1">
+          <p className="text-[11px] font-semibold text-[hsl(var(--cw-accent))] flex items-center gap-1.5">
             <Sparkles className="h-3 w-3" aria-hidden />
-            Why this match?
+            Why this match
           </p>
-          <ul className="text-[11px] text-muted-foreground mt-2 space-y-1 leading-relaxed">
+          <ul className="text-xs text-muted-foreground mt-2.5 space-y-1.5 leading-relaxed">
             {candidate.insights.slice(0, 4).map((line) => (
-              <li key={line}>• {line}</li>
+              <li key={line} className="flex gap-2">
+                <span className="text-[hsl(var(--cw-accent))]/60 shrink-0">·</span>
+                <span>{line}</span>
+              </li>
             ))}
           </ul>
         </div>
 
-        <div className="flex items-center gap-2 mt-4 pt-1">
+        <div className="flex items-center gap-2 mt-5 pt-4 border-t border-border/60">
           <Button
             type="button"
             size="sm"
-            className="rounded-xl flex-1 cw-btn-gradient shadow-sm border-0"
+            className="rounded-lg flex-1 h-9 cw-btn-gradient border-0"
             onClick={onViewProfile}
           >
             {hasContact ? (
               <>
-                <Mail className="h-3.5 w-3.5 mr-1 shrink-0" />
+                <Mail className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                 Profile & contact
               </>
             ) : (
@@ -103,8 +105,11 @@ export function CompanyCandidateCard({
           <Button
             type="button"
             size="sm"
-            variant="ghost"
-            className={cn("rounded-xl shrink-0", saved && "text-primary bg-primary/10")}
+            variant="outline"
+            className={cn(
+              "rounded-lg shrink-0 h-9 w-9 p-0",
+              saved && "text-[hsl(var(--cw-accent))] border-[hsl(var(--cw-accent)/0.35)] bg-[hsl(var(--cw-accent-muted))]",
+            )}
             aria-label={saved ? "Unsave candidate" : "Save candidate"}
             disabled={saveDisabled}
             onClick={onToggleSave}
@@ -112,7 +117,7 @@ export function CompanyCandidateCard({
             <Bookmark className={cn("h-4 w-4", saved && "fill-current")} />
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   );
 }

@@ -20,12 +20,11 @@ export function CompanyTeamRecommendationsEmptyState({
   const roleCount = request.roles.filter((r) => r.roleName?.trim()).length;
 
   return (
-    <Card className="cw-card-elevated cw-team-state-panel overflow-hidden">
-      <div className="cw-accent-bar" aria-hidden />
+    <Card className="cw-lux-panel cw-team-state-panel overflow-hidden border-0 shadow-none">
       <CardContent className="py-14 md:py-16 px-6 md:px-10">
         <div className="max-w-xl mx-auto text-center">
-          <div className="cw-team-state-icon mb-6 mx-auto">
-            <Users className="h-9 w-9" aria-hidden />
+          <div className="cw-empty-state-icon mb-6 mx-auto h-16 w-16 rounded-2xl">
+            <Users className="h-8 w-8" aria-hidden />
           </div>
           <h2 className="text-xl font-semibold tracking-tight">No balanced team compositions yet</h2>
           <p className="text-sm text-muted-foreground mt-3 leading-relaxed">

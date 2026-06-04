@@ -185,7 +185,7 @@ export function AssociationLogoUpload({
             ) : (
               <ImagePlus size={28} color={assocDash.accent} strokeWidth={1.8} />
             )}
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#92400e' }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: assocDash.accentInk }}>
               {uploading ? 'Uploading logo…' : 'Drag & drop your logo here'}
             </p>
             <p style={{ margin: 0, fontSize: 12, color: assocDash.muted }}>
@@ -195,7 +195,7 @@ export function AssociationLogoUpload({
         )}
 
         {uploading && (
-          <div style={{ marginTop: 14, height: 6, borderRadius: 4, background: '#fde68a', overflow: 'hidden' }}>
+          <div style={{ marginTop: 14, height: 6, borderRadius: 4, background: assocDash.accentBar, overflow: 'hidden' }}>
             <div
               style={{
                 height: '100%',

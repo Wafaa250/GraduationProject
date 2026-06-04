@@ -24,6 +24,7 @@ import {
   type StudentOrganizationEvent,
 } from '@/api/organizationEventsApi'
 import { assocDash } from '../dashboard/associationDashTokens'
+import '@/styles/association-event-form.css'
 import {
   datetimeLocalToIso,
   formatDatetimeLocalDisplay,

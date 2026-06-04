@@ -3,17 +3,9 @@ import { ArrowRight, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { LandingBrandLogo } from "@/components/brand/LandingBrandLogo";
+import { LandingSectionLink } from "@/components/landing/LandingSectionLink";
+import { landingNavLinks } from "@/lib/landingNav";
 import { ROUTES } from "@/routes/paths";
-
-const navLinks = [
-  { label: "Home", href: "#home" },
-  { label: "Features", href: "#features" },
-  { label: "How It Works", href: "#how" },
-  { label: "For Students", href: "#students" },
-  { label: "For Doctors", href: "#doctors" },
-  { label: "Companies", href: "#companies" },
-  { label: "Organizations", href: "#organizations" },
-];
 
 export function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -25,6 +17,8 @@ export function LandingNavbar() {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const closeMenu = () => setOpen(false);
 
   return (
     <motion.header
@@ -38,14 +32,14 @@ export function LandingNavbar() {
       <nav className="container flex items-center justify-between">
         <LandingBrandLogo />
         <ul className="hidden lg:flex items-center gap-1">
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <a
-                href={link.href}
+          {landingNavLinks.map((link) => (
+            <li key={link.section}>
+              <LandingSectionLink
+                section={link.section}
                 className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md"
               >
                 {link.label}
-              </a>
+              </LandingSectionLink>
             </li>
           ))}
         </ul>
@@ -82,27 +76,27 @@ export function LandingNavbar() {
             className="lg:hidden glass-strong overflow-hidden"
           >
             <div className="container py-4 flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
+              {landingNavLinks.map((link) => (
+                <LandingSectionLink
+                  key={link.section}
+                  section={link.section}
+                  onNavigate={closeMenu}
                   className="px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground rounded-md hover:bg-white/5"
                 >
                   {link.label}
-                </a>
+                </LandingSectionLink>
               ))}
               <div className="flex gap-2 pt-3 mt-2 border-t border-white/5">
                 <Link
                   to={ROUTES.login}
-                  onClick={() => setOpen(false)}
+                  onClick={closeMenu}
                   className="flex-1 px-4 py-2.5 text-sm font-medium border border-border rounded-lg text-center"
                 >
                   Sign In
                 </Link>
                 <Link
                   to={ROUTES.register}
-                  onClick={() => setOpen(false)}
+                  onClick={closeMenu}
                   className="flex-1 px-4 py-2.5 text-sm font-medium bg-gradient-primary text-white rounded-lg text-center"
                 >
                   Get Started

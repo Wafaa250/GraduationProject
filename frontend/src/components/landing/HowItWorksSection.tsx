@@ -31,7 +31,7 @@ const steps = [
 
 export function HowItWorksSection() {
   return (
-    <section id="how" className="py-20 lg:py-32 relative">
+    <section id="how" className="py-16 lg:py-24 relative scroll-mt-28">
       <div className="container">
         <SectionHeading
           eyebrow="How It Works"

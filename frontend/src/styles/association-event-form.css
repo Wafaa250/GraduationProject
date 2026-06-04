@@ -1,0 +1,330 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Create event page — dark mode only (light uses inline FormStyles)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Layered surfaces: shell < card < input (create page scope) */
+.dark .association-workspace .event-create-page {
+  --event-dm-card: 220 22% 16%;
+  --event-dm-card-muted: 220 20% 13%;
+  --event-dm-input: 220 22% 12%;
+  --event-dm-input-hover: 220 22% 15%;
+  --event-dm-inset: 255 255% 100% / 0.045;
+}
+
+/* —— Create page chrome —— */
+.dark .association-workspace .event-create-back {
+  color: hsl(var(--aw-muted));
+}
+
+.dark .association-workspace .event-create-back:hover {
+  color: hsl(var(--aw-text));
+}
+
+.dark .association-workspace .event-create-hero-icon {
+  background: hsl(var(--aw-accent-muted));
+  border-color: hsl(var(--aw-accent-border) / 0.85);
+  color: hsl(var(--aw-accent-dark));
+}
+
+/* —— Form section cards —— */
+.dark .association-workspace .event-create-page .event-form-section--primary,
+.dark .association-workspace .event-create-page .event-form-section--secondary {
+  background: hsl(var(--event-dm-card));
+  border-color: hsl(var(--aw-border) / 0.72);
+  box-shadow:
+    0 1px 2px hsl(222 30% 4% / 0.22),
+    0 8px 24px hsl(222 30% 4% / 0.16),
+    inset 0 1px 0 hsl(var(--event-dm-inset));
+}
+
+.dark .association-workspace .event-create-page .event-form-section--primary {
+  border-top: 3px solid hsl(var(--aw-accent));
+  box-shadow:
+    0 1px 2px hsl(222 30% 4% / 0.26),
+    0 10px 32px hsl(222 30% 4% / 0.18),
+    inset 0 1px 0 hsl(var(--event-dm-inset));
+}
+
+.dark .association-workspace .event-create-page .event-form-section--secondary {
+  box-shadow:
+    0 1px 2px hsl(222 30% 4% / 0.2),
+    0 6px 20px hsl(222 30% 4% / 0.12),
+    inset 0 1px 0 hsl(var(--event-dm-inset));
+}
+
+.dark .association-workspace .event-create-page .event-form-section-title--primary {
+  color: hsl(var(--aw-text));
+  text-shadow: 0 1px 0 hsl(222 30% 4% / 0.2);
+}
+
+.dark .association-workspace .event-create-page .event-form-section-icon {
+  background: hsl(var(--aw-accent-muted));
+  border-color: hsl(var(--aw-accent-border) / 0.85);
+  color: hsl(var(--aw-accent-dark));
+}
+
+.dark .association-workspace .event-create-page .event-form-section-title {
+  color: hsl(var(--aw-text));
+}
+
+/* —— Labels & errors —— */
+.dark .association-workspace .event-create-page .event-form-field-label {
+  color: hsl(var(--aw-label));
+}
+
+.dark .association-workspace .event-create-page .event-form-field-error {
+  color: hsl(var(--aw-error));
+}
+
+/* —— Inputs & selects —— */
+/* Use background-color only — `background` shorthand resets background-repeat on selects */
+.dark .association-workspace .event-create-page .event-form-input {
+  background-color: hsl(var(--event-dm-input));
+  border-color: hsl(var(--aw-border) / 0.9);
+  color: hsl(var(--aw-text));
+  box-shadow: inset 0 1px 2px hsl(222 30% 4% / 0.18);
+}
+
+.dark .association-workspace .event-create-page .event-form-input::placeholder {
+  color: hsl(var(--aw-subtle));
+  opacity: 0.95;
+}
+
+.dark .association-workspace .event-create-page .event-form-input:hover:not(:disabled) {
+  border-color: hsl(var(--aw-accent-border) / 0.95);
+  background-color: hsl(var(--event-dm-input-hover));
+}
+
+.dark .association-workspace .event-create-page .event-form-input:focus {
+  border-color: hsl(var(--aw-accent));
+  box-shadow:
+    inset 0 1px 2px hsl(222 30% 4% / 0.12),
+    0 0 0 3px hsl(var(--aw-accent) / 0.24);
+  background-color: hsl(var(--event-dm-input-hover));
+}
+
+.dark .association-workspace .event-create-page .event-form-input:disabled {
+  background-color: hsl(var(--event-dm-card-muted));
+  color: hsl(var(--aw-subtle));
+  opacity: 0.85;
+  box-shadow: none;
+}
+
+.dark .association-workspace .event-create-page .event-form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+  background-color: hsl(var(--event-dm-input));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8b4c4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+.dark .association-workspace .event-create-page .event-form-select:hover:not(:disabled) {
+  background-color: hsl(var(--event-dm-input-hover));
+}
+
+.dark .association-workspace .event-create-page .event-form-select:focus {
+  background-color: hsl(var(--event-dm-input-hover));
+}
+
+.dark .association-workspace .event-create-page .event-form-datetime {
+  color-scheme: dark;
+}
+
+.dark .association-workspace .event-create-page .event-form-input-icon {
+  color: hsl(var(--aw-muted));
+}
+
+.dark .association-workspace .event-create-page .event-form-toggle-track {
+  background: hsl(220 18% 24%);
+}
+
+.dark .association-workspace .event-create-page .event-form-toggle input:checked + .event-form-toggle-track {
+  background: hsl(var(--aw-accent));
+}
+
+.dark .association-workspace .event-create-page .event-form-toggle-label {
+  color: hsl(var(--aw-text));
+}
+
+/* —— Live preview workspace (sticky publishing panel) —— */
+.dark .association-workspace .event-create-page .event-form-workspace {
+  background: hsl(var(--event-dm-card));
+  border-color: hsl(var(--aw-border) / 0.7);
+  box-shadow:
+    0 0 0 1px hsl(var(--aw-border) / 0.35),
+    0 4px 6px hsl(222 30% 4% / 0.18),
+    0 16px 40px hsl(222 30% 4% / 0.28);
+}
+
+.dark .association-workspace .event-create-page .event-form-workspace-label {
+  color: hsl(var(--aw-muted));
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid hsl(var(--aw-border) / 0.45);
+}
+
+/* Preview card — no cover (override white gradient) */
+.dark .association-workspace .event-create-page .event-form-preview:not(.event-form-preview--cover) {
+  background: linear-gradient(
+    155deg,
+    hsl(var(--aw-accent) / 0.12) 0%,
+    hsl(220 22% 18%) 42%,
+    hsl(var(--event-dm-card-muted)) 100%
+  ) !important;
+  border-color: hsl(var(--aw-border) / 0.65);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--event-dm-inset)),
+    0 4px 14px hsl(222 30% 4% / 0.2);
+}
+
+.dark .association-workspace .event-create-page .event-form-preview--cover {
+  box-shadow: 0 4px 16px hsl(222 30% 4% / 0.35);
+}
+
+.dark .association-workspace .event-create-page .event-form-preview-cover-cta {
+  background: hsl(220 22% 18%) !important;
+  border-color: hsl(var(--aw-accent-border)) !important;
+  color: hsl(var(--aw-accent-ink)) !important;
+}
+
+.dark .association-workspace .event-create-page .event-form-preview-cover-cta:hover:not(:disabled) {
+  background: hsl(220 20% 22%) !important;
+  border-color: hsl(var(--aw-accent)) !important;
+}
+
+.dark .association-workspace .event-create-page .event-form-preview:not(.event-form-preview--cover) .event-form-preview-title {
+  color: hsl(var(--aw-text));
+}
+
+.dark .association-workspace .event-create-page .event-form-preview:not(.event-form-preview--cover) .event-form-preview-placeholder {
+  color: hsl(var(--aw-muted));
+}
+
+.dark .association-workspace .event-create-page .event-form-preview:not(.event-form-preview--cover) .event-form-preview-badge {
+  background: hsl(var(--aw-accent) / 0.16);
+  color: hsl(var(--aw-accent-ink));
+  border-color: hsl(var(--aw-accent-border));
+}
+
+.dark .association-workspace .event-create-page .event-form-preview:not(.event-form-preview--cover) .event-form-preview-badge--muted {
+  background: hsl(220 20% 18%);
+  color: hsl(var(--aw-muted));
+  border-color: hsl(var(--aw-border));
+}
+
+/* Preview meta & description */
+.dark .association-workspace .event-create-page .event-form-preview-meta {
+  border-top: 1px solid hsl(var(--aw-border) / 0.55);
+  padding-top: 16px;
+}
+
+.dark .association-workspace .event-create-page .event-form-preview-meta-row {
+  color: hsl(var(--aw-muted));
+}
+
+.dark .association-workspace .event-create-page .event-form-preview-meta-row svg {
+  color: hsl(var(--aw-accent-dark));
+}
+
+.dark .association-workspace .event-create-page .event-form-preview-meta-label {
+  color: hsl(var(--aw-subtle));
+}
+
+.dark .association-workspace .event-create-page .event-form-preview-meta-value {
+  color: hsl(var(--aw-text));
+}
+
+.dark .association-workspace .event-create-page .event-form-preview-desc {
+  color: hsl(var(--aw-text-secondary));
+  border-top: 1px solid hsl(var(--aw-border) / 0.45);
+  padding-top: 14px;
+}
+
+/* Publishing checklist */
+.dark .association-workspace .event-create-page .event-form-readiness {
+  background: hsl(var(--event-dm-card-muted));
+  border-color: hsl(var(--aw-border) / 0.6);
+  box-shadow: inset 0 1px 0 hsl(var(--event-dm-inset));
+}
+
+.dark .association-workspace .event-create-page .event-form-readiness-head {
+  border-bottom-color: hsl(var(--aw-border) / 0.55);
+}
+
+.dark .association-workspace .event-create-page .event-form-readiness-title {
+  color: hsl(var(--aw-text));
+}
+
+.dark .association-workspace .event-create-page .event-form-readiness-count {
+  color: hsl(var(--aw-accent-dark));
+}
+
+.dark .association-workspace .event-create-page .event-form-readiness-item {
+  color: hsl(var(--aw-muted));
+}
+
+.dark .association-workspace .event-create-page .event-form-readiness-icon--done {
+  color: hsl(var(--aw-accent));
+}
+
+.dark .association-workspace .event-create-page .event-form-readiness-icon--todo {
+  color: hsl(var(--aw-subtle));
+}
+
+.dark .association-workspace .event-create-page .event-form-readiness-label--done {
+  color: hsl(var(--aw-text-secondary));
+}
+
+.dark .association-workspace .event-create-page .event-form-readiness-optional {
+  color: hsl(var(--aw-subtle));
+}
+
+/* Action buttons panel */
+.dark .association-workspace .event-create-page .event-form-actions-card {
+  background: hsl(var(--event-dm-card-muted));
+  border-top-color: hsl(var(--aw-border) / 0.55);
+  box-shadow: inset 0 1px 0 hsl(var(--event-dm-inset));
+}
+
+.dark .association-workspace .event-create-page .event-form-submit {
+  box-shadow:
+    0 2px 8px hsl(var(--aw-accent) / 0.35),
+    0 1px 2px hsl(222 30% 4% / 0.2);
+}
+
+.dark .association-workspace .event-create-page .event-form-submit:hover:not(:disabled) {
+  opacity: 1;
+  filter: brightness(1.08);
+  box-shadow:
+    0 4px 16px hsl(var(--aw-accent) / 0.4),
+    0 2px 6px hsl(222 30% 4% / 0.22);
+}
+
+.dark .association-workspace .event-create-page .event-form-submit:active:not(:disabled) {
+  filter: brightness(0.96);
+  transform: scale(0.99);
+}
+
+.dark .association-workspace .event-create-page .event-form-submit:disabled {
+  box-shadow: none;
+}
+
+.dark .association-workspace .event-create-page .event-form-cancel {
+  color: hsl(var(--aw-muted));
+}
+
+.dark .association-workspace .event-create-page .event-form-cancel:hover {
+  color: hsl(var(--aw-text));
+  background: hsl(220 20% 17%);
+}
+
+/* Cover upload (headless status in sidebar) */
+.dark .association-workspace .event-create-page .event-cover-headless-status {
+  color: hsl(var(--aw-muted));
+}
+
+.dark .association-workspace .event-create-page .event-cover-headless-error {
+  color: hsl(var(--aw-error));
+}

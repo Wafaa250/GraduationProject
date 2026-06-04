@@ -596,7 +596,7 @@ export default function OrganizationRecruitmentCampaignDetailsPage() {
                           cursor: aiAnalyzingPositionId === p.id ? 'wait' : 'pointer',
                           boxShadow:
                             aiAnalyzingPositionId === p.id
-                              ? '0 0 0 1px rgba(234,88,12,0.35), 0 8px 28px rgba(234,88,12,0.18)'
+                              ? assocDash.shadowHover
                               : analyzeAiBtnPremium.boxShadow,
                         }}
                       >
@@ -817,9 +817,9 @@ const metaChipNeutral: CSSProperties = {
 }
 
 const metaChipOpen: CSSProperties = {
-  background: '#ecfdf5',
-  color: '#047857',
-  border: '1px solid #bbf7d0',
+  background: assocDash.successMuted,
+  color: assocDash.success,
+  border: `1px solid ${assocDash.successBorder}`,
 }
 
 const metaChipWarn: CSSProperties = {
@@ -829,7 +829,7 @@ const metaChipWarn: CSSProperties = {
 }
 
 const metaChipClosed: CSSProperties = {
-  background: '#f1f5f9',
+  background: assocDash.bg,
   color: assocDash.muted,
   border: `1px solid ${assocDash.border}`,
 }
@@ -841,7 +841,7 @@ const editOpportunityBtn: CSSProperties = {
   padding: '10px 18px',
   borderRadius: assocDash.radiusMd,
   background: assocDash.gradient,
-  color: '#fff',
+  color: assocDash.white,
   fontSize: 14,
   fontWeight: 600,
   textDecoration: 'none',
@@ -1021,14 +1021,14 @@ const aiScanLineWrap: CSSProperties = {
   height: 5,
   borderRadius: 999,
   overflow: 'hidden',
-  background: 'linear-gradient(90deg, #e2e8f0, #f1f5f9)',
+  background: `linear-gradient(90deg, hsl(var(--aw-skeleton-mid)), hsl(var(--aw-skeleton-from)))`,
 }
 
 const aiScanLine: CSSProperties = {
   height: '100%',
   width: '40%',
   borderRadius: 999,
-  background: 'linear-gradient(90deg, #fb923c, #ea580c)',
+  background: assocDash.gradient,
   animation: 'skillswapAiScan 1.35s ease-in-out infinite',
 }
 
@@ -1087,7 +1087,7 @@ const regenerateBtn: CSSProperties = {
 const modalBackdrop: CSSProperties = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(15, 23, 42, 0.45)',
+  background: assocDash.overlay,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -1100,9 +1100,9 @@ const modalCard: CSSProperties = {
   maxWidth: 440,
   padding: 22,
   borderRadius: 16,
-  background: '#fff',
+  background: assocDash.surface,
   border: `1px solid ${assocDash.border}`,
-  boxShadow: '0 20px 50px rgba(15, 23, 42, 0.18)',
+  boxShadow: assocDash.shadowLg,
 }
 
 const modalLabel: CSSProperties = {
@@ -1146,7 +1146,7 @@ const modalPrimaryBtn: CSSProperties = {
   borderRadius: 10,
   border: 'none',
   background: assocDash.gradient,
-  color: '#fff',
+  color: assocDash.white,
   fontWeight: 800,
   cursor: 'pointer',
 }

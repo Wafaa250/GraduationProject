@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useEffect,
   useState,
@@ -477,7 +477,7 @@ function PageStyles() {
         font-weight: 600;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: ${assocDash.accentDark};
+        color: ${assocDash.accent};
       }
 
       .lt-page-title {
@@ -507,19 +507,19 @@ function PageStyles() {
         height: 40px;
         border: none;
         border-radius: 10px;
-        background: ${assocDash.gradient};
-        color: #fff;
+        background: ${assocDash.accent};
+        color: ${assocDash.white};
         font-size: 14px;
         font-weight: 600;
         font-family: inherit;
         cursor: pointer;
-        box-shadow: 0 1px 2px rgba(234, 88, 12, 0.2), 0 4px 14px rgba(245, 158, 11, 0.22);
+        box-shadow: ${assocDash.shadow};
         transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
       }
 
       .lt-btn-primary:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(234, 88, 12, 0.22), 0 8px 20px rgba(245, 158, 11, 0.28);
+        box-shadow: ${assocDash.shadowHover};
       }
 
       .lt-btn-primary:disabled {
@@ -550,8 +550,8 @@ function PageStyles() {
       }
 
       .lt-btn-ghost:hover:not(:disabled) {
-        background: #f8fafc;
-        border-color: #cbd5e1;
+        background: ${assocDash.bg};
+        border-color: ${assocDash.accentBorder};
       }
 
       .lt-btn-ghost:disabled {
@@ -571,8 +571,8 @@ function PageStyles() {
         text-align: center;
         padding: 56px 32px;
         border-radius: ${assocDash.radiusLg}px;
-        border: 1px dashed #cbd5e1;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px dashed ${assocDash.border};
+        background: ${assocDash.gradientSurface};
       }
 
       .lt-empty-icon {
@@ -614,7 +614,7 @@ function PageStyles() {
       .lt-profile-skeleton {
         height: 340px;
         border-radius: 20px;
-        background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+        background: linear-gradient(90deg, hsl(var(--aw-skeleton-from)) 25%, hsl(var(--aw-skeleton-mid)) 50%, hsl(var(--aw-skeleton-from)) 75%);
         background-size: 200% 100%;
         animation: lt-shimmer 1.4s ease infinite;
       }
@@ -654,9 +654,9 @@ function PageStyles() {
         font-size: 11px;
         font-weight: 700;
         letter-spacing: 0.02em;
-        color: #9a3412;
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
+        color: ${assocDash.accentInk};
+        background: ${assocDash.accentMuted};
+        border: 1px solid ${assocDash.accentBorder};
       }
 
       .lt-back-btn {
@@ -677,7 +677,7 @@ function PageStyles() {
       }
 
       .lt-back-btn:hover:not(:disabled) {
-        background: #f1f5f9;
+        background: ${assocDash.bg};
         color: ${assocDash.text};
       }
 
@@ -685,7 +685,7 @@ function PageStyles() {
         border-radius: 18px;
         border: 1px solid ${assocDash.border};
         background: ${assocDash.surface};
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 40px rgba(15, 23, 42, 0.07);
+        box-shadow: ${assocDash.shadowLg};
         overflow: hidden;
       }
 
@@ -777,7 +777,7 @@ function PageStyles() {
 
       .lt-section + .lt-section {
         padding-top: 20px;
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid ${assocDash.border};
       }
 
       .lt-section-head {
@@ -868,7 +868,7 @@ function PageStyles() {
       }
 
       .lt-req {
-        color: #ef4444;
+        color: ${assocDash.error};
       }
 
       .lt-opt {
@@ -877,7 +877,7 @@ function PageStyles() {
         color: ${assocDash.subtle};
         padding: 1px 7px;
         border-radius: 999px;
-        background: #f8fafc;
+        background: ${assocDash.bg};
         border: 1px solid ${assocDash.border};
       }
 
@@ -896,17 +896,17 @@ function PageStyles() {
       }
 
       .lt-input::placeholder {
-        color: #94a3b8;
+        color: ${assocDash.subtle};
       }
 
       .lt-input:hover {
-        border-color: #cbd5e1;
+        border-color: ${assocDash.accentBorder};
       }
 
       .lt-input:focus {
         outline: none;
         border-color: ${assocDash.accent};
-        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
+        box-shadow: ${assocDash.focusShadow};
       }
 
       .lt-form-footer {
@@ -916,8 +916,8 @@ function PageStyles() {
         gap: 10px;
         margin-top: 8px;
         padding: 18px 32px 24px;
-        border-top: 1px solid #f1f5f9;
-        background: linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, rgba(248, 250, 252, 0.95) 100%);
+        border-top: 1px solid ${assocDash.border};
+        background: linear-gradient(180deg, hsl(var(--aw-shell-bg) / 0.5) 0%, hsl(var(--aw-shell-bg) / 0.95) 100%);
         position: sticky;
         bottom: 0;
         z-index: 2;

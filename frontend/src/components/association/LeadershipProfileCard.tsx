@@ -140,8 +140,8 @@ function ProfileCardStyles() {
 
       .ltp-card:not(.ltp-card--preview):hover {
         transform: translateY(-4px);
-        border-color: #cbd5e1;
-        box-shadow: 0 8px 28px rgba(15, 23, 42, 0.1), 0 2px 8px rgba(15, 23, 42, 0.04);
+        border-color: ${assocDash.accentBorder};
+        box-shadow: ${assocDash.shadowHover};
       }
 
       .ltp-card--preview {
@@ -154,7 +154,7 @@ function ProfileCardStyles() {
 
       .ltp-cover {
         height: 96px;
-        background: linear-gradient(135deg, #fff7ed 0%, #fde68a 45%, #fbbf24 100%);
+        background: ${assocDash.accent};
         background-size: cover;
         background-position: center top;
       }
@@ -219,7 +219,7 @@ function ProfileCardStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(145deg, ${assocDash.accentMuted} 0%, #fff 100%);
+        background: #fff;
         font-family: ${assocDash.fontDisplay};
         font-size: 38px;
         font-weight: 800;
@@ -258,14 +258,14 @@ function ProfileCardStyles() {
         font-size: 12px;
         font-weight: 700;
         color: ${assocDash.accentDark};
-        background: ${assocDash.accentMuted};
-        border: 1px solid ${assocDash.accentBorder};
+        background: hsl(var(--aw-accent) / 0.12);
+        border: 1px solid hsl(var(--aw-accent) / 0.22);
         line-height: 1.35;
       }
 
       .ltp-role.ltp-placeholder {
         color: ${assocDash.subtle};
-        background: #f8fafc;
+        background: ${assocDash.bg};
         border-color: ${assocDash.border};
         font-style: italic;
         font-weight: 600;
@@ -321,8 +321,8 @@ function ProfileCardStyles() {
         justify-content: center;
         gap: 10px;
         padding: 12px 16px 16px;
-        border-top: 1px solid #f1f5f9;
-        background: linear-gradient(180deg, #fafbfc 0%, #f8fafc 100%);
+        border-top: 1px solid ${assocDash.border};
+        background: ${assocDash.gradientSurface};
         opacity: 0.85;
         transition: opacity 0.18s ease;
       }

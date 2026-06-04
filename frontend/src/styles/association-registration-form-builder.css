@@ -1,0 +1,323 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Association form builders (event registration + position application) — dark only
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dark .association-workspace .event-reg-form-builder,
+.dark .association-workspace .position-app-form-builder {
+  --erf-dm-elevated: 220 22% 16%;
+  --erf-dm-muted: 220 20% 12%;
+  --erf-dm-input: 220 22% 11%;
+  --erf-dm-inset: 255 255% 100% / 0.045;
+}
+
+/* —— Shell —— */
+.dark .association-workspace .event-reg-form-builder,
+.dark .association-workspace .position-app-form-builder {
+  background-color: hsl(var(--aw-shell-bg)) !important;
+}
+
+/* Position builder header meta chips */
+.dark .association-workspace .erf-header-meta-chip {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  border-color: hsl(var(--aw-border) / 0.7) !important;
+  color: hsl(var(--aw-text-secondary)) !important;
+}
+
+/* —— Top toolbar —— */
+.dark .association-workspace .erf-builder-topbar,
+.dark .association-workspace .erf-builder-preview-bar {
+  background-color: hsl(var(--aw-surface)) !important;
+  border-bottom-color: hsl(var(--aw-border) / 0.65) !important;
+}
+
+.dark .association-workspace .erf-builder-topbar .erf-toolbar-ghost,
+.dark .association-workspace .erf-builder-preview-bar .erf-toolbar-ghost {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  border-color: hsl(var(--aw-border) / 0.75) !important;
+  color: hsl(var(--aw-text-secondary)) !important;
+}
+
+.dark .association-workspace .erf-builder-topbar .erf-toolbar-ghost:hover:not(:disabled),
+.dark .association-workspace .erf-builder-preview-bar .erf-toolbar-ghost:hover:not(:disabled) {
+  background-color: hsl(220 20% 18%) !important;
+  border-color: hsl(var(--aw-accent-border) / 0.85) !important;
+  color: hsl(var(--aw-text)) !important;
+}
+
+.dark .association-workspace .erf-builder-topbar .erf-toolbar-add:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+.dark .association-workspace .erf-builder-topbar .erf-toolbar-publish {
+  background: var(--aw-gradient) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px hsl(var(--aw-accent) / 0.32) !important;
+}
+
+.dark .association-workspace .erf-builder-topbar .erf-toolbar-publish:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* —— Left questions rail —— */
+.dark .association-workspace .erf-builder-rail {
+  background-color: hsl(var(--aw-surface)) !important;
+  border-right-color: hsl(var(--aw-border) / 0.65) !important;
+}
+
+.dark .association-workspace .erf-rail-header {
+  border-bottom-color: hsl(var(--aw-border) / 0.55) !important;
+}
+
+.dark .association-workspace .erf-rail-count {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  color: hsl(var(--aw-muted)) !important;
+}
+
+.dark .association-workspace .erf-rail-empty {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  border-color: hsl(var(--aw-border) / 0.55) !important;
+}
+
+.dark .association-workspace .erf-rail-item {
+  border-color: transparent !important;
+}
+
+.dark .association-workspace .erf-rail-item:hover:not(.erf-rail-item--selected) {
+  background-color: hsl(220 20% 18%) !important;
+  border-color: hsl(var(--aw-border) / 0.7) !important;
+}
+
+.dark .association-workspace .erf-rail-item--selected {
+  background-color: hsl(var(--aw-accent-muted)) !important;
+  border-color: hsl(var(--aw-accent-border)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--aw-accent) / 0.18) !important;
+}
+
+.dark .association-workspace .erf-rail-item-label {
+  color: hsl(var(--aw-text)) !important;
+}
+
+.dark .association-workspace .erf-rail-item-meta {
+  color: hsl(var(--aw-muted)) !important;
+}
+
+/* —— Center canvas —— */
+.dark .association-workspace .erf-builder-canvas {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--aw-shell-bg)) 0%,
+    hsl(221 26% 9%) 100%
+  ) !important;
+}
+
+/* —— Form preview card —— */
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder,
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder {
+  background-color: hsl(var(--erf-dm-elevated)) !important;
+  border-color: hsl(var(--aw-border) / 0.7) !important;
+  box-shadow:
+    0 1px 3px hsl(222 30% 4% / 0.28),
+    0 20px 48px hsl(222 30% 4% / 0.32) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview--empty,
+.dark .association-workspace .position-app-form-builder .app-form-preview--empty {
+  background-color: hsl(var(--erf-dm-elevated)) !important;
+  border-color: hsl(var(--aw-border) / 0.55) !important;
+  box-shadow: 0 12px 32px hsl(222 30% 4% / 0.24) !important;
+}
+
+/* Question fields */
+.dark .association-workspace .event-reg-form-builder .app-form-preview-field,
+.dark .association-workspace .position-app-form-builder .app-form-preview-field {
+  background-color: hsl(var(--aw-surface)) !important;
+  border-color: hsl(var(--aw-border) / 0.75) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview-field--hover,
+.dark .association-workspace .position-app-form-builder .app-form-preview-field--hover {
+  border-color: hsl(var(--aw-border)) !important;
+  box-shadow: 0 4px 14px hsl(222 30% 4% / 0.2) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview-field--selected,
+.dark .association-workspace .position-app-form-builder .app-form-preview-field--selected {
+  border-color: hsl(var(--aw-accent)) !important;
+  background-color: hsl(var(--aw-accent-muted)) !important;
+  box-shadow: 0 0 0 4px hsl(var(--aw-accent) / 0.16) !important;
+}
+
+/* Field controls inside preview */
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder .app-form-preview-field input,
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder .app-form-preview-field textarea,
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder .app-form-preview-field select,
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder .app-form-preview-field input,
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder .app-form-preview-field textarea,
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder .app-form-preview-field select {
+  background-color: hsl(var(--erf-dm-input)) !important;
+  border-color: hsl(var(--aw-border) / 0.85) !important;
+  color: hsl(var(--aw-text)) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder .app-form-preview-field input::placeholder,
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder .app-form-preview-field textarea::placeholder,
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder .app-form-preview-field input::placeholder,
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder .app-form-preview-field textarea::placeholder {
+  color: hsl(var(--aw-subtle));
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder .app-form-preview-field > div[style*='flex'],
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder .app-form-preview-field > div[style*='flex'] {
+  background-color: hsl(var(--erf-dm-input)) !important;
+  border-color: hsl(var(--aw-border) / 0.85) !important;
+  color: hsl(var(--aw-subtle)) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder .app-form-preview-field label[style*='flex'],
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder .app-form-preview-field label[style*='flex'] {
+  background-color: hsl(var(--erf-dm-input)) !important;
+  border-color: hsl(var(--aw-border) / 0.85) !important;
+  color: hsl(var(--aw-text-secondary)) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview--builder .app-form-preview-field label[style*='dashed'],
+.dark .association-workspace .position-app-form-builder .app-form-preview--builder .app-form-preview-field label[style*='dashed'] {
+  background-color: hsl(var(--aw-accent-muted)) !important;
+  border-color: hsl(var(--aw-accent-border) / 0.6) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview-toolbar,
+.dark .association-workspace .position-app-form-builder .app-form-preview-toolbar {
+  background-color: hsl(var(--aw-surface)) !important;
+  border-color: hsl(var(--aw-border) / 0.7) !important;
+  box-shadow: 0 4px 12px hsl(222 30% 4% / 0.28) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview-toolbar-btn:hover,
+.dark .association-workspace .position-app-form-builder .app-form-preview-toolbar-btn:hover {
+  background-color: hsl(220 20% 18%) !important;
+  color: hsl(var(--aw-text)) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview-toolbar-btn--danger:hover,
+.dark .association-workspace .position-app-form-builder .app-form-preview-toolbar-btn--danger:hover {
+  color: hsl(var(--aw-error)) !important;
+  background-color: hsl(var(--aw-error-muted)) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview-add,
+.dark .association-workspace .position-app-form-builder .app-form-preview-add {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  border-color: hsl(var(--aw-border) / 0.6) !important;
+  color: hsl(var(--aw-muted)) !important;
+}
+
+.dark .association-workspace .event-reg-form-builder .app-form-preview-add:hover,
+.dark .association-workspace .position-app-form-builder .app-form-preview-add:hover {
+  border-color: hsl(var(--aw-accent-border)) !important;
+  background-color: hsl(var(--aw-accent-muted)) !important;
+  color: hsl(var(--aw-accent-ink)) !important;
+}
+
+/* —— Right inspector —— */
+.dark .association-workspace .erf-builder-inspector {
+  background-color: hsl(var(--aw-surface)) !important;
+  border-left-color: hsl(var(--aw-border) / 0.65) !important;
+}
+
+.dark .association-workspace .erf-inspector-head {
+  border-bottom-color: hsl(var(--aw-border) / 0.55) !important;
+}
+
+.dark .association-workspace .erf-inspector-foot {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  border-top-color: hsl(var(--aw-border) / 0.55) !important;
+}
+
+.dark .association-workspace .erf-form-summary-card {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  border-color: hsl(var(--aw-border) / 0.6) !important;
+}
+
+.dark .association-workspace .erf-inspector-label {
+  color: hsl(var(--aw-label)) !important;
+}
+
+.dark .association-workspace .erf-inspector-check {
+  color: hsl(var(--aw-text-secondary)) !important;
+}
+
+.dark .association-workspace .erf-inspector-input,
+.dark .association-workspace .erf-inspector-select {
+  background-color: hsl(var(--erf-dm-input)) !important;
+  border-color: hsl(var(--aw-border) / 0.85) !important;
+  color: hsl(var(--aw-text)) !important;
+}
+
+.dark .association-workspace .erf-inspector-input:focus,
+.dark .association-workspace .erf-inspector-select:focus {
+  border-color: hsl(var(--aw-accent)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--aw-accent) / 0.22) !important;
+}
+
+.dark .association-workspace .erf-inspector-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8b4c4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 36px;
+  color-scheme: dark;
+}
+
+.dark .association-workspace .erf-inspector-close,
+.dark .association-workspace .erf-inspector-ghost,
+.dark .association-workspace .erf-reorder-btn {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  border-color: hsl(var(--aw-border) / 0.75) !important;
+  color: hsl(var(--aw-text-secondary)) !important;
+}
+
+.dark .association-workspace .erf-inspector-close:hover,
+.dark .association-workspace .erf-inspector-ghost:hover:not(:disabled),
+.dark .association-workspace .erf-reorder-btn:hover:not(:disabled) {
+  background-color: hsl(220 20% 18%) !important;
+  color: hsl(var(--aw-text)) !important;
+}
+
+.dark .association-workspace .erf-inspector-primary {
+  box-shadow: 0 4px 12px hsl(var(--aw-accent) / 0.28) !important;
+}
+
+.dark .association-workspace .erf-inspector-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.dark .association-workspace .erf-inspector-delete {
+  background-color: hsl(var(--aw-error-muted)) !important;
+  border-color: hsl(var(--aw-error-border) / 0.7) !important;
+  color: hsl(var(--aw-error)) !important;
+}
+
+.dark .association-workspace .erf-opt-remove {
+  background-color: hsl(var(--aw-error-muted)) !important;
+  border-color: hsl(var(--aw-error-border) / 0.7) !important;
+}
+
+.dark .association-workspace .erf-add-opt {
+  background-color: hsl(var(--erf-dm-muted)) !important;
+  border-color: hsl(var(--aw-border) / 0.55) !important;
+  color: hsl(var(--aw-muted)) !important;
+}
+
+.dark .association-workspace .erf-add-opt:hover:not(:disabled) {
+  border-color: hsl(var(--aw-accent-border)) !important;
+  background-color: hsl(var(--aw-accent-muted)) !important;
+  color: hsl(var(--aw-accent-ink)) !important;
+}
+
+/* —— Preview mode scroll —— */
+.dark .association-workspace .erf-builder-preview-scroll {
+  background: hsl(var(--aw-shell-bg)) !important;
+}

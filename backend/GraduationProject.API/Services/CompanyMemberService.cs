@@ -14,6 +14,12 @@ namespace GraduationProject.API.Services
 {
     public class CompanyMemberService : ICompanyMemberService
     {
+        private static readonly HashSet<string> EligibleMemberAccountRoles = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "company",
+            "student",
+        };
+
         private readonly ApplicationDbContext _db;
         private readonly ICompanyWorkspaceService _workspace;
         private readonly IEmailService _emailService;
@@ -80,8 +86,8 @@ namespace GraduationProject.API.Services
 
             if (existingUser != null)
             {
-                if (!string.Equals(existingUser.Role, "company", StringComparison.OrdinalIgnoreCase))
-                    return (null, "This email belongs to a non-company account.", false);
+                if (!EligibleMemberAccountRoles.Contains(existingUser.Role))
+                    return (null, "This account type cannot be added as a workspace member.", false);
 
                 var existingMembership = await _db.CompanyMembers
                     .FirstOrDefaultAsync(m => m.UserId == existingUser.Id);
@@ -94,11 +100,14 @@ namespace GraduationProject.API.Services
                     return (null, "This user already belongs to another company workspace.", false);
                 }
 
-                var ownsSeparateWorkspace = await _db.CompanyProfiles
-                    .AnyAsync(c => c.UserId == existingUser.Id);
+                if (string.Equals(existingUser.Role, "company", StringComparison.OrdinalIgnoreCase))
+                {
+                    var ownsSeparateWorkspace = await _db.CompanyProfiles
+                        .AnyAsync(c => c.UserId == existingUser.Id);
 
-                if (ownsSeparateWorkspace)
-                    return (null, "This user already owns a separate company workspace.", false);
+                    if (ownsSeparateWorkspace)
+                        return (null, "This user already owns a separate company workspace.", false);
+                }
 
                 existingUser.Name = fullName;
             }

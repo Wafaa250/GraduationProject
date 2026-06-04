@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useRef,
   useState,
@@ -8,6 +8,7 @@
 } from 'react'
 import { ImagePlus, Loader2, Trash2, Upload } from 'lucide-react'
 import { resolveApiFileUrl } from '@/api/axiosInstance'
+import { assocDash } from '@/pages/association/dashboard/associationDashTokens'
 
 const ACCEPT = 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp'
 const MAX_BYTES = 5 * 1024 * 1024
@@ -182,7 +183,7 @@ export function AssociationLogoUpload({
               marginTop: 12,
               height: 5,
               borderRadius: 4,
-              background: '#fde68a',
+              background: assocDash.accentBar,
               overflow: 'hidden',
               maxWidth: 240,
               marginLeft: 'auto',
@@ -193,7 +194,7 @@ export function AssociationLogoUpload({
               style={{
                 height: '100%',
                 width: `${Math.max(progress, 8)}%`,
-                background: 'linear-gradient(135deg,#f59e0b,#ea580c)',
+                background: assocDash.gradient,
                 transition: 'width 0.2s ease',
               }}
             />

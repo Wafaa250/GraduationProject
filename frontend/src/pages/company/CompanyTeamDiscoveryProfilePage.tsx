@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Bookmark, Users, Mail } from "lucide-react";
+import { Bookmark, Mail, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
+import { CompanyDiscoveryProfileHero } from "@/components/company/CompanyDiscoveryProfileHero";
+import { CompanyLuxSection } from "@/components/company/CompanyLuxSection";
+import { CompanyEmptyState } from "@/components/company/CompanyEmptyState";
+import { DashboardSkeleton } from "@/components/company/CompanySkeleton";
 import { cwLayout } from "@/lib/companyLayout";
 import { cn } from "@/lib/utils";
-import { CompanyMatchScoreBadge } from "@/components/company/CompanyMatchScoreBadge";
-import { CompanyRequestReviewStat } from "@/components/company/CompanyRequestReviewStat";
 import { CompanyTeamMemberDiscoveryCard } from "@/components/company/CompanyTeamMemberDiscoveryCard";
 import { CompanyTeamMemberContactCard } from "@/components/company/CompanyTeamMemberContactCard";
 import {
@@ -137,10 +138,8 @@ export function CompanyTeamDiscoveryProfilePage() {
 
   if (loading) {
     return (
-      <CompanyPageShell>
-        <p className={cn(cwLayout.statePadding, "text-sm text-muted-foreground")}>
-          Loading team profile…
-        </p>
+      <CompanyPageShell className="space-y-6">
+        <DashboardSkeleton />
       </CompanyPageShell>
     );
   }
@@ -148,11 +147,15 @@ export function CompanyTeamDiscoveryProfilePage() {
   if (error || !team) {
     return (
       <CompanyPageShell>
-        <div className={cn(cwLayout.statePadding, "text-center")}>
-          <p className="text-sm text-muted-foreground">{error ?? "Team not found."}</p>
-          <Button asChild variant="outline" className="rounded-xl mt-6">
-            <Link to={backHref}>Back to recommendations</Link>
-          </Button>
+        <div className="cw-lux-panel">
+          <div className="cw-lux-panel-body">
+            <CompanyEmptyState icon={Users} message={error ?? "Team not found."} />
+            <div className="flex justify-center mt-4">
+              <Button asChild variant="outline" className="rounded-lg">
+                <Link to={backHref}>Back to recommendations</Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </CompanyPageShell>
     );
@@ -161,106 +164,69 @@ export function CompanyTeamDiscoveryProfilePage() {
   const chemistry = chemistryLabel(team.compatibilityScore);
 
   return (
-    <CompanyPageShell>
-      <Button asChild variant="ghost" size="sm" className="-ml-3 rounded-xl">
-        <Link to={backHref}>
-          <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to recommendations
-        </Link>
-      </Button>
-
-      {/* Team header */}
-      <Card className="cw-card-elevated overflow-hidden border-primary/20">
-        <div className="h-24 cw-hero-bg relative opacity-95">
-          <div className="absolute inset-0 cw-hero-overlay" />
-        </div>
-        <CardContent className="p-6 pt-0">
-          <div className="flex flex-col lg:flex-row lg:items-end gap-5 -mt-10">
-            <div className="h-20 w-20 rounded-2xl cw-avatar-gradient grid place-items-center ring-4 ring-card shadow-lg shrink-0">
-              <Users className="h-9 w-9" aria-hidden />
-            </div>
-            <div className="flex-1 min-w-0 lg:pb-1">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                AI-recommended team
-              </p>
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mt-0.5">
-                Team #{team.teamRank}
-              </h1>
-              {request && (
-                <p className="text-sm text-muted-foreground mt-1 truncate">{request.title}</p>
-              )}
-              <p className="text-xs text-muted-foreground mt-2">
-                {team.members.length} members · {chemistry}
-              </p>
-            </div>
-            <div className="shrink-0 lg:pb-1">
-              <CompanyMatchScoreBadge score={team.totalScore} size="lg" />
-            </div>
+    <CompanyPageShell className="space-y-6">
+      <CompanyDiscoveryProfileHero
+        backTo={backHref}
+        backLabel="Back to recommendations"
+        eyebrow="AI-recommended team"
+        title={`Team #${team.teamRank}`}
+        subtitle={request?.title}
+        score={team.totalScore}
+        visual={
+          <div className="cw-discovery-team-mark shrink-0">
+            <Users className="h-9 w-9" aria-hidden />
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
-            <CompanyRequestReviewStat label="Team score" value={`${team.totalScore}%`} />
-            <CompanyRequestReviewStat label="Role coverage" value={`${team.roleCoverageScore}%`} />
-            <CompanyRequestReviewStat label="Chemistry" value={`${team.compatibilityScore}%`} />
-            <CompanyRequestReviewStat label="Members" value={String(team.members.length)} />
-          </div>
-
-          {team.summaryReason && (
-            <p className="text-sm text-muted-foreground mt-5 leading-relaxed border-t border-border/60 pt-5">
-              {team.summaryReason}
-            </p>
-          )}
-
-          <ul className="mt-5 space-y-2 border-t border-border/60 pt-5">
-            {team.members.map((member) => (
-              <li
-                key={`${member.companyRequestRoleId}-${member.studentProfileId}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-background/40 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <span className="text-sm font-medium text-foreground">{member.roleName}</span>
-                  <span className="text-muted-foreground mx-2">→</span>
-                  <span className="text-sm text-foreground">{member.studentName}</span>
-                </div>
-                <span className="text-xs font-semibold tabular-nums text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
-                  {member.roleScore}% fit
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          <div className="flex flex-wrap gap-2 mt-5">
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-xl"
-              onClick={scrollToContact}
-            >
+        }
+        meta={
+          <p className="text-xs text-muted-foreground">
+            {team.members.length} members · {chemistry}
+          </p>
+        }
+        stats={[
+          { label: "Team score", value: `${team.totalScore}%` },
+          { label: "Role coverage", value: `${team.roleCoverageScore}%` },
+          { label: "Chemistry", value: `${team.compatibilityScore}%` },
+          { label: "Members", value: String(team.members.length) },
+        ]}
+        footer={
+          <>
+            {team.summaryReason ? (
+              <p className="text-sm text-muted-foreground leading-relaxed">{team.summaryReason}</p>
+            ) : null}
+            <ul className={cn("space-y-2", team.summaryReason && "mt-4")}>
+              {team.members.map((member) => (
+                <li key={`${member.companyRequestRoleId}-${member.studentProfileId}`} className="cw-team-member-rail-item">
+                  <div className="min-w-0 text-sm">
+                    <span className="font-medium">{member.roleName}</span>
+                    <span className="text-muted-foreground mx-1.5">→</span>
+                    <span>{member.studentName}</span>
+                  </div>
+                  <span className="cw-team-member-rail-score">{member.roleScore}% fit</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        }
+        actions={
+          <>
+            <Button type="button" variant="outline" className="rounded-lg h-9" onClick={scrollToContact}>
               <Mail className="h-4 w-4 mr-1.5" />
               View team contact information
             </Button>
             <Button
               type="button"
               variant={saved ? "outline" : "default"}
-              className={cn(
-                "rounded-xl",
-                !saved && "cw-btn-gradient border-0 shadow-sm",
-                saved && "text-primary border-primary/30",
-              )}
+              className={cn("rounded-lg h-9", !saved && "cw-btn-gradient border-0")}
               onClick={() => void handleSave()}
             >
               <Bookmark className={cn("h-4 w-4 mr-1.5", saved && "fill-current")} />
               {saved ? "Saved" : "Save team"}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </>
+        }
+      />
 
-      {/* Team overview */}
-      <section>
-        <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" />
-          Team overview
-        </h2>
+      <CompanyLuxSection title="Team overview" icon={Users}>
         <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3", cwLayout.gridDense)}>
           {team.members.map((member) => (
             <CompanyTeamMemberDiscoveryCard
@@ -271,25 +237,22 @@ export function CompanyTeamDiscoveryProfilePage() {
             />
           ))}
         </div>
-      </section>
+      </CompanyLuxSection>
 
-      {/* Team contact — horizontal grid */}
-      <section ref={contactRef}>
-        <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
-          <Mail className="h-4 w-4 text-primary" />
-          Team contact information
-        </h2>
-        <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3", cwLayout.gridDense)}>
-          {team.members.map((member) => (
-            <CompanyTeamMemberContactCard
-              key={`contact-${member.studentProfileId}`}
-              member={member}
-              requestId={requestId}
-              teamId={team.teamId}
-            />
-          ))}
-        </div>
-      </section>
+      <div ref={contactRef}>
+        <CompanyLuxSection title="Team contact information" icon={Mail}>
+          <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3", cwLayout.gridDense)}>
+            {team.members.map((member) => (
+              <CompanyTeamMemberContactCard
+                key={`contact-${member.studentProfileId}`}
+                member={member}
+                requestId={requestId}
+                teamId={team.teamId}
+              />
+            ))}
+          </div>
+        </CompanyLuxSection>
+      </div>
     </CompanyPageShell>
   );
 }

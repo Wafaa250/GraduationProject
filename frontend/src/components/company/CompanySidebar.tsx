@@ -29,13 +29,72 @@ function isProjectRequestsPath(pathname: string) {
   );
 }
 
+const accountNav = [
+  { title: "Company Profile", to: COMPANY_ROUTES.profile, icon: Building2 },
+  { title: "Settings", to: COMPANY_ROUTES.settings, icon: Settings },
+];
+
+const ownerNav = [{ title: "Company Members", to: COMPANY_ROUTES.members, icon: Users }];
+
+type NavItemProps = {
+  to: string;
+  icon: typeof LayoutDashboard;
+  title: string;
+  collapsed: boolean;
+  badge?: string;
+  end?: boolean;
+  forceActive?: boolean;
+  sublink?: boolean;
+};
+
+function SidebarNavItem({
+  to,
+  icon: Icon,
+  title,
+  collapsed,
+  badge,
+  end,
+  forceActive,
+  sublink,
+}: NavItemProps) {
+  return (
+    <NavLink
+      to={to}
+      end={end ?? to === COMPANY_ROUTES.dashboard}
+      title={collapsed ? title : undefined}
+      data-tooltip={collapsed ? title : undefined}
+      className={({ isActive }) =>
+        cn(
+          "cw-sidebar-link",
+          sublink && !collapsed && "cw-sidebar-sublink",
+          collapsed && "cw-sidebar-link--collapsed",
+          (isActive || forceActive) && "active",
+        )
+      }
+    >
+      <span className="cw-sidebar-icon-wrap">
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <span
+        className={cn(
+          "whitespace-nowrap overflow-hidden transition-[opacity,width,margin] duration-300 ease-in-out flex-1",
+          collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100",
+        )}
+      >
+        {title}
+      </span>
+      {badge && !collapsed ? <span className="cw-sidebar-badge">{badge}</span> : null}
+    </NavLink>
+  );
+}
+
 function ProjectRequestsNavGroup({ collapsed }: { collapsed: boolean }) {
   const { pathname } = useLocation();
   const inRequests = isProjectRequestsPath(pathname);
   const [open, setOpen] = useState(inRequests);
 
   useEffect(() => {
-    setOpen(inRequests);
+    if (inRequests) setOpen(true);
   }, [inRequests]);
 
   return (
@@ -60,7 +119,9 @@ function ProjectRequestsNavGroup({ collapsed }: { collapsed: boolean }) {
             )
           }
         >
-          <FileText className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="cw-sidebar-icon-wrap">
+            <FileText className="h-4 w-4" aria-hidden />
+          </span>
           <span
             className={cn(
               "whitespace-nowrap overflow-hidden transition-[opacity,width,margin] duration-300 ease-in-out",
@@ -73,11 +134,8 @@ function ProjectRequestsNavGroup({ collapsed }: { collapsed: boolean }) {
         {!collapsed ? (
           <button
             type="button"
-            className={cn(
-              "cw-sidebar-requests-toggle shrink-0",
-              open && "is-open",
-            )}
-            aria-label={open ? "Hide new request" : "Show new request"}
+            className={cn("cw-sidebar-requests-toggle shrink-0", open && "is-open")}
+            aria-label={open ? "Hide New Request" : "Show New Request"}
             aria-expanded={open}
             onClick={(e) => {
               e.preventDefault();
@@ -95,53 +153,10 @@ function ProjectRequestsNavGroup({ collapsed }: { collapsed: boolean }) {
           title="New Request"
           collapsed={collapsed}
           sublink
+          end
         />
       ) : null}
     </div>
-  );
-}
-
-const accountNav = [
-  { title: "Company Profile", to: COMPANY_ROUTES.profile, icon: Building2 },
-  { title: "Settings", to: COMPANY_ROUTES.settings, icon: Settings },
-];
-
-const ownerNav = [{ title: "Company Members", to: COMPANY_ROUTES.members, icon: Users }];
-
-type NavItemProps = {
-  to: string;
-  icon: typeof LayoutDashboard;
-  title: string;
-  collapsed: boolean;
-  sublink?: boolean;
-};
-
-function SidebarNavItem({ to, icon: Icon, title, collapsed, sublink }: NavItemProps) {
-  return (
-    <NavLink
-      to={to}
-      end={to === COMPANY_ROUTES.dashboard}
-      title={collapsed ? title : undefined}
-      data-tooltip={collapsed ? title : undefined}
-      className={({ isActive }) =>
-        cn(
-          "cw-sidebar-link",
-          sublink && !collapsed && "cw-sidebar-sublink",
-          collapsed && "cw-sidebar-link--collapsed",
-          isActive && "active",
-        )
-      }
-    >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden />
-      <span
-        className={cn(
-          "whitespace-nowrap overflow-hidden transition-[opacity,width,margin] duration-300 ease-in-out",
-          collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100",
-        )}
-      >
-        {title}
-      </span>
-    </NavLink>
   );
 }
 
@@ -149,7 +164,7 @@ function SectionLabel({ collapsed, children }: { collapsed: boolean; children: s
   return (
     <div
       className={cn(
-        "px-3 mb-2 text-[10px] uppercase tracking-wider text-muted-foreground font-medium overflow-hidden transition-[opacity,max-height] duration-300 ease-in-out",
+        "px-3 mb-1.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-semibold overflow-hidden transition-[opacity,max-height] duration-300 ease-in-out",
         collapsed ? "max-h-0 opacity-0 mb-0" : "max-h-8 opacity-100",
       )}
     >
@@ -161,13 +176,12 @@ function SectionLabel({ collapsed, children }: { collapsed: boolean; children: s
 export function CompanySidebar() {
   const { collapsed, toggle } = useCompanySidebarCollapsed();
   const showMembers = isCompanyOwner();
-
   return (
     <aside
       className={cn(
         "cw-sidebar hidden md:flex flex-col shrink-0 h-full min-h-0 overflow-hidden",
         "transition-[width] duration-300 ease-in-out",
-        collapsed ? "cw-sidebar--collapsed w-[4.875rem]" : "w-64",
+        collapsed ? "cw-sidebar--collapsed w-[var(--cw-sidebar-collapsed)]" : "w-[var(--cw-sidebar-width)]",
       )}
       aria-label="Company workspace navigation"
     >
@@ -214,7 +228,7 @@ export function CompanySidebar() {
         )}
       >
         <div>
-          <SectionLabel collapsed={collapsed}>Discovery</SectionLabel>
+          <SectionLabel collapsed={collapsed}>Hiring</SectionLabel>
           <div className="space-y-0.5">
             {workspaceNav.map((item) => (
               <SidebarNavItem key={item.to} collapsed={collapsed} {...item} />
@@ -230,7 +244,7 @@ export function CompanySidebar() {
         </div>
 
         <div>
-          <SectionLabel collapsed={collapsed}>Account</SectionLabel>
+          <SectionLabel collapsed={collapsed}>Workspace</SectionLabel>
           <div className="space-y-0.5">
             {showMembers
               ? ownerNav.map((item) => (
@@ -244,6 +258,35 @@ export function CompanySidebar() {
         </div>
       </nav>
 
+      <div
+        className={cn(
+          "cw-sidebar-footer shrink-0 border-t border-border/80 mt-auto transition-[padding] duration-300",
+          collapsed ? "px-1.5 py-2" : "px-2 py-2",
+        )}
+      >
+        <button
+          type="button"
+          title={collapsed ? "Logout" : undefined}
+          data-tooltip={collapsed ? "Logout" : undefined}
+          className={cn(
+            "cw-sidebar-link w-full",
+            collapsed && "cw-sidebar-link--collapsed",
+          )}
+          onClick={() => companySignOut(navigate)}
+        >
+          <span className="cw-sidebar-icon-wrap">
+            <LogOut className="h-4 w-4" aria-hidden />
+          </span>
+          <span
+            className={cn(
+              "whitespace-nowrap overflow-hidden transition-[opacity,width,margin] duration-300 ease-in-out",
+              collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100",
+            )}
+          >
+            Logout
+          </span>
+        </button>
+      </div>
     </aside>
   );
 }

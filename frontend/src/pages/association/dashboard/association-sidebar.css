@@ -31,7 +31,7 @@
   border: none;
   border-radius: 0.5rem;
   background: transparent;
-  color: var(--assoc-muted, #64748b);
+  color: hsl(var(--aw-muted));
   cursor: pointer;
   transition:
     background 0.2s ease,

@@ -16,12 +16,11 @@ export function CompanyTeamRecommendationsErrorState({
   onRegenerate,
 }: Props) {
   return (
-    <Card className="cw-card-elevated cw-team-state-panel overflow-hidden">
-      <div className="cw-accent-bar" aria-hidden />
+    <Card className="cw-lux-panel cw-team-state-panel overflow-hidden border-0 shadow-none">
       <CardContent className="py-14 md:py-16 px-6 md:px-10">
         <div className="max-w-xl mx-auto text-center">
-          <div className="cw-team-state-icon cw-team-state-icon-warning mb-6 mx-auto">
-            <Sparkles className="h-9 w-9" aria-hidden />
+          <div className="cw-empty-state-icon mb-6 mx-auto h-16 w-16 rounded-2xl">
+            <Sparkles className="h-8 w-8" aria-hidden />
           </div>
           <h2 className="text-xl font-semibold tracking-tight">
             SkillSwap couldn&apos;t compose teams right now

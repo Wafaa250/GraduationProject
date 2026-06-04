@@ -1,4 +1,4 @@
-﻿import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, Eye, Sparkles } from 'lucide-react'
 import { RecruitmentCampaignCoverUpload } from '@/components/association/RecruitmentCampaignCoverUpload'
@@ -340,7 +340,7 @@ function FormStyles() {
       }
 
       .opportunity-required {
-        color: #ef4444;
+        color: ${assocDash.error};
       }
 
       .opportunity-input {
@@ -359,7 +359,7 @@ function FormStyles() {
       .opportunity-input:focus {
         outline: none;
         border-color: ${assocDash.accent};
-        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+        box-shadow: ${assocDash.focusShadow};
       }
 
       .opportunity-input-title {
@@ -414,7 +414,7 @@ function FormStyles() {
         width: 40px;
         height: 22px;
         border-radius: 999px;
-        background: #cbd5e1;
+        background: ${assocDash.border};
         flex-shrink: 0;
         margin-top: 2px;
         position: relative;
@@ -429,8 +429,8 @@ function FormStyles() {
         width: 16px;
         height: 16px;
         border-radius: 50%;
-        background: #fff;
-        box-shadow: 0 1px 3px rgba(15,23,42,0.15);
+        background: ${assocDash.surface};
+        box-shadow: ${assocDash.shadow};
         transition: transform 0.2s ease;
       }
 
@@ -509,7 +509,7 @@ function FormStyles() {
         font-weight: 700;
         cursor: pointer;
         font-family: inherit;
-        box-shadow: 0 4px 14px rgba(234, 88, 12, 0.25);
+        box-shadow: ${assocDash.shadow};
         transition: opacity 0.15s ease, transform 0.15s ease;
       }
 
@@ -546,7 +546,7 @@ function FormStyles() {
         display: block;
         margin-top: 6px;
         font-size: 12px;
-        color: #b91c1c;
+        color: ${assocDash.error};
         font-weight: 500;
       }
 

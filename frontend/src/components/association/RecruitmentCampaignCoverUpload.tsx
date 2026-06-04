@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useRef,
   useState,
@@ -111,11 +111,11 @@ export function RecruitmentCampaignCoverUpload({
           fontWeight: isHero ? 700 : 600,
           letterSpacing: isHero ? '0.04em' : undefined,
           textTransform: isHero ? 'uppercase' : undefined,
-          color: isHero ? assocDash.label : '#374151',
+          color: isHero ? assocDash.label : assocDash.textSecondary,
           marginBottom: 8,
         }}
       >
-        Cover image {!isHero ? <span style={{ fontWeight: 400, color: '#94a3b8' }}>(optional)</span> : null}
+        Cover image {!isHero ? <span style={{ fontWeight: 400, color: assocDash.subtle }}>(optional)</span> : null}
       </label>
       <DropZone
         role="button"
@@ -132,7 +132,7 @@ export function RecruitmentCampaignCoverUpload({
         style={{
           borderRadius: isHero ? 12 : 14,
           border: `2px dashed ${dragOver ? assocDash.accent : assocDash.accentBorder}`,
-          background: dragOver ? assocDash.accentMuted : isHero ? assocDash.bg : '#fffbeb',
+          background: dragOver ? assocDash.accentMuted : isHero ? assocDash.bg : assocDash.accentSoft,
           padding: displayUrl ? 16 : isHero ? 24 : 28,
           minHeight: isHero && !displayUrl ? 200 : undefined,
           display: isHero && !displayUrl ? 'flex' : undefined,
@@ -164,12 +164,12 @@ export function RecruitmentCampaignCoverUpload({
           <ImagePlus size={28} color={assocDash.accent} strokeWidth={1.8} />
         )}
         {!displayUrl && !uploading && (
-          <p style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 600, color: '#92400e' }}>
+          <p style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 600, color: assocDash.accentInk }}>
             Drag & drop or click to upload
           </p>
         )}
         {uploading && (
-          <div style={{ marginTop: 12, height: 6, borderRadius: 4, background: '#fde68a', overflow: 'hidden' }}>
+          <div style={{ marginTop: 12, height: 6, borderRadius: 4, background: assocDash.accentBar, overflow: 'hidden' }}>
             <div
               style={{
                 height: '100%',
@@ -186,13 +186,13 @@ export function RecruitmentCampaignCoverUpload({
             <Upload size={14} />
             Change
           </button>
-          <button type="button" onClick={clearCover} style={{ ...actionBtnStyle, color: '#b91c1c' }}>
+          <button type="button" onClick={clearCover} style={{ ...actionBtnStyle, color: assocDash.error }}>
             <Trash2 size={14} />
             Remove
           </button>
         </div>
       )}
-      {error && <p style={{ margin: '8px 0 0', fontSize: 12, color: '#b91c1c' }}>{error}</p>}
+      {error && <p style={{ margin: '8px 0 0', fontSize: 12, color: assocDash.error }}>{error}</p>}
       <style>{`.recruit-cover-spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
@@ -213,7 +213,7 @@ const actionBtnStyle: CSSProperties = {
   padding: '8px 12px',
   borderRadius: 8,
   border: `1px solid ${assocDash.border}`,
-  background: '#fff',
+  background: assocDash.surface,
   fontSize: 12,
   fontWeight: 600,
   cursor: 'pointer',

@@ -1,40 +1,146 @@
-/* Association workspace — theme-aware shell (light / dark, same pattern as student & doctor) */
+/* ═══════════════════════════════════════════════════════════════════════════
+   Association — Leadership Board palette (dominant theme)
+   Primary #F97316 · Surface tint #FFF7ED · Ink #7C2D12 · Canvas #F9FAFB
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .association-workspace {
-  --aw-shell-bg: 210 40% 98%;
+  /* —— Canvas —— */
+  --aw-shell-bg: 210 20% 98%;
   --aw-surface: 0 0% 100%;
   --aw-border: 220 13% 91%;
-  --aw-text: 222 47% 11%;
-  --aw-text-secondary: 215 20% 35%;
+  --aw-text: 221 39% 11%;
+  --aw-text-secondary: 220 9% 35%;
   --aw-muted: 220 9% 46%;
-  --aw-subtle: 220 9% 55%;
-  --aw-label: 220 9% 46%;
-  --aw-accent: 32 95% 44%;
-  --aw-accent-dark: 28 75% 32%;
-  --aw-accent-muted: 48 96% 96%;
-  --aw-accent-border: 48 96% 85%;
-  --aw-shadow: 0 1px 2px hsl(222 47% 11% / 0.04), 0 4px 16px hsl(222 47% 11% / 0.06);
-  --aw-shadow-lg: 0 8px 30px hsl(222 47% 11% / 0.08);
+  --aw-subtle: 220 9% 56%;
+  --aw-label: 220 9% 42%;
+  --aw-input-bg: 0 0% 100%;
+  --aw-skeleton-from: 210 20% 96%;
+  --aw-skeleton-mid: 220 13% 91%;
+  --aw-overlay: 221 39% 11%;
+
+  /* —— Brand orange (one hue — no beige tint hue 33) —— */
+  --aw-accent-h: 25;
+  --aw-accent: var(--aw-accent-h) 95% 53%;
+  --aw-accent-dark: 21 90% 48%;
+  --aw-accent-muted: var(--aw-accent-h) 100% 97%;
+  --aw-accent-soft: var(--aw-accent-h) 95% 94%;
+  --aw-accent-border: var(--aw-accent-h) 90% 85%;
+  --aw-accent-ink: 21 90% 38%;
+  --aw-accent-bar: var(--aw-accent-h) 90% 68%;
+  --aw-nav-active: var(--aw-accent-h) 100% 97%;
+  --aw-focus-ring: var(--aw-accent-h) 95% 53%;
+
+  /* —— Semantic —— */
+  --aw-success: 152 55% 38%;
+  --aw-success-muted: 152 60% 95%;
+  --aw-success-border: 152 40% 82%;
+  --aw-error: 0 72% 50%;
+  --aw-error-muted: 0 90% 97%;
+  --aw-error-border: 0 80% 88%;
+  --aw-warning: var(--aw-accent-h) 95% 53%;
+  --aw-warning-muted: var(--aw-accent-muted);
+  --aw-warning-border: var(--aw-accent-border);
+
+  /* —— Elevation —— */
+  --aw-shadow: 0 1px 2px hsl(221 39% 11% / 0.05), 0 4px 14px hsl(221 39% 11% / 0.06);
+  --aw-shadow-lg: 0 8px 28px hsl(221 39% 11% / 0.08), 0 2px 8px hsl(221 39% 11% / 0.04);
+  --aw-shadow-hover: 0 8px 24px hsl(25 95% 53% / 0.2), 0 4px 12px hsl(221 39% 11% / 0.06);
+
+  /* —— Gradients (orange family only — no beige middle stop) —— */
+  --aw-gradient: linear-gradient(180deg, hsl(25 95% 53%), hsl(21 90% 48%));
+  --aw-gradient-hero: var(--aw-gradient);
+  /* List/placeholder cards: orange → light orange → white */
+  --aw-gradient-card: linear-gradient(
+    165deg,
+    hsl(25 95% 53%) 0%,
+    hsl(25 85% 62%) 32%,
+    hsl(0 0% 100%) 78%
+  );
+  /* Leadership card header: solid orange band (like original UI) */
+  --aw-gradient-cover: linear-gradient(180deg, hsl(25 95% 53%) 0%, hsl(25 92% 50%) 100%);
+  --aw-gradient-surface: linear-gradient(180deg, hsl(var(--aw-surface)), hsl(var(--aw-shell-bg)));
 
   min-height: 100%;
   color: hsl(var(--aw-text));
   background: hsl(var(--aw-shell-bg));
+  -webkit-font-smoothing: antialiased;
 }
 
 .dark .association-workspace {
-  --aw-shell-bg: 222 39% 11%;
-  --aw-surface: 215 30% 22%;
-  --aw-border: 215 16% 27%;
-  --aw-text: 210 20% 98%;
-  --aw-text-secondary: 220 9% 84%;
-  --aw-muted: 220 9% 64%;
-  --aw-subtle: 220 9% 55%;
-  --aw-label: 220 9% 64%;
-  --aw-accent: 38 92% 55%;
-  --aw-accent-dark: 43 96% 72%;
-  --aw-accent-muted: 32 60% 14%;
-  --aw-accent-border: 32 50% 26%;
-  --aw-shadow: 0 1px 2px hsl(222 47% 5% / 0.35), 0 4px 16px hsl(222 47% 5% / 0.25);
-  --aw-shadow-lg: 0 8px 30px hsl(222 47% 5% / 0.35);
+  /* Navy / charcoal canvas — lighter than pure black for SaaS polish */
+  --aw-shell-bg: 221 26% 10%;
+  --aw-surface: 220 22% 14%;
+  --aw-border: 220 14% 22%;
+  --aw-text: 210 25% 97%;
+  --aw-text-secondary: 214 18% 82%;
+  --aw-muted: 215 14% 64%;
+  --aw-subtle: 215 12% 54%;
+  --aw-label: 215 14% 62%;
+  --aw-input-bg: 220 22% 12%;
+  --aw-skeleton-from: 220 22% 12%;
+  --aw-skeleton-mid: 220 18% 17%;
+  --aw-overlay: 222 30% 4%;
+
+  --aw-accent: var(--aw-accent-h) 92% 58%;
+  --aw-accent-dark: var(--aw-accent-h) 88% 72%;
+  --aw-accent-muted: var(--aw-accent-h) 42% 16%;
+  --aw-accent-soft: var(--aw-accent-h) 38% 14%;
+  --aw-accent-border: var(--aw-accent-h) 48% 28%;
+  --aw-accent-ink: var(--aw-accent-h) 90% 82%;
+  --aw-accent-bar: var(--aw-accent-h) 55% 36%;
+  --aw-nav-active: var(--aw-accent-h) 42% 18%;
+  --aw-focus-ring: var(--aw-accent-h) 92% 58%;
+
+  --aw-success: 152 50% 48%;
+  --aw-success-muted: 152 40% 14%;
+  --aw-success-border: 152 35% 22%;
+  --aw-error: 0 75% 62%;
+  --aw-error-muted: 0 42% 16%;
+  --aw-error-border: 0 38% 26%;
+
+  --aw-shadow: 0 1px 3px hsl(222 30% 4% / 0.28), 0 6px 18px hsl(222 30% 4% / 0.2);
+  --aw-shadow-lg: 0 8px 28px hsl(222 30% 4% / 0.32), 0 2px 8px hsl(222 30% 4% / 0.18);
+  --aw-shadow-hover: 0 8px 24px hsl(25 92% 53% / 0.2), 0 4px 14px hsl(222 30% 4% / 0.22);
+
+  --aw-gradient: linear-gradient(180deg, hsl(25 94% 56%), hsl(21 88% 50%));
+  --aw-gradient-card: linear-gradient(
+    165deg,
+    hsl(25 68% 44%) 0%,
+    hsl(25 48% 24%) 38%,
+    hsl(var(--aw-surface)) 100%
+  );
+  --aw-gradient-cover: linear-gradient(180deg, hsl(25 82% 50%) 0%, hsl(25 72% 42%) 100%);
+  --aw-gradient-surface: linear-gradient(180deg, hsl(220 22% 15%), hsl(var(--aw-shell-bg)));
+}
+
+/* Sidebar — peach active + orange bar (like screenshot) */
+.association-workspace .assoc-sidebar-nav-link {
+  color: hsl(var(--aw-muted));
+}
+
+.association-workspace .assoc-sidebar-nav-link:hover {
+  color: hsl(var(--aw-accent-dark));
+  background: hsl(var(--aw-nav-active));
+}
+
+.association-workspace .assoc-sidebar-nav-link.active {
+  color: hsl(var(--aw-accent));
+  background: hsl(var(--aw-nav-active));
+  border-color: hsl(var(--aw-accent-border) / 0.5);
+  box-shadow: inset 3px 0 0 hsl(var(--aw-accent));
+}
+
+.association-workspace .assoc-sidebar-nav-link.active svg {
+  color: hsl(var(--aw-accent));
+}
+
+.association-workspace .assoc-sidebar-logout-btn {
+  color: hsl(var(--aw-muted));
+}
+
+.association-workspace .assoc-sidebar-logout-btn:hover {
+  background: hsl(var(--aw-nav-active));
+  color: hsl(var(--aw-text));
 }
 
 .association-workspace .assoc-workspace-header-actions {
@@ -42,4 +148,169 @@
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Leadership board (.lt-page) — dark mode only (light uses inline tokens)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* —— Profile cards —— */
+.dark .association-workspace .ltp-card {
+  box-shadow:
+    0 1px 2px hsl(222 30% 4% / 0.32),
+    0 8px 24px hsl(222 30% 4% / 0.22);
+}
+
+.dark .association-workspace .ltp-card--preview {
+  box-shadow: 0 4px 20px hsl(222 30% 4% / 0.28);
+}
+
+/* Orange header band: clean gradient, no white fade when there is no photo */
+.dark .association-workspace .ltp-card:not(.ltp-card--has-photo) .ltp-cover {
+  background: var(--aw-gradient-cover) !important;
+}
+
+.dark .association-workspace .ltp-card:not(.ltp-card--has-photo) .ltp-cover-fade {
+  display: none;
+}
+
+.dark .association-workspace .ltp-card--has-photo .ltp-cover-fade {
+  background: linear-gradient(
+    180deg,
+    hsl(222 30% 4% / 0.08) 0%,
+    hsl(222 30% 4% / 0.42) 52%,
+    hsl(var(--aw-surface)) 100%
+  ) !important;
+}
+
+.dark .association-workspace .ltp-avatar,
+.dark .association-workspace .ltp-avatar-ph {
+  border-color: hsl(var(--aw-surface));
+  box-shadow:
+    0 4px 16px hsl(222 30% 4% / 0.4),
+    0 0 0 1px hsl(var(--aw-border));
+}
+
+.dark .association-workspace .ltp-avatar-ph {
+  background: hsl(220 22% 17%);
+  color: hsl(var(--aw-accent-dark));
+}
+
+.dark .association-workspace .ltp-role:not(.ltp-placeholder) {
+  color: hsl(var(--aw-accent-ink));
+  background: hsl(var(--aw-accent) / 0.14);
+  border-color: hsl(var(--aw-accent-border));
+}
+
+.dark .association-workspace .ltp-social,
+.dark .association-workspace .ltp-social--static {
+  color: hsl(209 96% 74%);
+  background: hsl(214 48% 16%);
+  border-color: hsl(214 38% 26%);
+}
+
+.dark .association-workspace a.ltp-social:hover {
+  background: hsl(214 42% 22%);
+  color: hsl(209 96% 82%);
+}
+
+.dark .association-workspace .ltp-admin {
+  background: var(--aw-gradient-surface);
+  border-top-color: hsl(var(--aw-border));
+  opacity: 1;
+}
+
+.dark .association-workspace .ltp-admin-btn {
+  color: hsl(var(--aw-text-secondary));
+}
+
+.dark .association-workspace .ltp-admin-btn:hover:not(:disabled) {
+  background: hsl(220 20% 19%);
+  color: hsl(var(--aw-text));
+  box-shadow: 0 1px 4px hsl(222 30% 4% / 0.35);
+}
+
+.dark .association-workspace .ltp-admin-btn--danger:hover:not(:disabled) {
+  color: hsl(var(--aw-error));
+  background: hsl(var(--aw-error-muted));
+  box-shadow: none;
+}
+
+.dark .association-workspace .ltp-admin-dot {
+  background: hsl(var(--aw-border));
+}
+
+/* —— Page chrome —— */
+.dark .association-workspace .lt-roster-count,
+.dark .association-workspace .lt-roster-hint {
+  color: hsl(var(--aw-muted));
+}
+
+.dark .association-workspace .lt-empty {
+  background: var(--aw-gradient-surface);
+  border-color: hsl(var(--aw-border) / 0.85);
+}
+
+.dark .association-workspace .lt-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.dark .association-workspace .lt-btn-primary:active:not(:disabled) {
+  filter: brightness(0.97);
+  transform: translateY(0);
+}
+
+.dark .association-workspace .lt-btn-ghost:hover:not(:disabled) {
+  background: hsl(220 20% 17%);
+  border-color: hsl(var(--aw-accent-border));
+  color: hsl(var(--aw-text));
+}
+
+.dark .association-workspace .lt-form-footer {
+  background: linear-gradient(180deg, hsl(var(--aw-surface) / 0.55) 0%, hsl(var(--aw-shell-bg) / 0.98) 100%);
+}
+
+/* —— Portrait upload (add/edit form on same page) —— */
+.dark .association-workspace .lt-portrait-drop {
+  border-color: hsl(var(--aw-border));
+  background: linear-gradient(180deg, hsl(220 22% 13%), hsl(var(--aw-shell-bg)));
+}
+
+.dark .association-workspace .lt-portrait-drop--active {
+  box-shadow: 0 0 0 3px hsl(var(--aw-accent) / 0.18);
+}
+
+.dark .association-workspace .lt-portrait-hero-img,
+.dark .association-workspace .lt-portrait-hero-ph {
+  border-color: hsl(var(--aw-surface));
+  box-shadow:
+    0 4px 16px hsl(222 30% 4% / 0.35),
+    0 0 0 1px hsl(var(--aw-border));
+}
+
+.dark .association-workspace .lt-portrait-hero-ph {
+  background: linear-gradient(145deg, hsl(var(--aw-accent-muted)), hsl(220 22% 16%));
+}
+
+.dark .association-workspace .lt-portrait-hero-badge {
+  border-color: hsl(var(--aw-surface));
+}
+
+.dark .association-workspace .lt-portrait-avatar-img,
+.dark .association-workspace .lt-portrait-avatar-ph {
+  box-shadow:
+    0 0 0 3px hsl(var(--aw-surface)),
+    0 0 0 4px hsl(var(--aw-accent-border));
+}
+
+.dark .association-workspace .lt-portrait-progress {
+  background: hsl(220 18% 20%);
+}
+
+.dark .association-workspace .lt-portrait-remove {
+  color: hsl(var(--aw-error));
+}
+
+.dark .association-workspace .lt-portrait-remove:hover {
+  color: hsl(0 80% 68%);
 }

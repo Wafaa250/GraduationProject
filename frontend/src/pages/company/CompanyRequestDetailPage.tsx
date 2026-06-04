@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import toast from "react-hot-toast";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CompanyPageHeader } from "@/components/company/PageHeader";
+import { CompanyLuxHero, CompanyLuxPanel } from "@/components/company/CompanyPremiumUI";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
-import { cwLayout } from "@/lib/companyLayout";
+import { CompanySkeleton } from "@/components/company/CompanySkeleton";
+import { CompanyEmptyState } from "@/components/company/CompanyEmptyState";
 import { CompanyRequestReviewStat } from "@/components/company/CompanyRequestReviewStat";
 import { CompanyRequestAnalyzeCta } from "@/components/company/CompanyRequestAnalyzeCta";
-import { CompanyRequestRecommendationSummary } from "@/components/company/CompanyRequestRecommendationSummary";
+import { CompanyRequestMetaTags } from "@/components/company/CompanyRequestMetaTags";
+import {
+  getRequestRoleLabels,
+  getRequestRoleSubtitle,
+} from "@/lib/companyRequestDisplay";
 import { CompanyRequestActionsMenu } from "@/components/company/CompanyRequestActionsMenu";
 import { ConfirmDialog } from "@/components/company/ConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -24,7 +28,9 @@ import {
 import {
   formatRequestDuration,
   getRequestLifecycleStatus,
+  getRequestProjectTitle,
   isRequestViewOnly,
+  requestLifecycleStatusBadgeClass,
   requestLifecycleStatusLabel,
   requestTypeLabel,
 } from "@/lib/companyRequestDisplay";
@@ -172,58 +178,82 @@ export function CompanyRequestDetailPage() {
     }
   };
 
+  const heroDescription = request?.description?.trim() || undefined;
+  const roleSubtitle = request ? getRequestRoleSubtitle(request) : null;
+  const projectTitle = request ? getRequestProjectTitle(request) : "";
+  const showRoleSubtitle =
+    roleSubtitle &&
+    roleSubtitle !== projectTitle &&
+    !(request && getRequestRoleLabels(request).length === 1 && roleSubtitle === projectTitle);
+
   return (
-    <CompanyPageShell>
-      <CompanyPageHeader
-        title="Request details"
-        subtitle={request?.title}
-        actions={
-          <div className="flex items-center gap-2 flex-wrap">
-            {request && (
-              <CompanyRequestActionsMenu
-                editHref={COMPANY_ROUTES.editRequest(request.id)}
-                lifecycleStatus={lifecycleStatus}
-                statusLoading={statusLoading}
-                onPause={() => setLifecycleStatus("Paused", "Request paused")}
-                onReactivate={() => setLifecycleStatus("Active", "Request reactivated")}
-                onClose={() => setLifecycleStatus("Closed", "Request closed")}
-                onDelete={() => setDeleteOpen(true)}
-              />
-            )}
-            <Button asChild variant="outline" className="rounded-xl">
-              <Link to={COMPANY_ROUTES.requests}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> Back to requests
-              </Link>
-            </Button>
-          </div>
-        }
-      />
-
-      {loading && (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading request…
-          </CardContent>
-        </Card>
-      )}
-
-      {!loading && error && (
-        <Card className="cw-card-elevated">
-          <CardContent className="py-16 text-center">
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button asChild variant="outline" className="rounded-xl mt-4">
-              <Link to={COMPANY_ROUTES.requests}>Back to requests</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {!loading && request && (
+    <CompanyPageShell className="space-y-6">
+      {loading ? (
         <>
+          <CompanySkeleton className="h-52 w-full rounded-[1.25rem]" />
+          <CompanySkeleton className="h-48 w-full rounded-xl" />
+          <CompanySkeleton className="h-96 w-full rounded-xl" />
+        </>
+      ) : error ? (
+        <div className="cw-lux-panel">
+          <div className="cw-lux-panel-body">
+            <CompanyEmptyState icon={FileText} title="Request unavailable" message={error} />
+            <div className="flex justify-center mt-4">
+              <Button asChild variant="outline" className="rounded-lg">
+                <Link to={COMPANY_ROUTES.requests}>Back to requests</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : request ? (
+        <>
+          <CompanyLuxHero
+            eyebrow="Project request"
+            title={projectTitle}
+            subtitle={showRoleSubtitle ? roleSubtitle : undefined}
+            description={heroDescription}
+            footer={<CompanyRequestMetaTags request={request} showSkills={false} />}
+            actions={
+              <>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
+                >
+                  <Link to={COMPANY_ROUTES.requests}>
+                    <ArrowLeft className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">Back to requests</span>
+                    <span className="sm:hidden">Back</span>
+                  </Link>
+                </Button>
+                <span className="cw-lux-hero-toolbar-divider" aria-hidden />
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "rounded-full h-7 px-2.5 font-medium",
+                    requestLifecycleStatusBadgeClass(lifecycleStatus),
+                  )}
+                >
+                  {requestLifecycleStatusLabel(lifecycleStatus)}
+                </Badge>
+                <CompanyRequestActionsMenu
+                  editHref={COMPANY_ROUTES.editRequest(request.id)}
+                  lifecycleStatus={lifecycleStatus}
+                  statusLoading={statusLoading}
+                  onPause={() => setLifecycleStatus("Paused", "Request paused")}
+                  onReactivate={() => setLifecycleStatus("Active", "Request reactivated")}
+                  onClose={() => setLifecycleStatus("Closed", "Request closed")}
+                  onDelete={() => setDeleteOpen(true)}
+                />
+              </>
+            }
+          />
+
           {(lifecycleStatus === "paused" || lifecycleStatus === "closed") && (
             <div
               className={cn(
-                "cw-status-banner mb-6",
+                "cw-status-banner",
                 lifecycleStatus === "paused"
                   ? "cw-status-banner--paused"
                   : "cw-status-banner--closed",
@@ -243,7 +273,7 @@ export function CompanyRequestDetailPage() {
                 <Button
                   type="button"
                   size="sm"
-                  className="rounded-xl shrink-0 cw-btn-gradient border-0 shadow-sm"
+                  className="rounded-lg shrink-0 cw-btn-gradient border-0"
                   disabled={statusLoading}
                   onClick={() => setLifecycleStatus("Active", "Request reactivated")}
                 >
@@ -253,113 +283,93 @@ export function CompanyRequestDetailPage() {
             </div>
           )}
 
-          <CompanyRequestRecommendationSummary request={request} variant="detail" />
-
-          <Card className="cw-card-elevated">
-            <CardContent className={cwLayout.cardPaddingLg}>
-              <div className="space-y-6">
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <CompanyRequestReviewStat
-                    label="Type"
-                    value={requestTypeLabel(request.requestType)}
-                  />
-                  <CompanyRequestReviewStat label="Category" value={request.category || "—"} />
-                  <CompanyRequestReviewStat
-                    label="Duration"
-                    value={formatRequestDuration(request)}
-                  />
-                  <CompanyRequestReviewStat
-                    label="Format"
-                    value={collaborationFormatLabel(request.collaborationType) || "—"}
-                  />
-                  {isTeam && (
-                    <CompanyRequestReviewStat
-                      label="Roles"
-                      value={String(request.roles.filter((r) => r.roleName).length)}
-                    />
-                  )}
-                  <CompanyRequestReviewStat
-                    label="Status"
-                    value={requestLifecycleStatusLabel(lifecycleStatus)}
-                  />
-                </div>
-
-              <div className="cw-request-review-section">
-                <p className="cw-request-review-section-title">Requirements</p>
-                {isIndividual && request.roles[0] && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
-                      Role
-                    </p>
-                    <p className="font-semibold text-base">{request.roles[0].roleName}</p>
-                  </div>
-                )}
-                {isTeam && (
-                  <div className="space-y-3">
-                    {request.roles.map((r) => (
-                      <div
-                        key={r.id}
-                        className="rounded-lg border bg-secondary/20 px-4 py-3 space-y-2"
-                      >
-                        <p className="font-semibold text-sm">{r.roleName}</p>
-                        {r.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {r.skills.map((s) => (
-                              <Badge
-                                key={s.id}
-                                className="cw-request-skill-badge rounded-md text-xs"
-                              >
-                                {s.skillName}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        {r.notes?.trim() && (
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            {r.notes}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {reviewSkills.length > 0 && (
-                  <div className={cn((isIndividual || isTeam) && "mt-5 pt-5 border-t")}>
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-2">
-                      Skills
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {reviewSkills.map((s) => (
-                        <Badge key={s} className="cw-request-skill-badge rounded-md text-xs">
-                          {s}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {request.scopeNotes?.trim() && (
-                <div className="cw-request-review-section">
-                  <p className="cw-request-review-section-title">Additional notes</p>
-                  <p className="text-sm leading-relaxed">{request.scopeNotes}</p>
-                </div>
-              )}
-
-              <CompanyRequestAnalyzeCta
-                analyzeHref={COMPANY_ROUTES.requestRecommendations(request.id)}
-                disabled={isViewOnly}
-                disabledReason={
-                  lifecycleStatus === "paused"
-                    ? "Reactivate this request before running AI matching."
-                    : "This request has been closed."
-                }
+          <CompanyLuxPanel title="Request specifications">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <CompanyRequestReviewStat label="Type" value={requestTypeLabel(request.requestType)} />
+              <CompanyRequestReviewStat label="Category" value={request.category || "—"} />
+              <CompanyRequestReviewStat label="Duration" value={formatRequestDuration(request)} />
+              <CompanyRequestReviewStat
+                label="Format"
+                value={collaborationFormatLabel(request.collaborationType) || "—"}
+              />
+              {isTeam ? (
+                <CompanyRequestReviewStat
+                  label="Roles"
+                  value={String(request.roles.filter((r) => r.roleName).length)}
+                />
+              ) : null}
+              <CompanyRequestReviewStat
+                label="Status"
+                value={requestLifecycleStatusLabel(lifecycleStatus)}
               />
             </div>
-          </CardContent>
-        </Card>
+          </CompanyLuxPanel>
+
+          <CompanyLuxPanel title="Requirements">
+            {isIndividual && request.roles[0] ? (
+              <div>
+                <p className="cw-section-label mb-2">Role</p>
+                <p className="font-semibold text-base">{request.roles[0].roleName}</p>
+              </div>
+            ) : null}
+            {isTeam ? (
+              <div className="space-y-3">
+                {request.roles.map((r) => (
+                  <div key={r.id} className="cw-role-slot-lux">
+                    <p className="font-semibold text-sm">{r.roleName}</p>
+                    {r.skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {r.skills.map((s) => (
+                          <Badge key={s.id} className="cw-request-skill-badge rounded-md text-xs">
+                            {s.skillName}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                    {r.notes?.trim() ? (
+                      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{r.notes}</p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {reviewSkills.length > 0 ? (
+              <div
+                className={cn(
+                  (isIndividual && request.roles[0]) || isTeam
+                    ? "mt-5 pt-5 border-t border-border/60"
+                    : undefined,
+                )}
+              >
+                <p className="cw-section-label mb-2">Skills</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {reviewSkills.map((s) => (
+                    <Badge key={s} className="cw-request-skill-badge rounded-md text-xs">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </CompanyLuxPanel>
+
+          {request.scopeNotes?.trim() ? (
+            <CompanyLuxPanel title="Additional notes">
+              <p className="cw-scope-notes">{request.scopeNotes}</p>
+            </CompanyLuxPanel>
+          ) : null}
+
+          <CompanyRequestAnalyzeCta
+            analyzeHref={COMPANY_ROUTES.requestRecommendations(request.id)}
+            disabled={isViewOnly}
+            disabledReason={
+              lifecycleStatus === "paused"
+                ? "Reactivate this request before running AI matching."
+                : "This request has been closed."
+            }
+          />
         </>
-      )}
+      ) : null}
 
       <ConfirmDialog
         open={deleteOpen}

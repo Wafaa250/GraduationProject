@@ -34,10 +34,22 @@ export type ForgotPasswordPayload = {
   email: string;
 };
 
+/** Legacy token-based reset (unused by OTP flow). */
 export type ResetPasswordPayload = {
   token: string;
   password: string;
   confirmPassword: string;
+};
+
+export type VerifyResetCodePayload = {
+  email: string;
+  code: string;
+};
+
+export type ResetPasswordWithCodePayload = {
+  email: string;
+  code: string;
+  newPassword: string;
 };
 
 export async function changePassword(payload: ChangePasswordPayload): Promise<string> {
@@ -64,6 +76,28 @@ export async function forgotPassword(payload: ForgotPasswordPayload): Promise<st
   );
 }
 
+export async function verifyResetCode(payload: VerifyResetCodePayload): Promise<void> {
+  await api.post("/auth/verify-reset-code", {
+    email: payload.email.trim(),
+    code: payload.code.trim(),
+  });
+}
+
+export async function resetPasswordWithCode(
+  payload: ResetPasswordWithCodePayload,
+): Promise<string> {
+  const { data } = await api.post<{ message?: string; Message?: string }>(
+    "/auth/reset-password",
+    {
+      email: payload.email.trim(),
+      code: payload.code.trim(),
+      newPassword: payload.newPassword,
+    },
+  );
+  return data.message ?? data.Message ?? "Password updated successfully.";
+}
+
+/** @deprecated Token-based reset; OTP flow uses resetPasswordWithCode. */
 export async function resetPassword(payload: ResetPasswordPayload): Promise<string> {
   const { data } = await api.post<{ message?: string; Message?: string }>(
     "/auth/reset-password",

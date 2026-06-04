@@ -65,7 +65,9 @@ $env:Email__UseSsl = "true"
 $env:Email__Username = "you@example.com"
 $env:Email__Password = "xsmtpsib-your-key"
 $env:Email__FromAddress = "you@example.com"
-$env:Email__FromName = "SkillSwap"
+$env:Email__FromName = "SkillSwap Support"
+$env:Email__ReplyToAddress = "you@example.com"
+$env:Email__ReplyToName = "SkillSwap Support"
 $env:App__FrontendLoginUrl = "http://localhost:5173/login"
 ```
 
@@ -81,7 +83,9 @@ dotnet user-secrets set "Email:UseSsl" "true"
 dotnet user-secrets set "Email:Username" "you@example.com"
 dotnet user-secrets set "Email:Password" "xsmtpsib-your-key"
 dotnet user-secrets set "Email:FromAddress" "you@example.com"
-dotnet user-secrets set "Email:FromName" "SkillSwap"
+dotnet user-secrets set "Email:FromName" "SkillSwap Support"
+dotnet user-secrets set "Email:ReplyToAddress" "you@example.com"
+dotnet user-secrets set "Email:ReplyToName" "SkillSwap Support"
 dotnet user-secrets set "App:FrontendLoginUrl" "http://localhost:5173/login"
 ```
 
@@ -98,7 +102,9 @@ dotnet user-secrets set "App:FrontendLoginUrl" "http://localhost:5173/login"
 | `Email:Username` | `Email__Username` | Brevo login email |
 | `Email:Password` | `Email__Password` | Brevo SMTP key |
 | `Email:FromAddress` | `Email__FromAddress` | Verified sender email |
-| `Email:FromName` | `Email__FromName` | `SkillSwap` |
+| `Email:FromName` | `Email__FromName` | `SkillSwap Support` |
+| `Email:ReplyToAddress` | `Email__ReplyToAddress` | Same as verified sender (e.g. `skillswap742@gmail.com`) |
+| `Email:ReplyToName` | `Email__ReplyToName` | `SkillSwap Support` |
 | `App:FrontendLoginUrl` | `App__FrontendLoginUrl` | e.g. `http://localhost:5173/login` |
 
 Never commit real SMTP keys. `appsettings.Development.json` is gitignored.
@@ -153,6 +159,27 @@ If you see a warning about `Email:Enabled is false` or missing host/password, fi
 
 ---
 
+## 7. Deliverability (SPF, DKIM, DMARC)
+
+The API sends **multipart/alternative** messages (plain text + HTML), sets **From**, **Reply-To**, **Sender**, and **Message-ID**, and uses the display name **SkillSwap Support**. Keep `Email:FromAddress` identical to the SMTP authenticated account (`Email:Username`) so providers can align SPF and DKIM signatures.
+
+| Provider | SPF / DKIM / DMARC |
+|----------|-------------------|
+| **Gmail SMTP** (`smtp.gmail.com`) | Google signs mail when you authenticate with the same `@gmail.com` account. Use an [App Password](https://myaccount.google.com/apppasswords), not your main password. No custom DNS records are required for `@gmail.com`. |
+| **Brevo / custom domain** | In Brevo, add your domain and publish the **SPF**, **DKIM**, and **DMARC** DNS records they provide. Set `FromAddress` to an address on that domain. |
+
+**Practices that reduce spam-folder placement:**
+
+1. **From = Username** — e.g. both `skillswap742@gmail.com`.
+2. **Stable sender name** — `SkillSwap Support` (configured via `Email:FromName`).
+3. **Reply-To** — `Email:ReplyToAddress` should be a monitored inbox users can reach.
+4. **Transactional wording** — avoid ALL CAPS, “URGENT”, or link-heavy promotional language in subjects and bodies.
+5. **Warm up** — new senders should start with low volume; ask testers to mark the first message as “Not spam”.
+
+For production on a custom domain, verify DNS with [Google Admin Toolbox](https://toolbox.googleapps.com/apps/checkmx/) or [MXToolbox](https://mxtoolbox.com/).
+
+---
+
 ## Production note
 
-For a public deployment, use environment variables on your host (Azure, Railway, etc.), set `App:FrontendLoginUrl` to your production URL (e.g. `https://app.skillswap.com/login`), and consider a custom domain with SPF/DKIM in Brevo for better deliverability.
+For a public deployment, use environment variables on your host (Azure, Railway, etc.), set `App:FrontendLoginUrl` to your production URL (e.g. `https://app.skillswap.com/login`), and use a verified domain with SPF/DKIM/DMARC in Brevo (or Google Workspace) for best deliverability.

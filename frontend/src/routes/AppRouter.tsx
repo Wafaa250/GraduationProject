@@ -32,6 +32,9 @@ import DoctorSettingsPage from "@/pages/doctor/DoctorSettingsPage";
 import { LandingPage } from "@/pages/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
+import ForgotPasswordVerifyPage from "@/pages/auth/ForgotPasswordVerifyPage";
+import ForgotPasswordNewPasswordPage from "@/pages/auth/ForgotPasswordNewPasswordPage";
+import ForgotPasswordSuccessPage from "@/pages/auth/ForgotPasswordSuccessPage";
 import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import { ChangePasswordPage } from "@/pages/auth/ChangePasswordPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
@@ -51,6 +54,7 @@ import { CompanyProfilePage } from "@/pages/company/CompanyProfilePage";
 import { CompanyMembersPage } from "@/pages/company/CompanyMembersPage";
 import { CompanySavedRecommendationsPage } from "@/pages/company/CompanySavedRecommendationsPage";
 import { CompanySettingsPage } from "@/pages/company/CompanySettingsPage";
+import { CompanyThemeShowcasePage } from "@/pages/company/CompanyThemeShowcasePage";
 import { ASSOCIATION_ROUTES, COMPANY_ROUTES, ROUTES } from "@/routes/paths";
 import { AssociationRoute } from "@/routes/associationRoutes";
 import AssociationDashboardPage from "@/pages/association/AssociationDashboardPage";
@@ -81,6 +85,9 @@ export function AppRouter() {
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
         <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
+        <Route path={ROUTES.forgotPasswordVerify} element={<ForgotPasswordVerifyPage />} />
+        <Route path={ROUTES.forgotPasswordNew} element={<ForgotPasswordNewPasswordPage />} />
+        <Route path={ROUTES.forgotPasswordSuccess} element={<ForgotPasswordSuccessPage />} />
         <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
         <Route path={ROUTES.changePassword} element={<ChangePasswordPage />} />
         <Route path={ROUTES.register} element={<RegisterPage />} />
@@ -220,6 +227,7 @@ export function AppRouter() {
           <Route path="members" element={<CompanyMembersPage />} />
           <Route path="saved" element={<CompanySavedRecommendationsPage />} />
           <Route path="settings" element={<CompanySettingsPage />} />
+          <Route path="themes" element={<CompanyThemeShowcasePage />} />
         </Route>
 
         <Route element={<PublicLayout />}>

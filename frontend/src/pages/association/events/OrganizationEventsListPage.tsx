@@ -174,8 +174,8 @@ function EventCard({
         display: 'flex',
         flexDirection: 'column',
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-        boxShadow: hovered ? assocDash.shadowLg : assocDash.shadow,
-        borderColor: hovered ? '#cbd5e1' : assocDash.border,
+        boxShadow: hovered ? assocDash.shadowHover : assocDash.shadow,
+        borderColor: hovered ? assocDash.accentBorder : assocDash.border,
         transition: 'transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease',
       }}
     >
@@ -186,7 +186,7 @@ function EventCard({
             width: '100%',
             background: cover
               ? `center/cover no-repeat url(${cover})`
-              : `linear-gradient(145deg, ${assocDash.accentMuted} 0%, #fff7ed 45%, #fff 100%)`,
+              : assocDash.gradientCard,
             transform: hovered && cover ? 'scale(1.04)' : 'scale(1)',
             transition: 'transform 0.4s ease',
           }}
@@ -196,8 +196,8 @@ function EventCard({
             position: 'absolute',
             inset: 0,
             background: cover
-              ? 'linear-gradient(to top, rgba(15,23,42,0.18) 0%, transparent 55%)'
-              : 'linear-gradient(to top, rgba(217,119,6,0.06) 0%, transparent 50%)',
+              ? 'linear-gradient(to top, hsl(var(--aw-overlay) / 0.18) 0%, transparent 55%)'
+              : 'linear-gradient(to top, hsl(var(--aw-accent) / 0.06) 0%, transparent 50%)',
             pointerEvents: 'none',
           }}
         />
@@ -334,7 +334,7 @@ function RegistrationStatus({
   closeDate: string
 }) {
   const dotColor =
-    status === 'closed' ? '#ef4444' : status === 'closing-soon' ? '#f59e0b' : '#22c55e'
+    status === 'closed' ? assocDash.error : status === 'closing-soon' ? assocDash.accent : assocDash.success
   const message =
     status === 'closed' ? 'Registration closed' : `Registration closes ${closeDate}`
 
@@ -392,7 +392,7 @@ function EventCardMenu({ deleting, onDelete }: { deleting: boolean; onDelete: ()
         onMouseLeave={() => setHovered(false)}
         style={{
           ...menuTriggerStyle,
-          background: open || hovered ? '#f1f5f9' : 'transparent',
+          background: open || hovered ? assocDash.bg : 'transparent',
           color: open || hovered ? assocDash.textSecondary : assocDash.subtle,
         }}
       >
@@ -490,7 +490,7 @@ const menuPanelStyle: React.CSSProperties = {
   minWidth: 148,
   padding: 4,
   borderRadius: 10,
-  background: '#fff',
+  background: assocDash.surface,
   border: `1px solid ${assocDash.border}`,
   boxShadow: assocDash.shadowLg,
   zIndex: 10,
@@ -507,7 +507,7 @@ const menuItemDangerStyle: React.CSSProperties = {
   background: 'transparent',
   fontSize: 13,
   fontWeight: 500,
-  color: '#b91c1c',
+  color: assocDash.error,
   cursor: 'pointer',
   fontFamily: 'inherit',
   textAlign: 'left',

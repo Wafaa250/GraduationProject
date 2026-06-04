@@ -172,5 +172,43 @@ namespace GraduationProject.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var message = await _authService.ForgotPasswordAsync(dto);
+            return Ok(new { success = true, message });
+        }
+
+        [HttpPost("verify-reset-code")]
+        public async Task<IActionResult> VerifyResetCode([FromBody] VerifyResetCodeDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var (success, error) = await _authService.VerifyResetCodeAsync(dto);
+
+            if (!success)
+                return BadRequest(new { success = false, message = error });
+
+            return Ok(new { success = true });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var (success, error) = await _authService.ResetPasswordAsync(dto);
+
+            if (!success)
+                return BadRequest(new { success = false, message = error });
+
+            return Ok(new { success = true, message = "Password updated successfully." });
+        }
+
     }
 }
