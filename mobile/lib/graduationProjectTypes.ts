@@ -64,3 +64,21 @@ export function projectTypeLabel(
   if (normalized === GRADUATION_PROJECT_TYPE.GP2) return "Graduation Project 2";
   return "Graduation Project";
 }
+
+/** Labels shown during registration after faculty/major selection. */
+export function getRegistrationGraduationCourses(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): string[] {
+  const track = resolveGraduationTrack(faculty, major);
+
+  if (track === "general") {
+    return ["Graduation Project"];
+  }
+
+  if (track === "computer-engineering") {
+    return ["Graduation Project 1 (Software)", "Graduation Project 2 (Hardware)"];
+  }
+
+  return ["Graduation Project 1", "Graduation Project 2"];
+}

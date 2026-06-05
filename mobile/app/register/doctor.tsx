@@ -1,10 +1,14 @@
 import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
 import { registerDoctor } from "@/api/authApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
+import { DepartmentChipField } from "@/components/registration/DepartmentChipField";
+import { DoctorOnboardingBadge } from "@/components/registration/DoctorOnboardingBadge";
+import { PasswordStrengthBar } from "@/components/registration/PasswordStrengthBar";
+import { ProfilePhotoUploadMobile } from "@/components/registration/ProfilePhotoUploadMobile";
 import { RegSelectField } from "@/components/registration/RegSelectField";
 import { RegTextField } from "@/components/registration/RegTextField";
 import { RegistrationWizardLayout } from "@/components/registration/RegistrationWizardLayout";
@@ -13,7 +17,6 @@ import {
   UNIVERSITIES,
   UNIVERSITY_FACULTIES,
 } from "@/constants/registrationData";
-import { AUTH_COLORS } from "@/constants/authTheme";
 import { persistAuthSession } from "@/lib/authSession";
 import { navigateHome } from "@/utils/homeNavigation";
 
@@ -36,16 +39,16 @@ export default function DoctorRegisterScreen() {
     confirmPassword: "",
     university: "",
     faculty: "",
-    department: "",
+    departments: [""] as string[],
     specialization: "",
     bio: "",
   });
 
   const faculties = form.university ? UNIVERSITY_FACULTIES[form.university] ?? [] : [];
 
-  const setField = (field: keyof typeof form, value: string) => {
+  const setField = <K extends keyof typeof form>(field: K, value: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    setErrors((prev) => ({ ...prev, [field]: "" }));
+    setErrors((prev) => ({ ...prev, [field as string]: "" }));
     setApiError(null);
   };
 
@@ -61,6 +64,24 @@ export default function DoctorRegisterScreen() {
     }
   };
 
+  const handleDepartmentChange = (index: number, value: string) => {
+    const updated = [...form.departments];
+    updated[index] = value;
+    setField("departments", updated);
+    setErrors((prev) => ({ ...prev, departments: "" }));
+  };
+
+  const addDepartment = () => {
+    setField("departments", [...form.departments, ""]);
+  };
+
+  const removeDepartment = (index: number) => {
+    setField(
+      "departments",
+      form.departments.filter((_, i) => i !== index),
+    );
+  };
+
   const validate = () => {
     const next: Record<string, string> = {};
     if (step === 0) {
@@ -74,7 +95,7 @@ export default function DoctorRegisterScreen() {
     if (step === 1) {
       if (!form.university) next.university = "Please select university";
       if (!form.faculty) next.faculty = "Please select faculty";
-      if (!form.department.trim()) next.department = "Department is required";
+      if (form.departments.some((d) => !d.trim())) next.departments = "All departments are required";
       if (!form.specialization) next.specialization = "Please select specialization";
     }
     setErrors(next);
@@ -82,6 +103,10 @@ export default function DoctorRegisterScreen() {
   };
 
   const submit = async () => {
+    if (form.departments.some((d) => !d.trim())) {
+      setErrors((e) => ({ ...e, departments: "All departments are required" }));
+      return;
+    }
     if (!validate()) return;
     if (isLoading) return;
     setIsLoading(true);
@@ -94,7 +119,7 @@ export default function DoctorRegisterScreen() {
         confirmPassword: form.confirmPassword,
         university: form.university,
         faculty: form.faculty,
-        department: form.department.trim(),
+        department: form.departments.map((d) => d.trim()).join(", "),
         specialization: form.specialization,
         bio: form.bio.trim(),
         profilePictureBase64,
@@ -122,53 +147,108 @@ export default function DoctorRegisterScreen() {
 
   return (
     <RegistrationWizardLayout
-      stepLabel={`Step ${step + 1} of 2 · Doctor registration`}
+      stepLabel={`Step ${step + 1} of 2`}
       title={STEP_TITLES[step]}
       subtitle={STEP_SUBTITLES[step]}
+      badge={step === 0 ? <DoctorOnboardingBadge /> : null}
       onBack={handleBack}
       onContinue={handleContinue}
       continueLabel={step === 1 ? "Create account" : "Continue"}
       isLoading={isLoading}
       apiError={apiError}
       backLinkLabel={step === 0 ? "← Change account type" : "← Back"}
+      keyboardAvoiding
     >
       {step === 0 ? (
-        <>
-          <RegTextField label="Full name" value={form.fullName} onChangeText={(v) => setField("fullName", v)} autoCapitalize="words" error={errors.fullName} />
-          <RegTextField label="Email" value={form.email} onChangeText={(v) => setField("email", v)} keyboardType="email-address" autoCapitalize="none" error={errors.email} />
-          <RegTextField label="Password" value={form.password} onChangeText={(v) => setField("password", v)} secureTextEntry error={errors.password} />
-          <RegTextField label="Confirm password" value={form.confirmPassword} onChangeText={(v) => setField("confirmPassword", v)} secureTextEntry error={errors.confirmPassword} />
-          <Pressable onPress={pickPhoto} style={styles.photoButton}>
-            <Text style={styles.photoButtonText}>
-              {profilePictureBase64 ? "Profile photo selected" : "Add profile photo (optional)"}
-            </Text>
-          </Pressable>
-        </>
+        <View style={styles.fullWidth}>
+          <ProfilePhotoUploadMobile previewUri={profilePictureBase64} onPick={pickPhoto} />
+          <RegTextField
+            label="Full name"
+            value={form.fullName}
+            onChangeText={(v) => setField("fullName", v)}
+            placeholder="Dr. Mohammad Khalil"
+            autoCapitalize="words"
+            error={errors.fullName}
+          />
+          <RegTextField
+            label="University email"
+            value={form.email}
+            onChangeText={(v) => setField("email", v)}
+            placeholder="doctor@najah.edu"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            error={errors.email}
+          />
+          <RegTextField
+            label="Password"
+            value={form.password}
+            onChangeText={(v) => setField("password", v)}
+            placeholder="Min. 8 characters"
+            secureTextEntry
+            error={errors.password}
+          />
+          <PasswordStrengthBar password={form.password} />
+          <RegTextField
+            label="Confirm password"
+            value={form.confirmPassword}
+            onChangeText={(v) => setField("confirmPassword", v)}
+            placeholder="Re-enter password"
+            secureTextEntry
+            error={errors.confirmPassword}
+          />
+        </View>
       ) : (
-        <>
-          <RegSelectField label="University" value={form.university} onValueChange={(v) => { setField("university", v); setField("faculty", ""); }} options={UNIVERSITIES} error={errors.university} />
-          <RegSelectField label="Faculty" value={form.faculty} onValueChange={(v) => setField("faculty", v)} options={faculties} placeholder="Select faculty" error={errors.faculty} />
-          <RegTextField label="Department" value={form.department} onChangeText={(v) => setField("department", v)} error={errors.department} />
-          <RegSelectField label="Specialization" value={form.specialization} onValueChange={(v) => setField("specialization", v)} options={DOCTOR_SPECIALIZATIONS} error={errors.specialization} />
-          <RegTextField label="Bio" value={form.bio} onChangeText={(v) => setField("bio", v)} multiline placeholder="Brief professional bio (optional)" />
-        </>
+        <View style={styles.fullWidth}>
+          <RegSelectField
+            label="University"
+            value={form.university}
+            onValueChange={(v) => {
+              setField("university", v);
+              setField("faculty", "");
+            }}
+            options={UNIVERSITIES}
+            placeholder="Select your university"
+            error={errors.university}
+          />
+          <RegSelectField
+            label="Faculty / college"
+            value={form.faculty}
+            onValueChange={(v) => setField("faculty", v)}
+            options={faculties}
+            placeholder={form.university ? "Select your faculty" : "Select a university first"}
+            error={errors.faculty}
+          />
+          <DepartmentChipField
+            departments={form.departments}
+            onUpdate={handleDepartmentChange}
+            onAdd={addDepartment}
+            onRemove={removeDepartment}
+            error={errors.departments}
+          />
+          <RegSelectField
+            label="Specialization"
+            value={form.specialization}
+            onValueChange={(v) => setField("specialization", v)}
+            options={DOCTOR_SPECIALIZATIONS}
+            placeholder="Select your specialization"
+            error={errors.specialization}
+          />
+          <RegTextField
+            label="Bio"
+            value={form.bio}
+            onChangeText={(v) => setField("bio", v)}
+            placeholder="Brief description about your research interests and teaching areas..."
+            multiline
+            tall
+          />
+        </View>
       )}
     </RegistrationWizardLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  photoButton: {
-    borderWidth: 1,
-    borderColor: AUTH_COLORS.border,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 16,
-    alignItems: "center",
-    backgroundColor: AUTH_COLORS.inputBg,
-  },
-  photoButtonText: {
-    color: AUTH_COLORS.link,
-    fontWeight: "600",
+  fullWidth: {
+    width: "100%",
   },
 });

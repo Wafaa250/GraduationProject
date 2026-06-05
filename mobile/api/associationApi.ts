@@ -25,4 +25,24 @@ export async function registerStudentAssociation(
   return data;
 }
 
+export type MobileLogoFile = {
+  uri: string;
+  name: string;
+  mimeType: string;
+};
+
+export async function uploadAssociationLogo(file: MobileLogoFile): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", {
+    uri: file.uri,
+    name: file.name,
+    type: file.mimeType,
+  } as unknown as Blob);
+
+  const { data } = await api.post<{ logoUrl: string }>("/association/upload-logo", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data.logoUrl;
+}
+
 export { parseApiErrorMessage };

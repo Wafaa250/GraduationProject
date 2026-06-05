@@ -18,6 +18,9 @@ type RegistrationWizardLayoutProps = {
   isLoading?: boolean;
   apiError?: string | null;
   backLinkLabel?: string;
+  keyboardAvoiding?: boolean;
+  badge?: ReactNode;
+  customFooter?: ReactNode;
 };
 
 export function RegistrationWizardLayout({
@@ -31,11 +34,14 @@ export function RegistrationWizardLayout({
   isLoading = false,
   apiError = null,
   backLinkLabel = "← Back",
+  keyboardAvoiding = false,
+  badge = null,
+  customFooter = null,
 }: RegistrationWizardLayoutProps) {
   const layout = useResponsiveLayout();
 
   return (
-    <AuthScreenLayout>
+    <AuthScreenLayout keyboardAvoiding={keyboardAvoiding}>
       <Text
         style={[
           styles.step,
@@ -47,6 +53,8 @@ export function RegistrationWizardLayout({
       >
         {stepLabel}
       </Text>
+
+      {badge}
 
       <Text style={[styles.title, { fontSize: layout.fontSize.title, lineHeight: layout.fontSize.title * 1.15 }]}>
         {title}
@@ -69,17 +77,19 @@ export function RegistrationWizardLayout({
 
       {children}
 
-      <View style={{ marginTop: layout.space("lg"), gap: layout.space("md") }}>
-        <GradientAuthButton
-          label={continueLabel}
-          onPress={onContinue}
-          loading={isLoading}
-          disabled={isLoading}
-        />
-        <Pressable onPress={onBack} hitSlop={layout.space("sm")} disabled={isLoading}>
-          <Text style={[styles.backLink, { fontSize: layout.fontSize.footer }]}>{backLinkLabel}</Text>
-        </Pressable>
-      </View>
+      {customFooter ?? (
+        <View style={{ marginTop: layout.space("lg"), gap: layout.space("md") }}>
+          <GradientAuthButton
+            label={continueLabel}
+            onPress={onContinue}
+            loading={isLoading}
+            disabled={isLoading}
+          />
+          <Pressable onPress={onBack} hitSlop={layout.space("sm")} disabled={isLoading}>
+            <Text style={[styles.backLink, { fontSize: layout.fontSize.footer }]}>{backLinkLabel}</Text>
+          </Pressable>
+        </View>
+      )}
     </AuthScreenLayout>
   );
 }

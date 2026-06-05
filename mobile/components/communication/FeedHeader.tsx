@@ -14,6 +14,7 @@ import { getMe } from "@/api/meApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { FeedSearchModal } from "@/components/communication/FeedSearchModal";
 import { HUB_COLORS } from "@/constants/studentHubTheme";
+import { useHubAccountMenu } from "@/contexts/HubAccountMenuContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
 import { getItem } from "@/utils/authStorage";
@@ -24,6 +25,7 @@ type Props = {
 
 export function FeedHeader({ onSearchActiveChange }: Props) {
   const layout = useResponsiveLayout();
+  const { openMenu } = useHubAccountMenu();
   const [displayName, setDisplayName] = useState("Student");
   const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -77,9 +79,9 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
       >
         <View style={styles.topRow}>
           <Pressable
-            onPress={() => router.push("/dashboard")}
+            onPress={openMenu}
             accessibilityRole="button"
-            accessibilityLabel="Open profile"
+            accessibilityLabel="Open account menu"
             hitSlop={8}
           >
             {loadingProfile ? (

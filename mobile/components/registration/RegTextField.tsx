@@ -13,6 +13,7 @@ type RegTextFieldProps = {
   keyboardType?: "default" | "email-address" | "numeric" | "url";
   autoCapitalize?: "none" | "sentences" | "words";
   multiline?: boolean;
+  tall?: boolean;
 };
 
 export function RegTextField({
@@ -25,6 +26,7 @@ export function RegTextField({
   keyboardType = "default",
   autoCapitalize = "sentences",
   multiline = false,
+  tall = false,
 }: RegTextFieldProps) {
   const layout = useResponsiveLayout();
 
@@ -44,7 +46,7 @@ export function RegTextField({
           styles.input,
           multiline && styles.multiline,
           {
-            minHeight: multiline ? layout.scale(96) : layout.touchTarget,
+            minHeight: multiline ? layout.scale(tall ? 140 : 96) : layout.touchTarget,
             borderRadius: layout.radius.input,
             paddingHorizontal: layout.space("lg"),
             fontSize: layout.fontSize.body,
