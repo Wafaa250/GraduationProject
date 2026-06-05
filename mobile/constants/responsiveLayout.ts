@@ -1,33 +1,57 @@
-/**
- * Shared spacing, radii, and content constraints for consistent mobile layouts.
- * Prefer these over magic numbers in screen StyleSheets.
- */
+/** Reference width (iPhone 14 / 15). Values scale relative to this baseline. */
+export const BASE_WIDTH = 390;
 
-export const spacing = {
+/** Minimum readable scale on very small devices (e.g. iPhone SE). */
+export const MIN_SCALE = 0.88;
+
+/** Maximum scale on large phones and small tablets in portrait. */
+export const MAX_SCALE = 1.12;
+
+export const TABLET_MIN_WIDTH = 768;
+
+export const CONTENT_MAX_WIDTH = 480;
+
+export const SPACING = {
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
-  xxl: 32,
-  xxxl: 40,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  xxxxl: 40,
 } as const;
 
-export const radius = {
-  sm: 8,
-  md: 10,
-  lg: 12,
-  xl: 16,
-  xxl: 20,
-  card: 24,
-} as const;
+export type DeviceSize = "small" | "medium" | "large" | "tablet";
 
-/** Max width for form cards on phones; caps width on tablets when centered */
-export const FORM_CARD_MAX_WIDTH = 448;
+export type SpacingKey = keyof typeof SPACING;
 
-/** Wider content column for dashboards on tablets */
-export const DASHBOARD_CONTENT_MAX_WIDTH = 600;
+export function getDeviceSize(width: number): DeviceSize {
+  if (width >= TABLET_MIN_WIDTH) return "tablet";
+  if (width < 360) return "small";
+  if (width < 414) return "medium";
+  return "large";
+}
 
-export const TABLET_MIN_WIDTH = 600;
+export function clampScale(width: number): number {
+  const raw = width / BASE_WIDTH;
+  return Math.min(Math.max(raw, MIN_SCALE), MAX_SCALE);
+}
 
-export const COMPACT_PHONE_MAX_WIDTH = 380;
+export function scaleSize(base: number, width: number): number {
+  return Math.round(base * clampScale(width));
+}
+
+export function horizontalPaddingForWidth(width: number): number {
+  const deviceSize = getDeviceSize(width);
+
+  if (deviceSize === "tablet") {
+    return Math.max(SPACING.xxl, width * 0.08);
+  }
+
+  if (deviceSize === "small") {
+    return Math.max(SPACING.lg, width * 0.05);
+  }
+
+  return Math.max(SPACING.xl, width * 0.06);
+}

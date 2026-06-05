@@ -16,30 +16,18 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
-          <Stack.Screen name="dashboard" />
-          <Stack.Screen name="doctor-dashboard" />
-          <Stack.Screen name="StudentsPage" />
-          <Stack.Screen name="ProfilePage" />
-          <Stack.Screen name="StudentProfilePage" />
-          <Stack.Screen name="StudentPublicProfilePage" />
-          <Stack.Screen name="DoctorPublicProfilePage" />
-          <Stack.Screen name="ChatPage" />
-          <Stack.Screen name="NotificationsPage" />
-          <Stack.Screen name="StudentTeamPage" />
-          <Stack.Screen name="StudentAiTeamPage" />
-          <Stack.Screen name="StudentTeamChoicePage" />
-          <Stack.Screen name="CourseManualTeamPage" />
-          <Stack.Screen name="courses" />
-          <Stack.Screen name="organization" />
-          <Stack.Screen name="communities" />
-          <Stack.Screen name="organizations" />
-          <Stack.Screen name="following" />
-          <Stack.Screen name="community-events" />
-          <Stack.Screen name="community-recruitment" />
-          <Stack.Screen name="company" />
-          <Stack.Screen name="public-organizations" />
-          <Stack.Screen name="EditProfilePage" />
-          <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal", headerShown: true }} />
+          <Stack.Screen name="register/student" />
+          <Stack.Screen name="register/doctor" />
+          <Stack.Screen name="register/company" />
+          <Stack.Screen name="register/association" />
+          <Stack.Screen name="change-password" />
+          <Stack.Screen name="forgot-password/index" />
+          <Stack.Screen name="forgot-password/verify" />
+          <Stack.Screen name="forgot-password/reset" />
+          <Stack.Screen name="(student)" options={{ headerShown: false }} />
+          <Stack.Screen name="doctor/dashboard" />
+          <Stack.Screen name="company/index" />
+          <Stack.Screen name="association/dashboard" />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

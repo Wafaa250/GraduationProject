@@ -1,647 +1,183 @@
-import api from './axiosInstance'
-import type { CourseSection } from './doctorCoursesApi'
+import api from "@/api/axiosInstance";
+import { filterEligibleCourseProjects } from "@/lib/courseProjectEligibility";
 
-/**
- * Shared lightweight entity for student identity fields commonly returned by
- * course/team/partner-request endpoints.
- * GET /courses/{id}/students may use PascalCase (StudentId, UserId, …).
- */
-export interface CourseStudent {
-  studentId?: number
-  StudentId?: number
-  universityId?: string
-  UniversityId?: string
-  userId?: number
-  UserId?: number
-  name?: string
-  Name?: string
-  email?: string
-  Email?: string
-  university?: string
-  University?: string
-  major?: string
-  Major?: string
-  academicYear?: string
-  AcademicYear?: string
-  profilePicture?: string | null
-  ProfilePictureBase64?: string | null
-  enrolledAt?: string
-  EnrolledAt?: string
-  sectionId?: number | null
-  SectionId?: number | null
-  sectionNumber?: number | null
-  SectionNumber?: number | null
+export type EnrolledCourse = {
+  courseId: number;
+  name: string;
+  code: string;
+  semester?: string | null;
+  doctorId: number;
+  doctorName: string;
+  section: {
+    sectionId: number;
+    sectionName: string;
+  };
+};
+
+export type StudentCourseDetail = {
+  courseId: number;
+  name: string;
+  code: string;
+  semester?: string | null;
+  doctorId: number;
+  doctorName: string;
+  mySectionId: number;
+  mySectionName: string;
+};
+
+export type StudentCourseProjectSection = {
+  sectionId: number;
+  sectionName?: string;
+};
+
+export type StudentCourseProject = {
+  id: number;
+  courseId: number;
+  title: string;
+  applyToAllSections?: boolean;
+  sections?: StudentCourseProjectSection[];
+};
+
+export type TeamInvitationItem = {
+  invitationId: number;
+  projectId: number;
+  projectTitle: string;
+  courseId: number;
+  courseName: string;
+  senderId: number;
+  senderName: string;
+  senderSection: string;
+  senderSkills?: string[];
+  message?: string;
+  invitedAt: string;
+};
+
+export async function getEnrolledCourses(): Promise<EnrolledCourse[]> {
+  const { data } = await api.get<EnrolledCourse[]>("/courses/enrolled");
+  return Array.isArray(data) ? data : [];
 }
 
-export interface EnrolledCourse {
-  courseId: number
-  name?: string
-  code?: string
-  section?: string
-  semester?: string | null
-  useSharedProjectAcrossSections?: boolean
-  allowCrossSectionTeams?: boolean
-  doctorId?: number
-  doctorName?: string
-  sectionCount?: number
-  sections?: CourseSection[]
+export async function getStudentCourseDetail(courseId: number): Promise<StudentCourseDetail> {
+  const { data } = await api.get<StudentCourseDetail>(`/courses/${courseId}`);
+  return data;
 }
 
-/** Mirrors course `projects` entries on GET /courses/{id} (same shape as doctor course projects). */
-export interface CourseProjectSummary {
-  id: number
-  courseId: number
-  title: string
-  description: string | null
-  teamSize: number
-  applyToAllSections: boolean
-  allowCrossSectionTeams: boolean
-  hasTeam?: boolean
-  createdAt: string
-  sections: { sectionId: number; sectionNumber: number }[]
+export async function getStudentCourseProjects(
+  courseId: number,
+): Promise<StudentCourseProject[]> {
+  const { data } = await api.get<StudentCourseProject[]>(`/courses/${courseId}/projects`);
+  return Array.isArray(data) ? data : [];
 }
 
-function mapCourseProjectSection(raw: unknown): {
-  sectionId: number
-  sectionNumber: number
-} {
-  const r = raw as Record<string, unknown>
-  return {
-    sectionId: Number(r.sectionId ?? r.SectionId ?? 0),
-    sectionNumber: Number(r.sectionNumber ?? r.SectionNumber ?? 0),
-  }
+export async function getEligibleStudentCourseProjects(
+  courseId: number,
+  mySectionId: number,
+): Promise<StudentCourseProject[]> {
+  const projects = await getStudentCourseProjects(courseId);
+  return filterEligibleCourseProjects(projects, mySectionId);
 }
 
-function mapCourseProjectSummary(raw: unknown): CourseProjectSummary {
-  const r = raw as Record<string, unknown>
-  const descRaw = r.description ?? r.Description
-  const sectionsRaw = r.sections ?? r.Sections
-  return {
-    id: Number(r.id ?? r.Id ?? 0),
-    courseId: Number(r.courseId ?? r.CourseId ?? 0),
-    title: String(r.title ?? r.Title ?? ''),
-    description:
-      descRaw === undefined || descRaw === null ? null : String(descRaw),
-    teamSize: Number(r.teamSize ?? r.TeamSize ?? 2),
-    applyToAllSections: Boolean(
-      r.applyToAllSections ?? r.ApplyToAllSections ?? false,
-    ),
-    allowCrossSectionTeams: Boolean(
-      r.allowCrossSectionTeams ?? r.AllowCrossSectionTeams ?? false,
-    ),
-    hasTeam: Boolean(r.hasTeam ?? r.HasTeam ?? false),
-    createdAt: String(r.createdAt ?? r.CreatedAt ?? ''),
-    sections: Array.isArray(sectionsRaw)
-      ? sectionsRaw.map(mapCourseProjectSection)
-      : [],
-  }
+export async function getTeamInvitations(): Promise<TeamInvitationItem[]> {
+  const { data } = await api.get<unknown>("/courses/team-invitations");
+  return parseTeamInvitationsResponse(data);
 }
 
-/** Reads `projects` / `Projects` from course detail (defensive for PascalCase). */
-export function normalizeCourseProjectsFromDetail(
-  detail: CourseDetails | null | undefined,
-): CourseProjectSummary[] {
-  if (!detail) return []
-  const raw = (detail as Record<string, unknown>).projects ??
-    (detail as Record<string, unknown>).Projects
-  if (!Array.isArray(raw)) return []
-  return raw.map(mapCourseProjectSummary).filter((p) => p.id > 0)
-}
+export async function getEligibleTeamInvitations(): Promise<TeamInvitationItem[]> {
+  const invites = await getTeamInvitations();
+  if (invites.length === 0) return [];
 
-export interface CourseDetails {
-  courseId: number
-  name?: string
-  code?: string
-  section?: string
-  semester?: string | null
-  useSharedProjectAcrossSections?: boolean
-  allowCrossSectionTeams?: boolean
-  doctorId?: number
-  doctorName?: string
-  sectionCount?: number
-  sections?: CourseSection[]
-  projects?: CourseProjectSummary[]
-  projectsCount?: number
-  [key: string]: unknown
-}
+  const courseIds = [...new Set(invites.map((i) => i.courseId))];
+  const eligibleProjectIdsByCourse = new Map<number, Set<number>>();
 
-export interface CourseProjectSetting {
-  [key: string]: unknown
-}
-
-export interface TeamMember {
-  studentId: number
-  universityId: string
-  userId?: number
-  name?: string
-  email?: string
-  role?: string
-}
-
-export interface MyTeamResponse {
-  teamId: number
-  members: TeamMember[]
-  [key: string]: unknown
-}
-
-export interface PartnerRequest {
-  requestId: number
-  senderStudentId?: number
-  receiverStudentId?: number
-  senderUniversityId?: string
-  receiverUniversityId?: string
-  /** Always set by GET partner-requests: pending | accepted | rejected | cancelled */
-  status?: string
-  createdAt?: string
-  sender?: CourseStudent
-  receiver?: CourseStudent
-  [key: string]: unknown
-}
-
-export interface PartnerRequestsResponse {
-  incoming: PartnerRequest[]
-  outgoing: PartnerRequest[]
-}
-
-export interface CreatePartnerRequestBody {
-  /** Must be the UNIVERSITY student id string (not database PK). */
-  receiverStudentId: string
-  /** When the course has multiple projects, the backend may require this. */
-  courseProjectId?: number
-}
-
-export type RecommendedPartnerMode = 'complementary' | 'similar'
-
-export interface RecommendedPartner {
-  studentId: number
-  userId?: number
-  name?: string
-  skills?: string[]
-  matchScore?: number
-  reason?: string
-}
-
-export interface StudentViewCourse {
-  id: number
-  name: string
-  code: string
-  semester?: string | null
-  doctorName?: string
-}
-
-export interface StudentViewSection {
-  id: number
-  name: string
-  schedule?: string
-  capacity?: number
-}
-
-export interface StudentViewStudent {
-  id: number
-  name: string
-  email?: string
-  sectionId: number
-}
-
-export interface StudentViewProject {
-  id: number
-  title: string
-  description?: string | null
-  applyToAllSections: boolean
-  sectionIds: number[]
-}
-
-export interface StudentCourseView {
-  course: StudentViewCourse
-  mySection: StudentViewSection | null
-  students: StudentViewStudent[]
-  projects: StudentViewProject[]
-}
-
-export interface ManualTeamStudent {
-  id: number
-  name: string
-  email: string
-  skills: string[]
-  sectionName: string
-  avatar?: string | null
-  bio?: string | null
-  hasPendingRequest: boolean
-  isAlreadyInTeam: boolean
-  availabilityStatus: "available" | "unavailable" | "pending" | "already_teammate"
-  availabilityReason: string
-}
-
-export interface ManualTeamStudentsResponse {
-  projectId: number
-  projectTitle: string
-  teamSize: number
-  students: ManualTeamStudent[]
-}
-
-export interface TeamInvitationItem {
-  invitationId: number
-  projectId: number
-  projectTitle: string
-  courseId: number
-  courseName: string
-  senderId: number
-  senderName: string
-  senderSection: string
-  senderSkills?: string[]
-  /** Optional when API adds it; GET /courses/team-invitations currently returns pending-only rows. */
-  status?: string | null
-  message?: string
-  invitedAt: string
-}
-
-function coalesceTeamInviteString(...vals: unknown[]): string {
-  for (const v of vals) {
-    if (typeof v === 'string' && v.trim() !== '') return v.trim()
-  }
-  return ''
-}
-
-function coalesceTeamInviteNumber(...vals: unknown[]): number | null {
-  for (const v of vals) {
-    if (typeof v === 'number' && Number.isFinite(v)) return v
-    if (typeof v === 'string' && v.trim() !== '') {
-      const n = Number(v)
-      if (Number.isFinite(n)) return n
-    }
-  }
-  return null
-}
-
-function extractTeamInvitationsArray(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data
-  if (typeof data === 'string') {
-    const t = data.trim()
-    if (t.startsWith('[') || t.startsWith('{')) {
+  await Promise.all(
+    courseIds.map(async (courseId) => {
       try {
-        return extractTeamInvitationsArray(JSON.parse(t) as unknown)
+        const detail = await getStudentCourseDetail(courseId);
+        const projects = await getEligibleStudentCourseProjects(courseId, detail.mySectionId);
+        eligibleProjectIdsByCourse.set(courseId, new Set(projects.map((p) => p.id)));
       } catch {
-        return []
+        eligibleProjectIdsByCourse.set(courseId, new Set());
       }
-    }
-    return []
-  }
-  if (data !== null && typeof data === 'object') {
-    const o = data as Record<string, unknown>
-    const keys = ['items', 'results', 'data', 'value', 'invitations'] as const
-    for (const k of keys) {
-      const v = o[k]
-      if (Array.isArray(v)) return v
-    }
-  }
-  return []
+    }),
+  );
+
+  return invites.filter((inv) =>
+    eligibleProjectIdsByCourse.get(inv.courseId)?.has(inv.projectId),
+  );
 }
 
-function parseStringArrayLoose(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return []
-  const out: string[] = []
-  for (const x of raw) {
-    if (typeof x === 'string' && x.trim() !== '') out.push(x.trim())
-  }
-  return out
+export async function acceptTeamInvitation(invitationId: number): Promise<void> {
+  await api.post(`/courses/team-invitations/${invitationId}/accept`);
 }
 
-/**
- * Normalizes GET /api/courses/team-invitations payloads (camelCase / PascalCase, nullable fields).
- * Required so mobile filters like `item.courseId === routeCourseId` work when JSON uses `CourseId`.
- */
-export function parseTeamInvitationsResponse(data: unknown): TeamInvitationItem[] {
-  const rows = extractTeamInvitationsArray(data)
-  const out: TeamInvitationItem[] = []
+export async function rejectTeamInvitation(invitationId: number): Promise<void> {
+  await api.post(`/courses/team-invitations/${invitationId}/reject`);
+}
+
+function parseTeamInvitationsResponse(data: unknown): TeamInvitationItem[] {
+  const rows = Array.isArray(data) ? data : [];
+  const out: TeamInvitationItem[] = [];
 
   for (const raw of rows) {
-    if (raw === null || typeof raw !== 'object') continue
-    const o = raw as Record<string, unknown>
+    if (raw === null || typeof raw !== "object") continue;
+    const o = raw as Record<string, unknown>;
 
-    const invitationId = coalesceTeamInviteNumber(
-      o.invitationId,
-      o.InvitationId,
-      o.id,
-      o.Id,
-    )
-    const projectId = coalesceTeamInviteNumber(o.projectId, o.ProjectId)
-    const courseId = coalesceTeamInviteNumber(o.courseId, o.CourseId)
-    const senderId = coalesceTeamInviteNumber(o.senderId, o.SenderId)
+    const invitationId = num(o.invitationId, o.InvitationId, o.id, o.Id);
+    const projectId = num(o.projectId, o.ProjectId);
+    const courseId = num(o.courseId, o.CourseId);
+    const senderId = num(o.senderId, o.SenderId);
 
-    if (invitationId === null || projectId === null || courseId === null || senderId === null) continue
+    if (
+      invitationId === null ||
+      projectId === null ||
+      courseId === null ||
+      senderId === null
+    ) {
+      continue;
+    }
 
-    const projectTitle = coalesceTeamInviteString(o.projectTitle, o.ProjectTitle) || '—'
-    const courseName = coalesceTeamInviteString(o.courseName, o.CourseName) || '—'
-    const senderName = coalesceTeamInviteString(o.senderName, o.SenderName) || '—'
-    const senderSection = coalesceTeamInviteString(o.senderSection, o.SenderSection) || '—'
-    const invitedAt =
-      coalesceTeamInviteString(o.invitedAt, o.InvitedAt, o.createdAt, o.CreatedAt) || ''
-
-    const msgRaw = coalesceTeamInviteString(o.message, o.Message, o.body, o.Body)
-    const statusRaw = coalesceTeamInviteString(o.status, o.Status)
-
-    const skills = [
-      ...parseStringArrayLoose(o.senderSkills),
-      ...parseStringArrayLoose(o.SenderSkills),
-    ]
-    const dedupSkills = [...new Set(skills)]
+    const senderSkills = [
+      ...parseStringArray(o.senderSkills),
+      ...parseStringArray(o.SenderSkills),
+    ];
 
     out.push({
       invitationId,
       projectId,
-      projectTitle,
+      projectTitle: str(o.projectTitle, o.ProjectTitle) || "—",
       courseId,
-      courseName,
+      courseName: str(o.courseName, o.CourseName) || "—",
       senderId,
-      senderName,
-      senderSection,
-      senderSkills: dedupSkills.length > 0 ? dedupSkills : undefined,
-      message: msgRaw.length > 0 ? msgRaw : undefined,
-      invitedAt,
-      status: statusRaw.length > 0 ? statusRaw : undefined,
-    })
+      senderName: str(o.senderName, o.SenderName) || "—",
+      senderSection: str(o.senderSection, o.SenderSection) || "—",
+      invitedAt: str(o.invitedAt, o.InvitedAt, o.createdAt, o.CreatedAt) || "",
+      message: str(o.message, o.Message, o.body, o.Body) || undefined,
+      senderSkills: senderSkills.length > 0 ? [...new Set(senderSkills)] : undefined,
+    });
   }
 
-  return out
+  return out;
 }
 
-export const getEnrolledCourses = async (): Promise<EnrolledCourse[]> => {
-  const response = await api.get('/courses/enrolled')
-  return response.data
+function parseStringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((x): x is string => typeof x === "string" && x.trim() !== "").map((x) => x.trim());
 }
 
-export const getCourseById = async (courseId: number): Promise<CourseDetails> => {
-  const response = await api.get(`/courses/${courseId}`)
-  return response.data
-}
-
-export const getCourseStudentView = async (
-  courseId: number,
-): Promise<StudentCourseView> => {
-  const response = await api.get(`/courses/${courseId}/student-view`)
-  return response.data
-}
-
-export const getCourseStudents = async (courseId: number): Promise<CourseStudent[]> => {
-  const response = await api.get(`/courses/${courseId}/students`)
-  return response.data
-}
-
-export const getManualTeamStudents = async (
-  courseId: number,
-  projectId: number,
-): Promise<ManualTeamStudentsResponse> => {
-  const response = await api.get(`/courses/${courseId}/projects/${projectId}/manual-team/students`)
-  return response.data
-}
-
-export const sendManualTeamRequest = async (
-  courseId: number,
-  projectId: number,
-  receiverId: number,
-): Promise<{ message: string }> => {
-  const response = await api.post(
-    `/courses/${courseId}/projects/${projectId}/manual-team/requests/${receiverId}`,
-  )
-  return response.data
-}
-
-export interface AiTeamRecommendation {
-  studentId: number
-  name: string
-  email: string
-  avatar?: string | null
-  sectionName: string
-  skills: string[]
-  bio?: string | null
-  matchScore: number
-  matchReason: string
-  hasPendingRequest: boolean
-  isAlreadyInTeam: boolean
-  availabilityStatus?: string
-  availabilityReason?: string
-}
-
-export const getAiTeamRecommendations = async (
-  courseId: number,
-  projectId: number,
-): Promise<AiTeamRecommendation[]> => {
-  const response = await api.get<AiTeamRecommendation[]>(
-    `/courses/${courseId}/projects/${projectId}/ai-team-recommendations`,
-  )
-  return response.data ?? []
-}
-
-export const getTeamInvitations = async (): Promise<TeamInvitationItem[]> => {
-  const response = await api.get<unknown>('/courses/team-invitations')
-  return parseTeamInvitationsResponse(response.data)
-}
-
-export type AcceptTeamInvitationResponse = {
-  teamId: number
-  courseId: number
-  projectId: number
-  status: "accepted"
-}
-
-export const acceptTeamInvitation = async (invitationId: number): Promise<AcceptTeamInvitationResponse> => {
-  const response = await api.post<AcceptTeamInvitationResponse>(`/courses/team-invitations/${invitationId}/accept`)
-  return response.data
-}
-
-export const rejectTeamInvitation = async (invitationId: number): Promise<{ message: string }> => {
-  const response = await api.post<{ message: string }>(`/courses/team-invitations/${invitationId}/reject`)
-  return response.data
-}
-
-export const getCourseProjectSetting = async (
-  courseId: number,
-): Promise<CourseProjectSetting> => {
-  const response = await api.get(`/courses/${courseId}/project-setting`)
-  return response.data
-}
-
-export const getCoursePartnerRequests = async (
-  courseId: number,
-): Promise<PartnerRequestsResponse> => {
-  const response = await api.get(`/courses/${courseId}/partner-requests`)
-  return response.data
-}
-
-export const getRecommendedPartners = async (
-  courseId: number,
-  mode: RecommendedPartnerMode,
-): Promise<RecommendedPartner[]> => {
-  const response = await api.get(
-    `/courses/${courseId}/recommended-partners`,
-    { params: { mode } },
-  )
-  return response.data
-}
-
-/**
- * Backend behavior: returns null if the current student has no team yet.
- */
-export const getMyTeam = async (courseId: number): Promise<MyTeamResponse | null> => {
-  const response = await api.get(`/courses/${courseId}/my-team`)
-  return response.data
-}
-
-export const createPartnerRequest = async (
-  courseId: number,
-  body: CreatePartnerRequestBody,
-): Promise<void> => {
-  await api.post(`/courses/${courseId}/partner-requests`, body)
-}
-
-export const acceptPartnerRequest = async (
-  courseId: number,
-  requestId: number,
-): Promise<void> => {
-  await api.post(`/courses/${courseId}/partner-requests/${requestId}/accept`)
-}
-
-export const rejectPartnerRequest = async (
-  courseId: number,
-  requestId: number,
-): Promise<void> => {
-  await api.post(`/courses/${courseId}/partner-requests/${requestId}/reject`)
-}
-
-export const removeTeamMember = async (
-  courseId: number,
-  teamId: number,
-  studentId: number,
-): Promise<void> => {
-  await api.delete(`/courses/${courseId}/teams/${teamId}/members/${studentId}`)
-}
-
-/** Student leaves the course (removes enrollment and team membership per backend). */
-export const leaveCourse = async (courseId: number): Promise<void> => {
-  await api.post(`/courses/${courseId}/leave`)
-}
-
-// ─── GET /courses/{courseId}/projects (student “Manage My Courses” — matches web StudentCoursesPage) ───
-
-export type StudentCourseProjectSection = {
-  sectionId: number
-  sectionName: string
-}
-
-export type StudentCourseProject = {
-  id: number
-  courseId: number
-  title: string
-  description: string | null
-  teamSize: number
-  applyToAllSections: boolean
-  allowCrossSectionTeams: boolean
-  aiMode: 'doctor' | 'student'
-  createdAt: string
-  sections: StudentCourseProjectSection[]
-  hasTeam: boolean
-  teamFormationMode?: string
-  assignmentMode?: string
-  teamMode?: string
-  formationMode?: string
-  isDoctorAssigned?: boolean
-  allowStudentSelection?: boolean
-}
-
-function mapStudentCourseProjectSection(raw: unknown): StudentCourseProjectSection {
-  const s = raw as Record<string, unknown>
-  return {
-    sectionId: Number(s.sectionId ?? s.SectionId ?? 0),
-    sectionName: String(s.sectionName ?? s.SectionName ?? ''),
+function str(...vals: unknown[]): string {
+  for (const v of vals) {
+    if (typeof v === "string" && v.trim() !== "") return v.trim();
   }
+  return "";
 }
 
-export function normalizeStudentCourseProject(raw: unknown): StudentCourseProject | null {
-  if (raw == null || typeof raw !== 'object') return null
-  const r = raw as Record<string, unknown>
-  const id = Number(r.id ?? r.Id ?? 0)
-  if (!Number.isFinite(id) || id <= 0) return null
-  const aiModeRaw = String(r.aiMode ?? r.AiMode ?? 'doctor')
-    .toLowerCase()
-    .trim()
-  const sectionsRaw = r.sections ?? r.Sections
-  return {
-    id,
-    courseId: Number(r.courseId ?? r.CourseId ?? 0),
-    title: String(r.title ?? r.Title ?? ''),
-    description:
-      r.description === undefined || r.description === null
-        ? null
-        : String(r.description ?? r.Description ?? ''),
-    teamSize: Number(r.teamSize ?? r.TeamSize ?? 2),
-    applyToAllSections: Boolean(r.applyToAllSections ?? r.ApplyToAllSections ?? false),
-    allowCrossSectionTeams: Boolean(
-      r.allowCrossSectionTeams ?? r.AllowCrossSectionTeams ?? false,
-    ),
-    aiMode: aiModeRaw === 'student' ? 'student' : 'doctor',
-    createdAt: String(r.createdAt ?? r.CreatedAt ?? ''),
-    sections: Array.isArray(sectionsRaw) ? sectionsRaw.map(mapStudentCourseProjectSection) : [],
-    hasTeam: Boolean(r.hasTeam ?? r.HasTeam ?? false),
-    teamFormationMode:
-      r.teamFormationMode != null ? String(r.teamFormationMode) : undefined,
-    assignmentMode: r.assignmentMode != null ? String(r.assignmentMode) : undefined,
-    teamMode: r.teamMode != null ? String(r.teamMode) : undefined,
-    formationMode: r.formationMode != null ? String(r.formationMode) : undefined,
-    isDoctorAssigned:
-      typeof r.isDoctorAssigned === 'boolean'
-        ? r.isDoctorAssigned
-        : typeof r.IsDoctorAssigned === 'boolean'
-          ? r.IsDoctorAssigned
-          : undefined,
-    allowStudentSelection:
-      typeof r.allowStudentSelection === 'boolean'
-        ? r.allowStudentSelection
-        : typeof r.AllowStudentSelection === 'boolean'
-          ? r.AllowStudentSelection
-          : undefined,
+function num(...vals: unknown[]): number | null {
+  for (const v of vals) {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
   }
-}
-
-/** GET /api/courses/{courseId}/projects — same payload as web StudentCoursesPage. */
-export async function fetchStudentCourseProjects(
-  courseId: number,
-): Promise<StudentCourseProject[]> {
-  const { data } = await api.get<unknown[]>(`/courses/${courseId}/projects`)
-  if (!Array.isArray(data)) return []
-  return data
-    .map(normalizeStudentCourseProject)
-    .filter((p): p is StudentCourseProject => p != null)
-}
-
-// ─── Section chat (web StudentCoursesPage) ───────────────────────────────────
-
-export interface SectionChatMessageDto {
-  id: number
-  sectionId: number
-  senderUserId: number
-  senderName: string
-  text: string
-  sentAt: string
-}
-
-export async function fetchSectionChatMessages(
-  sectionId: number,
-  limit = 100,
-): Promise<SectionChatMessageDto[]> {
-  const { data } = await api.get<SectionChatMessageDto[]>(
-    `/sections/${sectionId}/chat`,
-    { params: { limit } },
-  )
-  return Array.isArray(data) ? data : []
-}
-
-export async function postSectionChatMessage(
-  sectionId: number,
-  text: string,
-): Promise<SectionChatMessageDto> {
-  const { data } = await api.post<SectionChatMessageDto>(
-    `/sections/${sectionId}/chat`,
-    { text },
-  )
-  return data
+  return null;
 }

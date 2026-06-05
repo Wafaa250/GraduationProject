@@ -1,59 +1,85 @@
-import { useMemo } from "react";
 import { useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
-  COMPACT_PHONE_MAX_WIDTH,
-  DASHBOARD_CONTENT_MAX_WIDTH,
-  FORM_CARD_MAX_WIDTH,
-  TABLET_MIN_WIDTH,
+  CONTENT_MAX_WIDTH,
+  SPACING,
+  type DeviceSize,
+  type SpacingKey,
+  getDeviceSize,
+  horizontalPaddingForWidth,
+  scaleSize,
 } from "@/constants/responsiveLayout";
 
 export type ResponsiveLayout = {
   width: number;
   height: number;
-  isTablet: boolean;
-  isCompact: boolean;
+  deviceSize: DeviceSize;
   horizontalPadding: number;
-  /** Usable inner width after horizontal padding */
-  innerWidth: number;
-  maxFormWidth: number;
-  maxDashboardWidth: number;
-  /** Decorative blob diameter scaled to screen (clamped) */
-  blobDiameter: (factor?: number) => number;
+  maxContentWidth: number;
+  contentWidth: number;
+  isCompactHeight: boolean;
+  insets: ReturnType<typeof useSafeAreaInsets>;
+  scale: (base: number) => number;
+  space: (key: SpacingKey) => number;
+  fontSize: {
+    title: number;
+    subtitle: number;
+    label: number;
+    body: number;
+    button: number;
+    footer: number;
+  };
+  touchTarget: number;
+  radius: {
+    input: number;
+    button: number;
+  };
+  iconSize: number;
 };
 
-/**
- * Window-aware layout values for responsive screens.
- */
 export function useResponsiveLayout(): ResponsiveLayout {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const deviceSize = getDeviceSize(width);
+  const horizontalPadding = horizontalPaddingForWidth(width);
+  const maxContentWidth = deviceSize === "tablet" ? CONTENT_MAX_WIDTH : width;
+  const contentWidth = Math.min(width - horizontalPadding * 2, maxContentWidth);
+  const isCompactHeight = height < 680 || deviceSize === "small";
 
-  return useMemo(() => {
-    const isTablet = width >= TABLET_MIN_WIDTH;
-    const isCompact = width <= COMPACT_PHONE_MAX_WIDTH;
-    const horizontalPadding = Math.max(
-      12,
-      Math.min(isTablet ? 28 : 20, Math.round(width * (isTablet ? 0.04 : 0.045)))
-    );
-    const innerWidth = Math.max(0, width - horizontalPadding * 2);
-    const maxFormWidth = Math.min(FORM_CARD_MAX_WIDTH, innerWidth);
-    const maxDashboardWidth = Math.min(DASHBOARD_CONTENT_MAX_WIDTH, innerWidth);
+  const scale = (base: number) => scaleSize(base, width);
 
-    const blobDiameter = (factor = 0.85) => {
-      const base = Math.min(width, height) * factor;
-      return Math.min(520, Math.max(220, Math.round(base)));
-    };
+  const space = (key: SpacingKey) => {
+    const base = SPACING[key];
+    if (deviceSize === "small") return Math.round(base * 0.9);
+    if (deviceSize === "tablet") return Math.round(base * 1.1);
+    return base;
+  };
 
-    return {
-      width,
-      height,
-      isTablet,
-      isCompact,
-      horizontalPadding,
-      innerWidth,
-      maxFormWidth,
-      maxDashboardWidth,
-      blobDiameter,
-    };
-  }, [width, height]);
+  return {
+    width,
+    height,
+    deviceSize,
+    horizontalPadding,
+    maxContentWidth,
+    contentWidth,
+    isCompactHeight,
+    insets,
+    scale,
+    space,
+    fontSize: {
+      title: scale(deviceSize === "small" ? 30 : deviceSize === "tablet" ? 38 : 34),
+      subtitle: scale(16),
+      label: scale(14),
+      body: scale(16),
+      button: scale(17),
+      footer: scale(15),
+    },
+    touchTarget: scale(56),
+    radius: {
+      input: scale(16),
+      button: scale(16),
+    },
+    iconSize: scale(20),
+  };
 }

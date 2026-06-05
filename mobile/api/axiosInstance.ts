@@ -28,10 +28,14 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 /** Human-readable message from failed API calls (for UI + console) */
 export function parseApiErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
-    const data = err.response?.data as { message?: string } | undefined
+    const data = err.response?.data as { message?: string; errors?: string[] } | undefined
 
     if (data && typeof data.message === 'string' && data.message.trim() !== '') {
       return data.message
+    }
+
+    if (data?.errors?.[0]) {
+      return data.errors[0]
     }
 
     const status = err.response?.status
