@@ -75,7 +75,7 @@ import OrganizationRecruitmentApplicationDetailPage from "@/pages/association/re
 import StudentDirectoryProfilePage from "@/pages/student/StudentDirectoryProfilePage";
 import DoctorPublicProfilePage from "@/pages/student/DoctorPublicProfilePage";
 import OrganizationVisitorProfilePage from "@/pages/student/OrganizationVisitorProfilePage";
-import CompanyVisitorProfilePage from "@/pages/student/CompanyVisitorProfilePage";
+import CompanyPublicProfilePage from "@/pages/student/CompanyPublicProfilePage";
 import { CompanyTalentRequestDetailPage } from "@/pages/company/CompanyTalentRequestDetailPage";
 import { StudentCommunicationHubRoute } from "@/routes/studentRoutes";
 import { StudentCompanyRequestDetailRoute } from "@/routes/StudentCompanyRequestDetailRoute";
@@ -143,7 +143,7 @@ export function AppRouter() {
           <Route path="/students/:userId" element={<StudentDirectoryProfilePage />} />
           <Route path="/doctors/:userId" element={<DoctorPublicProfilePage />} />
           <Route path="/organizations/:organizationId" element={<OrganizationVisitorProfilePage />} />
-          <Route path="/companies/:companyProfileId" element={<CompanyVisitorProfilePage />} />
+          <Route path="/companies/:companyProfileId" element={<CompanyPublicProfilePage />} />
           <Route path="/association/events/:eventId" element={<OrganizationEventDetailsPage />} />
           <Route
             path="/association/recruitment/:campaignId"

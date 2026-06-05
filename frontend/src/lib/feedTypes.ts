@@ -50,12 +50,12 @@ export type FeedItem = {
   metadata: { label: string; value: string }[];
 };
 
-/** Company opportunities/requests are excluded from the Communication Hub timeline. */
+/** Hub-unpublished company content is excluded from the Communication Hub timeline. */
 export function isCompanyFeedItem(item: Pick<FeedItem, "sourceType" | "relatedEntityType">): boolean {
   return (
-    item.sourceType === "company" ||
-    item.relatedEntityType === FEED_SOURCE_TYPES.companyOpportunity ||
-    item.relatedEntityType === FEED_SOURCE_TYPES.companyTalentRequest
+    item.relatedEntityType === FEED_SOURCE_TYPES.companyTalentRequest ||
+    (item.sourceType === "company" &&
+      item.relatedEntityType !== FEED_SOURCE_TYPES.companyOpportunity)
   );
 }
 

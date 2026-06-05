@@ -227,14 +227,18 @@ export async function getPublicCompanyProfileDetail(
   }
 }
 
-/** Published opportunities for a company (Communication Hub). */
+/** Published opportunities for a company (public profile). */
 export async function listPublicCompanyOpportunities(
   companyProfileId: number,
 ): Promise<PublicCompanyOpportunitySummary[]> {
-  const { data } = await api.get<PublicCompanyOpportunitySummary[]>(
-    `/companies/${companyProfileId}/opportunities`,
-  );
-  return Array.isArray(data) ? data : [];
+  try {
+    const { data } = await api.get<PublicCompanyOpportunitySummary[]>(
+      `/companies/${companyProfileId}/opportunities`,
+    );
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Loads a company from GET /api/companies/public (fallback discovery API). */

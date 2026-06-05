@@ -9,6 +9,7 @@ import {
   Loader2,
   Mail,
   MapPin,
+  Phone,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -34,11 +35,13 @@ function companyInitials(name: string): string {
 function normalizeUrl(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
 }
 
 function displayUrl(url: string): string {
+  if (/^tel:/i.test(url)) return url.replace(/^tel:/i, "");
+  if (/^mailto:/i.test(url)) return url.replace(/^mailto:/i, "");
   return url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 }
 
@@ -75,7 +78,7 @@ export default function CompanyPublicProfilePage() {
 
     Promise.all([
       getPublicCompanyProfileDetail(companyProfileId),
-      listPublicCompanyOpportunities(companyProfileId),
+      listPublicCompanyOpportunities(companyProfileId).catch(() => [] as PublicCompanyOpportunitySummary[]),
     ])
       .then(([profile, opps]) => {
         if (cancelled) return;
@@ -155,12 +158,14 @@ export default function CompanyPublicProfilePage() {
       });
     }
     if (company.optionalContactLink?.trim()) {
+      const raw = company.optionalContactLink.trim();
+      const isPhone = /^tel:/i.test(raw);
       items.push({
         key: "contact-link",
-        label: "Contact link",
-        value: displayUrl(company.optionalContactLink),
-        href: normalizeUrl(company.optionalContactLink),
-        icon: Globe,
+        label: isPhone ? "Phone" : "Contact link",
+        value: displayUrl(raw),
+        href: normalizeUrl(raw),
+        icon: isPhone ? Phone : Globe,
       });
     }
     return items;

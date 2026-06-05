@@ -97,20 +97,26 @@ namespace GraduationProject.API.Controllers
 
             return Ok(items);
         }
-/// <summary>GET /api/companies/{companyProfileId}/profile – read-only company profile for students.</summary>
-[HttpGet("{companyProfileId:int}/profile")]
-public async Task<IActionResult> GetProfile(int companyProfileId)
-{
-    var profile = await _db.CompanyProfiles.AsNoTracking()
-        .FirstOrDefaultAsync(c => c.Id == companyProfileId);
+        /// <summary>GET /api/companies/{companyProfileId}/profile – read-only company profile for students.</summary>
+        [HttpGet("{companyProfileId:int}/profile")]
+        public async Task<IActionResult> GetProfile(int companyProfileId)
+        {
+            var profile = await _db.CompanyProfiles.AsNoTracking()
+                .Include(c => c.User)
+                .FirstOrDefaultAsync(c => c.Id == companyProfileId);
 
-    if (profile == null)
-        return NotFound(new { message = "Company not found." });
+            if (profile == null)
+                return NotFound(new { message = "Company not found." });
 
-            return Ok(new CompanyProfileDto
+            var studentProfileId = await GetCurrentStudentProfileIdAsync();
+            var isFollowing = studentProfileId.HasValue
+                && await _db.CompanyFollows.AsNoTracking().AnyAsync(f =>
+                    f.CompanyProfileId == companyProfileId
+                    && f.StudentProfileId == studentProfileId.Value);
+
+            return Ok(new PublicCompanyProfileDetailDto
             {
                 Id = profile.Id,
-                UserId = profile.UserId,
                 CompanyName = profile.CompanyName,
                 Industry = profile.Industry,
                 Description = profile.Description,
@@ -120,11 +126,40 @@ public async Task<IActionResult> GetProfile(int companyProfileId)
                 AreasOfInterest = SkillHelper.ParseStringList(profile.AreasOfInterest),
                 WebsiteUrl = profile.WebsiteUrl,
                 LinkedInUrl = profile.LinkedInUrl,
-                Email = profile.User?.Email ?? string.Empty,
                 ContactEmail = profile.ContactEmail ?? profile.User?.Email,
                 OptionalContactLink = profile.OptionalContactLink,
-                WorkspaceRole = null,
+                IsFollowing = isFollowing,
             });
+        }
+
+        /// <summary>GET /api/companies/{companyProfileId}/opportunities — hub-published opportunities for public profile.</summary>
+        [HttpGet("{companyProfileId:int}/opportunities")]
+        public async Task<IActionResult> ListOpportunities(int companyProfileId)
+        {
+            var exists = await _db.CompanyProfiles.AsNoTracking()
+                .AnyAsync(c => c.Id == companyProfileId);
+            if (!exists)
+                return NotFound(new { message = "Company not found." });
+
+            var rows = await _db.CompanyRequests.AsNoTracking()
+                .Where(r => r.CompanyProfileId == companyProfileId)
+                .OrderByDescending(r => r.PublishedToHubAt ?? r.SubmittedAt ?? r.UpdatedAt)
+                .ToListAsync();
+
+            var items = rows
+                .Where(CompanyRequestHubVisibility.IsVisibleInCommunicationHub)
+                .Select(r => new PublicCompanyOpportunitySummaryDto
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Category = r.Category,
+                    CollaborationFormat = FeedMappingHelper.FormatCollaboration(r.CollaborationFormat),
+                    DurationLabel = FeedMappingHelper.FormatCompanyDuration(r),
+                    PublishedAt = r.PublishedToHubAt ?? r.SubmittedAt ?? r.UpdatedAt,
+                })
+                .ToList();
+
+            return Ok(items);
         }
 
         /// <summary>GET /api/companies/{companyProfileId}/opportunities/{requestId} — visible company project request for students.</summary>

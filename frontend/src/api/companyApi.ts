@@ -119,10 +119,36 @@ export async function getCompanyProfile(): Promise<CompanyProfile> {
   return data;
 }
 
-/** Read-only company profile for visitors (same shape as workspace profile). */
+/** Read-only company profile for visitors (public discovery API). */
 export async function getCompanyProfileById(companyProfileId: number): Promise<CompanyProfile> {
-  const { data } = await api.get<CompanyProfile>(`/companies/${companyProfileId}`);
-  return data;
+  const { data } = await api.get<Record<string, unknown>>(
+    `/companies/${companyProfileId}/profile`,
+  );
+  return {
+    id: Number(data.id ?? data.Id ?? companyProfileId),
+    userId: Number(data.userId ?? data.UserId ?? 0),
+    companyName: String(data.companyName ?? data.CompanyName ?? ""),
+    industry: (data.industry ?? data.Industry) as string | null | undefined,
+    description: (data.description ?? data.Description) as string | null | undefined,
+    location: (data.location ?? data.Location) as string | null | undefined,
+    headquartersLocation: (data.headquartersLocation ?? data.HeadquartersLocation) as
+      | string
+      | null
+      | undefined,
+    workingStyle: (data.workingStyle ?? data.WorkingStyle) as string | null | undefined,
+    areasOfInterest: Array.isArray(data.areasOfInterest ?? data.AreasOfInterest)
+      ? ((data.areasOfInterest ?? data.AreasOfInterest) as string[])
+      : [],
+    websiteUrl: (data.websiteUrl ?? data.WebsiteUrl) as string | null | undefined,
+    linkedInUrl: (data.linkedInUrl ?? data.LinkedInUrl) as string | null | undefined,
+    email: String(data.email ?? data.Email ?? data.contactEmail ?? data.ContactEmail ?? ""),
+    contactEmail: (data.contactEmail ?? data.ContactEmail) as string | null | undefined,
+    optionalContactLink: (data.optionalContactLink ?? data.OptionalContactLink) as
+      | string
+      | null
+      | undefined,
+    workspaceRole: undefined,
+  };
 }
 
 export async function updateCompanyProfile(

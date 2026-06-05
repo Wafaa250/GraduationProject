@@ -79,6 +79,7 @@ namespace GraduationProject.API.Services
                 await LoadAssociationEventPostsAsync(),
                 await LoadAssociationRecruitmentPostsAsync(),
                 await LoadAssociationRecruitmentPositionPostsAsync(),
+                await LoadCompanyOpportunityPostsAsync(),
                 await LoadStudentSocialPostsAsync(),
                 await LoadDoctorSocialPostsAsync(),
             };
@@ -87,20 +88,18 @@ namespace GraduationProject.API.Services
         }
 
         /// <summary>
-        /// Caps each source so one bucket cannot crowd out other activity,
-        /// then orders the unified timeline by publish date (newest first).
-        /// </summary>
-        /// <summary>
-        /// Communication Hub feed: student/doctor social posts and association activity only.
-        /// Company opportunities and talent requests stay on company pages, not in the feed.
+        /// Communication Hub feed: social posts, association activity, and hub-published company opportunities.
+        /// Unpublished company requests and talent searches are excluded.
         /// </summary>
         private static bool IsAllowedInStudentFeed(FeedPostDto post)
         {
             if (string.Equals(post.SourceType, FeedPostSourceTypes.StudentCollaboration, StringComparison.Ordinal))
                 return false;
 
-            if (string.Equals(post.SourceType, FeedPostSourceTypes.CompanyOpportunity, StringComparison.Ordinal)
-                || string.Equals(post.SourceType, FeedPostSourceTypes.CompanyTalentRequest, StringComparison.Ordinal)
+            if (string.Equals(post.SourceType, FeedPostSourceTypes.CompanyOpportunity, StringComparison.Ordinal))
+                return true;
+
+            if (string.Equals(post.SourceType, FeedPostSourceTypes.CompanyTalentRequest, StringComparison.Ordinal)
                 || string.Equals(post.AuthorType, FeedAuthorTypes.Company, StringComparison.Ordinal))
             {
                 return false;
