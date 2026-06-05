@@ -95,10 +95,18 @@ namespace GraduationProject.API.DTOs
         public DateTime? RegistrationDeadline { get; set; }
         public string? CoverImageUrl { get; set; }
         public int? MaxParticipants { get; set; }
+        public bool IsPublished { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public string? OrganizationName { get; set; }
         public string? OrganizationLogoUrl { get; set; }
+    }
+
+    public class PublishStudentOrganizationEventResponseDto
+    {
+        public int Id { get; set; }
+        public bool IsPublished { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
 
     public class EventCoverUploadResponseDto

@@ -103,17 +103,12 @@ namespace GraduationProject.API.Controllers
                     : null,
                 CoverImageUrl = dto.CoverImageUrl,
                 MaxParticipants = dto.MaxParticipants,
+                IsPublished = false,
                 CreatedAt = DateTime.UtcNow,
             };
 
             _db.StudentOrganizationEvents.Add(entity);
             await _db.SaveChangesAsync();
-
-            await _notifications.NotifyOrganizationFollowersNewEventAsync(
-                profile.Id,
-                profile.AssociationName,
-                entity.Id,
-                entity.Title);
 
             return StatusCode(201, MapToDto(entity, profile));
         }
@@ -180,6 +175,45 @@ namespace GraduationProject.API.Controllers
             await _db.SaveChangesAsync();
 
             return Ok(MapToDto(entity, profile!));
+        }
+
+        // POST /api/organization/events/{id}/publish
+        [HttpPost("{id:int}/publish")]
+        public async Task<IActionResult> Publish(int id)
+        {
+            var (entity, profile, notFound) = await GetOwnedEventAsync(id, tracking: true);
+            if (notFound) return NotFound(new { message = "Event not found." });
+
+            if (entity!.IsPublished)
+                return BadRequest(new { message = "Event is already published." });
+
+            var form = await _db.StudentOrganizationEventRegistrationForms
+                .AsNoTracking()
+                .Include(f => f.Fields)
+                .FirstOrDefaultAsync(f => f.EventId == id);
+
+            if (form == null)
+                return BadRequest(new { message = "Create a registration form before publishing this event." });
+
+            if (!form.Fields.Any())
+                return BadRequest(new { message = "Add at least one field to the registration form before publishing." });
+
+            entity.IsPublished = true;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            await _notifications.NotifyOrganizationFollowersNewEventAsync(
+                profile!.Id,
+                profile.AssociationName,
+                entity.Id,
+                entity.Title);
+
+            return Ok(new PublishStudentOrganizationEventResponseDto
+            {
+                Id = entity.Id,
+                IsPublished = true,
+                Message = "Event published successfully.",
+            });
         }
 
         // DELETE /api/organization/events/{id}
@@ -294,6 +328,7 @@ namespace GraduationProject.API.Controllers
             RegistrationDeadline = e.RegistrationDeadline,
             CoverImageUrl = e.CoverImageUrl,
             MaxParticipants = e.MaxParticipants,
+            IsPublished = e.IsPublished,
             CreatedAt = e.CreatedAt,
             UpdatedAt = e.UpdatedAt,
             OrganizationName = profile.AssociationName,

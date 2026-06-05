@@ -57,7 +57,7 @@ export default function OrganizationRecruitmentCampaignEditPage() {
       <header style={{ marginBottom: 24 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: assocDash.accent }}>Student Organization</p>
         <h1 style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 800, fontFamily: assocDash.fontDisplay }}>
-          Edit opportunity
+          Edit selection applications
         </h1>
         {campaign ? (
           <p style={{ margin: '8px 0 0', fontSize: 14, color: assocDash.muted }}>{campaign.title}</p>
@@ -65,7 +65,7 @@ export default function OrganizationRecruitmentCampaignEditPage() {
       </header>
 
       {loading || shell.loading ? (
-        <p style={{ color: assocDash.muted }}>Loading opportunity…</p>
+        <p style={{ color: assocDash.muted }}>Loading selection application cycle…</p>
       ) : campaign ? (
         <RecruitmentCampaignForm
           key={campaign.id}
@@ -79,7 +79,7 @@ export default function OrganizationRecruitmentCampaignEditPage() {
             setSaving(true)
             try {
               await updateOrganizationRecruitmentCampaign(id, payload)
-              toast.success('Opportunity updated')
+              toast.success('Selection applications updated')
               navigate(`/association/recruitment/${id}`)
             } catch (err) {
               toast.error(parseApiErrorMessage(err))

@@ -266,8 +266,8 @@ function QuickActionsCard({ navigate }: { navigate: (path: string) => void }) {
     },
     {
       icon: ClipboardList,
-      title: 'Leadership opportunities',
-      desc: 'Open your team to students with committee and board applications',
+      title: 'Executive Board Selection Applications',
+      desc: 'Open selection applications for executive board, committee, and volunteer positions',
       disabled: false,
       onClick: () => navigate('/association/recruitment'),
     },

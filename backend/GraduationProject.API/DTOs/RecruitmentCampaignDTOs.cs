@@ -25,6 +25,9 @@ namespace GraduationProject.API.DTOs
         /// <summary>Comma-separated labels, e.g. "Canva, Photoshop, Creativity".</summary>
         [MaxLength(1000)]
         public string? RequiredSkills { get; set; }
+
+        /// <summary>Zero-based order in the create/edit form (position 1 => 0).</summary>
+        public int? DisplayOrder { get; set; }
     }
 
     public class CreateRecruitmentCampaignDto
@@ -43,7 +46,7 @@ namespace GraduationProject.API.DTOs
         [MaxLength(2048)]
         public string? CoverImageUrl { get; set; }
 
-        public bool IsPublished { get; set; } = true;
+        public bool IsPublished { get; set; }
 
         [MinLength(1, ErrorMessage = "Add at least one required position.")]
         public List<RecruitmentPositionInputDto> Positions { get; set; } = new();
@@ -77,6 +80,7 @@ namespace GraduationProject.API.DTOs
         public string? Description { get; set; }
         public string? Requirements { get; set; }
         public string? RequiredSkills { get; set; }
+        public int DisplayOrder { get; set; }
     }
 
     public class RecruitmentCampaignResponseDto
@@ -121,5 +125,12 @@ namespace GraduationProject.API.DTOs
     public class RecruitmentCoverUploadResponseDto
     {
         public string CoverImageUrl { get; set; } = string.Empty;
+    }
+
+    public class PublishRecruitmentCampaignResponseDto
+    {
+        public int Id { get; set; }
+        public bool IsPublished { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
 }

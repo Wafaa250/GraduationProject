@@ -28,7 +28,7 @@ export default function OrganizationRecruitmentCampaignCreatePage() {
       <div className="opportunity-create-page">
         <Link to="/association/recruitment" className="opportunity-create-back">
           <ArrowLeft size={16} strokeWidth={2} aria-hidden />
-          Back to leadership opportunities
+          Back to executive board selection applications
         </Link>
 
         <header className="opportunity-create-hero">
@@ -36,9 +36,9 @@ export default function OrganizationRecruitmentCampaignCreatePage() {
             <Users size={22} strokeWidth={2} />
           </div>
           <div>
-            <p style={{ ...assocType.eyebrow, margin: 0 }}>New leadership opportunity</p>
+            <p style={{ ...assocType.eyebrow, margin: 0 }}>New executive board selection applications</p>
             <h1 style={{ ...assocType.pageTitle, margin: '6px 0 0', fontSize: 28, lineHeight: 1.2 }}>
-              Create an opportunity
+              Open selection applications
             </h1>
             <p style={{ ...assocType.bodySm, margin: '10px 0 0', maxWidth: 560 }}>
               Invite students to join your team. Set up open positions first — you can design each
@@ -50,14 +50,14 @@ export default function OrganizationRecruitmentCampaignCreatePage() {
         {!shell.loading && (
           <RecruitmentCampaignForm
             mode="create"
-            submitLabel="Create opportunity"
+            submitLabel="Create selection"
             cancelTo="/association/recruitment"
             saving={saving}
             onSubmit={async (payload) => {
               setSaving(true)
               try {
                 const created = await createOrganizationRecruitmentCampaign(payload)
-                toast.success('Opportunity created — you can now design application forms for each position')
+                toast.success('Selection saved as draft — complete application forms, then publish from the list')
                 navigate(`/association/recruitment/${created.id}/edit`)
               } catch (err) {
                 toast.error(parseApiErrorMessage(err))

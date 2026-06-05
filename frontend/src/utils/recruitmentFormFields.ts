@@ -243,6 +243,34 @@ export function countQuestionsForPosition(
   return questions.filter((q) => q.positionId === positionId).length
 }
 
+/** Position-specific + campaign-wide questions (matches backend GetApplicableQuestions). */
+export function countApplicableQuestionsForPosition(
+  questions: RecruitmentQuestion[],
+  positionId: number,
+): number {
+  return questions.filter((q) => q.positionId == null || q.positionId === positionId).length
+}
+
+export function isRecruitmentCampaignPublishReady(
+  positions: Array<{ id: number }>,
+  questions: RecruitmentQuestion[],
+): boolean {
+  if (positions.length === 0) return false
+  return positions.every((p) => countApplicableQuestionsForPosition(questions, p.id) > 0)
+}
+
+export function recruitmentCompleteFormPath(
+  campaignId: number,
+  positions: Array<{ id: number }>,
+  questions: RecruitmentQuestion[],
+): string {
+  const incomplete = positions.find((p) => countApplicableQuestionsForPosition(questions, p.id) === 0)
+  if (incomplete) {
+    return `/association/recruitment/${campaignId}/positions/${incomplete.id}/form`
+  }
+  return `/association/recruitment/${campaignId}/edit`
+}
+
 export function positionsToOptions(
   positions: Array<{ id?: number; _key?: string; key?: string; roleTitle: string }>,
 ): PositionOption[] {

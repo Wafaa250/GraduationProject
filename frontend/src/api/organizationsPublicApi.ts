@@ -1,4 +1,5 @@
 import api from "./axiosInstance";
+import type { EventRegistrationForm } from "@/api/eventRegistrationFormApi";
 import type { PublicRecruitmentCampaignDetail } from "@/api/recruitmentCampaignsApi";
 
 export type PublicOrganizationEventSummary = {
@@ -70,6 +71,7 @@ export type PublicOrganizationEventDetail = {
   isOnline: boolean;
   organizationName: string;
   organizationLogoUrl?: string | null;
+  registrationForm?: EventRegistrationForm | null;
 };
 
 export type PublicCompanyOpportunityDetail = {

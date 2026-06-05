@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
-  createEventRegistrationForm,
+  ensureEventRegistrationForm,
   getEventRegistrationForm,
   parseApiErrorMessage,
 } from '@/api/eventRegistrationFormApi'
@@ -44,11 +44,9 @@ export function EventRegistrationFormSection({ eventId, eventTitle, disabled }: 
   const createForm = async () => {
     setCreating(true)
     try {
-      const title = eventTitle.trim()
-        ? `${eventTitle.trim()} registration`
-        : 'Event registration'
-      await createEventRegistrationForm(eventId, { title })
-      toast.success('Registration form created')
+      const hadForm = hasForm
+      await ensureEventRegistrationForm(eventId, eventTitle)
+      if (!hadForm) toast.success('Registration form created')
       navigate(eventRegistrationFormPath(eventId))
     } catch (err) {
       toast.error(parseApiErrorMessage(err))

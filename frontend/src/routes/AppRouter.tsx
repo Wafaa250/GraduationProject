@@ -62,6 +62,7 @@ import AssociationProfilePage from "@/pages/association/AssociationProfilePage";
 import OrganizationEventsListPage from "@/pages/association/events/OrganizationEventsListPage";
 import OrganizationEventCreatePage from "@/pages/association/events/OrganizationEventCreatePage";
 import OrganizationEventDetailsPage from "@/pages/association/events/OrganizationEventDetailsPage";
+import OrganizationEventRegistrationDetailPage from "@/pages/association/events/OrganizationEventRegistrationDetailPage";
 import OrganizationEventEditPage from "@/pages/association/events/OrganizationEventEditPage";
 import OrganizationEventRegistrationFormPage from "@/pages/association/events/OrganizationEventRegistrationFormPage";
 import OrganizationTeamMembersPage from "@/pages/association/OrganizationTeamMembersPage";
@@ -212,6 +213,10 @@ export function AppRouter() {
           <Route
             path="/association/events/:eventId/registration-form"
             element={<OrganizationEventRegistrationFormPage />}
+          />
+          <Route
+            path="/association/events/:eventId/registrations/:registrationId"
+            element={<OrganizationEventRegistrationDetailPage />}
           />
           <Route path={ASSOCIATION_ROUTES.recruitment} element={<OrganizationRecruitmentCampaignsListPage />} />
           <Route path={ASSOCIATION_ROUTES.recruitmentCreate} element={<OrganizationRecruitmentCampaignCreatePage />} />

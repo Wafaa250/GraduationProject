@@ -60,6 +60,19 @@ export async function getEventRegistrationForm(eventId: number): Promise<EventRe
   }
 }
 
+/** Returns existing form or creates one with a default title (404-safe). */
+export async function ensureEventRegistrationForm(
+  eventId: number,
+  eventTitle?: string | null,
+): Promise<EventRegistrationForm> {
+  const existing = await getEventRegistrationForm(eventId)
+  if (existing) return existing
+  const title = eventTitle?.trim()
+    ? `${eventTitle.trim()} registration`
+    : 'Event registration'
+  return createEventRegistrationForm(eventId, { title })
+}
+
 export async function createEventRegistrationForm(
   eventId: number,
   payload: CreateEventRegistrationFormPayload,

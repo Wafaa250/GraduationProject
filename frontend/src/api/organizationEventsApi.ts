@@ -35,8 +35,15 @@ export type StudentOrganizationEvent = {
   maxParticipants?: number | null
   createdAt: string
   updatedAt?: string | null
+  isPublished: boolean
   organizationName?: string | null
   organizationLogoUrl?: string | null
+}
+
+export type PublishOrganizationEventResponse = {
+  id: number
+  isPublished: boolean
+  message: string
 }
 
 export type CreateOrganizationEventPayload = {
@@ -81,6 +88,15 @@ export async function updateOrganizationEvent(
 
 export async function deleteOrganizationEvent(id: number): Promise<void> {
   await api.delete(`/organization/events/${id}`)
+}
+
+export async function publishOrganizationEvent(
+  id: number,
+): Promise<PublishOrganizationEventResponse> {
+  const { data } = await api.post<PublishOrganizationEventResponse>(
+    `/organization/events/${id}/publish`,
+  )
+  return data
 }
 
 export async function uploadOrganizationEventCover(

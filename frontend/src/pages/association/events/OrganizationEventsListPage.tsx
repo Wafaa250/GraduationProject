@@ -1,16 +1,34 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Calendar, CalendarPlus, Eye, MapPin, MoreHorizontal, Pencil, Trash2, Wifi } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  Calendar,
+  CalendarPlus,
+  ClipboardList,
+  Eye,
+  MapPin,
+  MoreHorizontal,
+  Pencil,
+  Send,
+  Trash2,
+  Wifi,
+} from 'lucide-react'
+import {
+  ensureEventRegistrationForm,
+  getEventRegistrationForm,
+  parseApiErrorMessage as parseFormApiError,
+} from '@/api/eventRegistrationFormApi'
+import { eventRegistrationFormPath } from '@/utils/eventRegistrationFormFields'
 import toast from 'react-hot-toast'
 import { resolveApiFileUrl } from '@/api/axiosInstance'
 import {
   deleteOrganizationEvent,
   listOrganizationEvents,
   parseApiErrorMessage,
+  publishOrganizationEvent,
   type StudentOrganizationEvent,
 } from '@/api/organizationEventsApi'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
-import { assocCard, assocDash } from '../dashboard/associationDashTokens'
+import { assocCard, assocDash, assocSemantic } from '../dashboard/associationDashTokens'
 import {
   formatRegistrationCloseDate,
   formatEventDateLine,
@@ -35,6 +53,7 @@ export default function OrganizationEventsListPage() {
   const [events, setEvents] = useState<StudentOrganizationEvent[]>([])
   const [eventsLoading, setEventsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [publishingId, setPublishingId] = useState<number | null>(null)
 
   const loadEvents = async () => {
     setEventsLoading(true)
@@ -137,7 +156,20 @@ export default function OrganizationEventsListPage() {
               key={event.id}
               event={event}
               deleting={deletingId === event.id}
+              publishing={publishingId === event.id}
               onDelete={() => void handleDelete(event)}
+              onPublish={async () => {
+                setPublishingId(event.id)
+                try {
+                  await publishOrganizationEvent(event.id)
+                  toast.success('Event published')
+                  await loadEvents()
+                } catch (err) {
+                  toast.error(parseApiErrorMessage(err))
+                } finally {
+                  setPublishingId(null)
+                }
+              }}
             />
           ))}
         </div>
@@ -149,11 +181,15 @@ export default function OrganizationEventsListPage() {
 function EventCard({
   event,
   deleting,
+  publishing,
   onDelete,
+  onPublish,
 }: {
   event: StudentOrganizationEvent
   deleting: boolean
+  publishing: boolean
   onDelete: () => void
+  onPublish: () => void
 }) {
   const [hovered, setHovered] = useState(false)
   const cover = event.coverImageUrl ? resolveApiFileUrl(event.coverImageUrl) : null
@@ -162,6 +198,18 @@ function EventCard({
   const regDate = event.registrationDeadline
     ? formatRegistrationCloseDate(event.registrationDeadline)
     : null
+
+  const statusLabel = !event.isPublished
+    ? 'Draft'
+    : regStatus === 'closed'
+      ? 'Closed'
+      : 'Published'
+
+  const statusTone = !event.isPublished
+    ? assocSemantic.neutral
+    : regStatus === 'closed'
+      ? assocSemantic.error
+      : assocSemantic.success
 
   return (
     <article
@@ -201,6 +249,23 @@ function EventCard({
             pointerEvents: 'none',
           }}
         />
+        <span
+          style={{
+            position: 'absolute',
+            top: sp.md,
+            right: sp.md,
+            fontSize: 11,
+            fontWeight: 700,
+            padding: '4px 10px',
+            borderRadius: 999,
+            background: statusTone.bg,
+            color: statusTone.color,
+            border: `1px solid ${statusTone.border}`,
+            letterSpacing: '0.02em',
+          }}
+        >
+          {statusLabel}
+        </span>
       </div>
 
       <div
@@ -311,18 +376,150 @@ function EventCard({
             borderTop: `1px solid ${assocDash.border}`,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: sp.lg }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: sp.lg, flexWrap: 'wrap' }}>
             <ActionLink to={`/association/events/${event.id}`} icon={Eye}>
               View
             </ActionLink>
             <ActionLink to={`/association/events/${event.id}/edit`} icon={Pencil}>
               Edit
             </ActionLink>
+            <EventPublishAction
+              event={event}
+              publishing={publishing}
+              deleting={deleting}
+              onPublish={onPublish}
+            />
           </div>
           <EventCardMenu deleting={deleting} onDelete={onDelete} />
         </div>
       </div>
     </article>
+  )
+}
+
+function EventPublishAction({
+  event,
+  publishing,
+  deleting,
+  onPublish,
+}: {
+  event: StudentOrganizationEvent
+  publishing: boolean
+  deleting: boolean
+  onPublish: () => void
+}) {
+  const [formReady, setFormReady] = useState(false)
+  const [formChecked, setFormChecked] = useState(event.isPublished)
+
+  useEffect(() => {
+    if (event.isPublished) {
+      setFormChecked(true)
+      setFormReady(false)
+      return
+    }
+    let cancelled = false
+    setFormChecked(false)
+    setFormReady(false)
+    void getEventRegistrationForm(event.id)
+      .then((form) => {
+        if (!cancelled) setFormReady((form?.fields?.length ?? 0) > 0)
+      })
+      .catch(() => {
+        if (!cancelled) setFormReady(false)
+      })
+      .finally(() => {
+        if (!cancelled) setFormChecked(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [event.id, event.isPublished])
+
+  if (event.isPublished) {
+    return (
+      <span role="status" aria-label="Published" style={publishStatusIndicatorStyle}>
+        Published
+      </span>
+    )
+  }
+
+  const canPublish = formChecked && formReady && !publishing && !deleting
+
+  if (!canPublish) {
+    return (
+      <CompleteFormLink
+        eventId={event.id}
+        eventTitle={event.title}
+        disabled={publishing || deleting}
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={publishing || deleting}
+      onClick={() => void onPublish()}
+      style={{
+        ...publishBtnBaseStyle,
+        ...publishBtnActiveStyle,
+        cursor: publishing || deleting ? 'wait' : 'pointer',
+      }}
+    >
+      <Send size={14} aria-hidden />
+      {publishing ? 'Publishing…' : 'Publish Event'}
+    </button>
+  )
+}
+
+function CompleteFormLink({
+  eventId,
+  eventTitle,
+  disabled,
+}: {
+  eventId: number
+  eventTitle: string
+  disabled?: boolean
+}) {
+  const navigate = useNavigate()
+  const [hovered, setHovered] = useState(false)
+  const [working, setWorking] = useState(false)
+
+  const goToForm = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (disabled || working) return
+    setWorking(true)
+    try {
+      await ensureEventRegistrationForm(eventId, eventTitle)
+      navigate(eventRegistrationFormPath(eventId))
+    } catch (err) {
+      toast.error(parseFormApiError(err))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <Link
+      to={eventRegistrationFormPath(eventId)}
+      aria-label="Complete registration form"
+      aria-busy={working}
+      onClick={(e) => void goToForm(e)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...publishBtnBaseStyle,
+        ...publishBtnCompleteFormStyle,
+        ...(hovered && !disabled && !working ? publishBtnCompleteFormHoverStyle : {}),
+        textDecoration: 'none',
+        pointerEvents: disabled || working ? 'none' : undefined,
+        opacity: disabled ? 0.55 : working ? 0.75 : 1,
+        cursor: working ? 'wait' : 'pointer',
+      }}
+    >
+      <ClipboardList size={14} strokeWidth={2.25} aria-hidden />
+      {working ? 'Opening…' : 'Complete Form'}
+    </Link>
   )
 }
 
@@ -468,6 +665,54 @@ const actionLinkStyle: React.CSSProperties = {
   fontWeight: 600,
   textDecoration: 'none',
   transition: 'color 0.15s ease',
+}
+
+const publishBtnBaseStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  minWidth: 148,
+  padding: '6px 12px',
+  borderRadius: 8,
+  fontSize: 13,
+  fontWeight: 600,
+  fontFamily: 'inherit',
+  lineHeight: 1.2,
+  whiteSpace: 'nowrap',
+  transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease',
+}
+
+const publishBtnActiveStyle: React.CSSProperties = {
+  border: `1px solid ${assocDash.accentBorder}`,
+  background: assocDash.accentMuted,
+  color: assocDash.accentDark,
+}
+
+/** Setup CTA — guides org to complete the registration form before publish. */
+const publishBtnCompleteFormStyle: React.CSSProperties = {
+  border: `1px dashed ${assocDash.accentBorder}`,
+  background: assocDash.accentSoft,
+  color: assocDash.accentDark,
+  cursor: 'pointer',
+}
+
+const publishBtnCompleteFormHoverStyle: React.CSSProperties = {
+  background: assocDash.accentMuted,
+  border: `1px dashed ${assocDash.accent}`,
+  color: assocDash.accent,
+  boxShadow: '0 2px 8px hsl(var(--aw-accent) / 0.12)',
+}
+
+/** Subtle orange status chip — matches org theme, not an action button. */
+const publishStatusIndicatorStyle: React.CSSProperties = {
+  ...publishBtnBaseStyle,
+  border: `1px solid ${assocDash.accentBorder}`,
+  background: assocDash.accentSoft,
+  color: assocDash.accentDark,
+  fontWeight: 600,
+  cursor: 'default',
+  userSelect: 'none',
 }
 
 const menuTriggerStyle: React.CSSProperties = {

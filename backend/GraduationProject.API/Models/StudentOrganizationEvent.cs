@@ -18,6 +18,7 @@ namespace GraduationProject.API.Models
         [Column("registration_deadline")] public DateTime? RegistrationDeadline { get; set; }
         [Column("cover_image_url")] public string? CoverImageUrl { get; set; }
         [Column("max_participants")] public int? MaxParticipants { get; set; }
+        [Column("is_published")] public bool IsPublished { get; set; }
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("updated_at")] public DateTime? UpdatedAt { get; set; }
 

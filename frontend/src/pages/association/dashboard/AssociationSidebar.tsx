@@ -20,7 +20,7 @@ const SIDEBAR_WIDTH_COLLAPSED = 68
 const NAV = [
   { to: '/association/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/association/events', label: 'Events', icon: CalendarDays, matchPrefix: true },
-  { to: '/association/recruitment', label: 'Leadership Applications', icon: ClipboardList, matchPrefix: true },
+  { to: '/association/recruitment', label: 'Selection Applications', icon: ClipboardList, matchPrefix: true },
   { to: '/association/leadership', label: 'Leadership Board', icon: UsersRound },
   { to: ASSOCIATION_ROUTES.profile, label: 'Organization Profile', icon: Building2 },
 ] as const

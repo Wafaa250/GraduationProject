@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, Eye, Sparkles } from 'lucide-react'
+import { CalendarClock, Sparkles } from 'lucide-react'
 import { RecruitmentCampaignCoverUpload } from '@/components/association/RecruitmentCampaignCoverUpload'
 import {
   RecruitmentPositionsEditor,
@@ -31,7 +31,7 @@ function emptyValues(): CampaignFormValues {
     description: '',
     applicationDeadline: '',
     coverImageUrl: null,
-    isPublished: true,
+    isPublished: false,
     positions: [newPositionDraft()],
   }
 }
@@ -76,11 +76,11 @@ export function RecruitmentCampaignForm({
     const next: Record<string, string> = {}
     if (!form.title.trim()) next.title = 'Title is required.'
     if (!form.description.trim()) next.description = 'Description is required.'
-    if (!form.applicationDeadline) next.applicationDeadline = 'Application deadline is required.'
+    if (!form.applicationDeadline) next.applicationDeadline = 'Selection applications deadline is required.'
     else {
       const iso = datetimeLocalToIso(form.applicationDeadline)
       if (iso && new Date(iso) <= new Date()) {
-        next.applicationDeadline = 'Application deadline must be in the future.'
+        next.applicationDeadline = 'Selection applications deadline must be in the future.'
       }
     }
     if (form.positions.length === 0) next.positions = 'Add at least one open position.'
@@ -103,7 +103,7 @@ export function RecruitmentCampaignForm({
       description: form.description.trim(),
       applicationDeadline: deadline,
       coverImageUrl: form.coverImageUrl,
-      isPublished: form.isPublished,
+      isPublished: mode === 'create' ? false : form.isPublished,
       positions: draftsToPayload(form.positions),
     })
   }
@@ -118,9 +118,9 @@ export function RecruitmentCampaignForm({
               <Sparkles size={18} strokeWidth={2} />
             </div>
             <div>
-              <h2 style={{ ...assocType.sectionTitle, margin: 0 }}>Opportunity details</h2>
+              <h2 style={{ ...assocType.sectionTitle, margin: 0 }}>Selection application details</h2>
               <p style={{ ...assocType.sectionDesc, margin: '4px 0 0' }}>
-                Tell students what this leadership opportunity is about and when applications close.
+                Tell students what these executive board selection applications are about and when selection applications close.
               </p>
             </div>
           </div>
@@ -132,7 +132,7 @@ export function RecruitmentCampaignForm({
                   className="opportunity-input opportunity-input-title"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="e.g. Fall 2026 Executive Board Applications"
+                  placeholder="e.g. Fall 2026 Executive Board Selection Applications"
                   disabled={saving}
                 />
               </Field>
@@ -142,12 +142,12 @@ export function RecruitmentCampaignForm({
                   className="opportunity-input opportunity-textarea"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Describe the opportunity — who should apply, what teams are forming, and what students will gain."
+                  placeholder="Selection applications are now open for executive board positions — describe who should apply, what teams are forming, and what students will gain."
                   disabled={saving}
                 />
               </Field>
 
-              <Field label="Application deadline" required error={errors.applicationDeadline}>
+              <Field label="Selection applications deadline" required error={errors.applicationDeadline}>
                 <div className="opportunity-input-icon-wrap">
                   <CalendarClock size={16} strokeWidth={2} className="opportunity-input-icon" aria-hidden />
                   <input
@@ -159,24 +159,6 @@ export function RecruitmentCampaignForm({
                   />
                 </div>
               </Field>
-
-              <label className="opportunity-visibility">
-                <input
-                  type="checkbox"
-                  className="opportunity-visibility-check"
-                  checked={form.isPublished}
-                  onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
-                  disabled={saving}
-                />
-                <span className="opportunity-visibility-track" aria-hidden />
-                <span className="opportunity-visibility-copy">
-                  <Eye size={15} strokeWidth={2} aria-hidden />
-                  <span>
-                    <strong>Publish on public organization profile</strong>
-                    <small>Students can discover and apply from your organization page</small>
-                  </span>
-                </span>
-              </label>
             </div>
 
             <div className="opportunity-hero-cover">
@@ -226,7 +208,7 @@ export function RecruitmentCampaignForm({
         </div>
         {mode === 'create' && (
           <p className="opportunity-form-hint">
-            After creating the opportunity, use each position&apos;s application form button to design
+            After opening selection applications, use each position&apos;s application form button to design
             questions students will answer when applying.
           </p>
         )}
@@ -389,79 +371,6 @@ function FormStyles() {
 
       .opportunity-input-with-icon {
         padding-left: 40px;
-      }
-
-      .opportunity-visibility {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 14px 16px;
-        border-radius: 12px;
-        border: 1px solid ${assocDash.border};
-        background: ${assocDash.bg};
-        cursor: pointer;
-        margin-top: 4px;
-      }
-
-      .opportunity-visibility-check {
-        position: absolute;
-        opacity: 0;
-        width: 0;
-        height: 0;
-      }
-
-      .opportunity-visibility-track {
-        width: 40px;
-        height: 22px;
-        border-radius: 999px;
-        background: ${assocDash.border};
-        flex-shrink: 0;
-        margin-top: 2px;
-        position: relative;
-        transition: background 0.2s ease;
-      }
-
-      .opportunity-visibility-track::after {
-        content: '';
-        position: absolute;
-        top: 3px;
-        left: 3px;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: ${assocDash.surface};
-        box-shadow: ${assocDash.shadow};
-        transition: transform 0.2s ease;
-      }
-
-      .opportunity-visibility-check:checked + .opportunity-visibility-track {
-        background: ${assocDash.accent};
-      }
-
-      .opportunity-visibility-check:checked + .opportunity-visibility-track::after {
-        transform: translateX(18px);
-      }
-
-      .opportunity-visibility-copy {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        font-size: 14px;
-        color: ${assocDash.textSecondary};
-      }
-
-      .opportunity-visibility-copy strong {
-        display: block;
-        font-weight: 600;
-        color: ${assocDash.text};
-        margin-bottom: 2px;
-      }
-
-      .opportunity-visibility-copy small {
-        display: block;
-        font-size: 12px;
-        color: ${assocDash.muted};
-        line-height: 1.4;
       }
 
       .opportunity-positions-section {

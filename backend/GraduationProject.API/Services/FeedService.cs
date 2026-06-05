@@ -131,7 +131,8 @@ namespace GraduationProject.API.Services
             var rows = await _db.StudentOrganizationEvents
                 .AsNoTracking()
                 .Include(e => e.OrganizationProfile)
-                .OrderByDescending(e => e.CreatedAt)
+                .Where(e => e.IsPublished)
+                .OrderByDescending(e => e.UpdatedAt ?? e.CreatedAt)
                 .Take(120)
                 .ToListAsync();
 

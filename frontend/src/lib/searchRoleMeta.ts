@@ -6,6 +6,7 @@ export type SearchRoleType =
   | "project"
   | "projectRequest"
   | "recruitment"
+  | "executive_board"
   | "event"
   | "opportunity"
   | string;
@@ -52,6 +53,11 @@ const META: Record<string, SearchRoleMeta> = {
     badgeClass: "global-search__badge--recruitment",
     avatarClass: "global-search__result-avatar--recruitment",
   },
+  executive_board: {
+    label: "Selection Applications",
+    badgeClass: "global-search__badge--recruitment",
+    avatarClass: "global-search__result-avatar--recruitment",
+  },
   event: {
     label: "Event",
     badgeClass: "global-search__badge--event",
@@ -77,7 +83,8 @@ const GROUP_FALLBACK: Record<string, SearchRoleType> = {
 const ENTITY_TYPE_ALIASES: Record<string, SearchRoleType> = {
   company_opportunity: "opportunity",
   association_event: "event",
-  association_recruitment: "recruitment",
+  association_recruitment: "executive_board",
+  association_recruitment_position: "executive_board",
   doctor_project: "project",
   doctor_announcement: "doctor",
   student_collaboration: "project",

@@ -87,7 +87,7 @@ export function ApplicationFormPreview({
         ) : null}
         {!inline && !interactive && !description?.trim() ? (
           <p style={formIntro}>
-            This is how your application will look. Fields are read-only until applications open.
+            This is how your application will look. Fields are read-only until selection applications open.
           </p>
         ) : null}
       </header>
@@ -347,7 +347,7 @@ function renderControl(type: string, placeholder: string, options: string[], bui
             {placeholder}
           </span>
           <span style={{ fontSize: 11, color: assocDash.subtle, marginTop: 4 }}>
-            File uploads enabled when applications launch
+            File uploads enabled when selection applications launch
           </span>
         </div>
       )

@@ -118,7 +118,7 @@ namespace GraduationProject.API.Controllers
                 Description = dto.Description.Trim(),
                 ApplicationDeadline = deadline,
                 CoverImageUrl = string.IsNullOrWhiteSpace(dto.CoverImageUrl) ? null : dto.CoverImageUrl.Trim(),
-                IsPublished = dto.IsPublished,
+                IsPublished = false,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -128,6 +128,49 @@ namespace GraduationProject.API.Controllers
             await _db.SaveChangesAsync();
 
             return StatusCode(201, MapToDto(campaign, profile));
+        }
+
+        // POST /api/organization/recruitment-campaigns/{id}/publish
+        [HttpPost("{id:int}/publish")]
+        public async Task<IActionResult> Publish(int id)
+        {
+            var (campaign, _, notFound) = await GetOwnedCampaignAsync(id, tracking: true);
+            if (notFound) return NotFound(new { message = "Campaign not found." });
+
+            if (campaign!.IsPublished)
+                return BadRequest(new { message = "Selection application cycle is already published." });
+
+            await _db.Entry(campaign).Collection(c => c.Positions).LoadAsync();
+            await _db.Entry(campaign).Collection(c => c.Questions).LoadAsync();
+
+            if (!campaign.Positions.Any())
+                return BadRequest(new { message = "Add at least one open position before publishing." });
+
+            foreach (var position in campaign.Positions)
+            {
+                var questionCount = RecruitmentApplicationHelper
+                    .GetApplicableQuestions(campaign.Questions, position.Id)
+                    .Count();
+                if (questionCount == 0)
+                {
+                    return BadRequest(new
+                    {
+                        message =
+                            $"Add at least one application question for the \"{position.RoleTitle}\" position before publishing.",
+                    });
+                }
+            }
+
+            campaign.IsPublished = true;
+            campaign.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return Ok(new PublishRecruitmentCampaignResponseDto
+            {
+                Id = campaign.Id,
+                IsPublished = true,
+                Message = "Selection application cycle published successfully.",
+            });
         }
 
         [HttpPut("{id:int}")]
@@ -156,7 +199,6 @@ namespace GraduationProject.API.Controllers
             }
             if (dto.CoverImageUrl != null)
                 campaign!.CoverImageUrl = string.IsNullOrWhiteSpace(dto.CoverImageUrl) ? null : dto.CoverImageUrl.Trim();
-            if (dto.IsPublished.HasValue) campaign!.IsPublished = dto.IsPublished.Value;
 
             if (dto.Positions != null)
                 await SyncPositionsAsync(campaign!, dto.Positions);
@@ -240,9 +282,9 @@ namespace GraduationProject.API.Controllers
             StudentOrganizationRecruitmentCampaign campaign,
             IList<RecruitmentPositionInputDto> positions)
         {
-            foreach (var p in positions)
+            for (var i = 0; i < positions.Count; i++)
             {
-                campaign.Positions.Add(MapPositionEntity(p));
+                campaign.Positions.Add(MapPositionEntity(positions[i], displayOrder: ResolveDisplayOrder(positions[i], i)));
             }
         }
 
@@ -259,25 +301,32 @@ namespace GraduationProject.API.Controllers
             if (toRemove.Count > 0)
                 _db.StudentOrganizationRecruitmentPositions.RemoveRange(toRemove);
 
-            foreach (var input in positions)
+            for (var i = 0; i < positions.Count; i++)
             {
+                var input = positions[i];
+                var displayOrder = ResolveDisplayOrder(input, i);
                 if (input.Id.HasValue)
                 {
                     var entity = existing.FirstOrDefault(e => e.Id == input.Id.Value);
                     if (entity != null)
                     {
-                        UpdatePositionEntity(entity, input);
+                        UpdatePositionEntity(entity, input, displayOrder);
                         continue;
                     }
                 }
 
-                _db.StudentOrganizationRecruitmentPositions.Add(MapPositionEntity(input, campaign.Id));
+                _db.StudentOrganizationRecruitmentPositions.Add(
+                    MapPositionEntity(input, campaign.Id, displayOrder));
             }
         }
 
+        private static int ResolveDisplayOrder(RecruitmentPositionInputDto input, int listIndex) =>
+            input.DisplayOrder ?? listIndex;
+
         private static StudentOrganizationRecruitmentPosition MapPositionEntity(
             RecruitmentPositionInputDto input,
-            int? campaignId = null)
+            int? campaignId = null,
+            int? displayOrder = null)
         {
             var entity = new StudentOrganizationRecruitmentPosition
             {
@@ -286,6 +335,7 @@ namespace GraduationProject.API.Controllers
                 Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim(),
                 Requirements = string.IsNullOrWhiteSpace(input.Requirements) ? null : input.Requirements.Trim(),
                 RequiredSkills = string.IsNullOrWhiteSpace(input.RequiredSkills) ? null : input.RequiredSkills.Trim(),
+                DisplayOrder = displayOrder ?? input.DisplayOrder ?? 0,
             };
             if (campaignId.HasValue) entity.CampaignId = campaignId.Value;
             return entity;
@@ -293,13 +343,15 @@ namespace GraduationProject.API.Controllers
 
         private static void UpdatePositionEntity(
             StudentOrganizationRecruitmentPosition entity,
-            RecruitmentPositionInputDto input)
+            RecruitmentPositionInputDto input,
+            int displayOrder)
         {
             entity.RoleTitle = input.RoleTitle.Trim();
             entity.NeededCount = input.NeededCount;
             entity.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
             entity.Requirements = string.IsNullOrWhiteSpace(input.Requirements) ? null : input.Requirements.Trim();
             entity.RequiredSkills = string.IsNullOrWhiteSpace(input.RequiredSkills) ? null : input.RequiredSkills.Trim();
+            entity.DisplayOrder = displayOrder;
         }
 
         private IActionResult? ValidateImageFile(IFormFile? file)
@@ -354,6 +406,7 @@ namespace GraduationProject.API.Controllers
             Description = p.Description,
             Requirements = p.Requirements,
             RequiredSkills = p.RequiredSkills,
+            DisplayOrder = p.DisplayOrder,
         };
     }
 }

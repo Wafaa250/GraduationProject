@@ -153,6 +153,8 @@ export const ASSOCIATION_ROUTES = {
   eventEdit: (eventId: number | string) => `/association/events/${eventId}/edit`,
   eventRegistrationForm: (eventId: number | string) =>
     `/association/events/${eventId}/registration-form`,
+  eventRegistrationDetail: (eventId: number | string, registrationId: number | string) =>
+    `/association/events/${eventId}/registrations/${registrationId}`,
   recruitment: "/association/recruitment",
   recruitmentCreate: "/association/recruitment/create",
   recruitmentDetail: (campaignId: number | string) => `/association/recruitment/${campaignId}`,

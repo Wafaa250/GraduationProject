@@ -81,7 +81,7 @@ export function OrganizationCampaignApplicationsSection({
   return (
     <section style={{ marginTop: 40 }}>
       <div style={sectionHeadingBlock}>
-        <h2 style={sectionTitle}>Applications</h2>
+        <h2 style={sectionTitle}>Selection applications</h2>
         <p style={sectionHint}>Review submissions from students who applied to your open roles.</p>
       </div>
 
@@ -113,12 +113,12 @@ export function OrganizationCampaignApplicationsSection({
 
       {loading ? (
         <p style={{ color: assocDash.muted, display: 'flex', gap: 8, alignItems: 'center', fontSize: 14 }}>
-          <Loader2 size={16} className="org-hub-spin" /> Loading applications…
+          <Loader2 size={16} className="org-hub-spin" /> Loading selection applications…
         </p>
       ) : applications.length === 0 ? (
         <div style={{ ...assocCard, padding: 32, textAlign: 'center' }}>
           <p style={{ margin: 0, fontSize: 14, color: assocDash.muted, fontWeight: 500 }}>
-            No applications yet for this filter.
+            No selection applications yet for this filter.
           </p>
         </div>
       ) : positionFilter !== '' ? (

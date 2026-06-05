@@ -81,7 +81,7 @@ export function PositionApplicationFormEditor({
   positionId,
   positionTitle,
   backTo,
-  backLabel = 'Back to opportunity',
+  backLabel = 'Back to executive board selection applications',
 }: Props) {
   const [allQuestions, setAllQuestions] = useState<RecruitmentQuestion[]>([])
   const [loading, setLoading] = useState(true)

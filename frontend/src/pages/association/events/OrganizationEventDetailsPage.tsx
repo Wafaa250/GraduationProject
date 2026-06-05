@@ -1,67 +1,54 @@
 ﻿import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, MapPin, Pencil, Users, Wifi } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { resolveApiFileUrl } from '@/api/axiosInstance'
 import {
   getOrganizationEvent,
-  parseApiErrorMessage,
   type StudentOrganizationEvent,
 } from '@/api/organizationEventsApi'
-import { getPublicOrganizationEvent } from '@/api/organizationsPublicApi'
-import { ROUTES } from '@/routes/paths'
+import { parseApiErrorMessage } from '@/api/eventRegistrationsApi'
+import { OrganizationEventRegistrationsSection } from '@/components/association/OrganizationEventRegistrationsSection'
 import { AssociationAvatar } from '@/components/association/associationBrand'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
 import { assocCard, assocDash } from '../dashboard/associationDashTokens'
 import { formatEventDate } from './eventFormUtils'
 import { useAssociationShell } from './useAssociationShell'
+import StudentOrganizationEventDetailsPage from './StudentOrganizationEventDetailsPage'
+
+function isStudentRole(): boolean {
+  return (localStorage.getItem('role') ?? '').toLowerCase() === 'student'
+}
 
 export default function OrganizationEventDetailsPage() {
+  if (isStudentRole()) {
+    return <StudentOrganizationEventDetailsPage />
+  }
+  return <AssociationOrganizationEventDetailsPage />
+}
+
+function AssociationOrganizationEventDetailsPage() {
   const { eventId } = useParams<{ eventId: string }>()
-  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const shell = useAssociationShell()
-  const isStudent = (localStorage.getItem('role') ?? '').toLowerCase() === 'student'
-  const orgIdFromQuery = Number(searchParams.get('orgId') ?? 0)
   const [event, setEvent] = useState<StudentOrganizationEvent | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const numericEventId = Number(eventId)
+
   useEffect(() => {
-    const id = Number(eventId)
-    if (!Number.isFinite(id)) {
+    if (!Number.isFinite(numericEventId)) {
       setLoading(false)
       return
     }
     let cancelled = false
     ;(async () => {
       try {
-        if (isStudent) {
-          const orgId = orgIdFromQuery
-          if (!Number.isFinite(orgId) || orgId <= 0) throw new Error('Invalid event link.')
-          const pub = await getPublicOrganizationEvent(orgId, id)
-          if (!cancelled) {
-            setEvent({
-              id: pub.id,
-              title: pub.title,
-              description: pub.description,
-              eventType: pub.eventType,
-              category: pub.category,
-              coverImageUrl: pub.coverImageUrl ?? null,
-              eventDate: pub.eventDate,
-              registrationDeadline: pub.registrationDeadline ?? null,
-              location: pub.location ?? null,
-              isOnline: pub.isOnline,
-              organizationName: pub.organizationName,
-              organizationLogoUrl: pub.organizationLogoUrl ?? null,
-            } as StudentOrganizationEvent)
-          }
-        } else {
-          const data = await getOrganizationEvent(id)
-          if (!cancelled) setEvent(data)
-        }
+        const data = await getOrganizationEvent(numericEventId)
+        if (!cancelled) setEvent(data)
       } catch (err) {
         toast.error(parseApiErrorMessage(err))
-        if (!cancelled) navigate(isStudent ? ROUTES.communicationHub : '/association/events')
+        if (!cancelled) navigate('/association/events')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -69,42 +56,7 @@ export default function OrganizationEventDetailsPage() {
     return () => {
       cancelled = true
     }
-  }, [eventId, navigate, isStudent, orgIdFromQuery])
-
-  if (isStudent) {
-    const cover = event?.coverImageUrl ? resolveApiFileUrl(event.coverImageUrl) : null
-    return (
-      <div className="student-hub min-h-full bg-hero px-4 py-6 sm:px-6">
-        <Link
-          to={ROUTES.communicationHub}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
-        >
-          <ArrowLeft size={16} aria-hidden />
-          Back to feed
-        </Link>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading event…</p>
-        ) : event ? (
-          <article className="hub-card max-w-3xl overflow-hidden p-0">
-            {cover ? (
-              <img src={cover} alt="" className="h-48 w-full object-cover sm:h-56" />
-            ) : null}
-            <div className="p-6">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {event.organizationName}
-              </p>
-              <h1 className="mt-1 font-display text-2xl font-bold">{event.title}</h1>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {new Date(event.eventDate).toLocaleString()}
-                {event.isOnline ? ' · Online' : event.location ? ` · ${event.location}` : ''}
-              </p>
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{event.description}</p>
-            </div>
-          </article>
-        ) : null}
-      </div>
-    )
-  }
+  }, [numericEventId, navigate])
 
   const cover = event?.coverImageUrl ? resolveApiFileUrl(event.coverImageUrl) : null
   const orgName = event?.organizationName ?? shell.profile?.associationName ?? shell.name
@@ -157,13 +109,25 @@ export default function OrganizationEventDetailsPage() {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: cover ? 'linear-gradient(to top, hsl(var(--aw-overlay) / 0.75) 0%, transparent 55%)' : 'none',
+                background: cover
+                  ? 'linear-gradient(to top, hsl(var(--aw-overlay) / 0.75) 0%, transparent 55%)'
+                  : 'none',
               }}
             />
-            <div style={{ position: 'relative', padding: '48px 28px 28px', color: cover ? assocDash.white : assocDash.text }}>
+            <div
+              style={{
+                position: 'relative',
+                padding: '48px 28px 28px',
+                color: cover ? assocDash.white : assocDash.text,
+              }}
+            >
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                 <Badge light={!!cover}>{event.eventType}</Badge>
-                {event.category && <Badge light={!!cover} muted>{event.category}</Badge>}
+                {event.category && (
+                  <Badge light={!!cover} muted>
+                    {event.category}
+                  </Badge>
+                )}
               </div>
               <h1
                 style={{
@@ -232,7 +196,11 @@ export default function OrganizationEventDetailsPage() {
                 value={event.isOnline ? 'Online event' : event.location?.trim() || 'Location TBD'}
               />
               {event.maxParticipants != null && (
-                <DetailRow icon={Users} label="Capacity" value={`Up to ${event.maxParticipants} participants`} />
+                <DetailRow
+                  icon={Users}
+                  label="Capacity"
+                  value={`Up to ${event.maxParticipants} participants`}
+                />
               )}
             </section>
 
@@ -252,7 +220,14 @@ export default function OrganizationEventDetailsPage() {
                   <AssociationAvatar name={orgName} logoUrl={orgLogo} size="md" />
                   <div>
                     <p style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{orgName}</p>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: assocDash.accentDark, fontWeight: 600 }}>
+                    <p
+                      style={{
+                        margin: '4px 0 0',
+                        fontSize: 12,
+                        color: assocDash.accentDark,
+                        fontWeight: 600,
+                      }}
+                    >
                       Organization settings →
                     </p>
                   </div>
@@ -263,10 +238,20 @@ export default function OrganizationEventDetailsPage() {
 
           <section style={{ ...assocCard, padding: 28 }}>
             <h2 style={sectionTitleStyle}>About this event</h2>
-            <p style={{ margin: 0, fontSize: 14, color: assocDash.text, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 14,
+                color: assocDash.text,
+                lineHeight: 1.7,
+                whiteSpace: 'pre-wrap',
+              }}
+            >
               {event.description}
             </p>
           </section>
+
+          <OrganizationEventRegistrationsSection eventId={event.id} />
         </>
       ) : null}
     </AssociationDashboardLayout>
@@ -301,7 +286,15 @@ function DetailRow({
         <Icon size={16} />
       </div>
       <div>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: assocDash.subtle, textTransform: 'uppercase' }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 700,
+            color: assocDash.subtle,
+            textTransform: 'uppercase',
+          }}
+        >
           {label}
         </p>
         <p style={{ margin: '4px 0 0', fontSize: 14, color: assocDash.text }}>{value}</p>
@@ -328,7 +321,9 @@ function Badge({
         borderRadius: 6,
         background: light ? 'hsl(0 0% 100% / 0.2)' : muted ? assocDash.bg : assocDash.accentMuted,
         color: light ? assocDash.white : muted ? assocDash.muted : assocDash.accentDark,
-        border: light ? '1px solid rgba(255,255,255,0.35)' : `1px solid ${muted ? assocDash.border : assocDash.accentBorder}`,
+        border: light
+          ? '1px solid rgba(255,255,255,0.35)'
+          : `1px solid ${muted ? assocDash.border : assocDash.accentBorder}`,
       }}
     >
       {children}

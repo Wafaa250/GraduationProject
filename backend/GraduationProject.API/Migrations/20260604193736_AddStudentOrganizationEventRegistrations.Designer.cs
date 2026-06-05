@@ -3,6 +3,7 @@ using System;
 using GraduationProject.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GraduationProject.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260604193736_AddStudentOrganizationEventRegistrations")]
+    partial class AddStudentOrganizationEventRegistrations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1916,10 +1919,6 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_online");
 
-                    b.Property<bool>("IsPublished")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_published");
-
                     b.Property<string>("Location")
                         .HasColumnType("text")
                         .HasColumnName("location");
@@ -1948,8 +1947,6 @@ namespace GraduationProject.API.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationProfileId");
-
-                    b.HasIndex("OrganizationProfileId", "IsPublished");
 
                     b.ToTable("student_organization_events", (string)null);
                 });

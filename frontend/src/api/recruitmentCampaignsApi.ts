@@ -13,6 +13,7 @@ export type RecruitmentPosition = {
   description?: string | null
   requirements?: string | null
   requiredSkills?: string | null
+  displayOrder?: number
 }
 
 export type RecruitmentPositionInput = {
@@ -22,6 +23,7 @@ export type RecruitmentPositionInput = {
   description?: string | null
   requirements?: string | null
   requiredSkills?: string | null
+  displayOrder?: number
 }
 
 export type RecruitmentCampaign = {
@@ -134,6 +136,21 @@ export async function updateOrganizationRecruitmentCampaign(
 
 export async function deleteOrganizationRecruitmentCampaign(id: number): Promise<void> {
   await api.delete(`/organization/recruitment-campaigns/${id}`)
+}
+
+export type PublishRecruitmentCampaignResponse = {
+  id: number
+  isPublished: boolean
+  message: string
+}
+
+export async function publishOrganizationRecruitmentCampaign(
+  id: number,
+): Promise<PublishRecruitmentCampaignResponse> {
+  const { data } = await api.post<PublishRecruitmentCampaignResponse>(
+    `/organization/recruitment-campaigns/${id}/publish`,
+  )
+  return data
 }
 
 export async function uploadRecruitmentCampaignCover(file: File): Promise<string> {

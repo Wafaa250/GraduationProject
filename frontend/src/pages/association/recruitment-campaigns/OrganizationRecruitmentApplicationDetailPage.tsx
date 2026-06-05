@@ -99,7 +99,7 @@ export default function OrganizationRecruitmentApplicationDetailPage() {
         }}
       >
         <ArrowLeft size={16} />
-        Back to opportunity
+        Back to executive board selection applications
       </Link>
 
       {loading || shell.loading ? (

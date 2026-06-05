@@ -184,7 +184,7 @@ export function RecruitmentApplicationFormBuilder({
 
     scope.type === 'campaign'
 
-      ? 'Shared opportunity application form'
+      ? 'Shared application form'
 
       : `Application form — ${scope.positionTitle}`
 
@@ -196,7 +196,7 @@ export function RecruitmentApplicationFormBuilder({
 
       ? 'Fields here apply to every position. Students also see any position-specific fields you add below.'
 
-      : 'Fields only for this role, plus the shared opportunity form when students apply.'
+      : 'Fields only for this role, plus the shared application form when students apply.'
 
 
 

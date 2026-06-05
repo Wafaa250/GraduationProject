@@ -67,7 +67,7 @@ export function RecruitmentApplicationFormBuilderDraft({
 
   const sectionTitle =
     scope.type === 'campaign'
-      ? 'Shared opportunity application form'
+      ? 'Shared application form'
       : `Application form — ${scope.positionTitle}`
 
   const reindex = (list: LocalFormField[]) =>
@@ -222,7 +222,7 @@ export function RecruitmentApplicationFormBuilderDraft({
 
 export function validateNoOpenFormEditor(editing: boolean): boolean {
   if (editing) {
-    toast.error('Save or cancel the form field you are editing before saving the opportunity.')
+    toast.error('Save or cancel the form field you are editing before saving the selection application cycle.')
     return false
   }
   return true

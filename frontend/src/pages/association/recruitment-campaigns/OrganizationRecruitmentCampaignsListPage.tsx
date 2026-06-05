@@ -8,6 +8,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  Send,
   Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -16,6 +17,7 @@ import {
   deleteOrganizationRecruitmentCampaign,
   listOrganizationRecruitmentCampaigns,
   parseApiErrorMessage,
+  publishOrganizationRecruitmentCampaign,
   type RecruitmentCampaign,
 } from '@/api/recruitmentCampaignsApi'
 import { AssociationDashboardLayout } from '../dashboard/AssociationDashboardLayout'
@@ -73,6 +75,7 @@ export default function OrganizationRecruitmentCampaignsListPage() {
   const [campaigns, setCampaigns] = useState<RecruitmentCampaign[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [publishingId, setPublishingId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -95,7 +98,7 @@ export default function OrganizationRecruitmentCampaignsListPage() {
     setDeletingId(c.id)
     try {
       await deleteOrganizationRecruitmentCampaign(c.id)
-      toast.success('Opportunity deleted')
+      toast.success('Selection application cycle deleted')
       setCampaigns((prev) => prev.filter((x) => x.id !== c.id))
     } catch (err) {
       toast.error(parseApiErrorMessage(err))
@@ -136,21 +139,21 @@ export default function OrganizationRecruitmentCampaignsListPage() {
                 letterSpacing: '-0.02em',
               }}
             >
-              Leadership Opportunities
+              Executive Board Selection Applications
             </h1>
             <p style={{ margin: `${sp.md}px 0 0`, fontSize: 14, color: assocDash.muted, maxWidth: 520, lineHeight: 1.5 }}>
-              Invite students to apply for leadership, committee, and volunteer positions within your organization.
+              Selection applications are open for executive board, committee, and volunteer positions within your organization.
             </p>
           </div>
           <Link to="/association/recruitment/create" style={createBtnStyle}>
             <Plus size={18} />
-            Create Opportunity
+            Open Selection Applications
           </Link>
         </div>
       </header>
 
       {shell.loading || loading ? (
-        <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading opportunities…</p>
+        <p style={{ color: assocDash.muted, fontSize: 14 }}>Loading selection application cycles…</p>
       ) : campaigns.length === 0 ? (
         <div style={{ ...assocCard, padding: 48, textAlign: 'center' }}>
           <div
@@ -178,14 +181,14 @@ export default function OrganizationRecruitmentCampaignsListPage() {
               color: assocDash.text,
             }}
           >
-            No opportunities created yet
+            No selection application cycles yet
           </h2>
           <p style={{ margin: '0 0 24px', fontSize: 14, color: assocDash.muted, maxWidth: 420, marginInline: 'auto', lineHeight: 1.55 }}>
-            Create your first leadership opportunity and start receiving student applications.
+            Open your first executive board selection application cycle and start receiving applicants.
           </p>
           <Link to="/association/recruitment/create" style={createBtnStyle}>
             <Plus size={18} />
-            Create Opportunity
+            Open Selection Applications
           </Link>
         </div>
       ) : (
@@ -201,7 +204,20 @@ export default function OrganizationRecruitmentCampaignsListPage() {
               key={c.id}
               campaign={c}
               deleting={deletingId === c.id}
+              publishing={publishingId === c.id}
               onDelete={() => void handleDelete(c)}
+              onPublish={async () => {
+                setPublishingId(c.id)
+                try {
+                  await publishOrganizationRecruitmentCampaign(c.id)
+                  toast.success('Selection published')
+                  await load()
+                } catch (err) {
+                  toast.error(parseApiErrorMessage(err))
+                } finally {
+                  setPublishingId(null)
+                }
+              }}
             />
           ))}
         </div>
@@ -213,11 +229,15 @@ export default function OrganizationRecruitmentCampaignsListPage() {
 function OpportunityCard({
   campaign,
   deleting,
+  publishing,
   onDelete,
+  onPublish,
 }: {
   campaign: RecruitmentCampaign
   deleting: boolean
+  publishing: boolean
   onDelete: () => void
+  onPublish: () => void
 }) {
   const [hovered, setHovered] = useState(false)
   const cover = campaign.coverImageUrl ? resolveApiFileUrl(campaign.coverImageUrl) : null
@@ -234,7 +254,7 @@ function OpportunityCard({
     ? 'Draft'
     : deadlineStatus === 'closed'
       ? 'Closed'
-      : 'Open'
+      : 'Published'
 
   const statusTone =
     statusLabel === 'Draft'
@@ -350,7 +370,7 @@ function OpportunityCard({
                   color: assocDash.accentDark,
                 }}
               >
-                Leadership opportunity
+                Executive board selection applications
               </p>
             )}
           </div>
@@ -445,11 +465,53 @@ function OpportunityCard({
             <ActionLink to={`/association/recruitment/${campaign.id}/edit`} icon={Pencil}>
               Edit
             </ActionLink>
+            <SelectionPublishAction
+              campaign={campaign}
+              publishing={publishing}
+              deleting={deleting}
+              onPublish={onPublish}
+            />
           </div>
           <OpportunityCardMenu deleting={deleting} onDelete={onDelete} />
         </div>
       </div>
     </article>
+  )
+}
+
+function SelectionPublishAction({
+  campaign,
+  publishing,
+  deleting,
+  onPublish,
+}: {
+  campaign: RecruitmentCampaign
+  publishing: boolean
+  deleting: boolean
+  onPublish: () => void
+}) {
+  if (campaign.isPublished) {
+    return (
+      <span role="status" aria-label="Published" style={publishStatusIndicatorStyle}>
+        Published
+      </span>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={publishing || deleting}
+      onClick={() => void onPublish()}
+      style={{
+        ...publishBtnBaseStyle,
+        ...publishBtnActiveStyle,
+        cursor: publishing || deleting ? 'wait' : 'pointer',
+      }}
+    >
+      <Send size={14} aria-hidden />
+      {publishing ? 'Publishing…' : 'Publish Selection'}
+    </button>
   )
 }
 
@@ -463,7 +525,7 @@ function ApplicationDeadlineStatus({
   const dotColor =
     status === 'closed' ? assocDash.error : status === 'closing-soon' ? assocDash.accent : assocDash.success
   const message =
-    status === 'closed' ? 'Applications closed' : `Applications close ${closeDate}`
+    status === 'closed' ? 'Selection applications closed' : `Selection applications close ${closeDate}`
 
   return (
     <>
@@ -538,7 +600,7 @@ function OpportunityCardMenu({ deleting, onDelete }: { deleting: boolean; onDele
             style={menuItemDangerStyle}
           >
             <Trash2 size={14} />
-            {deleting ? 'Deleting…' : 'Delete opportunity'}
+            {deleting ? 'Deleting…' : 'Delete selection application cycle'}
           </button>
         </div>
       ) : null}
@@ -595,6 +657,39 @@ const actionLinkStyle: React.CSSProperties = {
   fontWeight: 600,
   textDecoration: 'none',
   transition: 'color 0.15s ease',
+}
+
+const publishBtnBaseStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  minWidth: 148,
+  padding: '6px 12px',
+  borderRadius: 8,
+  fontSize: 13,
+  fontWeight: 600,
+  fontFamily: 'inherit',
+  lineHeight: 1.2,
+  whiteSpace: 'nowrap',
+  transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease',
+}
+
+const publishBtnActiveStyle: React.CSSProperties = {
+  border: `1px solid ${assocDash.accentBorder}`,
+  background: assocDash.accentMuted,
+  color: assocDash.accentDark,
+  cursor: 'pointer',
+}
+
+const publishStatusIndicatorStyle: React.CSSProperties = {
+  ...publishBtnBaseStyle,
+  border: `1px solid ${assocDash.accentBorder}`,
+  background: assocDash.accentSoft,
+  color: assocDash.accentDark,
+  fontWeight: 600,
+  cursor: 'default',
+  userSelect: 'none',
 }
 
 const menuTriggerStyle: React.CSSProperties = {

@@ -31,6 +31,9 @@ namespace GraduationProject.API.Models
         [Column("required_skills")]
         public string? RequiredSkills { get; set; }
 
+        [Column("display_order")]
+        public int DisplayOrder { get; set; }
+
         public StudentOrganizationRecruitmentCampaign Campaign { get; set; } = null!;
         public ICollection<StudentOrganizationRecruitmentQuestion> Questions { get; set; } =
             new List<StudentOrganizationRecruitmentQuestion>();

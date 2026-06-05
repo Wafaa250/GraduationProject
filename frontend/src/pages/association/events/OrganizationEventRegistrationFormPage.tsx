@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { getOrganizationEvent, parseApiErrorMessage } from '@/api/organizationEventsApi'
 import {
-  getEventRegistrationForm,
+  ensureEventRegistrationForm,
   type EventRegistrationForm,
 } from '@/api/eventRegistrationFormApi'
 import { EventRegistrationFormEditor } from '@/components/association/EventRegistrationFormEditor'
@@ -30,16 +30,10 @@ export default function OrganizationEventRegistrationFormPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const [event, regForm] = await Promise.all([
-          getOrganizationEvent(id),
-          getEventRegistrationForm(id),
-        ])
+        const event = await getOrganizationEvent(id)
         if (cancelled) return
-        if (!regForm) {
-          toast.error('Registration form not found')
-          navigate(backTo)
-          return
-        }
+        const regForm = await ensureEventRegistrationForm(id, event.title)
+        if (cancelled) return
         setEventTitle(event.title)
         setForm(regForm)
       } catch (err) {

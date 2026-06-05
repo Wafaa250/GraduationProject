@@ -77,7 +77,7 @@ export default function OrganizationRecruitmentPositionFormPage() {
           positionId={positionNum}
           positionTitle={positionTitle}
           backTo={backTo}
-          backLabel="Back to opportunity"
+          backLabel="Back to executive board selection applications"
         />
       ) : null}
     </AssociationDashboardLayout>

@@ -327,7 +327,9 @@ namespace GraduationProject.API.Controllers
             var entity = await _db.StudentOrganizationEvents
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e =>
-                    e.Id == eventId && e.OrganizationProfileId == organizationId);
+                    e.Id == eventId &&
+                    e.OrganizationProfileId == organizationId &&
+                    e.IsPublished);
 
             if (entity == null)
                 return NotFound(new { message = "Event not found." });
@@ -373,7 +375,10 @@ namespace GraduationProject.API.Controllers
             var cutoff = DateTime.UtcNow.Subtract(ActiveEventGrace);
             return _db.StudentOrganizationEvents
                 .AsNoTracking()
-                .Where(e => e.OrganizationProfileId == organizationProfileId && e.EventDate >= cutoff)
+                .Where(e =>
+                    e.OrganizationProfileId == organizationProfileId &&
+                    e.IsPublished &&
+                    e.EventDate >= cutoff)
                 .OrderBy(e => e.EventDate);
         }
 

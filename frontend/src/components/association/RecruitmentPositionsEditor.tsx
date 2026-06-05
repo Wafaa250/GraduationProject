@@ -51,13 +51,14 @@ export function positionsFromCampaign(
 }
 
 export function draftsToPayload(drafts: PositionDraft[]): RecruitmentPositionInput[] {
-  return drafts.map((d) => ({
+  return drafts.map((d, index) => ({
     id: d.id ?? undefined,
     roleTitle: d.roleTitle.trim(),
     neededCount: Number.isFinite(d.neededCount) && d.neededCount >= 1 ? d.neededCount : 1,
     description: d.description?.trim() || null,
     requirements: d.requirements?.trim() || null,
     requiredSkills: d.requiredSkills?.trim() || null,
+    displayOrder: index,
   }))
 }
 
@@ -370,7 +371,7 @@ function PositionEditForm({
         />
       ) : campaignId != null ? (
         <p style={formHintStyle}>
-          Save the opportunity first, then return here to design this position&apos;s application form.
+          Save the selection application cycle first, then return here to design this position&apos;s application form.
         </p>
       ) : null}
     </>

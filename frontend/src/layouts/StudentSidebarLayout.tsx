@@ -41,6 +41,7 @@ import type { GraduationNotification } from "@/api/notificationsApi";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 import { ROUTES } from "@/routes/paths";
 import { isCompanyWorkspaceAccountRole } from "@/lib/companyAccountRole";
+import { isAssociationRole } from "@/api/associationApi";
 import { getRoleDashboardPath } from "@/utils/homeNavigation";
 import { logout } from "@/utils/authSession";
 import { PROFILE_AVATAR_FALLBACK_CLASS, profileInitialsFromName } from "@/lib/profileAvatar";
@@ -49,6 +50,14 @@ import { cn } from "@/components/ui/utils";
 import "@/styles/student-sidebar-layout.css";
 
 const SIDEBAR_LG_MEDIA = "(min-width: 1024px)";
+
+/** Shared with student feed links; association org accounts use the same paths without student chrome. */
+function isAssociationOrgDetailPath(pathname: string): boolean {
+  return (
+    /^\/association\/events\/[^/]+/.test(pathname) ||
+    /^\/association\/recruitment\/[^/]+/.test(pathname)
+  );
+}
 
 function useIsSidebarLgUp(): boolean {
   const [isLgUp, setIsLgUp] = useState(() =>
@@ -484,6 +493,13 @@ export function StudentSidebarLayout() {
   }
 
   if (role !== "student") {
+    const storedRole = localStorage.getItem("role");
+    if (isAssociationRole(storedRole) && isAssociationOrgDetailPath(pathname)) {
+      return <Outlet />;
+    }
+    if (isAssociationRole(storedRole)) {
+      return <Navigate to={getRoleDashboardPath()} replace />;
+    }
     return <Navigate to={ROUTES.home} replace />;
   }
 

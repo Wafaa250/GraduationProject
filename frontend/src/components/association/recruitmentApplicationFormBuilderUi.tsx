@@ -92,9 +92,9 @@ export function FormBuilderSection({
 
               (compact
 
-                ? 'Design fields for this role. Applicants also see shared opportunity fields when they apply.'
+                ? 'Design fields for this role. Applicants also see shared application fields when they apply.'
 
-                : 'Build your application form—add fields, reorder them, and target each to the whole opportunity or a specific position.')}
+                : 'Build your application form—add fields, reorder them, and target each to the whole selection application cycle or a specific position.')}
 
           </p>
 
@@ -648,7 +648,7 @@ export function FieldEditor({
 
           >
 
-            <option value="campaign">Entire opportunity (shared form)</option>
+            <option value="campaign">Entire selection application cycle (shared form)</option>
 
             <option value="position">Specific position</option>
 
