@@ -97,18 +97,15 @@ namespace GraduationProject.API.Controllers
 
             return Ok(items);
         }
+/// <summary>GET /api/companies/{companyProfileId}/profile – read-only company profile for students.</summary>
+[HttpGet("{companyProfileId:int}/profile")]
+public async Task<IActionResult> GetProfile(int companyProfileId)
+{
+    var profile = await _db.CompanyProfiles.AsNoTracking()
+        .FirstOrDefaultAsync(c => c.Id == companyProfileId);
 
-        /// <summary>GET /api/companies/{companyProfileId} — public company profile (same fields as workspace profile, read-only).</summary>
-        [HttpGet("{companyProfileId:int}")]
-        public async Task<IActionResult> GetProfileById(int companyProfileId)
-        {
-            var profile = await _db.CompanyProfiles
-                .AsNoTracking()
-                .Include(c => c.User)
-                .FirstOrDefaultAsync(c => c.Id == companyProfileId);
-
-            if (profile == null)
-                return NotFound(new { message = "Company not found." });
+    if (profile == null)
+        return NotFound(new { message = "Company not found." });
 
             return Ok(new CompanyProfileDto
             {
@@ -139,13 +136,9 @@ namespace GraduationProject.API.Controllers
                 .Include(r => r.CompanyProfile)
                 .Include(r => r.Roles).ThenInclude(role => role.Skills)
                 .FirstOrDefaultAsync(r =>
-                    r.Id == requestId
-                    && r.CompanyProfileId == companyProfileId
-                    && r.Status != CompanyRequestStatus.Draft
-                    && r.Status != CompanyRequestStatus.Archived
-                    && r.RequestStatus != CompanyRequestLifecycleStatus.Closed);
+                    r.Id == requestId && r.CompanyProfileId == companyProfileId);
 
-            if (row == null)
+            if (row == null || !CompanyRequestHubVisibility.IsVisibleInCommunicationHub(row))
                 return NotFound(new { message = "Opportunity not found." });
 
             var company = row.CompanyProfile;
@@ -166,7 +159,22 @@ namespace GraduationProject.API.Controllers
                     ? new List<string>()
                     : skills.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList(),
                 RoleCount = row.Roles.Count,
-                PublishedAt = row.SubmittedAt ?? row.UpdatedAt,
+                PublishedAt = row.PublishedToHubAt ?? row.SubmittedAt ?? row.UpdatedAt,
+                ContactEmail = company?.ContactEmail,
+                WebsiteUrl = company?.WebsiteUrl,
+                LinkedInUrl = company?.LinkedInUrl,
+                ScopeNotes = row.ScopeNotes,
+                Roles = row.Roles
+                    .OrderBy(role => role.SortOrder)
+                    .Select(role => new PublicCompanyOpportunityRoleDto
+                    {
+                        RoleName = role.RoleName,
+                        Skills = role.Skills
+                            .OrderBy(s => s.SortOrder)
+                            .Select(s => s.SkillName)
+                            .ToList(),
+                    })
+                    .ToList(),
             });
         }
 

@@ -109,7 +109,7 @@ export function CompanyWorkspaceLayout() {
         <main className="cw-shell-content pb-16 md:pb-0">
           <Outlet />
         </main>
-        <nav className="cw-mobile-nav-bar md:hidden fixed bottom-0 inset-x-0 z-40 flex justify-around py-2 px-2">
+        <nav className="cw-mobile-nav-bar md:hidden fixed bottom-0 inset-x-0 flex justify-around py-2 px-2">
           {mobileNav.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}

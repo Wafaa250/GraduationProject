@@ -160,6 +160,8 @@ namespace GraduationProject.API.Helpers
                 CreatedAt = entity.CreatedAt,
                 UpdatedAt = entity.UpdatedAt,
                 SubmittedAt = entity.SubmittedAt,
+                IsPublishedToHub = entity.IsPublishedToHub,
+                PublishedToHubAt = entity.PublishedToHubAt,
             };
 
         public static CompanyRequestSummaryDto ToSummaryDto(CompanyRequest entity)
@@ -185,6 +187,8 @@ namespace GraduationProject.API.Helpers
                 SkillNames = skillNames,
                 CreatedAt = entity.CreatedAt,
                 SubmittedAt = entity.SubmittedAt,
+                IsPublishedToHub = entity.IsPublishedToHub,
+                PublishedToHubAt = entity.PublishedToHubAt,
             };
         }
 

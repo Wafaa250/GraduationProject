@@ -227,6 +227,94 @@ namespace GraduationProject.API.Services
             }).ToList();
         }
 
+        private async Task<List<FeedPostDto>> LoadCompanyOpportunityPostsAsync()
+        {
+            var rows = await _db.CompanyRequests
+                .AsNoTracking()
+                .Include(r => r.CompanyProfile)
+                .Include(r => r.Roles).ThenInclude(role => role.Skills)
+                .Where(r =>
+                    r.Status == CompanyRequestStatus.Submitted
+                    && r.RequestStatus == CompanyRequestLifecycleStatus.Active
+                    && r.IsPublishedToHub)
+                .OrderByDescending(r => r.PublishedToHubAt ?? r.SubmittedAt ?? r.UpdatedAt)
+                .Take(80)
+                .ToListAsync();
+
+            return rows.Select(r =>
+            {
+                var company = r.CompanyProfile;
+                var meta = new List<FeedItemMetadataDto>();
+                FeedMappingHelper.AddMetadata(meta, "Type", r.Category);
+                FeedMappingHelper.AddMetadata(meta, "Request", FeedMappingHelper.CompanyRequestTypeLabel(r.RequestType));
+                FeedMappingHelper.AddMetadata(meta, "Duration", FeedMappingHelper.FormatCompanyDuration(r));
+                FeedMappingHelper.AddMetadata(meta, "Format", FeedMappingHelper.FormatCollaboration(r.CollaborationFormat));
+                FeedMappingHelper.AddMetadata(meta, "Location", company?.Location ?? company?.HeadquartersLocation);
+                FeedMappingHelper.AddMetadata(meta, "Skills", FeedMappingHelper.CollectCompanySkills(r));
+                if (r.Roles.Count > 0)
+                    FeedMappingHelper.AddMetadata(meta, "Roles", r.Roles.Count.ToString());
+
+                return new FeedPostDto
+                {
+                    PostKey = FeedPostKeyHelper.Build(FeedPostSourceTypes.CompanyOpportunity, r.Id),
+                    SourceType = FeedPostSourceTypes.CompanyOpportunity,
+                    EntityId = r.Id,
+                    AuthorType = FeedAuthorTypes.Company,
+                    AuthorId = r.CompanyProfileId,
+                    AuthorName = company?.CompanyName ?? "Company",
+                    SourceSubtitle = company?.Industry ?? "Company",
+                    Title = r.Title,
+                    Content = FeedMappingHelper.Truncate(r.Description, 600),
+                    PostKind = r.Category,
+                    PublishedAt = r.PublishedToHubAt ?? r.SubmittedAt ?? r.UpdatedAt,
+                    Metadata = meta,
+                    ActionLabel = "View Opportunity",
+                    ActionPath = FeedActionRoutes.CompanyRequest(r.Id, r.CompanyProfileId),
+                    CompanyRequestId = r.Id,
+                    CompanyProfileId = r.CompanyProfileId,
+                };
+            }).ToList();
+        }
+
+        private async Task<List<FeedPostDto>> LoadCompanyTalentRequestPostsAsync()
+        {
+            var rows = await _db.CompanyTalentRequests
+                .AsNoTracking()
+                .Include(t => t.CompanyProfile)
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(60)
+                .ToListAsync();
+
+            return rows.Select(t =>
+            {
+                var company = t.CompanyProfile;
+                var meta = new List<FeedItemMetadataDto>();
+                FeedMappingHelper.AddMetadata(meta, "Type", t.EngagementType);
+                FeedMappingHelper.AddMetadata(meta, "Duration", t.Duration);
+                FeedMappingHelper.AddMetadata(meta, "Major", t.PreferredMajor);
+                FeedMappingHelper.AddMetadata(meta, "Skills", t.RequiredSkills);
+
+                return new FeedPostDto
+                {
+                    PostKey = FeedPostKeyHelper.Build(FeedPostSourceTypes.CompanyTalentRequest, t.Id),
+                    SourceType = FeedPostSourceTypes.CompanyTalentRequest,
+                    EntityId = t.Id,
+                    AuthorType = FeedAuthorTypes.Company,
+                    AuthorId = t.CompanyProfileId,
+                    AuthorName = company?.CompanyName ?? "Company",
+                    SourceSubtitle = company?.Industry ?? "Company",
+                    Title = t.Title,
+                    Content = FeedMappingHelper.Truncate(t.Description, 600),
+                    PostKind = t.EngagementType ?? "Talent request",
+                    PublishedAt = t.CreatedAt,
+                    Metadata = meta,
+                    ActionLabel = "View Opportunity",
+                    ActionPath = FeedActionRoutes.CompanyTalentRequest(t.Id, t.CompanyProfileId),
+                    CompanyProfileId = t.CompanyProfileId,
+                };
+            }).ToList();
+        }
+
         private async Task<List<FeedPostDto>> LoadAssociationRecruitmentPositionPostsAsync()
         {
             var rows = await _db.StudentOrganizationRecruitmentPositions

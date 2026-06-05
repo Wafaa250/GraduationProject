@@ -16,12 +16,16 @@ import {
   getRequestRoleSubtitle,
 } from "@/lib/companyRequestDisplay";
 import { CompanyRequestActionsMenu } from "@/components/company/CompanyRequestActionsMenu";
+import { CompanyRequestVisibilityPanel } from "@/components/company/CompanyRequestVisibilityPanel";
+import { CompanyOpportunityStudentView } from "@/components/company/CompanyOpportunityStudentView";
 import { ConfirmDialog } from "@/components/company/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
   deleteCompanyProjectRequest,
   getCompanyProjectRequest,
   parseApiErrorMessage,
+  publishCompanyProjectRequest,
+  unpublishCompanyProjectRequest,
   updateCompanyProjectRequestStatus,
   type CompanyProjectRequestDetail,
 } from "@/api/companyApi";
@@ -30,28 +34,38 @@ import {
   getRequestLifecycleStatus,
   getRequestProjectTitle,
   isRequestViewOnly,
-  requestLifecycleStatusBadgeClass,
+  requestHubVisibilityBadgeClass,
+  requestHubVisibilityLabel,
   requestLifecycleStatusLabel,
   requestTypeLabel,
 } from "@/lib/companyRequestDisplay";
 import { collaborationFormatLabel } from "@/constants/companyRequestCatalog";
-import { getPublicCompanyOpportunity } from "@/api/organizationsPublicApi";
+import {
+  getPublicCompanyOpportunity,
+  type PublicCompanyOpportunityDetail,
+} from "@/api/organizationsPublicApi";
 import { COMPANY_ROUTES, ROUTES } from "@/routes/paths";
+import "@/styles/student-company-opportunity.css";
 
 export function CompanyRequestDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id, companyProfileId: companyProfileIdParam, requestId: requestIdParam } =
+    useParams<{ id: string; companyProfileId: string; requestId: string }>();
   const [searchParams] = useSearchParams();
   const nav = useNavigate();
   const isStudent = (localStorage.getItem("role") ?? "").toLowerCase() === "student";
-  const companyProfileId = Number(searchParams.get("companyId") ?? 0);
+  const companyProfileId = Number(
+    companyProfileIdParam ?? searchParams.get("companyId") ?? 0,
+  );
   const [request, setRequest] = useState<CompanyProjectRequestDetail | null>(null);
+  const [opportunity, setOpportunity] = useState<PublicCompanyOpportunityDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const numId = Number(id);
+  const numId = Number(requestIdParam ?? id);
 
   useEffect(() => {
     if (!Number.isFinite(numId) || numId < 1) {
@@ -59,34 +73,28 @@ export function CompanyRequestDetailPage() {
       setLoading(false);
       return;
     }
+    if (isStudent && (!Number.isFinite(companyProfileId) || companyProfileId < 1)) {
+      setError("Invalid company link.");
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
     const load = isStudent
-      ? getPublicCompanyOpportunity(companyProfileId, numId).then((pub) => ({
-          id: pub.id,
-          requestType: pub.requestType,
-          status: "submitted",
-          requestStatus: "active",
-          title: pub.title,
-          description: pub.description,
-          category: pub.category,
-          collaborationType: pub.collaborationFormat ?? "",
-          durationLabel: pub.durationLabel ?? undefined,
-          roles: Array.from({ length: pub.roleCount }, (_, i) => ({
-            id: i + 1,
-            roleName: `Role ${i + 1}`,
-            skills: pub.skills.map((skillName, j) => ({ id: j, skillName })),
-          })),
-          createdAt: pub.publishedAt ?? new Date().toISOString(),
-          updatedAt: pub.publishedAt ?? new Date().toISOString(),
-          submittedAt: pub.publishedAt ?? undefined,
-        } as CompanyProjectRequestDetail))
+      ? getPublicCompanyOpportunity(companyProfileId, numId)
       : getCompanyProjectRequest(numId);
 
     load
       .then((data) => {
-        if (!cancelled) setRequest(data);
+        if (cancelled) return;
+        if (isStudent) {
+          setOpportunity(data as PublicCompanyOpportunityDetail);
+          setRequest(null);
+        } else {
+          setRequest(data as CompanyProjectRequestDetail);
+          setOpportunity(null);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(parseApiErrorMessage(err));
@@ -108,37 +116,17 @@ export function CompanyRequestDetailPage() {
 
   if (isStudent) {
     return (
-      <div className="student-hub min-h-full bg-hero px-4 py-6 sm:px-6">
-        <Link
-          to={ROUTES.communicationHub}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
-        >
+      <div className="student-hub min-h-full bg-hero px-4 py-6 sm:px-6 lg:px-8">
+        <Link to={ROUTES.communicationHub} className="company-opportunity-detail__back">
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Back to feed
+          Back to Communication Hub
         </Link>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading opportunity…</p>
         ) : error ? (
           <p className="text-sm text-destructive">{error}</p>
-        ) : request ? (
-          <article className="hub-card max-w-3xl p-6">
-            <h1 className="font-display text-2xl font-bold">{request.title}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {[request.category, requestTypeLabel(request.requestType), request.durationLabel]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-            <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{request.description}</p>
-            {reviewSkills.length > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {reviewSkills.map((s) => (
-                  <span key={s} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </article>
+        ) : opportunity ? (
+          <CompanyOpportunityStudentView opportunity={opportunity} />
         ) : null}
       </div>
     );
@@ -160,6 +148,34 @@ export function CompanyRequestDetailPage() {
       toast.error(parseApiErrorMessage(err));
     } finally {
       setStatusLoading(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!request) return;
+    setPublishLoading(true);
+    try {
+      const updated = await publishCompanyProjectRequest(request.id);
+      setRequest(updated);
+      toast.success("Opportunity published to Communication Hub");
+    } catch (err) {
+      toast.error(parseApiErrorMessage(err));
+    } finally {
+      setPublishLoading(false);
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!request) return;
+    setPublishLoading(true);
+    try {
+      const updated = await unpublishCompanyProjectRequest(request.id);
+      setRequest(updated);
+      toast.success("Opportunity removed from Communication Hub");
+    } catch (err) {
+      toast.error(parseApiErrorMessage(err));
+    } finally {
+      setPublishLoading(false);
     }
   };
 
@@ -232,10 +248,10 @@ export function CompanyRequestDetailPage() {
                   variant="outline"
                   className={cn(
                     "rounded-full h-7 px-2.5 font-medium",
-                    requestLifecycleStatusBadgeClass(lifecycleStatus),
+                    requestHubVisibilityBadgeClass(request),
                   )}
                 >
-                  {requestLifecycleStatusLabel(lifecycleStatus)}
+                  {requestHubVisibilityLabel(request)}
                 </Badge>
                 <CompanyRequestActionsMenu
                   editHref={COMPANY_ROUTES.editRequest(request.id)}
@@ -282,6 +298,13 @@ export function CompanyRequestDetailPage() {
               )}
             </div>
           )}
+
+          <CompanyRequestVisibilityPanel
+            request={request}
+            loading={publishLoading}
+            onPublish={handlePublish}
+            onUnpublish={handleUnpublish}
+          />
 
           <CompanyLuxPanel title="Request specifications">
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">

@@ -176,7 +176,7 @@ export function CompanyNotificationBell() {
       </Button>
 
       {open ? (
-        <Card className="absolute right-0 top-12 z-50 w-[min(100vw-2rem,22rem)] border-border/60 shadow-elevated">
+        <Card className="cw-header-popover absolute right-0 top-12 w-[min(100vw-2rem,22rem)] border-border/60 shadow-elevated">
           <CardContent className="max-h-80 overflow-y-auto p-3">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Workspace notifications

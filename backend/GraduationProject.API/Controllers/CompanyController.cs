@@ -76,16 +76,28 @@ namespace GraduationProject.API.Controllers
             if (!websiteCheck.isAllowed)
                 return Conflict(new { message = websiteCheck.error });
 
-            profile.CompanyName = dto.CompanyName.Trim();
-            profile.NormalizedCompanyName = CompanyUniquenessHelper.NormalizeCompanyName(dto.CompanyName);
+            var trimmedName = dto.CompanyName.Trim();
+            var incomingNormalized = CompanyUniquenessHelper.NormalizeCompanyName(trimmedName);
+            var currentDisplayNormalized =
+                CompanyUniquenessHelper.NormalizeCompanyName(profile.CompanyName);
+
+            profile.CompanyName = trimmedName;
+            if (incomingNormalized != currentDisplayNormalized)
+                profile.NormalizedCompanyName = incomingNormalized;
             profile.Description = NormalizeNullable(dto.Description);
             profile.Industry = NormalizeNullable(dto.Industry);
             profile.HeadquartersLocation = NormalizeNullable(dto.HeadquartersLocation);
             profile.Location = profile.HeadquartersLocation;
             profile.WorkingStyle = NormalizeNullable(dto.WorkingStyle);
             profile.AreasOfInterest = SkillHelper.ToJsonOrNull(dto.AreasOfInterest);
-            profile.WebsiteUrl = NormalizeUrlNullable(dto.WebsiteUrl);
-            profile.WebsiteDomain = CompanyUniquenessHelper.ExtractWebsiteDomain(profile.WebsiteUrl);
+            var normalizedWebsite = NormalizeUrlNullable(dto.WebsiteUrl);
+            var incomingWebsiteDomain = CompanyUniquenessHelper.ExtractWebsiteDomain(normalizedWebsite);
+            var currentWebsiteDomain = profile.WebsiteDomain
+                ?? CompanyUniquenessHelper.ExtractWebsiteDomain(profile.WebsiteUrl);
+
+            profile.WebsiteUrl = normalizedWebsite;
+            if (incomingWebsiteDomain != currentWebsiteDomain)
+                profile.WebsiteDomain = incomingWebsiteDomain;
             profile.LinkedInUrl = NormalizeUrlNullable(dto.LinkedInUrl);
             profile.ContactEmail = NormalizeNullable(dto.ContactEmail);
             profile.OptionalContactLink = NormalizeUrlNullable(dto.OptionalContactLink);

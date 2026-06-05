@@ -38,7 +38,8 @@ namespace GraduationProject.API.Services
                 .AsNoTracking()
                 .Where(r =>
                     r.Status == CompanyRequestStatus.Submitted
-                    && r.RequestStatus == CompanyRequestLifecycleStatus.Active)
+                    && r.RequestStatus == CompanyRequestLifecycleStatus.Active
+                    && r.IsPublishedToHub)
                 .GroupBy(r => r.CompanyProfileId)
                 .Select(g => g.Key)
                 .ToListAsync();
@@ -362,6 +363,7 @@ namespace GraduationProject.API.Services
                 .Where(r =>
                     r.Status == CompanyRequestStatus.Submitted
                     && r.RequestStatus == CompanyRequestLifecycleStatus.Active
+                    && r.IsPublishedToHub
                     && (EF.Functions.ILike(r.Title, pattern)
                         || EF.Functions.ILike(r.Description, pattern)
                         || EF.Functions.ILike(r.Category, pattern)

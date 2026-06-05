@@ -95,6 +95,8 @@ namespace GraduationProject.API.DTOs
         public List<string> SkillNames { get; set; } = new();
         public DateTime CreatedAt { get; set; }
         public DateTime? SubmittedAt { get; set; }
+        public bool IsPublishedToHub { get; set; }
+        public DateTime? PublishedToHubAt { get; set; }
     }
 
     public class CompanyRequestDetailDto
@@ -126,5 +128,7 @@ namespace GraduationProject.API.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public DateTime? SubmittedAt { get; set; }
+        public bool IsPublishedToHub { get; set; }
+        public DateTime? PublishedToHubAt { get; set; }
     }
 }

@@ -40,7 +40,7 @@ namespace GraduationProject.API.Helpers
         }
 
         public static string CompanyRequest(int companyRequestId, int companyProfileId) =>
-            $"/company/requests/{companyRequestId}?companyId={companyProfileId}";
+            $"/opportunities/companies/{companyProfileId}/{companyRequestId}";
 
         public static string CompanyTalentRequest(int talentRequestId, int companyProfileId) =>
             $"/company/talent-requests/{talentRequestId}?companyId={companyProfileId}";

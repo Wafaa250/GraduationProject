@@ -149,7 +149,10 @@ export function AppRouter() {
             path="/association/recruitment/:campaignId"
             element={<OrganizationRecruitmentCampaignDetailsPage />}
           />
-          <Route path="/company/requests/:id" element={<StudentCompanyRequestDetailRoute />} />
+          <Route
+            path="/opportunities/companies/:companyProfileId/:requestId"
+            element={<StudentCompanyRequestDetailRoute />}
+          />
           <Route path={ROUTES.profile} element={<StudentProfilePage />} />
           <Route path={ROUTES.editProfile} element={<StudentProfileEditPage />} />
           <Route path={ROUTES.createGraduationProject} element={<CreateGraduationProjectPage />} />

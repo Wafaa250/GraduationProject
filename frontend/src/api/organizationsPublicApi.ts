@@ -53,8 +53,24 @@ export type PublicCompanyProfile = {
   companyName: string;
   industry?: string | null;
   description?: string | null;
-  areasOfInterest?: string | null;
+  headquartersLocation?: string | null;
+  location?: string | null;
+  workingStyle?: string | null;
+  websiteUrl?: string | null;
+  linkedInUrl?: string | null;
+  contactEmail?: string | null;
+  optionalContactLink?: string | null;
+  areasOfInterest?: string[] | string | null;
   isFollowing?: boolean;
+};
+
+export type PublicCompanyOpportunitySummary = {
+  id: number;
+  title: string;
+  category: string;
+  collaborationFormat?: string | null;
+  durationLabel?: string | null;
+  publishedAt?: string | null;
 };
 
 export type PublicOrganizationEventDetail = {
@@ -74,6 +90,11 @@ export type PublicOrganizationEventDetail = {
   registrationForm?: EventRegistrationForm | null;
 };
 
+export type PublicCompanyOpportunityRole = {
+  roleName: string;
+  skills: string[];
+};
+
 export type PublicCompanyOpportunityDetail = {
   id: number;
   companyProfileId: number;
@@ -88,6 +109,11 @@ export type PublicCompanyOpportunityDetail = {
   skills: string[];
   roleCount: number;
   publishedAt?: string | null;
+  contactEmail?: string | null;
+  websiteUrl?: string | null;
+  linkedInUrl?: string | null;
+  scopeNotes?: string | null;
+  roles: PublicCompanyOpportunityRole[];
 };
 
 export type PublicCompanyTalentRequestDetail = {
@@ -163,21 +189,62 @@ function mapPublicCompanyRow(row: PublicCompanyListRow): PublicCompanyProfile | 
   const id = Number(row.id ?? row.Id ?? 0);
   const companyName = String(row.companyName ?? row.CompanyName ?? "").trim();
   if (!id || !companyName) return null;
+  const rawAreas = row.areasOfInterest ?? row.AreasOfInterest;
   return {
     id,
     companyName,
     industry: row.industry ?? row.Industry ?? null,
     description: row.description ?? row.Description ?? null,
-    areasOfInterest: row.areasOfInterest ?? row.AreasOfInterest ?? null,
+    areasOfInterest: rawAreas ?? null,
     isFollowing: !!(row.isFollowing ?? row.IsFollowing),
   };
 }
 
-/** Loads a company from GET /api/companies/public (existing discovery API). */
+function parseAreasList(raw?: string[] | string | null): string[] {
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (!raw?.trim()) return [];
+  return raw
+    .split(/[,;|]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** Full read-only company profile for students. */
+export async function getPublicCompanyProfileDetail(
+  companyProfileId: number,
+): Promise<PublicCompanyProfile | null> {
+  try {
+    const { data } = await api.get<PublicCompanyProfile>(
+      `/companies/${companyProfileId}/profile`,
+    );
+    if (!data?.id) return null;
+    return {
+      ...data,
+      areasOfInterest: parseAreasList(data.areasOfInterest),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Published opportunities for a company (Communication Hub). */
+export async function listPublicCompanyOpportunities(
+  companyProfileId: number,
+): Promise<PublicCompanyOpportunitySummary[]> {
+  const { data } = await api.get<PublicCompanyOpportunitySummary[]>(
+    `/companies/${companyProfileId}/opportunities`,
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+/** Loads a company from GET /api/companies/public (fallback discovery API). */
 export async function getPublicCompanyProfile(
   companyProfileId: number,
   searchHint?: string,
 ): Promise<PublicCompanyProfile | null> {
+  const detail = await getPublicCompanyProfileDetail(companyProfileId);
+  if (detail) return detail;
+
   const tryLoad = async (search?: string) => {
     const { data } = await api.get<PublicCompanyListRow[]>("/companies/public", {
       params: search?.trim() ? { search: search.trim() } : undefined,
@@ -185,7 +252,12 @@ export async function getPublicCompanyProfile(
     const rows = Array.isArray(data) ? data : [];
     for (const row of rows) {
       const mapped = mapPublicCompanyRow(row);
-      if (mapped?.id === companyProfileId) return mapped;
+      if (mapped?.id === companyProfileId) {
+        return {
+          ...mapped,
+          areasOfInterest: parseAreasList(mapped.areasOfInterest),
+        };
+      }
     }
     return null;
   };

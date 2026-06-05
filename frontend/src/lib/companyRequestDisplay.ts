@@ -91,6 +91,53 @@ export function requestLifecycleStatusBadgeClass(status: string): string {
   return "cw-status-active";
 }
 
+export function canPublishRequest(
+  request: Pick<
+    CompanyProjectRequestSummary | CompanyProjectRequestDetail,
+    "status" | "requestStatus" | "isPublishedToHub"
+  >,
+): boolean {
+  const lifecycle = getRequestLifecycleStatus(request);
+  return (
+    request.status !== "draft" &&
+    lifecycle === "active" &&
+    !(request.isPublishedToHub ?? false)
+  );
+}
+
+export function canUnpublishRequest(
+  request: Pick<CompanyProjectRequestSummary | CompanyProjectRequestDetail, "isPublishedToHub">,
+): boolean {
+  return request.isPublishedToHub ?? false;
+}
+
+export function requestHubVisibilityLabel(
+  request: Pick<
+    CompanyProjectRequestSummary | CompanyProjectRequestDetail,
+    "status" | "requestStatus" | "isPublishedToHub"
+  >,
+): string {
+  if (request.status === "draft") return "Draft";
+  const lifecycle = getRequestLifecycleStatus(request);
+  if (lifecycle === "closed") return "Closed";
+  if (lifecycle === "paused") return "Paused";
+  return (request.isPublishedToHub ?? false) ? "Published" : "Active";
+}
+
+export function requestHubVisibilityBadgeClass(
+  request: Pick<
+    CompanyProjectRequestSummary | CompanyProjectRequestDetail,
+    "status" | "requestStatus" | "isPublishedToHub"
+  >,
+): string {
+  const label = requestHubVisibilityLabel(request);
+  if (label === "Published") return "cw-status-published";
+  if (label === "Closed") return "cw-status-closed";
+  if (label === "Paused") return "cw-status-paused";
+  if (label === "Draft") return "text-muted-foreground border-muted-foreground/30";
+  return "cw-status-active";
+}
+
 export function requestStatusLabel(status: string): string {
   const s = status.toLowerCase();
   if (s === "submitted") return "Active";

@@ -57,6 +57,12 @@
   --cw-header-height: 3.5rem;
   --cw-sidebar-width: 15.5rem;
   --cw-sidebar-collapsed: 4.25rem;
+  /* UI layer stack — header/popovers above page chrome; modals above all */
+  --cw-z-content: 0;
+  --cw-z-floating: 150;
+  --cw-z-header: 200;
+  --cw-z-popover: 900;
+  --cw-z-modal: 1000;
 }
 
 @media (min-width: 768px) {
@@ -82,6 +88,8 @@
 }
 
 .company-workspace .cw-shell-content {
+  position: relative;
+  z-index: var(--cw-z-content);
   flex: 1 1 0%;
   min-height: 0;
   overflow-x: hidden;
@@ -561,6 +569,12 @@
 .company-workspace .cw-status-active {
   background: hsl(var(--cw-success) / 0.15);
   color: hsl(var(--cw-success));
+  border: none;
+}
+
+.company-workspace .cw-status-published {
+  background: hsl(var(--cw-accent) / 0.15);
+  color: hsl(var(--cw-accent));
   border: none;
 }
 
@@ -1575,6 +1589,10 @@
 }
 
 .company-workspace .cw-shell-header {
+  position: relative;
+  z-index: var(--cw-z-header);
+  isolation: isolate;
+  overflow: visible;
   height: var(--cw-header-height);
   min-height: var(--cw-header-height);
   max-height: var(--cw-header-height);
@@ -1709,6 +1727,16 @@
 .company-workspace .cw-topbar {
   background: hsl(var(--cw-surface) / 0.95);
   backdrop-filter: blur(12px);
+}
+
+.company-workspace .cw-workspace-header-actions {
+  position: relative;
+  overflow: visible;
+}
+
+.company-workspace .cw-header-popover,
+.company-workspace .cw-profile-menu {
+  z-index: var(--cw-z-popover);
 }
 
 .company-workspace .cw-profile-menu-item {
@@ -1939,6 +1967,7 @@
 }
 
 .company-workspace .cw-mobile-nav-bar {
+  z-index: var(--cw-z-floating);
   background: hsl(var(--cw-surface) / 0.95);
   border-top: 1px solid hsl(var(--border) / 0.8);
   backdrop-filter: blur(12px);
@@ -2116,8 +2145,11 @@
   border-radius: 0.625rem;
   border: 1px solid hsl(var(--cw-border-subtle));
   background: hsl(var(--cw-surface-muted) / 0.55);
+}
+
+.company-workspace .cw-floating-action {
   position: relative;
-  z-index: 30;
+  z-index: var(--cw-z-floating);
 }
 
 .company-workspace .cw-lux-hero-toolbar-divider {
@@ -3851,7 +3883,7 @@
   bottom: 4.5rem;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 50;
+  z-index: var(--cw-z-floating);
   width: min(32rem, calc(100vw - 2rem));
   display: flex;
   align-items: center;

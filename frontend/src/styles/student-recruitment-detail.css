@@ -248,6 +248,15 @@
     0 4px 14px -4px hsl(262 55% 45% / 0.22);
 }
 
+.student-recruitment-detail__position-card--disabled,
+.student-recruitment-detail__position-card--disabled:hover {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
 .student-recruitment-detail__position-radio {
   flex-shrink: 0;
   width: 1.375rem;
@@ -394,6 +403,24 @@
   background: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
   border: 1px solid hsl(var(--primary) / 0.22);
+}
+
+.student-recruitment-detail__status-pill--closed {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+.student-recruitment-detail__closed-message {
+  margin: 0;
+  padding: 0.875rem 1rem;
+  border-radius: 0.625rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--secondary) / 0.75);
+  border: 1px solid hsl(var(--border));
 }
 
 .student-recruitment-detail__form-panel {

@@ -23,7 +23,7 @@ export function CompanyTopbar() {
   const isDashboard = pathname === COMPANY_ROUTES.dashboard;
 
   return (
-    <header className="cw-shell-header cw-topbar z-30 flex min-h-[var(--cw-header-height)] items-center gap-4 px-4 md:px-6">
+    <header className="cw-shell-header cw-topbar flex min-h-[var(--cw-header-height)] items-center gap-4 px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <div className="cw-workspace-chip hidden sm:inline-flex" title={companyName}>
           <span className="cw-workspace-chip-mark" aria-hidden>

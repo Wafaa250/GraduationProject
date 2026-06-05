@@ -51,6 +51,7 @@ import {
 import {
   formatEventDate,
   formatRegistrationCloseDate,
+  getRegistrationDeadlineStatus,
 } from "../events/eventFormUtils";
 
 import "@/styles/student-recruitment-detail.css";
@@ -156,7 +157,13 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
 
           setQuestions(data.questions ?? []);
 
-          if (data.positions.length === 1) {
+          const deadlinePassed =
+            getRegistrationDeadlineStatus(data.applicationDeadline) === "closed";
+
+          if (deadlinePassed) {
+            setStudentPositionId(null);
+            setAnswerDrafts({});
+          } else if (data.positions.length === 1) {
             const posId = data.positions[0].id;
 
             setStudentPositionId(posId);
@@ -170,6 +177,8 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
             initialPositionId &&
             data.positions.some((p) => p.id === initialPositionId)
           ) {
+            setStudentPositionId(initialPositionId);
+
             setAnswerDrafts(
               buildEmptyAnswerDrafts(
                 getStudentApplicationQuestions(
@@ -194,8 +203,30 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
     };
   }, [numericCampaignId, navigate, orgIdFromQuery, initialPositionId]);
 
+  const applicationsClosed = useMemo(
+    () =>
+      getRegistrationDeadlineStatus(campaign?.applicationDeadline ?? null) ===
+      "closed",
+    [campaign?.applicationDeadline],
+  );
+
   useEffect(() => {
-    if (!campaign || !studentPositionId || orgIdFromQuery <= 0) return;
+    if (!applicationsClosed) return;
+
+    setStudentPositionId(null);
+    setAnswerDrafts({});
+    setStudentApplied(false);
+    setApplicationStatusLoading(false);
+  }, [applicationsClosed]);
+
+  useEffect(() => {
+    if (
+      !campaign ||
+      !studentPositionId ||
+      orgIdFromQuery <= 0 ||
+      applicationsClosed
+    )
+      return;
 
     let cancelled = false;
 
@@ -221,7 +252,7 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [campaign, studentPositionId, orgIdFromQuery]);
+  }, [campaign, studentPositionId, orgIdFromQuery, applicationsClosed]);
 
   const positions = useMemo(
     () => sortByLeadershipRole(campaign?.positions ?? []),
@@ -255,6 +286,8 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
     : null;
 
   const selectPosition = (posId: number) => {
+    if (applicationsClosed) return;
+
     setStudentPositionId(posId);
 
     setStudentApplied(false);
@@ -270,17 +303,22 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
 
   const orgName = campaign?.organizationName?.trim() || "Student organization";
 
-  const applyStatusPill = studentApplied
+  const applyStatusPill = applicationsClosed
     ? {
-        label: "Applied",
-        className: "student-recruitment-detail__status-pill--done",
+        label: "Applications Closed",
+        className: "student-recruitment-detail__status-pill--closed",
       }
-    : studentPositionId && studentQuestions.length > 0
+    : studentApplied
       ? {
-          label: "Open",
-          className: "student-recruitment-detail__status-pill--open",
+          label: "Applied",
+          className: "student-recruitment-detail__status-pill--done",
         }
-      : null;
+      : studentPositionId && studentQuestions.length > 0
+        ? {
+            label: "Open",
+            className: "student-recruitment-detail__status-pill--open",
+          }
+        : null;
 
   return (
     <div className="student-hub min-h-full bg-hero px-4 py-6 sm:px-6">
@@ -438,8 +476,9 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
                 </h2>
 
                 <p className="student-recruitment-detail__section-sub">
-                  Choose the role you want to apply for. You can submit one
-                  application per position.
+                  {applicationsClosed
+                    ? "These roles are shown for reference only. Applications are no longer accepted."
+                    : "Choose the role you want to apply for. You can submit one application per position."}
                 </p>
 
                 <div
@@ -450,7 +489,8 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
                     <PositionRoleCard
                       key={pos.id}
                       position={pos}
-                      selected={studentPositionId === pos.id}
+                      selected={!applicationsClosed && studentPositionId === pos.id}
+                      disabled={applicationsClosed}
                       onSelect={() => selectPosition(pos.id)}
                     />
                   ))}
@@ -479,13 +519,15 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
                     </div>
 
                     <p className="student-recruitment-detail__apply-sub">
-                      {selectedPosition
-                        ? `Applying for ${selectedPosition.roleTitle}. Complete the form below.`
-                        : "Select a position above to view and complete the application form."}
+                      {applicationsClosed
+                        ? "This recruitment campaign is no longer accepting applications."
+                        : selectedPosition
+                          ? `Applying for ${selectedPosition.roleTitle}. Complete the form below.`
+                          : "Select a position above to view and complete the application form."}
                     </p>
                   </div>
 
-                  {applyStatusPill && !applicationStatusLoading ? (
+                  {applyStatusPill && (!applicationStatusLoading || applicationsClosed) ? (
                     <span
                       className={`student-recruitment-detail__status-pill ${applyStatusPill.className}`}
                     >
@@ -494,7 +536,11 @@ export default function StudentOrganizationRecruitmentCampaignDetailsPage() {
                   ) : null}
                 </div>
 
-                {!studentPositionId ? (
+                {applicationsClosed ? (
+                  <p className="student-recruitment-detail__closed-message">
+                    This recruitment campaign is no longer accepting applications.
+                  </p>
+                ) : !studentPositionId ? (
                   <p className="student-recruitment-detail__empty">
                     Pick an open position to continue with your application.
                   </p>
@@ -606,11 +652,15 @@ function PositionRoleCard({
 
   selected,
 
+  disabled,
+
   onSelect,
 }: {
   position: RecruitmentPosition;
 
   selected: boolean;
+
+  disabled?: boolean;
 
   onSelect: () => void;
 }) {
@@ -622,9 +672,11 @@ function PositionRoleCard({
     <button
       type="button"
       role="listitem"
-      aria-pressed={selected}
-      onClick={onSelect}
-      className={`student-recruitment-detail__position-card${selected ? " student-recruitment-detail__position-card--selected" : ""}`}
+      aria-pressed={disabled ? undefined : selected}
+      aria-disabled={disabled || undefined}
+      disabled={disabled}
+      onClick={disabled ? undefined : onSelect}
+      className={`student-recruitment-detail__position-card${selected ? " student-recruitment-detail__position-card--selected" : ""}${disabled ? " student-recruitment-detail__position-card--disabled" : ""}`}
     >
       <span className="student-recruitment-detail__position-radio" aria-hidden>
         {selected ? <Check size={14} strokeWidth={3} /> : null}
