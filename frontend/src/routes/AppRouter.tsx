@@ -74,8 +74,8 @@ import OrganizationRecruitmentPositionFormPage from "@/pages/association/recruit
 import OrganizationRecruitmentApplicationDetailPage from "@/pages/association/recruitment-campaigns/OrganizationRecruitmentApplicationDetailPage";
 import StudentDirectoryProfilePage from "@/pages/student/StudentDirectoryProfilePage";
 import DoctorPublicProfilePage from "@/pages/student/DoctorPublicProfilePage";
-import OrganizationPublicProfilePage from "@/pages/student/OrganizationPublicProfilePage";
-import CompanyPublicProfilePage from "@/pages/student/CompanyPublicProfilePage";
+import OrganizationVisitorProfilePage from "@/pages/student/OrganizationVisitorProfilePage";
+import CompanyVisitorProfilePage from "@/pages/student/CompanyVisitorProfilePage";
 import { CompanyTalentRequestDetailPage } from "@/pages/company/CompanyTalentRequestDetailPage";
 import { StudentCommunicationHubRoute } from "@/routes/studentRoutes";
 import { StudentCompanyRequestDetailRoute } from "@/routes/StudentCompanyRequestDetailRoute";
@@ -142,8 +142,8 @@ export function AppRouter() {
           <Route path={ROUTES.communicationHub} element={<StudentCommunicationHubRoute />} />
           <Route path="/students/:userId" element={<StudentDirectoryProfilePage />} />
           <Route path="/doctors/:userId" element={<DoctorPublicProfilePage />} />
-          <Route path="/organizations/:organizationId" element={<OrganizationPublicProfilePage />} />
-          <Route path="/companies/:companyProfileId" element={<CompanyPublicProfilePage />} />
+          <Route path="/organizations/:organizationId" element={<OrganizationVisitorProfilePage />} />
+          <Route path="/companies/:companyProfileId" element={<CompanyVisitorProfilePage />} />
           <Route path="/association/events/:eventId" element={<OrganizationEventDetailsPage />} />
           <Route
             path="/association/recruitment/:campaignId"

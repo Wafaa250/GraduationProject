@@ -29,6 +29,8 @@ import {
 import type { DoctorCourseWithStats } from "@/api/doctorCoursesApi";
 import { ROUTES } from "@/routes/paths";
 import { toast } from "@/hooks/use-toast";
+import { DoctorDashboardUpdates } from "@/components/doctor/hub/DoctorDashboardUpdates";
+import { useDoctorShareUpdate } from "@/components/doctor/hub/DoctorShareUpdateContext";
 import {
   FileText,
   Activity,
@@ -50,6 +52,7 @@ export default function DoctorDashboardPage() {
   const [messagesUnread, setMessagesUnread] = useState(0);
   const [busyRequestId, setBusyRequestId] = useState<number | null>(null);
   const [resigningId, setResigningId] = useState<number | null>(null);
+  const { updatesRefreshKey } = useDoctorShareUpdate();
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
@@ -303,6 +306,8 @@ export default function DoctorDashboardPage() {
             />
           )}
         </section>
+
+        <DoctorDashboardUpdates refreshKey={updatesRefreshKey} />
       </div>
     </main>
   );

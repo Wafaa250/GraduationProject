@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import "@/styles/skill-profile-hub.css";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
+import { getStudentDirectoryProfile } from "@/api/studentDirectoryApi";
+import { mapDirectoryProfileToMe } from "@/lib/mapStudentDirectoryProfile";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import type { GradProject } from "@/api/gradProjectApi";
 import type { ProfileStrength } from "@/api/dashboardApi";
@@ -212,7 +215,20 @@ function activityIcon(kind: string): LucideIcon {
   return Users;
 }
 
-export default function StudentProfilePage() {
+export type StudentProfileMode = "owner" | "visitor";
+
+export type StudentProfileViewProps = {
+  mode?: StudentProfileMode;
+  userId?: number;
+  backHref?: string;
+};
+
+export function StudentProfileView({
+  mode = "owner",
+  userId,
+  backHref = ROUTES.communicationHub,
+}: StudentProfileViewProps) {
+  const isOwner = mode === "owner";
   const [me, setMe] = useState<StudentMeResponse | null>(null);
   const [strength, setStrength] = useState<ProfileStrength | null>(null);
   const [projects, setProjects] = useState<GradProject[]>([]);
@@ -222,16 +238,28 @@ export default function StudentProfilePage() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (mode === "visitor" && (!userId || userId <= 0)) {
+      setLoading(false);
+      setError("Invalid student link.");
+      return;
+    }
+
     (async () => {
       try {
-        const profile = await getMe();
+        const profile =
+          mode === "owner"
+            ? await getMe()
+            : mapDirectoryProfileToMe(await getStudentDirectoryProfile(userId!));
         if (cancelled) return;
         setMe(profile);
 
         const [strengthRes, projectRes, membershipRes] = await Promise.all([
-          getProfileStrength().catch(() => null),
+          isOwner ? getProfileStrength().catch(() => null) : Promise.resolve(null),
           getGraduationProjectsForStudent(profile.profileId).catch(() => [] as GradProject[]),
-          getOrganizationMemberships().catch(() => [] as OrganizationMembership[]),
+          isOwner
+            ? getOrganizationMemberships().catch(() => [] as OrganizationMembership[])
+            : Promise.resolve([] as OrganizationMembership[]),
         ]);
 
         if (cancelled) return;
@@ -247,7 +275,7 @@ export default function StudentProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isOwner, mode, userId]);
 
   const completion = strength?.score ?? 0;
 
@@ -329,7 +357,9 @@ export default function StudentProfilePage() {
   if (loading) {
     return (
       <div className="skill-profile-hub min-h-screen flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading your profile…</p>
+        <p className="text-sm text-muted-foreground">
+          {isOwner ? "Loading your profile…" : "Loading profile…"}
+        </p>
       </div>
     );
   }
@@ -338,7 +368,7 @@ export default function StudentProfilePage() {
     return (
       <div className="skill-profile-hub min-h-screen flex items-center justify-center px-4">
         <p className="text-sm text-muted-foreground text-center">
-          {error ?? "Could not load your profile."}
+          {error ?? (isOwner ? "Could not load your profile." : "Student not found.")}
         </p>
       </div>
     );
@@ -398,6 +428,16 @@ export default function StudentProfilePage() {
         <div className="h-1.5 w-full bg-[var(--gradient-hero)]" />
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-8">
+          {!isOwner ? (
+            <Link
+              to={backHref}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Back to Communication Hub
+            </Link>
+          ) : null}
+
           {/* HERO */}
           <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[var(--shadow-lg)]">
             <div className="absolute inset-0 bg-[var(--gradient-hero)] opacity-[0.06]" />
@@ -456,33 +496,48 @@ export default function StudentProfilePage() {
                           {t}
                         </span>
                       ))
-                    ) : (
+                    ) : isOwner ? (
                       <span className="chip chip-primary text-muted-foreground">Add profile tags</span>
-                    )}
+                    ) : null}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 mt-6 justify-center md:justify-start">
-                    <Button
-                      size="lg"
-                      className="bg-[var(--gradient-hero)] text-primary-foreground border-0 shadow-[var(--shadow-glow)] hover:opacity-95"
-                      asChild
-                    >
-                      <Link to={ROUTES.editProfile}>
-                        <Pencil className="w-4 h-4 mr-2" /> Edit Profile
-                      </Link>
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="border-border/80"
-                      type="button"
-                      onClick={handleShare}
-                    >
-                      <Share2 className="w-4 h-4 mr-2" /> Share Profile
-                    </Button>
-                  </div>
+                  {isOwner ? (
+                    <div className="flex flex-col sm:flex-row gap-3 mt-6 justify-center md:justify-start">
+                      <Button
+                        size="lg"
+                        className="bg-[var(--gradient-hero)] text-primary-foreground border-0 shadow-[var(--shadow-glow)] hover:opacity-95"
+                        asChild
+                      >
+                        <Link to={ROUTES.editProfile}>
+                          <Pencil className="w-4 h-4 mr-2" /> Edit Profile
+                        </Link>
+                      </Button>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="border-border/80"
+                        type="button"
+                        onClick={handleShare}
+                      >
+                        <Share2 className="w-4 h-4 mr-2" /> Share Profile
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row gap-3 mt-6 justify-center md:justify-start">
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="border-border/80"
+                        type="button"
+                        onClick={handleShare}
+                      >
+                        <Share2 className="w-4 h-4 mr-2" /> Share Profile
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
+                {isOwner ? (
                 <div className="hidden lg:flex flex-col items-center gap-2 pl-6 border-l border-border/60">
                   <div className="relative w-28 h-28">
                     <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
@@ -517,6 +572,7 @@ export default function StudentProfilePage() {
                   </div>
                   <p className="text-xs font-medium text-muted-foreground">Profile Complete</p>
                 </div>
+                ) : null}
               </div>
             </div>
           </section>
@@ -741,7 +797,7 @@ export default function StudentProfilePage() {
             </div>
           </section>
 
-          {/* COMPLETION */}
+          {isOwner ? (
           <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[var(--shadow-md)]">
             <div className="absolute inset-0 bg-[var(--gradient-hero)] opacity-[0.04]" />
             <div className="relative p-6 md:p-8">
@@ -788,6 +844,7 @@ export default function StudentProfilePage() {
               </div>
             </div>
           </section>
+          ) : null}
 
           {/* ACTIVITIES */}
           <section className="glass-card p-6 md:p-8">
@@ -825,4 +882,8 @@ export default function StudentProfilePage() {
       </main>
     </div>
   );
+}
+
+export default function StudentProfilePage() {
+  return <StudentProfileView mode="owner" />;
 }

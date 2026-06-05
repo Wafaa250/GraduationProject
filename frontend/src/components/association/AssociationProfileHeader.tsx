@@ -1,6 +1,6 @@
 import { Mail, Pencil, X } from 'lucide-react'
-import { AssociationAvatar, CategoryBadge, VerifiedBadge } from './associationBrand'
-import { assocCard, assocDash } from '@/pages/association/dashboard/associationDashTokens'
+import { AssociationAvatar, VerifiedBadge } from './associationBrand'
+import { assocCard } from '@/pages/association/dashboard/associationDashTokens'
 import type { StudentAssociationProfile } from '@/api/associationApi'
 
 type Props = {
@@ -11,6 +11,10 @@ type Props = {
 }
 
 export function AssociationProfileHeader({ profile, onEdit, editing, onCancel }: Props) {
+  const faculty = profile.faculty?.trim()
+  const category = profile.category?.trim()
+  const metaLine = [faculty, category].filter(Boolean).join(' • ')
+
   return (
     <section
       className="assoc-profile-header"
@@ -21,32 +25,43 @@ export function AssociationProfileHeader({ profile, onEdit, editing, onCancel }:
       }}
     >
       <div className="assoc-profile-header__cover" aria-hidden />
-      <div className="assoc-profile-header__body">
-        <div className="assoc-profile-header__row">
-          <div className="assoc-profile-header__identity">
-            <AssociationAvatar
-              name={profile.associationName}
-              logoUrl={profile.logoUrl}
-              size="xl"
-              style={{
-                boxShadow: '0 10px 28px rgba(15,23,42,0.12), 0 0 0 3px #fff',
-                border: 'none',
-              }}
-            />
-            <div className="assoc-profile-header__info">
-              <h1 style={{ fontFamily: assocDash.fontDisplay, color: assocDash.text }}>
-                {profile.associationName}
-              </h1>
-              <p className="assoc-profile-header__handle">@{profile.username}</p>
-              {profile.faculty && <p className="assoc-profile-header__faculty">{profile.faculty}</p>}
-              <div className="assoc-profile-header__badges">
-                {profile.category && <CategoryBadge category={profile.category} />}
-                {profile.isVerified && <VerifiedBadge />}
-              </div>
+
+      <div className="assoc-profile-header__main">
+        <div className="assoc-profile-header__grid">
+          <div className="assoc-profile-header__avatar-col">
+            <div className="assoc-profile-header__avatar-wrap">
+              <AssociationAvatar
+                name={profile.associationName}
+                logoUrl={profile.logoUrl}
+                size="xl"
+              />
             </div>
           </div>
-          <div className="assoc-profile-header__actions">
-            {!editing && onEdit && (
+
+          <div className="assoc-profile-header__info-col">
+            <h1 className="assoc-profile-header__name">{profile.associationName}</h1>
+            <p className="assoc-profile-header__handle">@{profile.username}</p>
+
+            {metaLine ? (
+              <p className="assoc-profile-header__meta">{metaLine}</p>
+            ) : null}
+
+            {profile.isVerified ? (
+              <div className="assoc-profile-header__verified">
+                <VerifiedBadge />
+              </div>
+            ) : null}
+
+            {profile.email ? (
+              <p className="assoc-profile-header__email">
+                <Mail size={14} strokeWidth={2} aria-hidden />
+                <span>{profile.email}</span>
+              </p>
+            ) : null}
+          </div>
+
+          <div className="assoc-profile-header__actions-col">
+            {!editing && onEdit ? (
               <button
                 type="button"
                 onClick={onEdit}
@@ -55,8 +70,8 @@ export function AssociationProfileHeader({ profile, onEdit, editing, onCancel }:
                 <Pencil size={15} strokeWidth={2.25} aria-hidden />
                 Edit profile
               </button>
-            )}
-            {editing && onCancel && (
+            ) : null}
+            {editing && onCancel ? (
               <button
                 type="button"
                 onClick={onCancel}
@@ -65,15 +80,9 @@ export function AssociationProfileHeader({ profile, onEdit, editing, onCancel }:
                 <X size={15} strokeWidth={2.25} aria-hidden />
                 Cancel
               </button>
-            )}
+            ) : null}
           </div>
         </div>
-        {profile.email && (
-          <p className="assoc-profile-email">
-            <Mail size={14} strokeWidth={2} aria-hidden />
-            {profile.email}
-          </p>
-        )}
       </div>
     </section>
   )

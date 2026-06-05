@@ -26,6 +26,8 @@ namespace GraduationProject.API.DTOs
         /// <summary>Underlying activity type (e.g. company_opportunity, association_event).</summary>
         public string RelatedEntityType { get; set; } = string.Empty;
         public int RelatedEntityId { get; set; }
+        /// <summary>Author user id for student-authored social posts.</summary>
+        public int? AuthorUserId { get; set; }
         /// <summary>Company profile id or association org id — used for Follow on feed cards.</summary>
         public int FollowEntityId { get; set; }
         public int? EventId { get; set; }
@@ -38,6 +40,8 @@ namespace GraduationProject.API.DTOs
         public string ActionText { get; set; } = "View details";
         public string? ActionUrl { get; set; }
         public string? ImageUrl { get; set; }
+        public string? AttachmentUrl { get; set; }
+        public string? AttachmentType { get; set; }
         public List<FeedItemMetadataDto> Metadata { get; set; } = new();
     }
 
@@ -60,6 +64,8 @@ namespace GraduationProject.API.DTOs
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string? ImageUrl { get; set; }
+        public string? AttachmentUrl { get; set; }
+        public string? AttachmentType { get; set; }
         public string? PostKind { get; set; }
         public DateTime PublishedAt { get; set; }
         public string? SourceSubtitle { get; set; }

@@ -17,11 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { startConversation } from "@/api/conversationsApi";
-import { getDoctorPublicProfile, type DoctorPublicProfile } from "@/api/doctorPublicApi";
 import type { GradProjectSupervisor } from "@/api/gradProjectApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { toast } from "@/hooks/use-toast";
-import { studentMessageThreadPath } from "@/routes/paths";
+import { ROUTES, studentMessageThreadPath } from "@/routes/paths";
 
 function initials(name: string): string {
   return name
@@ -60,9 +59,6 @@ type MySupervisorSectionProps = {
 export function MySupervisorSection({ supervisor }: MySupervisorSectionProps) {
   const navigate = useNavigate();
   const [messaging, setMessaging] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileDetails, setProfileDetails] = useState<DoctorPublicProfile | null>(null);
 
   const photo = profilePhotoUrl(supervisor.profilePicture);
   const assignedLabel = formatAssignedDate(supervisor.assignedAt);
@@ -84,26 +80,10 @@ export function MySupervisorSection({ supervisor }: MySupervisorSectionProps) {
     }
   };
 
-  const handleViewProfile = async () => {
+  const handleViewProfile = () => {
     if (!supervisor.userId) return;
-    setProfileOpen(true);
-    setProfileLoading(true);
-    try {
-      setProfileDetails(await getDoctorPublicProfile(supervisor.userId));
-    } catch (err) {
-      setProfileDetails(null);
-      toast({
-        variant: "destructive",
-        title: "Could not load profile",
-        description: parseApiErrorMessage(err),
-      });
-    } finally {
-      setProfileLoading(false);
-    }
+    navigate(ROUTES.doctorPublicProfile(supervisor.userId));
   };
-
-  const detail = profileDetails?.doctorProfile;
-  const detailUser = profileDetails?.user;
 
   return (
     <section>
@@ -208,7 +188,7 @@ export function MySupervisorSection({ supervisor }: MySupervisorSectionProps) {
                   variant="outline"
                   className="rounded-lg"
                   disabled={!supervisor.userId}
-                  onClick={() => void handleViewProfile()}
+                  onClick={handleViewProfile}
                 >
                   <User className="mr-1.5 h-4 w-4" />
                   View Profile
@@ -219,75 +199,6 @@ export function MySupervisorSection({ supervisor }: MySupervisorSectionProps) {
         </CardContent>
       </Card>
 
-      {profileOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="supervisor-profile-title"
-        >
-          <Card className="w-full max-w-lg border-border/60 shadow-elevated">
-            <CardContent className="p-6">
-              <h2
-                id="supervisor-profile-title"
-                className="font-display text-lg font-bold text-foreground"
-              >
-                {supervisor.name}
-              </h2>
-              {profileLoading ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : profileDetails ? (
-                <div className="mt-4 space-y-3 text-sm">
-                  {detailUser?.email ? (
-                    <p>
-                      <span className="font-semibold text-foreground">Email: </span>
-                      {detailUser.email}
-                    </p>
-                  ) : null}
-                  {detail?.faculty ? (
-                    <p>
-                      <span className="font-semibold text-foreground">Faculty: </span>
-                      {detail.faculty}
-                    </p>
-                  ) : null}
-                  {detail?.department ? (
-                    <p>
-                      <span className="font-semibold text-foreground">Department: </span>
-                      {detail.department}
-                    </p>
-                  ) : null}
-                  {detail?.specialization ? (
-                    <p>
-                      <span className="font-semibold text-foreground">Specialization: </span>
-                      {detail.specialization}
-                    </p>
-                  ) : null}
-                  {detail?.university ? (
-                    <p>
-                      <span className="font-semibold text-foreground">University: </span>
-                      {detail.university}
-                    </p>
-                  ) : null}
-                  {detail?.bio?.trim() ? (
-                    <p className="leading-relaxed text-muted-foreground">{detail.bio.trim()}</p>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  Profile details are not available.
-                </p>
-              )}
-              <div className="mt-6 flex justify-end">
-                <Button type="button" variant="outline" className="rounded-xl" onClick={() => setProfileOpen(false)}>
-                  Close
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
     </section>
   );
 }

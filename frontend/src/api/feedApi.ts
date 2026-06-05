@@ -9,8 +9,14 @@ import {
   SEARCH_FETCH_LIMIT,
 } from "@/lib/searchRanking";
 import { resolveFeedPostActionUrl } from "@/lib/feedActionRoutes";
-import { FEED_SOURCE_TYPES, normalizeFeedItem, type FeedItem } from "@/lib/feedTypes";
+import {
+  FEED_SOURCE_TYPES,
+  isCompanyFeedItem,
+  normalizeFeedItem,
+  type FeedItem,
+} from "@/lib/feedTypes";
 import { ROUTES } from "@/routes/paths";
+import { filterRecommendedItems, isAllowedRecommendedType } from "@/lib/feedRecommendedFilter";
 
 export type { FeedItem } from "@/lib/feedTypes";
 export type FeedItemMetadata = { label: string; value: string };
@@ -1080,11 +1086,10 @@ export async function refreshCommunicationHubSuggestions(
 
 export { recommendationsToSuggestions };
 
-function normalizeFeedRecommendedItem(raw: Record<string, unknown>): FeedRecommendedItem {
-  const typeRaw = String(readField<string>(raw, "type", "Type") ?? "student").toLowerCase();
-  const type = (["student", "doctor", "company", "association"].includes(typeRaw)
-    ? typeRaw
-    : "student") as FeedRecommendedItemType;
+function normalizeFeedRecommendedItem(raw: Record<string, unknown>): FeedRecommendedItem | null {
+  const typeRaw = String(readField<string>(raw, "type", "Type") ?? "").toLowerCase();
+  if (!isAllowedRecommendedType(typeRaw)) return null;
+  const type = typeRaw as FeedRecommendedItemType;
 
   const isFollowing = !!(
     readField<boolean>(raw, "isFollowing", "IsFollowing") ??
@@ -1092,14 +1097,14 @@ function normalizeFeedRecommendedItem(raw: Record<string, unknown>): FeedRecomme
     false
   );
 
-  const canMessageRaw = readField<boolean>(raw, "canMessage", "CanMessage");
-  const canFollowRaw = readField<boolean>(raw, "canFollow", "CanFollow");
+  const entityId = Number(readField<number>(raw, "entityId", "EntityId") ?? 0);
+  const userId = readField<number>(raw, "userId", "UserId") ?? null;
 
   return {
     id: String(readField<string>(raw, "id", "Id") ?? ""),
     type,
-    entityId: Number(readField<number>(raw, "entityId", "EntityId") ?? 0),
-    userId: readField<number>(raw, "userId", "UserId") ?? null,
+    entityId,
+    userId,
     name: String(readField<string>(raw, "name", "Name") ?? "").trim(),
     subtitle: (readField<string>(raw, "subtitle", "Subtitle") as string | null | undefined) ?? null,
     avatarUrl: (readField<string>(raw, "avatarUrl", "AvatarUrl") as string | null | undefined) ?? null,
@@ -1111,9 +1116,8 @@ function normalizeFeedRecommendedItem(raw: Record<string, unknown>): FeedRecomme
     isFollowing,
     isFollowed: isFollowing,
     profileUrl: (readField<string>(raw, "profileUrl", "ProfileUrl") as string | null | undefined) ?? null,
-    canMessage:
-      canMessageRaw ?? (type === "student" || type === "doctor"),
-    canFollow: canFollowRaw ?? (type === "company" || type === "association"),
+    canMessage: type === "student" || type === "doctor",
+    canFollow: (type === "company" || type === "association") && entityId > 0,
   };
 }
 
@@ -1135,11 +1139,13 @@ export async function getFeedRecommended(
     params: Object.keys(params).length > 0 ? params : undefined,
   });
   const itemsRaw = data?.items ?? data?.Items;
-  const items = Array.isArray(itemsRaw)
-    ? itemsRaw
-        .map((row) => normalizeFeedRecommendedItem(row as Record<string, unknown>))
-        .filter((item) => item.id && item.name)
-    : [];
+  const items = filterRecommendedItems(
+    Array.isArray(itemsRaw)
+      ? itemsRaw
+          .map((row) => normalizeFeedRecommendedItem(row as Record<string, unknown>))
+          .filter((item): item is FeedRecommendedItem => item != null && !!item.id && !!item.name)
+      : [],
+  );
 
   const statsRaw = (data?.poolStats ?? data?.PoolStats) as Record<string, unknown> | undefined;
   const poolStats: FeedRecommendedPoolStats | null = statsRaw
@@ -1177,8 +1183,19 @@ export async function getCommunicationFeed(search?: string): Promise<FeedRespons
 
   const searchResultsRaw = data?.searchResults ?? data?.SearchResults;
 
+  const items = itemsArray
+    .map((row) => normalizeFeedItem(row as Record<string, unknown>))
+    .filter((item) => {
+      if (isCompanyFeedItem(item)) return false;
+      if (item.relatedEntityType === FEED_SOURCE_TYPES.studentCollaboration) return false;
+      if (item.sourceType === "student" && item.relatedEntityType !== FEED_SOURCE_TYPES.studentPost) {
+        return false;
+      }
+      return true;
+    });
+
   return {
-    items: itemsArray.map((row) => normalizeFeedItem(row as Record<string, unknown>)),
+    items,
     sidebar: (data?.sidebar ?? data?.Sidebar ?? { role: "student" }) as FeedSidebarSummary,
     suggestions,
     searchResults: Array.isArray(searchResultsRaw)

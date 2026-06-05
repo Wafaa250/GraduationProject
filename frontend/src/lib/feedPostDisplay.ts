@@ -94,6 +94,18 @@ export function feedPostActionLabel(item: FeedItem): string {
   return "View details";
 }
 
+export function isStudentSocialPost(item: FeedItem): boolean {
+  return item.relatedEntityType === "student_post";
+}
+
+export function isDoctorSocialPost(item: FeedItem): boolean {
+  return item.relatedEntityType === "doctor_post";
+}
+
+export function isSocialFeedPost(item: FeedItem): boolean {
+  return isStudentSocialPost(item) || isDoctorSocialPost(item);
+}
+
 export function feedPostSupportsFollow(item: FeedItem): boolean {
   return (
     (item.sourceType === "company" || item.sourceType === "association") &&

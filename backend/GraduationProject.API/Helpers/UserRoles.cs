@@ -45,5 +45,19 @@ namespace GraduationProject.API.Helpers
 
         public static bool IsCompanyOwnerAccount(string? role) =>
             string.Equals(role, Company, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Account roles eligible for Communication Hub “Recommended For You”.</summary>
+        public static bool IsRecommendedDiscoverableAccountRole(string? role)
+        {
+            var normalized = (role ?? string.Empty).Trim().ToLowerInvariant();
+            return normalized is Student or Doctor or Company or StudentAssociation or Association;
+        }
+
+        /// <summary>Internal/workspace roles that must never appear in recommendations.</summary>
+        public static bool IsExcludedFromRecommendations(string? role)
+        {
+            var normalized = (role ?? string.Empty).Trim().ToLowerInvariant();
+            return normalized is CompanyMember or Admin;
+        }
     }
 }

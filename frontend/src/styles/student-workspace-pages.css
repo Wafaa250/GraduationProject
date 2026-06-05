@@ -112,16 +112,19 @@
   align-items: center;
   justify-content: center;
   border-radius: 0.5rem;
-  background: var(--gradient-primary);
+  background-color: hsl(var(--primary));
+  background-image: none;
   padding: 0.625rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: hsl(var(--primary-foreground));
-  transition: opacity 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .student-hub .student-ws-btn-primary:hover {
-  opacity: 0.95;
+  background-color: hsl(var(--primary-dark));
+  background-image: none;
+  opacity: 1;
 }
 
 .student-hub .student-ws-filter-label {
@@ -149,7 +152,8 @@
 
 .student-hub .student-ws-pill--active {
   border-color: transparent;
-  background: var(--gradient-primary);
+  background-color: hsl(var(--primary));
+  background-image: none;
   color: hsl(var(--primary-foreground));
   box-shadow: var(--shadow-md);
 }

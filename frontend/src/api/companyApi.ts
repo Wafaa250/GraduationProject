@@ -119,6 +119,12 @@ export async function getCompanyProfile(): Promise<CompanyProfile> {
   return data;
 }
 
+/** Read-only company profile for visitors (same shape as workspace profile). */
+export async function getCompanyProfileById(companyProfileId: number): Promise<CompanyProfile> {
+  const { data } = await api.get<CompanyProfile>(`/companies/${companyProfileId}`);
+  return data;
+}
+
 export async function updateCompanyProfile(
   payload: UpdateCompanyProfilePayload,
 ): Promise<CompanyProfile> {

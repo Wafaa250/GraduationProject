@@ -76,7 +76,7 @@
     --doctor-accent-soft: 228 100% 97%;
     --doctor-surface: 228 100% 98%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(258 90% 66%));
+    --gradient-primary: hsl(var(--primary));
     --gradient-hero: linear-gradient(
       135deg,
       hsl(239 84% 67%) 0%,
@@ -302,6 +302,72 @@
       linear-gradient(90deg, hsl(215 16% 27% / 0.35) 1px, transparent 1px);
   }
 
+  /* Solid brand primary — action buttons must not fade on the right edge */
+  .ss-brand-cta,
+  .bg-gradient-primary {
+    background-color: hsl(var(--primary));
+    background-image: none;
+    color: hsl(var(--primary-foreground));
+  }
+
+  .ss-brand-cta:hover:not(:disabled),
+  .bg-gradient-primary:hover:not(:disabled) {
+    background-color: hsl(var(--primary-dark));
+    background-image: none;
+    opacity: 1;
+    filter: none;
+  }
+
+  .ss-brand-cta:active:not(:disabled),
+  .bg-gradient-primary:active:not(:disabled) {
+    background-color: hsl(var(--primary-deep));
+    background-image: none;
+  }
+
+  /* Primary CTAs must stay opaque — never fade via hover:opacity-* */
+  button.bg-gradient-primary.hover\:opacity-95:hover,
+  button.hover\:opacity-95.bg-gradient-primary:hover,
+  .hover\:opacity-95.ss-brand-cta:hover,
+  button.hover\:opacity-95.bg-gradient-hero:hover,
+  button.hover\:opacity-95.bg-\[var\(--gradient-hero\)\]:hover,
+  a.hover\:opacity-95.bg-gradient-primary:hover {
+    opacity: 1;
+    background-color: hsl(var(--primary-dark));
+    background-image: none;
+    filter: none;
+  }
+
+  button.bg-gradient-hero,
+  button.bg-\[var\(--gradient-hero\)\] {
+    background-color: hsl(var(--primary));
+    background-image: none;
+    color: hsl(var(--primary-foreground));
+  }
+
+  button.bg-gradient-hero:hover:not(:disabled),
+  button.bg-\[var\(--gradient-hero\)\]:hover:not(:disabled) {
+    background-color: hsl(var(--primary-dark));
+    background-image: none;
+    opacity: 1;
+  }
+
+  /* Tailwind gradient utilities that fade primary toward transparent */
+  .from-primary.to-primary\/90,
+  .from-primary.to-primary\/80,
+  [class*="from-primary"][class*="to-primary/"] {
+    background-color: hsl(var(--primary));
+    background-image: none;
+    color: hsl(var(--primary-foreground));
+  }
+
+  .from-primary.to-primary\/90:hover:not(:disabled),
+  .from-primary.to-primary\/80:hover:not(:disabled),
+  [class*="from-primary"][class*="to-primary/"]:hover:not(:disabled) {
+    background-color: hsl(var(--primary-dark));
+    background-image: none;
+    opacity: 1;
+  }
+
   /* Flat, professional dark surfaces — no neon gradients */
   .dark .bg-gradient-primary {
     background-color: hsl(var(--primary));
@@ -315,9 +381,23 @@
     filter: none;
   }
 
+  .dark .ss-brand-cta,
+  .dark .ss-brand-cta:hover:not(:disabled),
+  .dark .ss-brand-cta:active:not(:disabled) {
+    background-image: none;
+    opacity: 1;
+    filter: none;
+  }
+
+  .bg-gradient-primary.hover\:brightness-110:hover,
+  .bg-gradient-primary.hover\:brightness-105:hover,
+  .ss-brand-cta.hover\:brightness-110:hover,
+  .ss-brand-cta.hover\:brightness-105:hover,
   .dark .hover\:brightness-110:hover,
   .dark .hover\:brightness-105:hover {
     filter: none;
+    background-color: hsl(var(--primary-dark));
+    background-image: none;
   }
 
   .dark .gradient-border::before {

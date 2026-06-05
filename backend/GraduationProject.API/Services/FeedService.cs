@@ -17,11 +17,6 @@ namespace GraduationProject.API.Services
         /// <summary>Max posts taken from each source bucket before global newest-first merge.</summary>
         private const int MaxItemsPerFeedSource = 35;
         private const int MaxFeedTimelineItems = 120;
-        private static readonly HashSet<string> ExcludedCompanyWorkflowStatuses = new(StringComparer.OrdinalIgnoreCase)
-        {
-            CompanyRequestStatus.Draft,
-            CompanyRequestStatus.Archived,
-        };
         private readonly ApplicationDbContext _db;
         private readonly IStudentRecommendationService _recommendations;
 
@@ -79,25 +74,47 @@ namespace GraduationProject.API.Services
 
         private async Task<List<FeedPostDto>> BuildAllPostsAsync(int userId)
         {
-            // Doctor timeline posts are intentionally omitted until explicit "Create Post" publishing exists.
-            // Doctors remain discoverable via search, recommendations, and messaging.
             var buckets = new[]
             {
                 await LoadAssociationEventPostsAsync(),
                 await LoadAssociationRecruitmentPostsAsync(),
                 await LoadAssociationRecruitmentPositionPostsAsync(),
-                await LoadCompanyOpportunityPostsAsync(),
-                await LoadCompanyTalentRequestPostsAsync(),
-                await LoadStudentCollaborationPostsAsync(),
+                await LoadStudentSocialPostsAsync(),
+                await LoadDoctorSocialPostsAsync(),
             };
 
             return MergeFeedTimeline(buckets);
         }
 
         /// <summary>
-        /// Caps each source so one bucket cannot crowd out company/association/student activity,
+        /// Caps each source so one bucket cannot crowd out other activity,
         /// then orders the unified timeline by publish date (newest first).
         /// </summary>
+        /// <summary>
+        /// Communication Hub feed: student/doctor social posts and association activity only.
+        /// Company opportunities and talent requests stay on company pages, not in the feed.
+        /// </summary>
+        private static bool IsAllowedInStudentFeed(FeedPostDto post)
+        {
+            if (string.Equals(post.SourceType, FeedPostSourceTypes.StudentCollaboration, StringComparison.Ordinal))
+                return false;
+
+            if (string.Equals(post.SourceType, FeedPostSourceTypes.CompanyOpportunity, StringComparison.Ordinal)
+                || string.Equals(post.SourceType, FeedPostSourceTypes.CompanyTalentRequest, StringComparison.Ordinal)
+                || string.Equals(post.AuthorType, FeedAuthorTypes.Company, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (post.AuthorType == FeedAuthorTypes.Student
+                && !string.Equals(post.SourceType, FeedPostSourceTypes.StudentPost, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         private static List<FeedPostDto> MergeFeedTimeline(IReadOnlyList<List<FeedPostDto>> buckets)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -107,6 +124,8 @@ namespace GraduationProject.API.Services
             {
                 foreach (var post in bucket.OrderByDescending(p => p.PublishedAt).Take(MaxItemsPerFeedSource))
                 {
+                    if (!IsAllowedInStudentFeed(post))
+                        continue;
                     if (!seen.Add(post.PostKey))
                         continue;
                     merged.Add(post);
@@ -118,13 +137,6 @@ namespace GraduationProject.API.Services
                 .Take(MaxFeedTimelineItems)
                 .ToList();
         }
-
-        private static bool IsVisibleCompanyRequestInFeed(CompanyRequest request) =>
-            !ExcludedCompanyWorkflowStatuses.Contains(request.Status)
-            && !string.Equals(
-                request.RequestStatus,
-                CompanyRequestLifecycleStatus.Closed,
-                StringComparison.OrdinalIgnoreCase);
 
         private async Task<List<FeedPostDto>> LoadAssociationEventPostsAsync()
         {
@@ -215,94 +227,6 @@ namespace GraduationProject.API.Services
             }).ToList();
         }
 
-        private async Task<List<FeedPostDto>> LoadCompanyOpportunityPostsAsync()
-        {
-            var rows = await _db.CompanyRequests
-                .AsNoTracking()
-                .Include(r => r.CompanyProfile)
-                .Include(r => r.Roles).ThenInclude(role => role.Skills)
-                .Where(r =>
-                    r.Status != CompanyRequestStatus.Draft
-                    && r.Status != CompanyRequestStatus.Archived
-                    && r.RequestStatus != CompanyRequestLifecycleStatus.Closed)
-                .OrderByDescending(r => r.SubmittedAt ?? r.UpdatedAt)
-                .Take(80)
-                .ToListAsync();
-
-            return rows.Select(r =>
-            {
-                var company = r.CompanyProfile;
-                var meta = new List<FeedItemMetadataDto>();
-                FeedMappingHelper.AddMetadata(meta, "Type", r.Category);
-                FeedMappingHelper.AddMetadata(meta, "Request", FeedMappingHelper.CompanyRequestTypeLabel(r.RequestType));
-                FeedMappingHelper.AddMetadata(meta, "Duration", FeedMappingHelper.FormatCompanyDuration(r));
-                FeedMappingHelper.AddMetadata(meta, "Format", FeedMappingHelper.FormatCollaboration(r.CollaborationFormat));
-                FeedMappingHelper.AddMetadata(meta, "Location", company?.Location ?? company?.HeadquartersLocation);
-                FeedMappingHelper.AddMetadata(meta, "Skills", FeedMappingHelper.CollectCompanySkills(r));
-                if (r.Roles.Count > 0)
-                    FeedMappingHelper.AddMetadata(meta, "Roles", r.Roles.Count.ToString());
-
-                return new FeedPostDto
-                {
-                    PostKey = FeedPostKeyHelper.Build(FeedPostSourceTypes.CompanyOpportunity, r.Id),
-                    SourceType = FeedPostSourceTypes.CompanyOpportunity,
-                    EntityId = r.Id,
-                    AuthorType = FeedAuthorTypes.Company,
-                    AuthorId = r.CompanyProfileId,
-                    AuthorName = company?.CompanyName ?? "Company",
-                    SourceSubtitle = company?.Industry ?? "Company",
-                    Title = r.Title,
-                    Content = FeedMappingHelper.Truncate(r.Description, 600),
-                    PostKind = r.Category,
-                    PublishedAt = r.SubmittedAt ?? r.UpdatedAt,
-                    Metadata = meta,
-                    ActionLabel = "View Opportunity",
-                    ActionPath = FeedActionRoutes.CompanyRequest(r.Id, r.CompanyProfileId),
-                    CompanyRequestId = r.Id,
-                    CompanyProfileId = r.CompanyProfileId,
-                };
-            }).ToList();
-        }
-
-        private async Task<List<FeedPostDto>> LoadCompanyTalentRequestPostsAsync()
-        {
-            var rows = await _db.CompanyTalentRequests
-                .AsNoTracking()
-                .Include(t => t.CompanyProfile)
-                .OrderByDescending(t => t.CreatedAt)
-                .Take(60)
-                .ToListAsync();
-
-            return rows.Select(t =>
-            {
-                var company = t.CompanyProfile;
-                var meta = new List<FeedItemMetadataDto>();
-                FeedMappingHelper.AddMetadata(meta, "Type", t.EngagementType);
-                FeedMappingHelper.AddMetadata(meta, "Duration", t.Duration);
-                FeedMappingHelper.AddMetadata(meta, "Major", t.PreferredMajor);
-                FeedMappingHelper.AddMetadata(meta, "Skills", t.RequiredSkills);
-
-                return new FeedPostDto
-                {
-                    PostKey = FeedPostKeyHelper.Build(FeedPostSourceTypes.CompanyTalentRequest, t.Id),
-                    SourceType = FeedPostSourceTypes.CompanyTalentRequest,
-                    EntityId = t.Id,
-                    AuthorType = FeedAuthorTypes.Company,
-                    AuthorId = t.CompanyProfileId,
-                    AuthorName = company?.CompanyName ?? "Company",
-                    SourceSubtitle = company?.Industry ?? "Company",
-                    Title = t.Title,
-                    Content = FeedMappingHelper.Truncate(t.Description, 600),
-                    PostKind = t.EngagementType ?? "Talent request",
-                    PublishedAt = t.CreatedAt,
-                    Metadata = meta,
-                    ActionLabel = "View Opportunity",
-                    ActionPath = FeedActionRoutes.CompanyTalentRequest(t.Id, t.CompanyProfileId),
-                    CompanyProfileId = t.CompanyProfileId,
-                };
-            }).ToList();
-        }
-
         private async Task<List<FeedPostDto>> LoadAssociationRecruitmentPositionPostsAsync()
         {
             var rows = await _db.StudentOrganizationRecruitmentPositions
@@ -356,53 +280,84 @@ namespace GraduationProject.API.Services
             }).ToList();
         }
 
-        private async Task<List<FeedPostDto>> LoadStudentCollaborationPostsAsync()
+        private async Task<List<FeedPostDto>> LoadStudentSocialPostsAsync()
         {
-            var rows = await _db.StudentProjects
+            var rows = await _db.StudentPosts
                 .AsNoTracking()
-                .Where(p => p.SupervisorId == null)
-                .Include(p => p.Owner).ThenInclude(s => s.User)
+                .Include(p => p.User)
+                    .ThenInclude(u => u.StudentProfile)
                 .OrderByDescending(p => p.CreatedAt)
                 .Take(80)
                 .ToListAsync();
 
             return rows.Select(p =>
             {
-                var required = string.IsNullOrWhiteSpace(p.RequiredSkills) ? "Teammates" : p.RequiredSkills!;
-                var meta = new List<FeedItemMetadataDto>();
-                FeedMappingHelper.AddMetadata(meta, "Track", p.ProjectType);
-                FeedMappingHelper.AddMetadata(meta, "Skills", required);
-                var openSeats = Math.Max(0, p.PartnersCount);
-                FeedMappingHelper.AddMetadata(meta, "Open seats", openSeats.ToString());
-                FeedMappingHelper.AddMetadata(meta, "Major", p.Owner.Major);
+                var student = p.User?.StudentProfile;
+                return new FeedPostDto
+                {
+                    PostKey = FeedPostKeyHelper.Build(FeedPostSourceTypes.StudentPost, p.Id),
+                    SourceType = FeedPostSourceTypes.StudentPost,
+                    EntityId = p.Id,
+                    AuthorType = FeedAuthorTypes.Student,
+                    AuthorId = p.UserId,
+                    AuthorName = p.User?.Name ?? "Student",
+                    AuthorImageBase64 = student?.ProfilePictureBase64,
+                    SourceSubtitle = student?.Major,
+                    Title = string.Empty,
+                    Content = p.Content,
+                    ImageUrl = p.AttachmentType == StudentPostAttachmentType.Image
+                        ? p.AttachmentUrl
+                        : null,
+                    AttachmentUrl = p.AttachmentUrl,
+                    AttachmentType = p.AttachmentType,
+                    PostKind = "Post",
+                    PublishedAt = p.CreatedAt,
+                    Metadata = new List<FeedItemMetadataDto>(),
+                    ActionLabel = "View profile",
+                    ActionPath = FeedActionRoutes.StudentPublicProfile(p.UserId),
+                };
+            }).ToList();
+        }
 
-                var isGraduationProject = string.Equals(
-                    p.ProjectType,
-                    "GP",
-                    StringComparison.OrdinalIgnoreCase);
-                var title = isGraduationProject
-                    ? $"Graduation project recruitment: {p.Name}"
-                    : $"Looking for teammates: {p.Name}";
+        private async Task<List<FeedPostDto>> LoadDoctorSocialPostsAsync()
+        {
+            var rows = await _db.DoctorPosts
+                .AsNoTracking()
+                .Include(p => p.User)
+                    .ThenInclude(u => u.DoctorProfile)
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(80)
+                .ToListAsync();
+
+            return rows.Select(p =>
+            {
+                var doctor = p.User?.DoctorProfile;
+                var subtitle = doctor?.Specialization;
+                if (string.IsNullOrWhiteSpace(subtitle))
+                    subtitle = doctor?.Department;
 
                 return new FeedPostDto
                 {
-                    PostKey = FeedPostKeyHelper.Build(FeedPostSourceTypes.StudentCollaboration, p.Id),
-                    SourceType = FeedPostSourceTypes.StudentCollaboration,
+                    PostKey = FeedPostKeyHelper.Build(FeedPostSourceTypes.DoctorPost, p.Id),
+                    SourceType = FeedPostSourceTypes.DoctorPost,
                     EntityId = p.Id,
-                    AuthorType = FeedAuthorTypes.Student,
-                    AuthorId = p.OwnerId,
-                    AuthorName = p.Owner.User?.Name ?? "Student",
-                    AuthorImageBase64 = p.Owner.ProfilePictureBase64,
-                    SourceSubtitle = p.Owner.Major ?? "Student",
-                    Title = title,
-                    Content = FeedMappingHelper.Truncate(p.Abstract, 600),
-                    PostKind = isGraduationProject ? "Graduation project" : FeedMappingHelper.Truncate(required, 90),
+                    AuthorType = FeedAuthorTypes.Doctor,
+                    AuthorId = p.UserId,
+                    AuthorName = p.User?.Name ?? "Doctor",
+                    AuthorImageBase64 = doctor?.ProfilePictureBase64,
+                    SourceSubtitle = subtitle,
+                    Title = string.Empty,
+                    Content = p.Content,
+                    ImageUrl = p.AttachmentType == StudentPostAttachmentType.Image
+                        ? p.AttachmentUrl
+                        : null,
+                    AttachmentUrl = p.AttachmentUrl,
+                    AttachmentType = p.AttachmentType,
+                    PostKind = "Post",
                     PublishedAt = p.CreatedAt,
-                    Metadata = meta,
-                    ActionLabel = isGraduationProject ? "View Project" : "View Team",
-                    ActionPath = isGraduationProject
-                        ? FeedActionRoutes.GraduationProjectWorkspace(p.Id)
-                        : FeedActionRoutes.BrowseProjects(p.Id, "team"),
+                    Metadata = new List<FeedItemMetadataDto>(),
+                    ActionLabel = "View profile",
+                    ActionPath = FeedActionRoutes.DoctorPublicProfile(p.UserId),
                 };
             }).ToList();
         }

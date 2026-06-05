@@ -422,7 +422,16 @@
 }
 
 .doctor-hub .bg-gradient-primary {
-  background: var(--gradient-primary);
+  background-color: hsl(var(--primary));
+  background-image: none;
+  color: hsl(var(--primary-foreground));
+}
+
+.doctor-hub .bg-gradient-primary:hover:not(:disabled) {
+  background-color: hsl(var(--primary-dark));
+  background-image: none;
+  opacity: 1;
+  filter: none;
 }
 
 .doctor-hub .bg-gradient-soft {

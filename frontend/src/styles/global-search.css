@@ -112,27 +112,9 @@
 }
 
 .global-search__result:hover,
-.global-search__result:focus-visible,
-.global-search__result--followable:hover {
+.global-search__result:focus-visible {
   background: hsl(var(--muted) / 0.65);
   outline: none;
-}
-
-.global-search__result--followable {
-  cursor: default;
-}
-
-.global-search__result-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.625rem;
-  margin-left: auto;
-}
-
-.global-search__follow-btn {
-  min-width: 5.25rem;
 }
 
 .global-search__result-avatar {
@@ -194,13 +176,6 @@
   gap: 0.1rem;
 }
 
-.global-search__result-head {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-width: 0;
-}
-
 .global-search__result-title {
   font-size: 0.86rem;
   font-weight: 600;
@@ -209,8 +184,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
 }
 
 .global-search__result-username {
@@ -234,49 +207,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.global-search__follow-btn.global-search__follow-btn--following {
-  color: hsl(var(--foreground));
-}
-
-.global-search__badge {
-  flex-shrink: 0;
-  padding: 0.12rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.global-search__badge--student {
-  background: hsl(262 72% 94%);
-  color: hsl(260 62% 48%);
-}
-
-.global-search__badge--doctor {
-  background: hsl(272 48% 22%);
-  color: hsl(270 40% 96%);
-}
-
-.global-search__badge--company {
-  background: hsl(210 90% 94%);
-  color: hsl(215 78% 40%);
-}
-
-.global-search__badge--association {
-  background: hsl(30 92% 92%);
-  color: hsl(28 90% 40%);
-}
-
-.global-search__badge--project,
-.global-search__badge--project-request,
-.global-search__badge--recruitment,
-.global-search__badge--event,
-.global-search__badge--opportunity {
-  background: hsl(var(--muted));
-  color: hsl(var(--muted-foreground));
 }
 
 .global-search__footer {

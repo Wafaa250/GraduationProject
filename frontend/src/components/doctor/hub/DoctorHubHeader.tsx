@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getDoctorNotificationTarget } from "@/lib/doctorNotificationNavigation";
-import { Menu, User, Settings, LogOut, ChevronDown, MessageCircle } from "lucide-react";
+import { Menu, User, Settings, LogOut, ChevronDown, MessageCircle, Plus } from "lucide-react";
+import { useDoctorShareUpdate } from "@/components/doctor/hub/DoctorShareUpdateContext";
 import { useDoctorHubProfile } from "./DoctorHubProfileContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,8 @@ export function DoctorHubHeader() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const profile = useDoctorHubProfile();
+  const { openShareUpdate } = useDoctorShareUpdate();
+  const isDashboard = pathname === ROUTES.doctorDashboard;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const inbox = useNotificationsInbox({ role: "doctor", showToasts: true, markAllReadOnOpen: true });
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -78,6 +81,24 @@ export function DoctorHubHeader() {
         </button>
 
         <div className="ml-auto flex items-center gap-2 shrink-0">
+          {isDashboard ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-lg"
+              aria-label="Share Update"
+              title="Share Update"
+              onClick={() => {
+                inbox.setOpen(false);
+                setProfileMenuOpen(false);
+                openShareUpdate();
+              }}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+            </Button>
+          ) : null}
+
           <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-lg" asChild>
             <Link
               to={ROUTES.doctorMessages}

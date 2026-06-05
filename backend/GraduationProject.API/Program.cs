@@ -87,6 +87,8 @@ builder.Services.AddHttpClient<IRecruitmentApplicantAnalysisService, OpenAiRecru
 builder.Services.AddScoped<IRecruitmentApplicationWorkflowService, RecruitmentApplicationWorkflowService>();
 builder.Services.AddScoped<IOrganizationMembershipService, OrganizationMembershipService>();
 builder.Services.AddScoped<IFeedService, FeedService>();
+builder.Services.AddScoped<IStudentPostService, StudentPostService>();
+builder.Services.AddScoped<IDoctorPostService, DoctorPostService>();
 builder.Services.AddScoped<IStudentRecommendationService, StudentRecommendationService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddHttpClient<ICompanyAnalysisService, OpenAiCompanyAnalysisService>();

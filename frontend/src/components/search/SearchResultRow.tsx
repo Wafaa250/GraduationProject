@@ -1,6 +1,4 @@
-import { Loader2 } from "lucide-react";
 import { cn } from "@/components/ui/utils";
-import { Button } from "@/components/ui/button";
 import type { FeedSearchResultRow } from "@/api/feedApi";
 import { resolveApiFileUrl } from "@/api/axiosInstance";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
@@ -15,20 +13,13 @@ function hitAvatar(hit: FeedSearchResultRow): string | null {
   return null;
 }
 
-function isFollowable(hit: FeedSearchResultRow): boolean {
-  const type = hit.entityType.toLowerCase();
-  return hit.followable === true && (type === "company" || type === "association");
-}
-
 type Props = {
   hit: FeedSearchResultRow;
   groupKey?: string;
   onSelect: () => void;
-  onFollow?: () => void;
-  followBusy?: boolean;
 };
 
-export function SearchResultRow({ hit, groupKey, onSelect, onFollow, followBusy }: Props) {
+export function SearchResultRow({ hit, groupKey, onSelect }: Props) {
   const src = hitAvatar(hit);
   const meta = getSearchRoleMeta(hit.entityType, groupKey);
   const initials = hit.name
@@ -38,8 +29,6 @@ export function SearchResultRow({ hit, groupKey, onSelect, onFollow, followBusy 
     .map((p) => p[0])
     .join("")
     .toUpperCase();
-  const followable = isFollowable(hit);
-  const following = hit.isFollowing === true;
   const entityKind = hit.entityType.toLowerCase();
   const isCompany = entityKind === "company";
   const rawUsername = hit.username?.trim();
@@ -53,18 +42,17 @@ export function SearchResultRow({ hit, groupKey, onSelect, onFollow, followBusy 
         ? `@${hit.email.split("@")[0]}`
         : null;
 
-  const content = (
-    <>
+  return (
+    <button
+      type="button"
+      className="global-search__result"
+      onClick={() => onSelect()}
+    >
       <span className={cn("global-search__result-avatar", meta.avatarClass)}>
         {src ? <img src={src} alt="" /> : initials}
       </span>
       <span className="global-search__result-text">
-        <span className="global-search__result-head">
-          <span className="global-search__result-title">{hit.name}</span>
-          {!followable ? (
-            <span className={cn("global-search__badge", meta.badgeClass)}>{meta.label}</span>
-          ) : null}
-        </span>
+        <span className="global-search__result-title">{hit.name}</span>
         {usernameLine ? (
           <span
             className={cn(
@@ -80,56 +68,6 @@ export function SearchResultRow({ hit, groupKey, onSelect, onFollow, followBusy 
           <span className="global-search__result-subtitle">{hit.subtitle}</span>
         ) : null}
       </span>
-      {followable ? (
-        <div className="global-search__result-actions">
-          <span className={cn("global-search__badge", meta.badgeClass)}>{meta.label}</span>
-          <Button
-            type="button"
-            size="sm"
-            variant={following ? "secondary" : "outline"}
-            className={cn(
-              "global-search__follow-btn shrink-0",
-              following && "global-search__follow-btn--following",
-            )}
-            disabled={followBusy}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onFollow?.();
-            }}
-          >
-            {followBusy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : following ? (
-              "✓ Following"
-            ) : (
-              "Follow"
-            )}
-          </Button>
-        </div>
-      ) : null}
-    </>
-  );
-
-  if (followable) {
-    return <div className="global-search__result global-search__result--followable">{content}</div>;
-  }
-
-  return (
-    <button
-      type="button"
-      className="global-search__result"
-      onMouseDown={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onSelect();
-      }}
-    >
-      {content}
     </button>
   );
 }

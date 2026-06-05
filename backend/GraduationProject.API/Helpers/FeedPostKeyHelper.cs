@@ -11,6 +11,8 @@ namespace GraduationProject.API.Helpers
         public const string DoctorAnnouncement = "doctor_announcement";
         public const string DoctorProject = "doctor_project";
         public const string StudentCollaboration = "student_collaboration";
+        public const string StudentPost = "student_post";
+        public const string DoctorPost = "doctor_post";
     }
 
     public static class FeedAuthorTypes

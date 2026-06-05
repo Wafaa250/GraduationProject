@@ -49,6 +49,8 @@ namespace GraduationProject.API.Data
         public DbSet<CompanyFollow> CompanyFollows => Set<CompanyFollow>();
         public DbSet<FeedPostEngagement> FeedPostEngagements => Set<FeedPostEngagement>();
         public DbSet<FeedPostComment> FeedPostComments => Set<FeedPostComment>();
+        public DbSet<StudentPost> StudentPosts => Set<StudentPost>();
+        public DbSet<DoctorPost> DoctorPosts => Set<DoctorPost>();
         public DbSet<StudentOrganizationTeamMember> StudentOrganizationTeamMembers => Set<StudentOrganizationTeamMember>();
         public DbSet<StudentOrganizationRecruitmentCampaign> StudentOrganizationRecruitmentCampaigns =>
             Set<StudentOrganizationRecruitmentCampaign>();
@@ -743,6 +745,28 @@ namespace GraduationProject.API.Data
             {
                 e.ToTable("feed_post_comments");
                 e.HasIndex(x => x.PostKey);
+                e.HasOne(x => x.User)
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StudentPost>(e =>
+            {
+                e.ToTable("student_posts");
+                e.HasIndex(x => x.UserId);
+                e.HasIndex(x => x.CreatedAt);
+                e.HasOne(x => x.User)
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<DoctorPost>(e =>
+            {
+                e.ToTable("doctor_posts");
+                e.HasIndex(x => x.UserId);
+                e.HasIndex(x => x.CreatedAt);
                 e.HasOne(x => x.User)
                     .WithMany()
                     .HasForeignKey(x => x.UserId)

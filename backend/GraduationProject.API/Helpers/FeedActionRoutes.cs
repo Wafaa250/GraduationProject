@@ -44,5 +44,19 @@ namespace GraduationProject.API.Helpers
 
         public static string CompanyTalentRequest(int talentRequestId, int companyProfileId) =>
             $"/company/talent-requests/{talentRequestId}?companyId={companyProfileId}";
+
+        /// <summary>Public company profile (CompanyPublicProfilePage).</summary>
+        public static string CompanyPublicProfile(int companyProfileId) =>
+            $"/companies/{companyProfileId}";
+
+        /// <summary>Public student association profile (OrganizationPublicProfilePage).</summary>
+        public static string OrganizationPublicProfile(int organizationProfileId) =>
+            $"/organizations/{organizationProfileId}";
+
+        /// <summary>Public student profile.</summary>
+        public static string StudentPublicProfile(int userId) => $"/students/{userId}";
+
+        /// <summary>Public doctor profile.</summary>
+        public static string DoctorPublicProfile(int userId) => $"/doctors/{userId}";
     }
 }

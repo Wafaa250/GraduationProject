@@ -32,10 +32,10 @@ export const ROUTES = {
   studentDirectoryProfile: (userId: number | string) => `/students/${userId}`,
   /** Public doctor profile (by user id). */
   doctorPublicProfile: (userId: number | string) => `/doctors/${userId}`,
-  /** Public student association profile. */
+  /** Organization profile in visitor/read-only mode (same page as owner). */
   organizationPublicProfile: (organizationId: number | string) =>
     `/organizations/${organizationId}`,
-  /** Public company profile (read-only for visitors). */
+  /** Company profile in visitor/read-only mode (same page as owner). */
   companyPublicProfile: (companyProfileId: number | string) =>
     `/companies/${companyProfileId}`,
   /** Companies and associations the student follows. */

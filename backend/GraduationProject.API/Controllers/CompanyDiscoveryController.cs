@@ -98,6 +98,38 @@ namespace GraduationProject.API.Controllers
             return Ok(items);
         }
 
+        /// <summary>GET /api/companies/{companyProfileId} — public company profile (same fields as workspace profile, read-only).</summary>
+        [HttpGet("{companyProfileId:int}")]
+        public async Task<IActionResult> GetProfileById(int companyProfileId)
+        {
+            var profile = await _db.CompanyProfiles
+                .AsNoTracking()
+                .Include(c => c.User)
+                .FirstOrDefaultAsync(c => c.Id == companyProfileId);
+
+            if (profile == null)
+                return NotFound(new { message = "Company not found." });
+
+            return Ok(new CompanyProfileDto
+            {
+                Id = profile.Id,
+                UserId = profile.UserId,
+                CompanyName = profile.CompanyName,
+                Industry = profile.Industry,
+                Description = profile.Description,
+                Location = profile.Location,
+                HeadquartersLocation = profile.HeadquartersLocation ?? profile.Location,
+                WorkingStyle = profile.WorkingStyle,
+                AreasOfInterest = SkillHelper.ParseStringList(profile.AreasOfInterest),
+                WebsiteUrl = profile.WebsiteUrl,
+                LinkedInUrl = profile.LinkedInUrl,
+                Email = profile.User?.Email ?? string.Empty,
+                ContactEmail = profile.ContactEmail ?? profile.User?.Email,
+                OptionalContactLink = profile.OptionalContactLink,
+                WorkspaceRole = null,
+            });
+        }
+
         /// <summary>GET /api/companies/{companyProfileId}/opportunities/{requestId} — visible company project request for students.</summary>
         [HttpGet("{companyProfileId:int}/opportunities/{requestId:int}")]
         public async Task<IActionResult> GetOpportunity(int companyProfileId, int requestId)

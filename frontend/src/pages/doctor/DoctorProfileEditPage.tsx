@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ROUTES } from "@/routes/paths";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { primaryActionButtonClassName } from "@/lib/primaryButtonClasses";
 
 const ACADEMIC_RANKS = [
   "Lecturer",
@@ -83,7 +84,7 @@ function SaveButton({
         type={type}
         disabled={saving}
         onClick={onClick}
-        className="inline-flex min-w-[8rem] items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-smooth hover:opacity-95 disabled:opacity-60"
+        className={cn(primaryActionButtonClassName, "min-w-[8rem]")}
       >
         {saving ? (
           <>

@@ -472,6 +472,81 @@
   min-width: 0;
 }
 
+.feed-post__header--with-menu {
+  position: relative;
+  padding-right: 2.25rem;
+}
+
+.feed-post__owner-menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.feed-post__owner-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.feed-post__owner-menu-trigger:hover {
+  background: hsl(var(--muted) / 0.55);
+  color: hsl(var(--foreground));
+}
+
+.feed-post__owner-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 30;
+  min-width: 10.5rem;
+  padding: 0.35rem;
+  border-radius: 0.65rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow:
+    0 4px 6px -2px hsl(224 40% 14% / 0.08),
+    0 14px 28px -10px hsl(224 40% 14% / 0.18);
+}
+
+.feed-post__owner-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 0.45rem;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.feed-post__owner-menu-item:hover {
+  background: hsl(var(--muted) / 0.45);
+}
+
+.feed-post__owner-menu-item--danger {
+  color: hsl(0 72% 50%);
+}
+
+.feed-post__owner-menu-item--danger:hover {
+  background: hsl(0 85% 97%);
+  color: hsl(0 72% 42%);
+}
+
 .feed-post__header-meta {
   display: flex;
   flex-direction: column;
@@ -972,6 +1047,301 @@
 
 .feed-comment strong {
   font-weight: 600;
+}
+
+/* ── Student post composer (LinkedIn / Facebook style) ───────────────────── */
+.feed-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: var(--feed-post-padding);
+}
+
+.feed-composer__input {
+  width: 100%;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+}
+
+.feed-composer__input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.feed-composer__preview {
+  position: relative;
+  border-radius: var(--feed-post-inner-radius);
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+}
+
+.feed-composer__preview-img {
+  display: block;
+  width: 100%;
+  max-height: 16rem;
+  object-fit: cover;
+}
+
+.feed-composer__preview-remove {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.375rem;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(0 0% 100%);
+  background: hsl(0 0% 0% / 0.55);
+  cursor: pointer;
+}
+
+.feed-composer__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid hsl(var(--border) / 0.7);
+}
+
+.feed-composer__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.feed-composer__tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.feed-composer__tool-btn:hover:not(:disabled) {
+  background: hsl(var(--muted) / 0.5);
+  color: hsl(var(--foreground));
+}
+
+.feed-composer__tool-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.feed-composer__emoji-wrap {
+  position: relative;
+}
+
+.feed-composer__tool-btn--active {
+  background: hsl(var(--muted) / 0.55);
+  color: hsl(var(--foreground));
+}
+
+.feed-composer__emoji-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.5rem);
+  z-index: 40;
+  width: min(20rem, calc(100vw - 2rem));
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow:
+    0 4px 6px -2px hsl(224 40% 14% / 0.08),
+    0 16px 32px -12px hsl(224 40% 14% / 0.18);
+  overflow: hidden;
+}
+
+.feed-composer__file-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--feed-post-inner-radius);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.25);
+}
+
+.feed-composer__file-preview-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  color: hsl(var(--primary));
+}
+
+.feed-composer__file-preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.feed-composer__file-preview-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-composer__file-preview-hint {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.feed-composer__file-preview-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.feed-composer__file-preview-remove:hover:not(:disabled) {
+  background: hsl(var(--muted) / 0.55);
+  color: hsl(var(--foreground));
+}
+
+.feed-composer__preview-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.feed-composer__submit {
+  flex-shrink: 0;
+  min-width: 4.5rem;
+}
+
+/* ── Student social posts — content-first, no CTA footer ───────────────── */
+.feed-post--social {
+  border-left-width: 3px;
+}
+
+.feed-post__author--link {
+  text-decoration: none;
+  color: hsl(222 47% 11%);
+  transition: color 0.15s ease;
+}
+
+.feed-post__author--link:hover {
+  color: var(--role-student-fg);
+  text-decoration: underline;
+}
+
+.feed-post__subtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: hsl(220 9% 46%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.feed-post__description--social {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  -webkit-line-clamp: unset;
+  display: block;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+
+.feed-post__file-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 0.375rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--feed-post-inner-radius);
+  border: 1px solid hsl(220 13% 91%);
+  background: hsl(220 14% 97%);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.feed-post__file-card:hover {
+  border-color: hsl(262 45% 72%);
+  background: hsl(270 60% 98%);
+  box-shadow: 0 4px 14px -10px hsl(262 45% 48% / 0.25);
+}
+
+.feed-post__file-card-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  color: var(--role-student-fg);
+}
+
+.feed-post__file-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.feed-post__file-card-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: hsl(222 47% 11%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-post__file-card-action {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--role-student-fg);
+}
+
+.dark .feed-post__file-card {
+  background: hsl(220 20% 15%);
+  border-color: hsl(0 0% 22%);
+}
+
+.dark .feed-post__file-card:hover {
+  background: hsl(270 30% 18%);
+  border-color: hsl(270 40% 36%);
+}
+
+.dark .feed-post__file-card-name {
+  color: hsl(210 20% 98%);
+}
+
+.dark .feed-post__author--link {
+  color: hsl(210 20% 98%);
+}
+
+.dark .feed-post__author--link:hover {
+  color: #c4b5fd;
 }
 
 /* ── Unified Recommended For You (Communication Hub sidebar) ───────────── */

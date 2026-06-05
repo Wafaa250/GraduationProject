@@ -49,6 +49,10 @@ export function resolveFeedPostActionUrl(item: FeedItem): string {
         return `${ASSOCIATION_ROUTES.recruitmentDetail(item.recruitmentCampaignId)}?orgId=${orgId}`;
       }
       return ASSOCIATION_ROUTES.recruitment;
+    case FEED_SOURCE_TYPES.studentPost:
+      return ROUTES.studentDirectoryProfile(item.authorUserId ?? 0);
+    case FEED_SOURCE_TYPES.doctorPost:
+      return ROUTES.doctorPublicProfile(item.authorUserId ?? 0);
     case FEED_SOURCE_TYPES.associationRecruitmentPosition:
       if (item.recruitmentCampaignId && orgId) {
         const base = `${ASSOCIATION_ROUTES.recruitmentDetail(item.recruitmentCampaignId)}?orgId=${orgId}`;

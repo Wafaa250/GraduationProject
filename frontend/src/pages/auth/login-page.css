@@ -17,7 +17,15 @@
 }
 
 .login-page .bg-gradient-brand {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 52%, #a855f7 100%);
+  background-color: var(--primary);
+  background-image: none;
+  color: var(--primary-foreground);
+}
+
+.login-page .bg-gradient-brand:hover:not(:disabled) {
+  background-color: #6d28d9;
+  background-image: none;
+  opacity: 1;
 }
 
 .login-page .bg-gradient-mesh {

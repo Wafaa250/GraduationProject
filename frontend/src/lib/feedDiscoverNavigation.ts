@@ -6,9 +6,9 @@ export function searchResultProfilePath(hit: FeedSearchResultRow): string {
   const type = hit.entityType.toLowerCase();
   switch (type) {
     case "student":
-      return ROUTES.studentDirectoryProfile(hit.entityId);
+      return ROUTES.studentDirectoryProfile(hit.userId ?? hit.entityId);
     case "doctor":
-      return ROUTES.doctorPublicProfile(hit.entityId);
+      return ROUTES.doctorPublicProfile(hit.userId ?? hit.entityId);
     case "company":
       return hit.entityId > 0 ? ROUTES.companyPublicProfile(hit.entityId) : ROUTES.communicationHub;
     case "association":

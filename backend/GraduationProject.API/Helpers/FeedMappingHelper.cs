@@ -26,6 +26,9 @@ namespace GraduationProject.API.Helpers
                 Description = post.Content,
                 RelatedEntityType = post.SourceType,
                 RelatedEntityId = post.EntityId,
+                AuthorUserId = post.AuthorType is FeedAuthorTypes.Student or FeedAuthorTypes.Doctor
+                    ? post.AuthorId
+                    : null,
                 FollowEntityId = post.AuthorType is FeedAuthorTypes.Company or FeedAuthorTypes.Association
                     ? post.AuthorId
                     : 0,
@@ -39,6 +42,8 @@ namespace GraduationProject.API.Helpers
                 ActionText = post.ActionLabel,
                 ActionUrl = post.ActionPath,
                 ImageUrl = post.ImageUrl,
+                AttachmentUrl = post.AttachmentUrl,
+                AttachmentType = post.AttachmentType,
                 Metadata = post.Metadata ?? new List<FeedItemMetadataDto>(),
             };
         }

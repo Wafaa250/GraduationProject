@@ -295,18 +295,53 @@ namespace GraduationProject.API.Services
                 case "company":
                     item.CanMessage = false;
                     item.CanFollow = item.EntityId > 0;
-                    item.ProfileUrl = item.EntityId > 0 ? "/browse-projects" : null;
+                    item.ProfileUrl = item.EntityId > 0
+                        ? FeedActionRoutes.CompanyPublicProfile(item.EntityId)
+                        : null;
                     break;
                 case "association":
                     item.CanMessage = false;
                     item.CanFollow = item.EntityId > 0;
-                    item.ProfileUrl = item.EntityId > 0 ? $"/organizations/{item.EntityId}" : null;
+                    item.ProfileUrl = item.EntityId > 0
+                        ? FeedActionRoutes.OrganizationPublicProfile(item.EntityId)
+                        : null;
                     break;
                 default:
                     item.CanMessage = false;
                     item.CanFollow = false;
+                    item.ProfileUrl = null;
                     break;
             }
+        }
+
+        private static bool IsDiscoverableRecommendedItem(
+            FeedRecommendedItemDto item,
+            IReadOnlySet<int> excludedUserIds)
+        {
+            if (item.Type is not ("student" or "doctor" or "company" or "association"))
+                return false;
+
+            if (item.UserId is > 0 && excludedUserIds.Contains(item.UserId.Value))
+                return false;
+
+            if (string.Equals(item.Subtitle?.Trim(), "Company account", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return item.Type switch
+            {
+                "student" or "doctor" => item.UserId is > 0,
+                "company" or "association" => item.EntityId > 0,
+                _ => false,
+            };
+        }
+
+        private static List<FeedRecommendedItemDto> FilterDiscoverableRecommendedItems(
+            IEnumerable<FeedRecommendedItemDto> items,
+            IReadOnlySet<int> excludedUserIds)
+        {
+            return items
+                .Where(item => IsDiscoverableRecommendedItem(item, excludedUserIds))
+                .ToList();
         }
 
         /// <summary>Mixed roles, highest AI match score first.</summary>
@@ -328,10 +363,16 @@ namespace GraduationProject.API.Services
 
             var viewerCtx = await BuildMatchContextAsync(viewer);
 
+            var excludedUserIds = await LoadExcludedRecommendationUserIdsAsync();
+
             var candidates = await _db.StudentProfiles
                 .AsNoTracking()
                 .Include(s => s.User)
-                .Where(s => s.UserId != viewer.UserId)
+                .Where(s =>
+                    s.UserId != viewer.UserId
+                    && s.User != null
+                    && s.User.Role == UserRoles.Student
+                    && !excludedUserIds.Contains(s.UserId))
                 .OrderByDescending(s => s.Id)
                 .Take(CandidatePool)
                 .ToListAsync();
@@ -395,9 +436,15 @@ namespace GraduationProject.API.Services
 
             var viewerCtx = await BuildMatchContextAsync(viewer);
 
+            var excludedUserIds = await LoadExcludedRecommendationUserIdsAsync();
+
             var candidates = await _db.DoctorProfiles
                 .AsNoTracking()
                 .Include(d => d.User)
+                .Where(d =>
+                    d.User != null
+                    && d.User.Role == UserRoles.Doctor
+                    && !excludedUserIds.Contains(d.UserId))
                 .OrderByDescending(d => d.Id)
                 .Take(CandidatePool)
                 .ToListAsync();
@@ -431,6 +478,8 @@ namespace GraduationProject.API.Services
             var following = await LoadFollowingCompanyIdsAsync(studentProfileId);
 
             var companies = await _db.CompanyProfiles.AsNoTracking()
+                .Include(c => c.User)
+                .Where(c => c.User != null && c.User.Role == UserRoles.Company)
                 .OrderByDescending(c => c.Id)
                 .Take(CandidatePool)
                 .ToListAsync();
@@ -470,6 +519,10 @@ namespace GraduationProject.API.Services
             var following = await LoadFollowingOrganizationIdsAsync(studentProfileId);
 
             var orgs = await _db.StudentAssociationProfiles.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a =>
+                    a.User != null
+                    && (a.User.Role == UserRoles.StudentAssociation || a.User.Role == UserRoles.Association))
                 .OrderByDescending(a => a.Id)
                 .Take(CandidatePool)
                 .ToListAsync();
@@ -515,6 +568,7 @@ namespace GraduationProject.API.Services
 
             var followingCompanyIds = await LoadFollowingCompanyIdsAsync(student.Id);
             var followingOrgIds = await LoadFollowingOrganizationIdsAsync(student.Id);
+            var excludedUserIds = await LoadExcludedRecommendationUserIdsAsync();
 
             var students = await GetSuggestedStudentsAsync(student.Id);
             var doctors = await GetSuggestedDoctorsAsync(student.Id);
@@ -603,6 +657,8 @@ namespace GraduationProject.API.Services
             foreach (var item in window)
                 ApplyRecommendedItemMetadata(item);
 
+            window = FilterDiscoverableRecommendedItems(window, excludedUserIds);
+
             var returnedTypes = string.Join(", ", window.GroupBy(w => w.Type).Select(g => $"{g.Key}:{g.Count()}"));
 
             _logger.LogInformation(
@@ -645,6 +701,8 @@ namespace GraduationProject.API.Services
             const int minDisplayScore = 40;
 
             var companies = await _db.CompanyProfiles.AsNoTracking()
+                .Include(c => c.User)
+                .Where(c => c.User != null && c.User.Role == UserRoles.Company)
                 .OrderByDescending(c => c.Id)
                 .Take(CandidatePool)
                 .ToListAsync();
@@ -679,6 +737,10 @@ namespace GraduationProject.API.Services
             const int minDisplayScore = 40;
 
             var orgs = await _db.StudentAssociationProfiles.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a =>
+                    a.User != null
+                    && (a.User.Role == UserRoles.StudentAssociation || a.User.Role == UserRoles.Association))
                 .OrderByDescending(a => a.Id)
                 .Take(CandidatePool)
                 .ToListAsync();
@@ -1022,6 +1084,24 @@ namespace GraduationProject.API.Services
                 .Select(f => f.OrganizationProfileId)
                 .ToListAsync();
             return ids.ToHashSet();
+        }
+
+        /// <summary>CompanyMember and other internal accounts must never surface in recommendations.</summary>
+        private async Task<HashSet<int>> LoadExcludedRecommendationUserIdsAsync()
+        {
+            var excluded = await _db.Users.AsNoTracking()
+                .Where(u => u.Role == UserRoles.CompanyMember || u.Role == UserRoles.Admin)
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            var companyMemberIds = await _db.CompanyMembers.AsNoTracking()
+                .Select(m => m.UserId)
+                .ToListAsync();
+
+            foreach (var id in companyMemberIds)
+                excluded.Add(id);
+
+            return excluded.ToHashSet();
         }
 
         private static string? FormatCompanyCategory(CompanyProfile company)

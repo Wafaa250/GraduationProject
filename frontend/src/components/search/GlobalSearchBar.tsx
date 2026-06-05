@@ -3,16 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Building2, Loader2, Search, Stethoscope, UserRound, Users } from "lucide-react";
 import { cn } from "@/components/ui/utils";
 import {
-  followCompany,
-  followOrganization,
   searchCommunicationHub,
-  unfollowCompany,
-  unfollowOrganization,
   type CommunicationHubSearchResults,
   type FeedSearchResultRow,
 } from "@/api/feedApi";
-import { parseApiErrorMessage } from "@/api/axiosInstance";
-import { toast } from "@/hooks/use-toast";
 import { SearchResultRow } from "@/components/search/SearchResultRow";
 import { searchResultProfilePath } from "@/lib/feedDiscoverNavigation";
 import "@/styles/global-search.css";
@@ -53,7 +47,6 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<CommunicationHubSearchResults | null>(null);
-  const [followBusyId, setFollowBusyId] = useState<string | null>(null);
   const searchGenerationRef = useRef(0);
 
   const debounced = useDebouncedValue(value, DEBOUNCE_MS);
@@ -117,56 +110,11 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
   const showEmptyState = hasQuery && !loading && results !== null && totalHits === 0;
 
   const handleSelect = (hit: FeedSearchResultRow) => {
-    const type = hit.entityType.toLowerCase();
-    if (hit.followable && (type === "company" || type === "association")) return;
-
     const path = searchResultProfilePath(hit);
     setOpen(false);
     setValue("");
     setResults(null);
     navigate(path);
-  };
-
-  const updateFollowState = (
-    bucket: "companies" | "associations",
-    entityId: number,
-    isFollowing: boolean,
-  ) => {
-    setResults((prev) => {
-      if (!prev) return prev;
-      const list = prev[bucket].map((row) =>
-        row.entityId === entityId ? { ...row, isFollowing } : row,
-      );
-      return { ...prev, [bucket]: list };
-    });
-  };
-
-  const handleFollow = async (hit: FeedSearchResultRow) => {
-    const type = hit.entityType.toLowerCase();
-    const busyKey = `${type}-${hit.entityId}`;
-    const following = hit.isFollowing === true;
-    setFollowBusyId(busyKey);
-    try {
-      if (type === "company") {
-        if (following) await unfollowCompany(hit.entityId);
-        else await followCompany(hit.entityId);
-        updateFollowState("companies", hit.entityId, !following);
-        toast({ title: following ? "Unfollowed company" : "Now following company" });
-      } else if (type === "association") {
-        if (following) await unfollowOrganization(hit.entityId);
-        else await followOrganization(hit.entityId);
-        updateFollowState("associations", hit.entityId, !following);
-        toast({ title: following ? "Unfollowed association" : "Now following association" });
-      }
-    } catch (err) {
-      toast({
-        title: "Could not update follow",
-        description: parseApiErrorMessage(err),
-        variant: "destructive",
-      });
-    } finally {
-      setFollowBusyId(null);
-    }
   };
 
   return (
@@ -223,19 +171,14 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
                     <Icon className="h-3.5 w-3.5" aria-hidden />
                     {group.label} ({hits.length})
                   </h3>
-                  {hits.map((hit) => {
-                    const busyKey = `${hit.entityType}-${hit.entityId}-${hit.userId ?? 0}`;
-                    return (
-                      <SearchResultRow
-                        key={`${group.key}-${hit.entityType}-${hit.entityId}-${hit.userId ?? 0}`}
-                        hit={hit}
-                        groupKey={group.key}
-                        onSelect={() => handleSelect(hit)}
-                        onFollow={() => void handleFollow(hit)}
-                        followBusy={followBusyId === busyKey}
-                      />
-                    );
-                  })}
+                  {hits.map((hit) => (
+                    <SearchResultRow
+                      key={`${group.key}-${hit.entityType}-${hit.entityId}-${hit.userId ?? 0}`}
+                      hit={hit}
+                      groupKey={group.key}
+                      onSelect={() => handleSelect(hit)}
+                    />
+                  ))}
                 </section>
               );
             })

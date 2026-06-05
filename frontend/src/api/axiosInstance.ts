@@ -63,6 +63,7 @@ export function parseApiErrorMessage(err: unknown): string {
     if (status === 401) return "Session expired. Please sign in again.";
     if (status === 403) return "You do not have permission to access this resource.";
     if (status === 404) return "Resource not found.";
+    if (status === 405) return "This action is not supported by the server. Restart the API to load the latest endpoints.";
     if (!err.response) {
       return "Cannot reach the server. Check that the API is running and the URL is correct.";
     }

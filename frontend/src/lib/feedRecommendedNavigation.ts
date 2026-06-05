@@ -2,9 +2,6 @@ import type { FeedRecommendedItem } from "@/api/feedApi";
 import { ROUTES } from "@/routes/paths";
 
 export function feedRecommendedProfilePath(item: FeedRecommendedItem): string {
-  const fromApi = item.profileUrl?.trim();
-  if (fromApi) return fromApi;
-
   switch (item.type) {
     case "student":
       return ROUTES.studentDirectoryProfile(item.userId ?? item.entityId);
@@ -55,4 +52,12 @@ export function feedRecommendedShowsViewProfile(item: FeedRecommendedItem): bool
 
 export function feedRecommendedShowsFollow(type: FeedRecommendedItem["type"]): boolean {
   return type === "company" || type === "association";
+}
+
+export function feedRecommendedShowsMessage(item: FeedRecommendedItem): boolean {
+  return (
+    (item.type === "student" || item.type === "doctor") &&
+    item.canMessage &&
+    (item.userId ?? 0) > 0
+  );
 }

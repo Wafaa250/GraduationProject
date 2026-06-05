@@ -28,6 +28,7 @@ import { useTheme } from "@/context/ThemeContext";
 import type { ThemePreference } from "@/lib/theme";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
 import { cn } from "@/lib/utils";
+import { primaryActionButtonClassName } from "@/lib/primaryButtonClasses";
 
 const DEFAULT_NOTIFICATIONS: DoctorNotificationPreferences = {
   newMessages: true,
@@ -144,7 +145,7 @@ function SaveButton({
         type="button"
         disabled={saving}
         onClick={onClick}
-        className="inline-flex min-w-[8rem] items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-smooth hover:opacity-95 disabled:opacity-60"
+        className={cn(primaryActionButtonClassName, "min-w-[8rem]")}
       >
         {saving ? (
           <>

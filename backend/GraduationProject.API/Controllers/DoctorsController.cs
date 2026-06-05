@@ -99,10 +99,27 @@ namespace GraduationProject.API.Controllers
             List<string> technicalSkills = DeserializeStringList(doctor.TechnicalSkills);
             List<string> researchSkills = DeserializeStringList(doctor.ResearchSkills);
 
+            var activeProjectsCount = await _db.StudentProjects
+                .CountAsync(p => p.SupervisorId == doctor.Id);
+
+            var supervisedStudentsCount = await _db.StudentProjects
+                .AsNoTracking()
+                .Where(p => p.SupervisorId == doctor.Id)
+                .Select(p => p.OwnerId)
+                .Distinct()
+                .CountAsync();
+
+            var completedProjectsCount = await _db.SupervisorCancellationRequests
+                .AsNoTracking()
+                .CountAsync(r => r.DoctorId == doctor.Id && r.Status == "accepted");
+
             return Ok(new
             {
                 userId = doctor.UserId,
                 profileId = doctor.Id,
+                supervisedStudentsCount,
+                activeProjectsCount,
+                completedProjectsCount,
                 user = new
                 {
                     userId = doctor.User.Id,

@@ -29,6 +29,7 @@ import {
   feedRecommendedProfilePath,
   feedRecommendedRoleBadgeLabel,
   feedRecommendedShowsFollow,
+  feedRecommendedShowsMessage,
   feedRecommendedShowsViewProfile,
 } from "@/lib/feedRecommendedNavigation";
 
@@ -282,8 +283,8 @@ export function FeedRightSidebar({ search }: Props) {
               const matchLabel = item.matchScore > 0 ? `${item.matchScore}% Match` : null;
               const followHint = recommendedFollowHint(item.type);
               const subtitle = item.subtitle?.trim();
-              const showMessage = item.canMessage && (item.userId ?? 0) > 0;
               const showViewProfile = feedRecommendedShowsViewProfile(item);
+              const showMessage = feedRecommendedShowsMessage(item);
               const showFollow =
                 feedRecommendedShowsFollow(item.type) && item.canFollow && item.entityId > 0;
 

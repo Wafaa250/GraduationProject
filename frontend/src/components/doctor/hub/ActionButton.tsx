@@ -13,7 +13,7 @@ export function ActionButton({
     "inline-flex items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold px-3.5 py-2 transition-smooth focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50";
   const variants: Record<Variant, string> = {
     primary:
-      "bg-gradient-primary text-primary-foreground shadow-glow hover:brightness-110 active:brightness-95",
+      "ss-brand-cta shadow-sm hover:shadow-sm active:shadow-sm",
     ghost: "text-foreground/70 hover:text-foreground hover:bg-muted",
     outline:
       "border border-border bg-card text-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5",

@@ -6,12 +6,15 @@ import { Loader2 } from "lucide-react";
 
 import { getCommunicationFeed, type FeedResponse } from "@/api/feedApi";
 
+import type { DoctorPost } from "@/api/doctorPostsApi";
+import type { StudentPost } from "@/api/studentPostsApi";
 import type { FeedItem } from "@/lib/feedTypes";
+import { doctorPostToFeedItem, studentPostToFeedItem } from "@/lib/studentPostFeed";
+import { FEED_SOURCE_TYPES } from "@/lib/feedTypes";
 
 import { FeedRightSidebar } from "@/components/communication/FeedRightSidebar";
-
+import { FeedStudentPostComposer } from "@/components/communication/FeedStudentPostComposer";
 import { FeedPostCard } from "@/components/communication/FeedPostCard";
-
 import { FeedEmptyState } from "@/components/communication/FeedEmptyState";
 
 
@@ -65,8 +68,43 @@ export default function CommunicationHubPage() {
 
 
   const orderedItems = useMemo((): FeedItem[] => feed?.items ?? [], [feed?.items]);
+  const isStudent = (localStorage.getItem("role") ?? "").toLowerCase() === "student";
 
+  const handleSocialPostUpdated = useCallback((post: StudentPost | DoctorPost) => {
+    setFeed((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((entry) => {
+          if (entry.relatedEntityId !== post.id) return entry;
+          if (entry.relatedEntityType === FEED_SOURCE_TYPES.doctorPost) {
+            return doctorPostToFeedItem(post as DoctorPost, entry);
+          }
+          if (entry.relatedEntityType === FEED_SOURCE_TYPES.studentPost) {
+            return studentPostToFeedItem(post as StudentPost, entry);
+          }
+          return entry;
+        }),
+      };
+    });
+  }, []);
 
+  const handleSocialPostDeleted = useCallback((postId: number) => {
+    setFeed((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.filter(
+          (entry) =>
+            !(
+              (entry.relatedEntityType === FEED_SOURCE_TYPES.studentPost ||
+                entry.relatedEntityType === FEED_SOURCE_TYPES.doctorPost) &&
+              entry.relatedEntityId === postId
+            ),
+        ),
+      };
+    });
+  }, []);
 
   return (
 
@@ -86,6 +124,7 @@ export default function CommunicationHubPage() {
           <main className="communication-hub__main">
 
             <div className="communication-hub__feed-stack">
+              {isStudent ? <FeedStudentPostComposer onPosted={() => void loadFeed()} /> : null}
 
               {loading ? (
 
@@ -113,13 +152,20 @@ export default function CommunicationHubPage() {
 
                   title="No activity available yet."
 
-                  description="New opportunities, events, projects, and collaboration requests will appear here."
+                  description="Posts from students and faculty, plus association events and recruitment updates will appear here."
 
                 />
 
               ) : (
 
-                orderedItems.map((item) => <FeedPostCard key={item.id} item={item} />)
+                orderedItems.map((item) => (
+                  <FeedPostCard
+                    key={item.id}
+                    item={item}
+                    onSocialPostUpdated={handleSocialPostUpdated}
+                    onSocialPostDeleted={handleSocialPostDeleted}
+                  />
+                ))
 
               )}
 

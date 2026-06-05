@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Building2,
+  FileText,
   GraduationCap,
   Sparkles,
   UserPlus,
@@ -25,7 +26,16 @@ import {
   feedPostRoleLabel,
   feedPostSupportsFollow,
   formatFeedPublished,
+  isSocialFeedPost,
 } from "@/lib/feedPostDisplay";
+import { FeedSocialPostOwnerMenu } from "@/components/communication/FeedSocialPostOwnerMenu";
+import {
+  isOwnDoctorPost,
+  isOwnStudentPost,
+  socialPostAuthorProfileUrl,
+} from "@/lib/studentPostFeed";
+import type { DoctorPost } from "@/api/doctorPostsApi";
+import type { StudentPost } from "@/api/studentPostsApi";
 import type { FeedItem, FeedPublisherType } from "@/lib/feedTypes";
 
 const ROLE_ICONS: Record<FeedPublisherType, LucideIcon> = {
@@ -55,18 +65,42 @@ function avatarForItem(item: FeedItem): { src?: string; initials: string } {
   return { initials };
 }
 
+function attachmentFileName(url: string): string {
+  try {
+    const parts = url.split("/").filter(Boolean);
+    const raw = parts[parts.length - 1] ?? "Attachment";
+    return decodeURIComponent(raw.split("?")[0] ?? raw);
+  } catch {
+    return "Attachment";
+  }
+}
+
 type Props = {
   item: FeedItem;
+  onSocialPostUpdated?: (post: StudentPost | DoctorPost) => void;
+  onSocialPostDeleted?: (postId: number) => void;
 };
 
-export function FeedPostCard({ item }: Props) {
+export function FeedPostCard({ item, onSocialPostUpdated, onSocialPostDeleted }: Props) {
   const avatar = avatarForItem(item);
   const RoleIcon = ROLE_ICONS[item.sourceType] ?? Sparkles;
   const published = formatFeedPublished(item.createdAt);
   const tags = extractFeedPostTags(item);
   const actionLabel = feedPostActionLabel(item);
   const actionUrl = resolveFeedPostActionUrl(item);
-  const imageSrc = item.imageUrl ? resolveApiFileUrl(item.imageUrl) ?? item.imageUrl : null;
+  const socialPost = isSocialFeedPost(item);
+  const isFileAttachment = socialPost && item.attachmentType === "File";
+  const attachmentUrl = item.attachmentUrl ?? item.imageUrl ?? null;
+  const imageSrc =
+    !isFileAttachment && attachmentUrl
+      ? resolveApiFileUrl(attachmentUrl) ?? attachmentUrl
+      : !socialPost && item.imageUrl
+        ? resolveApiFileUrl(item.imageUrl) ?? item.imageUrl
+        : null;
+  const fileSrc =
+    isFileAttachment && attachmentUrl
+      ? resolveApiFileUrl(attachmentUrl) ?? attachmentUrl
+      : null;
   const canFollow = feedPostSupportsFollow(item);
   const followEntityId = item.followEntityId ?? 0;
 
@@ -124,37 +158,85 @@ export function FeedPostCard({ item }: Props) {
   };
 
   const actionClass = `feed-post__action feed-post__action--${item.sourceType}`;
+  const authorProfileUrl = socialPost ? socialPostAuthorProfileUrl(item) : actionUrl;
+  const ownsPost =
+    socialPost && (isOwnStudentPost(item) || isOwnDoctorPost(item));
+  const showOwnerMenu = ownsPost && onSocialPostUpdated && onSocialPostDeleted;
 
   return (
-    <article className={`feed-post feed-post--${item.sourceType}`}>
-      <header className="feed-post__header">
-        <div className={`feed-post__avatar feed-post__avatar--${item.sourceType}`}>
-          {avatar.src ? (
-            <img src={avatar.src} alt="" className="feed-post__avatar-img" />
-          ) : (
-            <span className="feed-post__avatar-initials">{avatar.initials}</span>
-          )}
-        </div>
+    <article
+      className={`feed-post feed-post--${item.sourceType}${socialPost ? " feed-post--social" : ""}`}
+    >
+      <header
+        className={`feed-post__header${showOwnerMenu ? " feed-post__header--with-menu" : ""}`}
+      >
+        {socialPost ? (
+          <Link
+            to={authorProfileUrl}
+            className={`feed-post__avatar feed-post__avatar--${item.sourceType}`}
+            aria-label={`View ${item.sourceName}'s profile`}
+          >
+            {avatar.src ? (
+              <img src={avatar.src} alt="" className="feed-post__avatar-img" />
+            ) : (
+              <span className="feed-post__avatar-initials">{avatar.initials}</span>
+            )}
+          </Link>
+        ) : (
+          <div className={`feed-post__avatar feed-post__avatar--${item.sourceType}`}>
+            {avatar.src ? (
+              <img src={avatar.src} alt="" className="feed-post__avatar-img" />
+            ) : (
+              <span className="feed-post__avatar-initials">{avatar.initials}</span>
+            )}
+          </div>
+        )}
 
         <div className="feed-post__header-meta">
-          <p className="feed-post__author">{item.sourceName}</p>
-          <p className={`feed-post__role-line feed-post__role-line--${item.sourceType}`}>
-            <RoleIcon className="feed-post__role-icon" aria-hidden />
-            <span>{feedPostRoleLabel(item.sourceType)}</span>
-          </p>
+          {socialPost ? (
+            <Link to={authorProfileUrl} className="feed-post__author feed-post__author--link">
+              {item.sourceName}
+            </Link>
+          ) : (
+            <p className="feed-post__author">{item.sourceName}</p>
+          )}
+          {!socialPost ? (
+            <p className={`feed-post__role-line feed-post__role-line--${item.sourceType}`}>
+              <RoleIcon className="feed-post__role-icon" aria-hidden />
+              <span>{feedPostRoleLabel(item.sourceType)}</span>
+            </p>
+          ) : item.sourceSubtitle ? (
+            <p className="feed-post__subtitle">{item.sourceSubtitle}</p>
+          ) : null}
           {published ? (
             <time className="feed-post__date" dateTime={item.createdAt}>
               {published}
             </time>
           ) : null}
         </div>
+
+        {showOwnerMenu ? (
+          <FeedSocialPostOwnerMenu
+            item={item}
+            onUpdated={onSocialPostUpdated}
+            onDeleted={onSocialPostDeleted}
+          />
+        ) : null}
       </header>
 
       <div className="feed-post__body">
-        <h3 className="feed-post__title">{item.title}</h3>
-        {item.description ? <p className="feed-post__description">{item.description}</p> : null}
+        {!socialPost && item.title ? <h3 className="feed-post__title">{item.title}</h3> : null}
+        {item.description ? (
+          <p
+            className={
+              socialPost ? "feed-post__description feed-post__description--social" : "feed-post__description"
+            }
+          >
+            {item.description}
+          </p>
+        ) : null}
 
-        {tags.length > 0 ? (
+        {!socialPost && tags.length > 0 ? (
           <div className="feed-post__tags" aria-label="Tags">
             {tags.map((tag) => (
               <span key={`${item.id}-${tag}`} className="feed-post__tag">
@@ -167,8 +249,25 @@ export function FeedPostCard({ item }: Props) {
         {imageSrc ? (
           <img src={imageSrc} alt="" className="feed-post__image" loading="lazy" />
         ) : null}
+
+        {fileSrc ? (
+          <a
+            href={fileSrc}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="feed-post__file-card"
+            download
+          >
+            <FileText className="feed-post__file-card-icon" aria-hidden />
+            <span className="feed-post__file-card-body">
+              <span className="feed-post__file-card-name">{attachmentFileName(fileSrc)}</span>
+              <span className="feed-post__file-card-action">Download file</span>
+            </span>
+          </a>
+        ) : null}
       </div>
 
+      {!socialPost ? (
       <footer className="feed-post__footer">
         <div className="feed-post__footer-actions">
           <Link to={actionUrl} className={actionClass}>
@@ -190,6 +289,7 @@ export function FeedPostCard({ item }: Props) {
           ) : null}
         </div>
       </footer>
+      ) : null}
     </article>
   );
 }
