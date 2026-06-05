@@ -1,0 +1,283 @@
+/* Student public company profile — Communication Hub context */
+
+.company-public-profile {
+  width: 100%;
+  max-width: 68rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.company-public-profile__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.company-public-profile__back:hover {
+  opacity: 0.8;
+}
+
+.company-public-profile__card {
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  padding: 1.375rem 1.5rem;
+  box-shadow:
+    0 1px 2px hsl(224 40% 14% / 0.04),
+    0 8px 24px -8px hsl(224 40% 14% / 0.08);
+}
+
+.company-public-profile__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.company-public-profile__identity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.company-public-profile__avatar {
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 1rem;
+  border: 2px solid hsl(var(--primary) / 0.16);
+  background: linear-gradient(145deg, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.05));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.company-public-profile__name {
+  margin: 0;
+  font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: hsl(var(--foreground));
+}
+
+.company-public-profile__badge {
+  display: inline-flex;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary) / 0.18);
+}
+
+.company-public-profile__follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.company-public-profile__follow:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.35);
+  background: hsl(var(--primary) / 0.05);
+  color: hsl(var(--primary));
+}
+
+.company-public-profile__follow--active {
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.28);
+  color: hsl(var(--primary));
+}
+
+.company-public-profile__follow:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.company-public-profile__section-title {
+  margin: 0 0 0.875rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.company-public-profile__about {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: hsl(var(--foreground));
+  white-space: pre-wrap;
+}
+
+.company-public-profile__about--empty {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.company-public-profile__info-grid {
+  display: grid;
+  gap: 0.625rem;
+}
+
+@media (min-width: 640px) {
+  .company-public-profile__info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.company-public-profile__info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(220 30% 99%);
+  min-width: 0;
+}
+
+.company-public-profile__info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.company-public-profile__info-label {
+  margin: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.company-public-profile__info-value {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  word-break: break-word;
+}
+
+.company-public-profile__info-link {
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+
+.company-public-profile__info-link:hover {
+  text-decoration: underline;
+}
+
+.company-public-profile__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.company-public-profile__tag {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary) / 0.12);
+}
+
+.company-public-profile__opportunities {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.company-public-profile__opportunity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.875rem;
+  padding: 1rem 1.125rem;
+  border-radius: 0.875rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(220 30% 99%);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.company-public-profile__opportunity:hover {
+  border-color: hsl(var(--primary) / 0.22);
+  box-shadow: 0 4px 14px -6px hsl(var(--primary) / 0.12);
+}
+
+.company-public-profile__opportunity-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.company-public-profile__opportunity-meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.company-public-profile__opportunity-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+  border: 1px solid hsl(var(--primary) / 0.16);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.company-public-profile__opportunity-cta:hover {
+  background: hsl(var(--primary) / 0.14);
+}
+
+.company-public-profile__empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}

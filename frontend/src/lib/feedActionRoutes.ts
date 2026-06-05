@@ -31,9 +31,9 @@ export function resolveFeedPostActionUrl(item: FeedItem): string {
       return ROUTES.studentCourses;
     case FEED_SOURCE_TYPES.companyOpportunity:
       if (item.companyRequestId && companyId) {
-        return `${COMPANY_ROUTES.requestDetail(item.companyRequestId)}?companyId=${companyId}`;
+        return ROUTES.companyOpportunityDetail(companyId, item.companyRequestId);
       }
-      return COMPANY_ROUTES.requests;
+      return ROUTES.communicationHub;
     case FEED_SOURCE_TYPES.companyTalentRequest:
       if (companyId && item.relatedEntityId) {
         return COMPANY_ROUTES.talentRequestDetail(item.relatedEntityId, companyId);

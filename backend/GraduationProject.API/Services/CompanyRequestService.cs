@@ -128,6 +128,8 @@ namespace GraduationProject.API.Services
 
             entity.Status = CompanyRequestStatus.Submitted;
             entity.RequestStatus = CompanyRequestLifecycleStatus.Active;
+            entity.IsPublishedToHub = false;
+            entity.PublishedToHubAt = null;
             entity.WizardStep = null;
             entity.SubmittedAt = DateTime.UtcNow;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -215,6 +217,11 @@ namespace GraduationProject.API.Services
 
             var previous = entity.RequestStatus;
             entity.RequestStatus = normalized;
+            if (normalized == CompanyRequestLifecycleStatus.Closed)
+            {
+                entity.IsPublishedToHub = false;
+                entity.PublishedToHubAt = null;
+            }
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedByUserId = actingUserId;
 
@@ -299,6 +306,78 @@ namespace GraduationProject.API.Services
             entity.UpdatedByUserId = actingUserId;
 
             await _db.SaveChangesAsync();
+            return CompanyRequestMapper.ToDetailDto(await RequireLoadedAsync(entity.Id));
+        }
+
+        public async Task<CompanyRequestDetailDto?> PublishToHubAsync(
+            int companyProfileId,
+            int requestId,
+            int? actingUserId = null)
+        {
+            var entity = await _db.CompanyRequests
+                .FirstOrDefaultAsync(r =>
+                    r.Id == requestId && r.CompanyProfileId == companyProfileId);
+
+            if (entity == null || !CompanyRequestHubVisibility.CanPublishToHub(entity))
+                return null;
+
+            entity.IsPublishedToHub = true;
+            entity.PublishedToHubAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedByUserId = actingUserId;
+
+            await _db.SaveChangesAsync();
+
+            if (actingUserId.HasValue)
+            {
+                var actor = await _db.Users.AsNoTracking()
+                    .Where(u => u.Id == actingUserId.Value)
+                    .Select(u => u.Name)
+                    .FirstOrDefaultAsync() ?? "A team member";
+                var subject = CompanyRequestMapper.BuildActivitySubject(entity);
+                await _activity.LogAsync(
+                    companyProfileId,
+                    actingUserId.Value,
+                    CompanyActivityTypes.RequestPublished,
+                    $"{actor} published {subject} to the Communication Hub");
+            }
+
+            return CompanyRequestMapper.ToDetailDto(await RequireLoadedAsync(entity.Id));
+        }
+
+        public async Task<CompanyRequestDetailDto?> UnpublishFromHubAsync(
+            int companyProfileId,
+            int requestId,
+            int? actingUserId = null)
+        {
+            var entity = await _db.CompanyRequests
+                .FirstOrDefaultAsync(r =>
+                    r.Id == requestId && r.CompanyProfileId == companyProfileId);
+
+            if (entity == null || !CompanyRequestHubVisibility.CanUnpublishFromHub(entity))
+                return null;
+
+            entity.IsPublishedToHub = false;
+            entity.PublishedToHubAt = null;
+            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedByUserId = actingUserId;
+
+            await _db.SaveChangesAsync();
+
+            if (actingUserId.HasValue)
+            {
+                var actor = await _db.Users.AsNoTracking()
+                    .Where(u => u.Id == actingUserId.Value)
+                    .Select(u => u.Name)
+                    .FirstOrDefaultAsync() ?? "A team member";
+                var subject = CompanyRequestMapper.BuildActivitySubject(entity);
+                await _activity.LogAsync(
+                    companyProfileId,
+                    actingUserId.Value,
+                    CompanyActivityTypes.RequestUnpublished,
+                    $"{actor} removed {subject} from the Communication Hub");
+            }
+
             return CompanyRequestMapper.ToDetailDto(await RequireLoadedAsync(entity.Id));
         }
 

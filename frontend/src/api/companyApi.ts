@@ -231,6 +231,8 @@ export type CompanyProjectRequestSummary = {
   skillNames: string[];
   createdAt: string;
   submittedAt?: string | null;
+  isPublishedToHub: boolean;
+  publishedToHubAt?: string | null;
 };
 
 export type CompanyProjectRequestDetail = CompanyProjectRequestSummary & {
@@ -455,6 +457,24 @@ export async function updateCompanyProjectRequest(
 
 export async function deleteCompanyProjectRequest(id: number): Promise<void> {
   await api.delete(`/company/requests/${id}`);
+}
+
+export async function publishCompanyProjectRequest(
+  id: number,
+): Promise<CompanyProjectRequestDetail> {
+  const { data } = await api.post<CompanyProjectRequestDetail>(
+    `/company/requests/${id}/publish`,
+  );
+  return data;
+}
+
+export async function unpublishCompanyProjectRequest(
+  id: number,
+): Promise<CompanyProjectRequestDetail> {
+  const { data } = await api.post<CompanyProjectRequestDetail>(
+    `/company/requests/${id}/unpublish`,
+  );
+  return data;
 }
 
 export async function createCompanyRequestInvitation(

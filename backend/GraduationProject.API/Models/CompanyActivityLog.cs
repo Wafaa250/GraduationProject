@@ -9,6 +9,8 @@ namespace GraduationProject.API.Models
         public const string RequestPaused = "request_paused";
         public const string RequestReactivated = "request_reactivated";
         public const string RequestClosed = "request_closed";
+        public const string RequestPublished = "request_published";
+        public const string RequestUnpublished = "request_unpublished";
         public const string StudentSaved = "student_saved";
         public const string TeamSaved = "team_saved";
         public const string MemberAdded = "member_added";

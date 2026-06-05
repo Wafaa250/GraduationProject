@@ -19,8 +19,8 @@ import {
   getRequestRoleLabels,
   getRequestSkillLabels,
   isRequestViewOnly,
-  requestLifecycleStatusBadgeClass,
-  requestLifecycleStatusLabel,
+  requestHubVisibilityBadgeClass,
+  requestHubVisibilityLabel,
   requestTypeLabel,
 } from "@/lib/companyRequestDisplay";
 import { cn } from "@/lib/utils";
@@ -70,10 +70,10 @@ function RequestCard({ request }: { request: CompanyProjectRequestSummary }) {
                 variant="outline"
                 className={cn(
                   "shrink-0 rounded-md text-[10px] font-medium h-5 capitalize",
-                  requestLifecycleStatusBadgeClass(lifecycleStatus),
+                  requestHubVisibilityBadgeClass(request),
                 )}
               >
-                {requestLifecycleStatusLabel(lifecycleStatus)}
+                {requestHubVisibilityLabel(request)}
               </Badge>
             </div>
 

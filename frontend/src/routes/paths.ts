@@ -38,6 +38,11 @@ export const ROUTES = {
   /** Public company profile (read-only for visitors). */
   companyPublicProfile: (companyProfileId: number | string) =>
     `/companies/${companyProfileId}`,
+  /** Student read-only view of a published company opportunity (Communication Hub). */
+  companyOpportunityDetail: (
+    companyProfileId: number | string,
+    requestId: number | string,
+  ) => `/opportunities/companies/${companyProfileId}/${requestId}`,
   /** Companies and associations the student follows. */
   following: "/following",
   /** Student direct messages. */

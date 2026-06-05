@@ -88,11 +88,29 @@ namespace GraduationProject.API.Services
             if (string.IsNullOrWhiteSpace(normalizedName))
                 return (false, "Company name is required.");
 
-            var nameTaken = await _db.CompanyProfiles
+            var current = await _db.CompanyProfiles
                 .AsNoTracking()
-                .AnyAsync(c =>
-                    c.Id != companyProfileId &&
-                    c.NormalizedCompanyName == normalizedName);
+                .Where(c => c.Id == companyProfileId)
+                .Select(c => new { c.CompanyName })
+                .FirstOrDefaultAsync();
+
+            if (current != null)
+            {
+                var currentDisplayNormalized =
+                    CompanyUniquenessHelper.NormalizeCompanyName(current.CompanyName);
+                if (currentDisplayNormalized == normalizedName)
+                    return (true, null);
+            }
+
+            var otherProfiles = await _db.CompanyProfiles
+                .AsNoTracking()
+                .Where(c => c.Id != companyProfileId)
+                .Select(c => new { c.NormalizedCompanyName, c.CompanyName })
+                .ToListAsync();
+
+            var nameTaken = otherProfiles.Any(c =>
+                c.NormalizedCompanyName == normalizedName
+                || CompanyUniquenessHelper.NormalizeCompanyName(c.CompanyName) == normalizedName);
 
             if (nameTaken)
             {
@@ -111,6 +129,20 @@ namespace GraduationProject.API.Services
             var websiteDomain = CompanyUniquenessHelper.ExtractWebsiteDomain(websiteUrl);
             if (websiteDomain == null)
                 return (true, null);
+
+            var current = await _db.CompanyProfiles
+                .AsNoTracking()
+                .Where(c => c.Id == companyProfileId)
+                .Select(c => new { c.WebsiteUrl, c.WebsiteDomain })
+                .FirstOrDefaultAsync();
+
+            if (current != null)
+            {
+                var currentDomain = current.WebsiteDomain
+                    ?? CompanyUniquenessHelper.ExtractWebsiteDomain(current.WebsiteUrl);
+                if (currentDomain == websiteDomain)
+                    return (true, null);
+            }
 
             var taken = await _db.CompanyProfiles
                 .AsNoTracking()

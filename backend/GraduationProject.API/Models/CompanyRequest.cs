@@ -78,6 +78,8 @@ namespace GraduationProject.API.Models
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("updated_at")] public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         [Column("submitted_at")] public DateTime? SubmittedAt { get; set; }
+        [Column("is_published_to_hub")] public bool IsPublishedToHub { get; set; }
+        [Column("published_to_hub_at")] public DateTime? PublishedToHubAt { get; set; }
         [Column("created_by_user_id")] public int? CreatedByUserId { get; set; }
         [Column("updated_by_user_id")] public int? UpdatedByUserId { get; set; }
 

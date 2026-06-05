@@ -222,10 +222,10 @@ namespace GraduationProject.API.Services
                 .Include(r => r.CompanyProfile)
                 .Include(r => r.Roles).ThenInclude(role => role.Skills)
                 .Where(r =>
-                    r.Status != CompanyRequestStatus.Draft
-                    && r.Status != CompanyRequestStatus.Archived
-                    && r.RequestStatus != CompanyRequestLifecycleStatus.Closed)
-                .OrderByDescending(r => r.SubmittedAt ?? r.UpdatedAt)
+                    r.Status == CompanyRequestStatus.Submitted
+                    && r.RequestStatus == CompanyRequestLifecycleStatus.Active
+                    && r.IsPublishedToHub)
+                .OrderByDescending(r => r.PublishedToHubAt ?? r.SubmittedAt ?? r.UpdatedAt)
                 .Take(80)
                 .ToListAsync();
 
@@ -254,7 +254,7 @@ namespace GraduationProject.API.Services
                     Title = r.Title,
                     Content = FeedMappingHelper.Truncate(r.Description, 600),
                     PostKind = r.Category,
-                    PublishedAt = r.SubmittedAt ?? r.UpdatedAt,
+                    PublishedAt = r.PublishedToHubAt ?? r.SubmittedAt ?? r.UpdatedAt,
                     Metadata = meta,
                     ActionLabel = "View Opportunity",
                     ActionPath = FeedActionRoutes.CompanyRequest(r.Id, r.CompanyProfileId),

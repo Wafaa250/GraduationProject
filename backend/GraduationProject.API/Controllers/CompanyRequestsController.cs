@@ -150,6 +150,32 @@ namespace GraduationProject.API.Controllers
             return updated == null ? BadRequest(new { message = "Invalid status or request not found." }) : Ok(updated);
         }
 
+        [HttpPost("{id:int}/publish")]
+        public async Task<IActionResult> Publish(int id)
+        {
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
+
+            var userId = AuthorizationHelper.GetUserId(User);
+            var updated = await _requests.PublishToHubAsync(context!.Profile.Id, id, userId);
+            return updated == null
+                ? BadRequest(new { message = "Request cannot be published. It must be active and not already published." })
+                : Ok(updated);
+        }
+
+        [HttpPost("{id:int}/unpublish")]
+        public async Task<IActionResult> Unpublish(int id)
+        {
+            var (context, workspaceError) = await RequireWorkspaceAsync();
+            if (workspaceError != null) return workspaceError;
+
+            var userId = AuthorizationHelper.GetUserId(User);
+            var updated = await _requests.UnpublishFromHubAsync(context!.Profile.Id, id, userId);
+            return updated == null
+                ? BadRequest(new { message = "Request is not published to the Communication Hub." })
+                : Ok(updated);
+        }
+
         private Task<(CompanyWorkspaceContext? Context, IActionResult? Error)> RequireWorkspaceAsync() =>
             CompanyWorkspaceHelper.TryResolveAsync(_workspace, User);
     }

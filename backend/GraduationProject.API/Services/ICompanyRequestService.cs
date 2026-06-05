@@ -32,5 +32,15 @@ namespace GraduationProject.API.Services
             int? actingUserId = null);
 
         Task<bool> DeleteAsync(int companyProfileId, int requestId);
+
+        Task<CompanyRequestDetailDto?> PublishToHubAsync(
+            int companyProfileId,
+            int requestId,
+            int? actingUserId = null);
+
+        Task<CompanyRequestDetailDto?> UnpublishFromHubAsync(
+            int companyProfileId,
+            int requestId,
+            int? actingUserId = null);
     }
 }

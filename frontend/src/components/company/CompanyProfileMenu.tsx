@@ -72,7 +72,7 @@ export function CompanyProfileMenu() {
       {open && (
         <div
           role="menu"
-          className="cw-profile-menu absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg"
+          className="cw-profile-menu cw-header-popover absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg"
         >
           <div className="border-b px-3 py-2.5">
             <p className="truncate text-sm font-medium">{companyName}</p>
