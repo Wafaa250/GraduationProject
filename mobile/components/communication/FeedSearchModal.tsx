@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { router, type Href } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
+  Alert,
   Modal,
   Pressable,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -12,11 +14,28 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { parseApiErrorMessage, searchCommunicationHub, type HubSearchResultRow } from "@/api/feedApi";
+import {
+  followCompany,
+  followOrganization,
+  parseApiErrorMessage,
+  searchCommunicationHub,
+  unfollowCompany,
+  unfollowOrganization,
+  type FeedSearchResultRow,
+  type HubSearchResults,
+} from "@/api/feedApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { HUB_COLORS, type HubRoleType } from "@/constants/studentHubTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { feedPostRoleLabel } from "@/lib/feedPostDisplay";
+import {
+  hubSearchProfilePath,
+  hubSearchShowsViewProfile,
+  searchRowCanFollow,
+  searchRowCanMessage,
+  searchRowMessageTargetUserId,
+} from "@/lib/hubSearchNavigation";
+import { openFeedRecommendedMessage } from "@/lib/feedRecommendedMessage";
 
 type Props = {
   visible: boolean;
@@ -25,7 +44,23 @@ type Props = {
   onQueryChange: (query: string) => void;
 };
 
-type SearchRow = HubSearchResultRow & { key: string };
+type SearchSection = {
+  key: keyof HubSearchResults;
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  data: FeedSearchResultRow[];
+};
+
+const GROUPS: {
+  key: keyof HubSearchResults;
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { key: "students", title: "Students", icon: "person-outline" },
+  { key: "doctors", title: "Doctors", icon: "medkit-outline" },
+  { key: "companies", title: "Companies", icon: "business-outline" },
+  { key: "associations", title: "Associations", icon: "people-outline" },
+];
 
 function roleFromEntityType(entityType: string): HubRoleType {
   const t = entityType.toLowerCase();
@@ -35,13 +70,34 @@ function roleFromEntityType(entityType: string): HubRoleType {
   return "student";
 }
 
+function rowKey(row: FeedSearchResultRow): string {
+  if (row.entityType === "company" && row.entityId <= 0 && row.userId) {
+    return `company-orphan-${row.userId}`;
+  }
+  return `${row.entityType}-${row.entityId}`;
+}
+
+function displayUsername(row: FeedSearchResultRow): string | null {
+  if (row.username?.trim()) return `@${row.username.trim()}`;
+  if (row.email?.includes("@")) return `@${row.email.split("@")[0]}`;
+  return null;
+}
+
 export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange }: Props) {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
   const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<SearchRow[]>([]);
+  const [results, setResults] = useState<HubSearchResults>({
+    students: [],
+    doctors: [],
+    companies: [],
+    associations: [],
+  });
+  const [followBusyKey, setFollowBusyKey] = useState<string | null>(null);
+  const [messageBusyKey, setMessageBusyKey] = useState<string | null>(null);
+  const searchGenerationRef = useRef(0);
 
   useEffect(() => {
     if (visible) setQuery(initialQuery);
@@ -50,33 +106,30 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
   const runSearch = useCallback(async (term: string) => {
     const trimmed = term.trim();
     if (!trimmed) {
-      setResults([]);
+      setResults({ students: [], doctors: [], companies: [], associations: [] });
       setError(null);
       return;
     }
 
+    const generation = ++searchGenerationRef.current;
     setLoading(true);
     setError(null);
     try {
       const data = await searchCommunicationHub(trimmed);
-      const rows: SearchRow[] = [
-        ...data.students.map((r) => ({ ...r, key: `student-${r.entityId}` })),
-        ...data.doctors.map((r) => ({ ...r, key: `doctor-${r.entityId}` })),
-        ...data.companies.map((r) => ({ ...r, key: `company-${r.entityId}` })),
-        ...data.associations.map((r) => ({ ...r, key: `association-${r.entityId}` })),
-      ];
-      setResults(rows);
+      if (generation !== searchGenerationRef.current) return;
+      setResults(data);
     } catch (err) {
+      if (generation !== searchGenerationRef.current) return;
       setError(parseApiErrorMessage(err));
-      setResults([]);
+      setResults({ students: [], doctors: [], companies: [], associations: [] });
     } finally {
-      setLoading(false);
+      if (generation === searchGenerationRef.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!visible) return;
-    const timer = setTimeout(() => void runSearch(query), 350);
+    const timer = setTimeout(() => void runSearch(query), 300);
     return () => clearTimeout(timer);
   }, [query, visible, runSearch]);
 
@@ -84,6 +137,69 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
     setQuery(value);
     onQueryChange(value);
   };
+
+  const updateRowFollowing = (key: string, isFollowing: boolean) => {
+    setResults((prev) => {
+      const next = { ...prev };
+      for (const group of GROUPS) {
+        next[group.key] = prev[group.key].map((row) =>
+          rowKey(row) === key ? { ...row, isFollowing } : row,
+        );
+      }
+      return next;
+    });
+  };
+
+  const handleViewProfile = (row: FeedSearchResultRow) => {
+    if (!hubSearchShowsViewProfile(row)) return;
+    const path = hubSearchProfilePath(row);
+    onClose();
+    router.push(path as Href);
+  };
+
+  const handleMessage = async (row: FeedSearchResultRow) => {
+    const key = rowKey(row);
+    if (!searchRowCanMessage(row) || messageBusyKey) return;
+    const targetUserId = searchRowMessageTargetUserId(row);
+    if (targetUserId <= 0) return;
+    setMessageBusyKey(key);
+    try {
+      onClose();
+      await openFeedRecommendedMessage(targetUserId);
+    } catch (err) {
+      Alert.alert("Could not start conversation", parseApiErrorMessage(err));
+    } finally {
+      setMessageBusyKey(null);
+    }
+  };
+
+  const handleFollow = async (row: FeedSearchResultRow) => {
+    const key = rowKey(row);
+    if (!searchRowCanFollow(row) || followBusyKey) return;
+    setFollowBusyKey(key);
+    try {
+      const type = row.entityType.toLowerCase();
+      if (type === "company") {
+        if (row.isFollowing) await unfollowCompany(row.entityId);
+        else await followCompany(row.entityId);
+      } else if (type === "association") {
+        if (row.isFollowing) await unfollowOrganization(row.entityId);
+        else await followOrganization(row.entityId);
+      }
+      updateRowFollowing(key, !row.isFollowing);
+    } catch (err) {
+      Alert.alert("Could not update follow", parseApiErrorMessage(err));
+    } finally {
+      setFollowBusyKey(null);
+    }
+  };
+
+  const sections: SearchSection[] = GROUPS.map((group) => ({
+    ...group,
+    data: results[group.key],
+  })).filter((section) => section.data.length > 0);
+
+  const hasResults = sections.length > 0;
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -102,7 +218,7 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
             <TextInput
               value={query}
               onChangeText={handleQueryChange}
-              placeholder="Search..."
+              placeholder="Search students, doctors, companies..."
               placeholderTextColor={HUB_COLORS.muted}
               style={[styles.searchInput, { fontSize: layout.fontSize.body }]}
               autoFocus
@@ -119,42 +235,113 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
         {loading ? (
           <View style={styles.centered}>
             <ActivityIndicator color={HUB_COLORS.primary} />
+            <Text style={styles.loadingText}>Searching…</Text>
           </View>
         ) : error ? (
           <View style={styles.centered}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
-        ) : results.length === 0 && query.trim() ? (
+        ) : !hasResults && query.trim() ? (
           <View style={styles.centered}>
             <Text style={styles.emptyText}>No results found.</Text>
           </View>
         ) : (
-          <FlatList
-            data={results}
-            keyExtractor={(item) => item.key}
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => rowKey(item)}
             contentContainerStyle={{
               paddingHorizontal: layout.horizontalPadding,
               paddingBottom: insets.bottom + layout.space("xl"),
             }}
             keyboardShouldPersistTaps="handled"
+            stickySectionHeadersEnabled={false}
+            renderSectionHeader={({ section }) => (
+              <View style={[styles.sectionHeader, { marginTop: layout.space("md") }]}>
+                <Ionicons name={section.icon} size={16} color={HUB_COLORS.primary} />
+                <Text style={[styles.sectionTitle, { fontSize: layout.fontSize.label }]}>
+                  {section.title} ({section.data.length})
+                </Text>
+              </View>
+            )}
             renderItem={({ item }) => {
               const role = roleFromEntityType(item.entityType);
+              const username = displayUsername(item);
+              const key = rowKey(item);
+              const showProfile = hubSearchShowsViewProfile(item);
+              const showMessage = searchRowCanMessage(item);
+              const showFollow = searchRowCanFollow(item);
+              const followBusy = followBusyKey === key;
+              const messageBusy = messageBusyKey === key;
+
               return (
-                <View style={styles.resultRow}>
-                  <FeedAvatar
-                    name={item.name}
-                    size={layout.scale(44)}
-                    avatarUrl={item.avatarUrl}
-                    avatarBase64={item.avatarBase64}
-                    roleType={role}
-                  />
-                  <View style={styles.resultMeta}>
-                    <Text style={[styles.resultName, { fontSize: layout.fontSize.label }]}>
-                      {item.name}
-                    </Text>
-                    <Text style={[styles.resultSubtitle, { fontSize: layout.fontSize.footer }]}>
-                      {item.subtitle || feedPostRoleLabel(role)}
-                    </Text>
+                <View style={[styles.resultCard, { borderRadius: layout.radius.input }]}>
+                  <View style={styles.resultTop}>
+                    <FeedAvatar
+                      name={item.name}
+                      size={layout.scale(44)}
+                      avatarUrl={item.avatarUrl}
+                      avatarBase64={item.avatarBase64}
+                      roleType={role}
+                    />
+                    <View style={styles.resultMeta}>
+                      <Text style={[styles.resultName, { fontSize: layout.fontSize.label }]}>
+                        {item.name}
+                      </Text>
+                      {username ? (
+                        <Text style={[styles.resultUsername, { fontSize: layout.fontSize.footer }]}>
+                          {username}
+                        </Text>
+                      ) : null}
+                      <Text style={[styles.resultSubtitle, { fontSize: layout.fontSize.footer }]}>
+                        {item.subtitle || feedPostRoleLabel(role)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.actionRow, { gap: layout.space("sm") }]}>
+                    {showProfile ? (
+                      <Pressable
+                        style={[styles.actionBtn, { borderRadius: layout.radius.input }]}
+                        onPress={() => handleViewProfile(item)}
+                      >
+                        <Text style={styles.actionBtnText}>View Profile</Text>
+                      </Pressable>
+                    ) : null}
+                    {showMessage ? (
+                      <Pressable
+                        style={[styles.actionBtn, { borderRadius: layout.radius.input }]}
+                        onPress={() => void handleMessage(item)}
+                        disabled={messageBusy}
+                      >
+                        <Text style={styles.actionBtnText}>
+                          {messageBusy ? "Opening…" : "Message"}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    {showFollow ? (
+                      <Pressable
+                        style={[
+                          styles.actionBtn,
+                          item.isFollowing && styles.actionBtnFollowing,
+                          { borderRadius: layout.radius.input },
+                        ]}
+                        onPress={() => void handleFollow(item)}
+                        disabled={followBusy}
+                      >
+                        <Text
+                          style={[
+                            styles.actionBtnText,
+                            item.isFollowing && styles.actionBtnTextFollowing,
+                          ]}
+                        >
+                          {followBusy
+                            ? "Updating…"
+                            : item.isFollowing
+                              ? "Following"
+                              : "Follow"}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 </View>
               );
@@ -197,6 +384,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
+    gap: 10,
+  },
+  loadingText: {
+    color: HUB_COLORS.muted,
+    fontSize: 14,
   },
   errorText: {
     color: "#DC2626",
@@ -206,23 +398,68 @@ const styles = StyleSheet.create({
     color: HUB_COLORS.muted,
     textAlign: "center",
   },
-  resultRow: {
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingBottom: 8,
+  },
+  sectionTitle: {
+    fontWeight: "700",
+    color: HUB_COLORS.foreground,
+  },
+  resultCard: {
+    borderWidth: 1,
+    borderColor: HUB_COLORS.border,
+    backgroundColor: HUB_COLORS.cardBg,
+    padding: 12,
+    marginBottom: 10,
+    gap: 12,
+  },
+  resultTop: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HUB_COLORS.border,
   },
   resultMeta: {
     flex: 1,
     gap: 2,
+    minWidth: 0,
   },
   resultName: {
-    fontWeight: "600",
+    fontWeight: "700",
     color: HUB_COLORS.foreground,
+  },
+  resultUsername: {
+    color: HUB_COLORS.primary,
+    fontWeight: "600",
   },
   resultSubtitle: {
     color: HUB_COLORS.muted,
+  },
+  actionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  actionBtn: {
+    borderWidth: 1,
+    borderColor: HUB_COLORS.primaryBorder,
+    backgroundColor: HUB_COLORS.primarySoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  actionBtnFollowing: {
+    backgroundColor: HUB_COLORS.inputBg,
+    borderColor: HUB_COLORS.border,
+  },
+  actionBtnText: {
+    color: HUB_COLORS.primary,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  actionBtnTextFollowing: {
+    color: HUB_COLORS.foreground,
   },
 });

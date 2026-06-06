@@ -1,4 +1,12 @@
 import api, { parseApiErrorMessage } from "@/api/axiosInstance";
+import { searchResultProfilePath } from "@/lib/feedDiscoverNavigation";
+import {
+  filterAndRankSearchResults,
+  hasPeopleSearchResults,
+  mergeSearchResults,
+  searchResultDedupKey,
+  SEARCH_FETCH_LIMIT,
+} from "@/lib/searchRanking";
 import {
   FEED_SOURCE_TYPES,
   isCompanyFeedItem,
@@ -45,12 +53,8 @@ export type FeedRecommendedResponse = {
   poolStats: FeedRecommendedPoolStats | null;
 };
 
-export type FeedResponse = {
-  items: FeedItem[];
-};
-
-export type HubSearchResultRow = {
-  entityType: string;
+export type FeedDiscoverMember = {
+  entityType: "student" | "doctor" | "company" | "association";
   entityId: number;
   name: string;
   subtitle?: string | null;
@@ -58,19 +62,531 @@ export type HubSearchResultRow = {
   avatarBase64?: string | null;
 };
 
-export type HubSearchResults = {
-  students: HubSearchResultRow[];
-  doctors: HubSearchResultRow[];
-  companies: HubSearchResultRow[];
-  associations: HubSearchResultRow[];
+export type FeedResponse = {
+  items: FeedItem[];
+  searchResults: FeedDiscoverMember[];
 };
 
+export type FeedSearchResultRow = {
+  entityType: string;
+  entityId: number;
+  userId?: number;
+  name: string;
+  subtitle?: string | null;
+  email?: string | null;
+  username?: string | null;
+  avatarUrl?: string | null;
+  avatarBase64?: string | null;
+  url: string;
+  followable?: boolean;
+  isFollowing?: boolean;
+};
+
+export type CommunicationHubSearchResults = {
+  students: FeedSearchResultRow[];
+  doctors: FeedSearchResultRow[];
+  companies: FeedSearchResultRow[];
+  associations: FeedSearchResultRow[];
+  projects: FeedSearchResultRow[];
+  events: FeedSearchResultRow[];
+  opportunities: FeedSearchResultRow[];
+};
+
+export type HubSearchResultRow = FeedSearchResultRow;
+
+export type HubSearchResults = Pick<
+  CommunicationHubSearchResults,
+  "students" | "doctors" | "companies" | "associations"
+>;
+
 export const COMMUNICATION_HUB_SUGGESTIONS_REFRESH_MS = 60_000;
+
+const EMPTY_SEARCH: CommunicationHubSearchResults = {
+  students: [],
+  doctors: [],
+  companies: [],
+  associations: [],
+  projects: [],
+  events: [],
+  opportunities: [],
+};
 
 function readField<T>(raw: Record<string, unknown>, camel: string, pascal: string): T | undefined {
   if (raw[camel] !== undefined && raw[camel] !== null) return raw[camel] as T;
   if (raw[pascal] !== undefined && raw[pascal] !== null) return raw[pascal] as T;
   return undefined;
+}
+
+function normalizeDiscoverMember(raw: Record<string, unknown>): FeedDiscoverMember {
+  const entityType = String(readField<string>(raw, "entityType", "EntityType") ?? "").toLowerCase();
+  return {
+    entityType: (["student", "doctor", "company", "association"].includes(entityType)
+      ? entityType
+      : "student") as FeedDiscoverMember["entityType"],
+    entityId: Number(readField<number>(raw, "entityId", "EntityId") ?? 0),
+    name: String(readField<string>(raw, "name", "Name") ?? ""),
+    subtitle: (readField<string>(raw, "subtitle", "Subtitle") as string | null | undefined) ?? null,
+    avatarUrl: (readField<string>(raw, "avatarUrl", "AvatarUrl") as string | null | undefined) ?? null,
+    avatarBase64: (readField<string>(raw, "avatarBase64", "AvatarBase64") as
+      | string
+      | null
+      | undefined) ?? null,
+  };
+}
+
+function tagFollowableRow(row: FeedSearchResultRow): FeedSearchResultRow {
+  const type = row.entityType.toLowerCase();
+  if (type === "company" || type === "association") {
+    const canFollow = row.followable !== false && row.entityId > 0;
+    return { ...row, followable: canFollow, isFollowing: canFollow ? false : false };
+  }
+  return row;
+}
+
+function mapSearchHits(value: unknown): FeedSearchResultRow[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row) => {
+      const raw = row as Record<string, unknown>;
+      const entityType = String(readField<string>(raw, "roleType", "RoleType") ?? "").toLowerCase();
+      const entityId = Number(readField<number>(raw, "id", "Id") ?? 0);
+      const title = String(readField<string>(raw, "title", "Title") ?? "");
+      const email = (readField<string>(raw, "email", "Email") as string | null | undefined) ?? null;
+      const username =
+        (readField<string>(raw, "username", "Username") as string | null | undefined) ?? null;
+      const subtitle =
+        (readField<string>(raw, "subtitle", "Subtitle") as string | null | undefined) ?? null;
+      const name = title || email || "";
+      const isCompany = entityType === "company";
+      const apiUserId = Number(readField<number>(raw, "userId", "UserId") ?? 0);
+      const isOrphanCompany = isCompany && entityId <= 0;
+      const apiFollowable = readField<boolean>(raw, "followable", "Followable");
+      const followable =
+        isOrphanCompany || apiFollowable === false ? false : apiFollowable === true ? true : undefined;
+      return {
+        entityType,
+        entityId: isOrphanCompany ? 0 : entityId,
+        userId: isOrphanCompany && apiUserId > 0 ? apiUserId : undefined,
+        name,
+        email,
+        username: isCompany ? username || subtitle : username,
+        subtitle,
+        avatarUrl: (readField<string>(raw, "avatarUrl", "AvatarUrl") as string | null | undefined) ?? null,
+        avatarBase64: (readField<string>(raw, "avatarBase64", "AvatarBase64") as
+          | string
+          | null
+          | undefined) ?? null,
+        url: "",
+        followable,
+      };
+    })
+    .filter((row) => {
+      if (!row.name.length) return false;
+      if (row.entityId > 0) return true;
+      return row.entityType === "company";
+    })
+    .map((row) => tagFollowableRow({ ...row, url: searchResultProfilePath(row) }));
+}
+
+function mapPayloadToSearchResults(payload: Record<string, unknown>): CommunicationHubSearchResults {
+  return {
+    students: mapSearchHits(payload.students ?? payload.Students),
+    doctors: mapSearchHits(payload.doctors ?? payload.Doctors),
+    companies: mapSearchHits(payload.companies ?? payload.Companies),
+    associations: mapSearchHits(payload.associations ?? payload.Associations),
+    projects: mapSearchHits(payload.projects ?? payload.Projects),
+    events: mapSearchHits(payload.events ?? payload.Events),
+    opportunities: [
+      ...mapSearchHits(payload.opportunities ?? payload.Opportunities),
+      ...mapSearchHits(payload.projectRequests ?? payload.ProjectRequests),
+      ...mapSearchHits(payload.recruitmentCampaigns ?? payload.RecruitmentCampaigns),
+    ],
+  };
+}
+
+function isOrphanCompanyMember(member: FeedDiscoverMember): boolean {
+  return (
+    member.entityType === "company" &&
+    (member.subtitle ?? "").trim().toLowerCase() === "company account"
+  );
+}
+
+function feedDiscoverMemberToCompanyRow(member: FeedDiscoverMember): FeedSearchResultRow | null {
+  if (!member.name.trim()) return null;
+  const orphan = isOrphanCompanyMember(member);
+  const base: FeedSearchResultRow = {
+    entityType: "company",
+    entityId: orphan ? 0 : member.entityId,
+    userId: orphan && member.entityId > 0 ? member.entityId : undefined,
+    name: member.name.trim(),
+    subtitle: member.subtitle,
+    avatarUrl: member.avatarUrl,
+    avatarBase64: member.avatarBase64,
+    url: "",
+    followable: orphan ? false : undefined,
+  };
+  return tagFollowableRow({ ...base, url: searchResultProfilePath(base) });
+}
+
+function asApiRowArray<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    for (const key of ["items", "Items", "data", "Data", "results", "Results"]) {
+      const nested = record[key];
+      if (Array.isArray(nested)) return nested as T[];
+    }
+  }
+  return [];
+}
+
+function discoverableTextMatches(term: string, fields: (string | null | undefined)[]): boolean {
+  const q = term.trim().toLowerCase();
+  if (!q) return false;
+  return fields.some((field) => {
+    const value = field?.trim().toLowerCase();
+    return !!value && value.includes(q);
+  });
+}
+
+type StudentSearchRow = Record<string, unknown>;
+type DoctorSearchRow = Record<string, unknown>;
+
+function studentRowToResult(row: StudentSearchRow): FeedSearchResultRow | null {
+  const userId = Number(readField<number>(row, "userId", "UserId") ?? 0);
+  if (!userId) return null;
+  const name =
+    String(readField<string>(row, "name", "Name") ?? "").trim() ||
+    String(readField<string>(row, "email", "Email") ?? "").trim();
+  if (!name) return null;
+  const studentId = readField<string>(row, "studentId", "StudentId");
+  return {
+    entityType: "student",
+    entityId: userId,
+    name,
+    email: (readField<string>(row, "email", "Email") as string | undefined) ?? null,
+    username: studentId?.trim() ? studentId.trim() : null,
+    subtitle:
+      String(readField<string>(row, "major", "Major") ?? "").trim() ||
+      String(readField<string>(row, "university", "University") ?? "").trim() ||
+      "Student",
+    avatarUrl: null,
+    avatarBase64:
+      (readField<string>(row, "profilePicture", "ProfilePicture") as string | null | undefined) ?? null,
+    url: `/students/${userId}`,
+  };
+}
+
+function doctorRowToResult(row: DoctorSearchRow): FeedSearchResultRow | null {
+  const userId = Number(readField<number>(row, "userId", "UserId") ?? 0);
+  if (!userId) return null;
+  const name =
+    String(readField<string>(row, "name", "Name") ?? "").trim() ||
+    String(readField<string>(row, "email", "Email") ?? "").trim();
+  if (!name) return null;
+  const email = (readField<string>(row, "email", "Email") as string | undefined) ?? null;
+  return {
+    entityType: "doctor",
+    entityId: userId,
+    name,
+    email,
+    username: email?.includes("@") ? email.split("@")[0] : null,
+    subtitle:
+      String(readField<string>(row, "department", "Department") ?? "").trim() ||
+      String(readField<string>(row, "specialization", "Specialization") ?? "").trim() ||
+      String(readField<string>(row, "faculty", "Faculty") ?? "").trim() ||
+      "Doctor",
+    avatarUrl: null,
+    avatarBase64:
+      (readField<string>(row, "profilePicture", "ProfilePicture") as string | null | undefined) ??
+      (readField<string>(row, "profilePictureBase64", "ProfilePictureBase64") as
+        | string
+        | null
+        | undefined) ??
+      null,
+    url: `/doctors/${userId}`,
+  };
+}
+
+type ListApiPeopleLoad = {
+  students: FeedSearchResultRow[];
+  doctors: FeedSearchResultRow[];
+  studentUserByProfile: Map<number, number>;
+  doctorUserByProfile: Map<number, number>;
+};
+
+async function loadListApiStudentsAndDoctors(term: string): Promise<ListApiPeopleLoad> {
+  const students: FeedSearchResultRow[] = [];
+  const doctors: FeedSearchResultRow[] = [];
+  const studentUserByProfile = new Map<number, number>();
+  const doctorUserByProfile = new Map<number, number>();
+
+  const [studentsRaw, doctorsRaw] = await Promise.all([
+    api
+      .get<StudentSearchRow[]>("/students", { params: { search: term } })
+      .then((r) => r.data)
+      .catch(() => [] as StudentSearchRow[]),
+    api
+      .get<DoctorSearchRow[]>("/doctors", { params: { search: term } })
+      .then((r) => r.data)
+      .catch(() => [] as DoctorSearchRow[]),
+  ]);
+
+  for (const row of Array.isArray(studentsRaw) ? studentsRaw : []) {
+    const mapped = studentRowToResult(row);
+    if (mapped) students.push(mapped);
+    const profileId = readField<number>(row, "profileId", "ProfileId");
+    const userId = readField<number>(row, "userId", "UserId");
+    if (profileId != null && userId != null) {
+      studentUserByProfile.set(profileId, userId);
+    }
+  }
+
+  for (const row of Array.isArray(doctorsRaw) ? doctorsRaw : []) {
+    const mapped = doctorRowToResult(row);
+    if (mapped) doctors.push(mapped);
+    const profileId = readField<number>(row, "profileId", "ProfileId");
+    const userId = readField<number>(row, "userId", "UserId");
+    if (profileId != null && userId != null) {
+      doctorUserByProfile.set(profileId, userId);
+    }
+  }
+
+  return { students, doctors, studentUserByProfile, doctorUserByProfile };
+}
+
+type PublicCompanyRow = Record<string, unknown>;
+type PublicOrganizationRow = Record<string, unknown>;
+
+function publicCompanyToResult(row: PublicCompanyRow, term: string): FeedSearchResultRow | null {
+  const entityId = Number(readField<number>(row, "id", "Id") ?? 0);
+  const userId = Number(readField<number>(row, "userId", "UserId") ?? 0);
+  const canFollow = readField<boolean>(row, "canFollow", "CanFollow") !== false && entityId > 0;
+  const name = String(readField<string>(row, "companyName", "CompanyName") ?? "").trim();
+  if (!name) return null;
+  const industry = String(readField<string>(row, "industry", "Industry") ?? "").trim();
+  const description = String(readField<string>(row, "description", "Description") ?? "").trim();
+  const areasOfInterest = String(
+    readField<string>(row, "areasOfInterest", "AreasOfInterest") ?? "",
+  ).trim();
+  const email = (readField<string>(row, "email", "Email") as string | undefined) ?? null;
+
+  if (entityId <= 0 && !canFollow) {
+    return {
+      entityType: "company",
+      entityId: 0,
+      userId: userId > 0 ? userId : undefined,
+      name,
+      email,
+      username: null,
+      subtitle: "Company account",
+      avatarUrl: null,
+      avatarBase64: null,
+      url: "/feed",
+      followable: false,
+      isFollowing: false,
+    };
+  }
+
+  if (!entityId) return null;
+
+  if (
+    !discoverableTextMatches(term, [name, industry, description, areasOfInterest, email ?? ""])
+  ) {
+    return null;
+  }
+
+  return {
+    entityType: "company",
+    entityId,
+    name,
+    email,
+    username: industry || null,
+    subtitle: description || industry || "Company",
+    avatarUrl: null,
+    avatarBase64: null,
+    url: `/companies/${entityId}`,
+    followable: true,
+    isFollowing: !!readField<boolean>(row, "isFollowing", "IsFollowing"),
+  };
+}
+
+function publicOrganizationToResult(row: PublicOrganizationRow, term: string): FeedSearchResultRow | null {
+  const entityId = Number(readField<number>(row, "id", "Id") ?? 0);
+  if (!entityId) return null;
+  const name =
+    String(readField<string>(row, "organizationName", "OrganizationName") ?? "").trim() ||
+    String(readField<string>(row, "name", "Name") ?? "").trim();
+  if (!name) return null;
+  const username = readField<string>(row, "username", "Username");
+  const category = String(readField<string>(row, "category", "Category") ?? "").trim();
+  const faculty = String(readField<string>(row, "faculty", "Faculty") ?? "").trim();
+  const shortDescription = String(
+    readField<string>(row, "shortDescription", "ShortDescription") ?? "",
+  ).trim();
+  const subtitle =
+    [faculty, category].filter(Boolean).join(" · ") || shortDescription || "Student Association";
+  if (
+    !discoverableTextMatches(term, [name, username ?? "", category, faculty, shortDescription])
+  ) {
+    return null;
+  }
+
+  return {
+    entityType: "association",
+    entityId,
+    name,
+    username: username ?? null,
+    subtitle,
+    avatarUrl: (readField<string>(row, "logoUrl", "LogoUrl") as string | null | undefined) ?? null,
+    avatarBase64: null,
+    url: `/organizations/${entityId}`,
+    followable: true,
+    isFollowing: !!readField<boolean>(row, "isFollowing", "IsFollowing"),
+  };
+}
+
+async function loadDiscoverableCompaniesAndAssociations(
+  term: string,
+): Promise<Pick<CommunicationHubSearchResults, "companies" | "associations">> {
+  const [companiesRes, orgsRes] = await Promise.all([
+    api.get<PublicCompanyRow[]>("/companies/public", { params: { search: term } }).catch(() => null),
+    api.get<PublicOrganizationRow[]>("/organizations/public").catch(() => null),
+  ]);
+
+  const companies: FeedSearchResultRow[] = [];
+  for (const row of asApiRowArray<PublicCompanyRow>(companiesRes?.data)) {
+    const mapped = publicCompanyToResult(row, term);
+    if (mapped) companies.push(mapped);
+  }
+
+  const associations: FeedSearchResultRow[] = [];
+  for (const row of asApiRowArray<PublicOrganizationRow>(orgsRes?.data)) {
+    const mapped = publicOrganizationToResult(row, term);
+    if (mapped) associations.push(mapped);
+  }
+
+  return { companies, associations };
+}
+
+async function loadFeedSearchCompanyRows(term: string): Promise<FeedSearchResultRow[]> {
+  try {
+    const feed = await getCommunicationFeed(term);
+    const rows: FeedSearchResultRow[] = [];
+    for (const member of feed.searchResults) {
+      if (member.entityType !== "company") continue;
+      const row = feedDiscoverMemberToCompanyRow(member);
+      if (row) rows.push(row);
+    }
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+async function enrichFollowableSearchRows(
+  results: CommunicationHubSearchResults,
+): Promise<CommunicationHubSearchResults> {
+  const companies = await Promise.all(
+    results.companies.map(async (row) => {
+      if (row.followable === false || row.entityId <= 0) {
+        return { ...row, followable: false, isFollowing: false };
+      }
+      if (row.isFollowing === true) return row;
+      const isFollowing = await fetchFollowStatus("company", row.entityId);
+      return { ...row, isFollowing };
+    }),
+  );
+  const associations = await Promise.all(
+    results.associations.map(async (row) => {
+      if (row.isFollowing === true) return row;
+      const isFollowing = await fetchFollowStatus("association", row.entityId);
+      return { ...row, isFollowing };
+    }),
+  );
+  return { ...results, companies, associations };
+}
+
+async function searchCommunicationHubFallback(
+  term: string,
+): Promise<CommunicationHubSearchResults> {
+  const grouped: CommunicationHubSearchResults = { ...EMPTY_SEARCH };
+
+  const [listPeople, feedResult, discoverable] = await Promise.all([
+    loadListApiStudentsAndDoctors(term),
+    getCommunicationFeed(term).catch(() => null),
+    loadDiscoverableCompaniesAndAssociations(term),
+  ]);
+
+  grouped.students.push(...listPeople.students);
+  grouped.doctors.push(...listPeople.doctors);
+  const studentUserByProfile = listPeople.studentUserByProfile;
+  const doctorUserByProfile = listPeople.doctorUserByProfile;
+
+  for (const row of discoverable.companies) {
+    const exists = grouped.companies.some((b) => searchResultDedupKey(b) === searchResultDedupKey(row));
+    if (!exists) grouped.companies.push(row);
+  }
+
+  for (const row of discoverable.associations) {
+    const exists = grouped.associations.some(
+      (b) => b.entityId === row.entityId && b.entityType === row.entityType,
+    );
+    if (!exists) grouped.associations.push(row);
+  }
+
+  if (!feedResult) return grouped;
+
+  for (const member of feedResult.searchResults) {
+    if (!member.name?.trim()) continue;
+
+    if (member.entityType === "company" && isOrphanCompanyMember(member)) {
+      const row = feedDiscoverMemberToCompanyRow(member);
+      if (!row) continue;
+      const exists = grouped.companies.some(
+        (b) => searchResultDedupKey(b) === searchResultDedupKey(row),
+      );
+      if (!exists) grouped.companies.push(row);
+      continue;
+    }
+
+    if (!member.entityId) continue;
+
+    let navId = member.entityId;
+    if (member.entityType === "student") {
+      const userId = studentUserByProfile.get(member.entityId);
+      if (userId) navId = userId;
+    } else if (member.entityType === "doctor") {
+      const userId = doctorUserByProfile.get(member.entityId);
+      if (userId) navId = userId;
+    }
+
+    const base: FeedSearchResultRow = {
+      entityType: member.entityType,
+      entityId: navId,
+      name: member.name,
+      subtitle: member.subtitle,
+      avatarUrl: member.avatarUrl,
+      avatarBase64: member.avatarBase64,
+      url: "",
+    };
+    const row = tagFollowableRow({ ...base, url: searchResultProfilePath(base) });
+
+    const memberKey: Record<FeedDiscoverMember["entityType"], keyof CommunicationHubSearchResults> = {
+      student: "students",
+      doctor: "doctors",
+      company: "companies",
+      association: "associations",
+    };
+    const bucketKey = memberKey[member.entityType];
+    const bucket = grouped[bucketKey];
+    const exists = bucket.some(
+      (b) => b.entityId === row.entityId && b.entityType === row.entityType,
+    );
+    if (!exists) bucket.push(row);
+  }
+
+  return grouped;
 }
 
 function normalizeFeedRecommendedItem(raw: Record<string, unknown>): FeedRecommendedItem | null {
@@ -106,33 +622,6 @@ function normalizeFeedRecommendedItem(raw: Record<string, unknown>): FeedRecomme
     canMessage: type === "student" || type === "doctor",
     canFollow: (type === "company" || type === "association") && entityId > 0,
   };
-}
-
-function mapSearchHits(value: unknown): HubSearchResultRow[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((row) => {
-      const raw = row as Record<string, unknown>;
-      const entityType = String(readField<string>(raw, "roleType", "RoleType") ?? "").toLowerCase();
-      const entityId = Number(readField<number>(raw, "id", "Id") ?? 0);
-      const title = String(readField<string>(raw, "title", "Title") ?? "");
-      const email = (readField<string>(raw, "email", "Email") as string | null | undefined) ?? null;
-      const subtitle =
-        (readField<string>(raw, "subtitle", "Subtitle") as string | null | undefined) ?? null;
-      const name = title || email || "";
-      return {
-        entityType,
-        entityId,
-        name,
-        subtitle,
-        avatarUrl: (readField<string>(raw, "avatarUrl", "AvatarUrl") as string | null | undefined) ?? null,
-        avatarBase64: (readField<string>(raw, "avatarBase64", "AvatarBase64") as
-          | string
-          | null
-          | undefined) ?? null,
-      };
-    })
-    .filter((row) => row.name.length > 0 && row.entityId > 0);
 }
 
 export type FeedRecommendedRequest = {
@@ -193,6 +682,7 @@ export async function getCommunicationFeed(search?: string): Promise<FeedRespons
   );
   const rawItems = data?.items ?? data?.Items ?? [];
   const itemsArray = Array.isArray(rawItems) ? rawItems : [];
+  const searchResultsRaw = data?.searchResults ?? data?.SearchResults;
 
   const items = itemsArray
     .map((row) => normalizeFeedItem(row as Record<string, unknown>))
@@ -205,7 +695,12 @@ export async function getCommunicationFeed(search?: string): Promise<FeedRespons
       return true;
     });
 
-  return { items };
+  return {
+    items,
+    searchResults: Array.isArray(searchResultsRaw)
+      ? searchResultsRaw.map((row) => normalizeDiscoverMember(row as Record<string, unknown>))
+      : [],
+  };
 }
 
 export async function searchCommunicationHub(query: string): Promise<HubSearchResults> {
@@ -214,15 +709,47 @@ export async function searchCommunicationHub(query: string): Promise<HubSearchRe
     return { students: [], doctors: [], companies: [], associations: [] };
   }
 
-  const { data } = await api.get<Record<string, unknown>>("/search", {
-    params: { q: term, limit: 20 },
+  let raw: CommunicationHubSearchResults = { ...EMPTY_SEARCH };
+
+  const [searchPayload, discoverable, listPeople, feedCompanies] = await Promise.all([
+    api
+      .get<Record<string, unknown>>("/search", {
+        params: { q: term, limit: SEARCH_FETCH_LIMIT },
+      })
+      .then((r) => r.data)
+      .catch(() => null),
+    loadDiscoverableCompaniesAndAssociations(term),
+    loadListApiStudentsAndDoctors(term),
+    loadFeedSearchCompanyRows(term),
+  ]);
+
+  if (searchPayload) {
+    raw = mapPayloadToSearchResults(searchPayload);
+  }
+
+  raw = mergeSearchResults(raw, {
+    ...EMPTY_SEARCH,
+    students: listPeople.students,
+    doctors: listPeople.doctors,
+    companies: [...discoverable.companies, ...feedCompanies],
+    associations: discoverable.associations,
   });
 
+  let ranked = filterAndRankSearchResults(raw, term, { trustBackend: true });
+
+  if (!hasPeopleSearchResults(ranked)) {
+    const fallbackRaw = await searchCommunicationHubFallback(term);
+    const merged = mergeSearchResults(raw, fallbackRaw);
+    ranked = filterAndRankSearchResults(merged, term, { trustBackend: true });
+  }
+
+  const enriched = await enrichFollowableSearchRows(ranked);
+
   return {
-    students: mapSearchHits(data?.students ?? data?.Students),
-    doctors: mapSearchHits(data?.doctors ?? data?.Doctors),
-    companies: mapSearchHits(data?.companies ?? data?.Companies),
-    associations: mapSearchHits(data?.associations ?? data?.Associations),
+    students: enriched.students,
+    doctors: enriched.doctors,
+    companies: enriched.companies,
+    associations: enriched.associations,
   };
 }
 

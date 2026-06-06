@@ -76,7 +76,7 @@ export function AiMatchStatusCard({
       {showEmpty ? (
         <Pressable
           style={[styles.outlineBtn, { borderRadius: layout.radius.input, marginTop: layout.space("md") }]}
-          onPress={() => router.push(STUDENT_ROUTES.profile as never)}
+          onPress={() => router.push(STUDENT_ROUTES.editProfile as never)}
         >
           <Text style={styles.outlineBtnText}>Edit Profile</Text>
         </Pressable>

@@ -91,6 +91,7 @@ function StudentTabs() {
           }}
         />
         <Tabs.Screen name="profile" options={{ href: null }} />
+        <Tabs.Screen name="edit-profile" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />
         <Tabs.Screen name="notifications" options={{ href: null }} />
         <Tabs.Screen name="more" options={{ href: null }} />

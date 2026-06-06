@@ -2,6 +2,7 @@
 export const STUDENT_ROUTES = {
   dashboard: "/dashboard",
   profile: "/profile",
+  editProfile: "/edit-profile",
   following: "/following",
   studentCourses: "/courses",
   graduationProjectWorkspace: "/graduation-projects/workspace",
