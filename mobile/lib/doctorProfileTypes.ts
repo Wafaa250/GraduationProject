@@ -1,0 +1,21 @@
+export type DoctorProfileViewData = {
+  name: string;
+  email: string;
+  faculty: string;
+  department: string;
+  specialization: string;
+  university: string;
+  academicRank: string;
+  bio: string;
+  yearsOfExperience: number | null;
+  officeHours: string;
+  linkedin: string;
+  photoUrl: string | null;
+  technicalSkills: string[];
+  researchSkills: string[];
+  researchInterests: string[];
+  preferredProjectAreas: string[];
+  supervisedStudents: number;
+  activeProjects: number;
+  completedProjects: number;
+};

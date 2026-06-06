@@ -1,5 +1,9 @@
 import api from "@/api/axiosInstance";
 import type { NotificationPreferences } from "@/api/profileSettingsApi";
+import type {
+  DoctorNotificationPreferences,
+  DoctorSupervisionPreferences,
+} from "@/api/doctorSettingsApi";
 
 export type StudentMeResponse = {
   role: string;
@@ -33,5 +37,47 @@ export type StudentMeResponse = {
 
 export async function getMe(): Promise<StudentMeResponse> {
   const { data } = await api.get<StudentMeResponse>("/me");
+  return data;
+}
+
+export type DoctorMeResponse = {
+  role: string;
+  userId: number;
+  profileId: number;
+  user: {
+    userId: number;
+    name: string;
+    email: string;
+    profilePictureBase64: string | null;
+    role: string;
+  };
+  doctorProfile: {
+    profileId: number;
+    department: string;
+    faculty: string;
+    specialization: string;
+    university: string;
+    academicRank: string | null;
+    phoneNumber: string | null;
+    yearsOfExperience: number | null;
+    linkedin: string | null;
+    officeHours: string | null;
+    bio: string | null;
+    profilePictureBase64: string | null;
+    technicalSkills: string[];
+    researchSkills: string[];
+    supervisionCapacity?: number;
+    availableForSupervision?: boolean;
+    researchInterests?: string[];
+    preferredProjectAreas?: string[];
+    notificationPreferences?: DoctorNotificationPreferences;
+    supervisionPreferences?: DoctorSupervisionPreferences;
+  };
+  graduationProjectTrack?: "general" | "engineering" | "computer-engineering";
+  graduationProjectCourses?: string[];
+};
+
+export async function getDoctorMe(): Promise<DoctorMeResponse> {
+  const { data } = await api.get<DoctorMeResponse>("/me");
   return data;
 }

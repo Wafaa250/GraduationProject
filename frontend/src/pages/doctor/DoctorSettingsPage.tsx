@@ -459,22 +459,34 @@ export default function DoctorSettingsPage() {
               <FieldGroup label="Current Password">
                 <PasswordField
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    markDirty();
+                  }}
                   autoComplete="current-password"
+                  inputClassName={fieldClassName()}
                 />
               </FieldGroup>
               <FieldGroup label="New Password">
                 <PasswordField
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    markDirty();
+                  }}
                   autoComplete="new-password"
+                  inputClassName={fieldClassName()}
                 />
               </FieldGroup>
               <FieldGroup label="Confirm Password">
                 <PasswordField
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    markDirty();
+                  }}
                   autoComplete="new-password"
+                  inputClassName={fieldClassName()}
                 />
               </FieldGroup>
             </div>

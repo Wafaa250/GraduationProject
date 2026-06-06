@@ -4,7 +4,7 @@ import { StyleSheet, Text, View, type ImageStyle, type ViewStyle } from "react-n
 import { resolveApiFileUrl } from "@/api/axiosInstance";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { profileInitialsFromName } from "@/lib/profileAvatar";
-import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
+import { resolveProfileImageUri } from "@/lib/profilePhotoUrl";
 import type { HubRoleType } from "@/constants/studentHubTheme";
 
 type Props = {
@@ -18,7 +18,7 @@ type Props = {
 
 export function FeedAvatar({ name, size, avatarUrl, avatarBase64, roleType, style }: Props) {
   const { colors } = useHubTheme();
-  const fromBase64 = avatarBase64 ? profilePhotoUrl(avatarBase64) : null;
+  const fromBase64 = avatarBase64 ? resolveProfileImageUri(avatarBase64) : null;
   const fromUrl = avatarUrl ? resolveApiFileUrl(avatarUrl) ?? avatarUrl : null;
   const src = fromBase64 ?? fromUrl;
   const initials = profileInitialsFromName(name);
@@ -50,7 +50,18 @@ export function FeedAvatar({ name, size, avatarUrl, avatarBase64, roleType, styl
         style,
       ]}
     >
-      <Text style={[styles.initials, { fontSize: size * 0.34, color: roleColor }]}>{initials}</Text>
+      <Text
+        style={[
+          styles.initials,
+          {
+            fontSize: size * 0.34,
+            lineHeight: size * 0.38,
+            color: roleColor,
+          },
+        ]}
+      >
+        {initials}
+      </Text>
     </View>
   );
 }
