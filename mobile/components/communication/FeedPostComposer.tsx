@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,7 +20,8 @@ import {
   isStudentPostImageFile,
   type MobilePostFile,
 } from "@/api/studentPostsApi";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type PendingAttachment = {
@@ -34,6 +35,8 @@ type Props = {
 
 export function FeedPostComposer({ onPosted }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [content, setContent] = useState("");
   const [attachment, setAttachment] = useState<PendingAttachment | null>(null);
   const [posting, setPosting] = useState(false);
@@ -132,7 +135,7 @@ export function FeedPostComposer({ onPosted }: Props) {
         value={content}
         onChangeText={setContent}
         placeholder="What's on your mind?"
-        placeholderTextColor={HUB_COLORS.muted}
+        placeholderTextColor={colors.muted}
         multiline
         style={[styles.input, { fontSize: layout.fontSize.body, minHeight: layout.scale(72) }]}
         editable={!posting}
@@ -147,7 +150,7 @@ export function FeedPostComposer({ onPosted }: Props) {
             contentFit="cover"
           />
           <Pressable onPress={clearAttachment} disabled={posting} style={styles.removeBtn}>
-            <Ionicons name="close" size={16} color={HUB_COLORS.foreground} />
+            <Ionicons name="close" size={16} color={colors.foreground} />
             <Text style={styles.removeText}>Remove</Text>
           </Pressable>
         </View>
@@ -155,7 +158,7 @@ export function FeedPostComposer({ onPosted }: Props) {
 
       {attachment?.kind === "file" ? (
         <View style={[styles.filePreview, { borderRadius: layout.radius.input }]}>
-          <Ionicons name="document-text-outline" size={22} color={HUB_COLORS.primary} />
+          <Ionicons name="document-text-outline" size={22} color={colors.primary} />
           <View style={styles.fileMeta}>
             <Text style={styles.fileName} numberOfLines={1}>
               {attachment.file.name}
@@ -163,7 +166,7 @@ export function FeedPostComposer({ onPosted }: Props) {
             <Text style={styles.fileHint}>PDF or Word document</Text>
           </View>
           <Pressable onPress={clearAttachment} disabled={posting} hitSlop={8}>
-            <Ionicons name="close-circle" size={22} color={HUB_COLORS.muted} />
+            <Ionicons name="close-circle" size={22} color={colors.muted} />
           </Pressable>
         </View>
       ) : null}
@@ -176,7 +179,7 @@ export function FeedPostComposer({ onPosted }: Props) {
             disabled={posting}
             accessibilityLabel="Add image"
           >
-            <Ionicons name="image-outline" size={layout.iconSize} color={HUB_COLORS.primary} />
+            <Ionicons name="image-outline" size={layout.iconSize} color={colors.primary} />
             <Text style={styles.toolLabel}>Image</Text>
           </Pressable>
 
@@ -186,7 +189,7 @@ export function FeedPostComposer({ onPosted }: Props) {
             disabled={posting}
             accessibilityLabel="Add file"
           >
-            <Ionicons name="attach-outline" size={layout.iconSize} color={HUB_COLORS.primary} />
+            <Ionicons name="attach-outline" size={layout.iconSize} color={colors.primary} />
             <Text style={styles.toolLabel}>File</Text>
           </Pressable>
         </View>
@@ -210,20 +213,21 @@ export function FeedPostComposer({ onPosted }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     gap: 12,
-    shadowColor: HUB_COLORS.cardShadow,
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 6,
     elevation: 2,
   },
   input: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     padding: 0,
   },
   previewWrap: {
@@ -233,7 +237,7 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 16 / 9,
     maxHeight: 220,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
   },
   removeBtn: {
     flexDirection: "row",
@@ -242,7 +246,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   removeText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: "500",
   },
@@ -251,9 +255,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     padding: 12,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
   },
   fileMeta: {
     flex: 1,
@@ -261,11 +265,11 @@ const styles = StyleSheet.create({
   },
   fileName: {
     fontWeight: "600",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 14,
   },
   fileHint: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 12,
   },
   toolbar: {
@@ -289,12 +293,12 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   toolLabel: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
     fontSize: 14,
   },
   postBtn: {
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     minHeight: 40,

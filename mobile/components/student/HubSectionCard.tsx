@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -12,6 +13,8 @@ type Props = {
 
 export function HubSectionCard({ title, description, children }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View
@@ -37,24 +40,26 @@ export function HubSectionCard({ title, description, children }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    width: "100%",
-    backgroundColor: HUB_COLORS.cardBg,
-    borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    shadowColor: HUB_COLORS.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  title: {
-    fontWeight: "700",
-    color: HUB_COLORS.foreground,
-  },
-  description: {
-    color: HUB_COLORS.muted,
-    lineHeight: 18,
-  },
-});
+function createStyles(colors: ReturnType<typeof useHubTheme>["colors"]) {
+  return StyleSheet.create({
+    card: {
+      width: "100%",
+      backgroundColor: colors.cardBg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: colors.cardShadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    title: {
+      fontWeight: "700",
+      color: colors.foreground,
+    },
+    description: {
+      color: colors.muted,
+      lineHeight: 18,
+    },
+  });
+}

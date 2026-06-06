@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { MobileNavHeader } from "@/components/navigation/MobileNavHeader";
+
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
   deriveProjectStatus,
@@ -27,7 +29,8 @@ import { getSentProjectInvitations } from "@/api/invitationsApi";
 import { getMe } from "@/api/meApi";
 import { ChipList } from "@/components/student/ChipList";
 import { HubSectionCard } from "@/components/student/HubSectionCard";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { projectTypeLabel } from "@/lib/graduationProjectTypes";
 import { profileInitialsFromName } from "@/lib/profileAvatar";
@@ -35,6 +38,8 @@ import { studentDirectoryProfilePath, STUDENT_ROUTES } from "@/lib/studentRoutes
 
 export default function GraduationProjectWorkspaceScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [project, setProject] = useState<GradProject | null>(null);
@@ -138,7 +143,7 @@ export default function GraduationProjectWorkspaceScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={HUB_COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading workspace…</Text>
         </View>
       </SafeAreaView>
@@ -151,6 +156,14 @@ export default function GraduationProjectWorkspaceScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <MobileNavHeader
+        title="Graduation project"
+        fallbackHref={STUDENT_ROUTES.dashboard}
+        backColor={colors.foreground}
+        titleColor={colors.foreground}
+        backgroundColor={colors.background}
+        borderColor={colors.border}
+      />
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: layout.horizontalPadding,
@@ -159,14 +172,9 @@ export default function GraduationProjectWorkspaceScreen() {
           gap: layout.space("md"),
         }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={HUB_COLORS.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.primary} />
         }
       >
-        <Pressable style={styles.backBtn} onPress={() => router.replace(STUDENT_ROUTES.dashboard as never)}>
-          <Ionicons name="arrow-back" size={16} color={HUB_COLORS.muted} />
-          <Text style={styles.backText}>Back to Dashboard</Text>
-        </Pressable>
-
         <View style={styles.badges}>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{stageLabel}</Text>
@@ -283,7 +291,7 @@ export default function GraduationProjectWorkspaceScreen() {
               } as never)
             }
           >
-            <Ionicons name="create-outline" size={18} color={HUB_COLORS.primary} />
+            <Ionicons name="create-outline" size={18} color={colors.primary} />
             <Text style={styles.editBtnText}>Edit Project</Text>
           </Pressable>
         ) : null}
@@ -294,10 +302,11 @@ export default function GraduationProjectWorkspaceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingWrap: {
     flex: 1,
@@ -306,7 +315,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 14,
   },
   backBtn: {
@@ -315,7 +324,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   backText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontWeight: "600",
     fontSize: 14,
   },
@@ -325,13 +334,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   badge: {
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
   badgeText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
     fontSize: 12,
   },
@@ -339,32 +348,32 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16, 185, 129, 0.12)",
   },
   badgeSuccessText: {
-    color: HUB_COLORS.association,
+    color: colors.association,
   },
   badgeOutline: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
   badgeOutlineText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontWeight: "600",
     fontSize: 12,
   },
   title: {
     fontWeight: "800",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     letterSpacing: -0.4,
   },
   description: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 22,
     fontSize: 15,
   },
   muted: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -373,50 +382,50 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBg,
   },
   memberAvatar: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
   memberAvatarText: {
     fontWeight: "800",
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontSize: 13,
   },
   memberName: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 15,
   },
   memberMeta: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 13,
     marginTop: 2,
   },
   matchCard: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBg,
     gap: 8,
   },
   matchRank: {
     fontSize: 12,
     fontWeight: "700",
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   reason: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
   },
   inviteBtn: {
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
@@ -434,17 +443,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
+    borderColor: colors.primaryBorder,
     paddingVertical: 12,
     minHeight: 44,
   },
   editBtnText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
     fontSize: 15,
   },
   stageFooter: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 12,
     textAlign: "center",
   },

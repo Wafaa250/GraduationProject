@@ -21,7 +21,8 @@ import {
   updateGraduationProject,
 } from "@/api/gradProjectApi";
 import { getMe } from "@/api/meApi";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   getGraduationProjectTypeOptions,
@@ -29,6 +30,7 @@ import {
   stageToProjectType,
   type GraduationProjectTypeOption,
 } from "@/lib/graduationProjectTypes";
+import { MobileNavHeader } from "@/components/navigation/MobileNavHeader";
 import { STUDENT_ROUTES } from "@/lib/studentRoutes";
 
 function uniqueStrings(values: string[]): string[] {
@@ -41,6 +43,8 @@ function parseCommaList(value: string): string[] {
 
 export default function CreateGraduationProjectScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { editProjectId } = useLocalSearchParams<{ editProjectId?: string }>();
   const editingProjectId = editProjectId ? Number(editProjectId) : null;
   const isEditMode = editingProjectId != null && Number.isFinite(editingProjectId) && editingProjectId > 0;
@@ -143,7 +147,7 @@ export default function CreateGraduationProjectScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={HUB_COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -151,6 +155,16 @@ export default function CreateGraduationProjectScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <MobileNavHeader
+        title={isEditMode ? "Edit project" : "Create project"}
+        fallbackHref={
+          isEditMode ? STUDENT_ROUTES.graduationProjectWorkspace : STUDENT_ROUTES.dashboard
+        }
+        backColor={colors.foreground}
+        titleColor={colors.foreground}
+        backgroundColor={colors.background}
+        borderColor={colors.border}
+      />
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: layout.horizontalPadding,
@@ -160,18 +174,6 @@ export default function CreateGraduationProjectScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable
-          style={styles.backBtn}
-          onPress={() =>
-            router.replace(
-              (isEditMode ? STUDENT_ROUTES.graduationProjectWorkspace : STUDENT_ROUTES.dashboard) as never,
-            )
-          }
-        >
-          <Ionicons name="arrow-back" size={16} color={HUB_COLORS.muted} />
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
-
         <Text style={[styles.heading, { fontSize: layout.fontSize.title }]}>
           {isEditMode ? "Edit Graduation Project" : "Create Graduation Project"}
         </Text>
@@ -207,7 +209,7 @@ export default function CreateGraduationProjectScreen() {
             value={title}
             onChangeText={setTitle}
             placeholder="Enter project title"
-            placeholderTextColor={HUB_COLORS.muted}
+            placeholderTextColor={colors.muted}
           />
         </View>
 
@@ -218,7 +220,7 @@ export default function CreateGraduationProjectScreen() {
             value={summary}
             onChangeText={setSummary}
             placeholder="Describe your project idea"
-            placeholderTextColor={HUB_COLORS.muted}
+            placeholderTextColor={colors.muted}
             multiline
           />
         </View>
@@ -230,7 +232,7 @@ export default function CreateGraduationProjectScreen() {
             value={skillsText}
             onChangeText={setSkillsText}
             placeholder="e.g. React, Python, UI Design"
-            placeholderTextColor={HUB_COLORS.muted}
+            placeholderTextColor={colors.muted}
           />
         </View>
 
@@ -241,7 +243,7 @@ export default function CreateGraduationProjectScreen() {
             value={technologiesText}
             onChangeText={setTechnologiesText}
             placeholder="e.g. Firebase, PostgreSQL"
-            placeholderTextColor={HUB_COLORS.muted}
+            placeholderTextColor={colors.muted}
           />
         </View>
 
@@ -252,7 +254,7 @@ export default function CreateGraduationProjectScreen() {
             value={requiredRolesText}
             onChangeText={setRequiredRolesText}
             placeholder="e.g. Backend Developer, Designer"
-            placeholderTextColor={HUB_COLORS.muted}
+            placeholderTextColor={colors.muted}
           />
         </View>
 
@@ -263,7 +265,7 @@ export default function CreateGraduationProjectScreen() {
             value={preferredRolesText}
             onChangeText={setPreferredRolesText}
             placeholder="Optional preferred roles"
-            placeholderTextColor={HUB_COLORS.muted}
+            placeholderTextColor={colors.muted}
           />
         </View>
 
@@ -275,7 +277,7 @@ export default function CreateGraduationProjectScreen() {
             onChangeText={setTeamSize}
             keyboardType="number-pad"
             placeholder="3"
-            placeholderTextColor={HUB_COLORS.muted}
+            placeholderTextColor={colors.muted}
           />
         </View>
 
@@ -284,7 +286,7 @@ export default function CreateGraduationProjectScreen() {
           <Switch
             value={lookingForTeammates}
             onValueChange={setLookingForTeammates}
-            trackColor={{ true: HUB_COLORS.primary, false: HUB_COLORS.border }}
+            trackColor={{ true: colors.primary, false: colors.border }}
           />
         </View>
 
@@ -304,10 +306,11 @@ export default function CreateGraduationProjectScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingWrap: {
     flex: 1,
@@ -320,21 +323,21 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   backText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontWeight: "600",
     fontSize: 14,
   },
   heading: {
     fontWeight: "800",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   warning: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 14,
     lineHeight: 22,
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     padding: 12,
     borderRadius: 12,
   },
@@ -343,17 +346,17 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 14,
   },
   input: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBg,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 15,
   },
   textArea: {
@@ -367,22 +370,22 @@ const styles = StyleSheet.create({
   },
   stageChip: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   stageChipActive: {
-    backgroundColor: HUB_COLORS.primarySoft,
-    borderColor: HUB_COLORS.primaryBorder,
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primaryBorder,
   },
   stageChipText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontWeight: "600",
     fontSize: 13,
   },
   stageChipTextActive: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   switchRow: {
     flexDirection: "row",
@@ -390,7 +393,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   submitBtn: {
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,

@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { TeamInvitationView } from "@/lib/dashboardMappers";
 
@@ -14,6 +16,8 @@ type Props = {
 
 export function TeamInvitationsCard({ invitations, busyId, onAccept, onDecline }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const empty = invitations.length === 0;
 
   return (
@@ -44,7 +48,7 @@ export function TeamInvitationsCard({ invitations, busyId, onAccept, onDecline }
       {empty ? (
         <View style={styles.empty}>
           <View style={[styles.emptyIcon, { borderRadius: layout.radius.button }]}>
-            <Ionicons name="mail-open-outline" size={28} color={HUB_COLORS.muted} />
+            <Ionicons name="mail-open-outline" size={28} color={colors.muted} />
           </View>
           <Text style={[styles.emptyTitle, { fontSize: layout.fontSize.label }]}>No pending invitations</Text>
           <Text style={[styles.emptyText, { fontSize: layout.fontSize.footer }]}>
@@ -105,7 +109,7 @@ export function TeamInvitationsCard({ invitations, busyId, onAccept, onDecline }
                     onPress={() => onDecline(inv.id)}
                     disabled={busy}
                   >
-                    <Ionicons name="close" size={16} color={HUB_COLORS.foreground} />
+                    <Ionicons name="close" size={16} color={colors.foreground} />
                     <Text style={styles.declineText}>Decline</Text>
                   </Pressable>
                 </View>
@@ -118,11 +122,12 @@ export function TeamInvitationsCard({ invitations, busyId, onAccept, onDecline }
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
   },
   header: {
     flexDirection: "row",
@@ -132,20 +137,20 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   subtitle: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     marginTop: 2,
   },
   badge: {
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
   badgeText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
     fontSize: 12,
   },
@@ -157,26 +162,26 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 64,
     height: 64,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
   },
   emptyTitle: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     textAlign: "center",
   },
   emptyText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     textAlign: "center",
     marginTop: 6,
     lineHeight: 20,
   },
   inviteRow: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.background,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
     gap: 12,
   },
   inviteTop: {
@@ -185,7 +190,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   avatar: {
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -199,14 +204,14 @@ const styles = StyleSheet.create({
   },
   inviteTitle: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   inviteMuted: {
     fontWeight: "400",
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   inviteDetail: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   actions: {
     flexDirection: "row",
@@ -217,7 +222,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     minHeight: 40,
   },
@@ -231,14 +236,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: HUB_COLORS.inputBg,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     paddingVertical: 10,
     minHeight: 40,
   },
   declineText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontWeight: "600",
     fontSize: 14,
   },

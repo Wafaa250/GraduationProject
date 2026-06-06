@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { GraduationProjectView } from "@/lib/dashboardMappers";
 import { STUDENT_ROUTES } from "@/lib/studentRoutes";
@@ -15,6 +17,8 @@ type Props = {
 
 export function GraduationProjectCard({ project, sectionTitle, courseLabels }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const empty = !project;
 
   return (
@@ -99,7 +103,7 @@ export function GraduationProjectCard({ project, sectionTitle, courseLabels }: P
 
           <View style={[styles.footer, { marginTop: layout.space("md"), paddingTop: layout.space("md") }]}>
             <View style={styles.teamRow}>
-              <Ionicons name="people-outline" size={16} color={HUB_COLORS.primary} />
+              <Ionicons name="people-outline" size={16} color={colors.primary} />
               <Text style={styles.teamLabel}>Team size</Text>
               <Text style={styles.teamValue}>{project!.teamSize}</Text>
             </View>
@@ -116,11 +120,12 @@ export function GraduationProjectCard({ project, sectionTitle, courseLabels }: P
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
   },
   header: {
     flexDirection: "row",
@@ -130,10 +135,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   subtitle: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     marginTop: 2,
   },
   stageBadge: {
@@ -160,18 +165,18 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 64,
     height: 64,
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
   },
   emptyTitle: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     textAlign: "center",
   },
   emptyText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     textAlign: "center",
     marginTop: 6,
     lineHeight: 20,
@@ -180,7 +185,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 12,
     minHeight: 44,
@@ -191,9 +196,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   projectBody: {
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
   },
   projectTop: {
     flexDirection: "row",
@@ -201,31 +206,31 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   projectIcon: {
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   projectTitle: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   projectDesc: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 20,
   },
   skillsLabel: {
     fontWeight: "700",
     letterSpacing: 0.6,
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   skillsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
   },
   skillChip: {
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
+    borderColor: colors.primaryBorder,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
@@ -233,11 +238,11 @@ const styles = StyleSheet.create({
   skillText: {
     fontSize: 12,
     fontWeight: "600",
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   noSkills: {
     fontSize: 12,
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   footer: {
     flexDirection: "row",
@@ -246,7 +251,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: HUB_COLORS.border,
+    borderTopColor: colors.border,
   },
   teamRow: {
     flexDirection: "row",
@@ -254,24 +259,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   teamLabel: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 14,
   },
   teamValue: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 14,
   },
   workspaceBtn: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
+    borderColor: colors.primaryBorder,
     paddingHorizontal: 14,
     paddingVertical: 8,
     minHeight: 36,
     justifyContent: "center",
   },
   workspaceText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
     fontSize: 13,
   },

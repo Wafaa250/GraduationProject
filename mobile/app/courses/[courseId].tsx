@@ -131,7 +131,13 @@ export default function StudentCourseDetailScreen() {
 
   if (!validId || loading || !course) {
     return (
-      <StudentWorkspaceScreen title="Course" subtitle="Loading course details…">
+      <StudentWorkspaceScreen
+        title="Course"
+        subtitle="Loading course details…"
+        showBack
+        fallbackHref={STUDENT_ROUTES.studentCourses}
+        navTitle="Course"
+      >
         <ActivityIndicator color={HUB_COLORS.primary} />
       </StudentWorkspaceScreen>
     );
@@ -145,12 +151,13 @@ export default function StudentCourseDetailScreen() {
   ];
 
   return (
-    <StudentWorkspaceScreen title={course.name} subtitle={`${course.code} · Section ${course.section}`}>
-      <Pressable style={styles.backBtn} onPress={() => router.replace(STUDENT_ROUTES.studentCourses as never)}>
-        <Ionicons name="arrow-back" size={16} color={HUB_COLORS.muted} />
-        <Text style={styles.backText}>Back to My Courses</Text>
-      </Pressable>
-
+    <StudentWorkspaceScreen
+      title={course.name}
+      subtitle={`${course.code} · Section ${course.section}`}
+      showBack
+      fallbackHref={STUDENT_ROUTES.studentCourses}
+      navTitle="Course"
+    >
       <HubSectionCard title={course.doctor} description={course.description}>
         <Text style={styles.metaLine}>Schedule: {course.schedule}</Text>
         <Text style={styles.metaLine}>{course.students} students in your section</Text>

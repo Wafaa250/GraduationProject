@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { STUDENT_ROUTES } from "@/lib/studentRoutes";
 
@@ -13,6 +15,8 @@ type Props = {
 
 export function CoursesAreaCard({ enrolled, partners }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View
@@ -33,7 +37,7 @@ export function CoursesAreaCard({ enrolled, partners }: Props) {
       <View style={[styles.statsRow, { gap: layout.space("md"), marginTop: layout.space("lg") }]}>
         <View style={[styles.statCard, { borderRadius: layout.radius.input, padding: layout.space("md"), flex: 1 }]}>
           <View style={styles.statIconWrap}>
-            <Ionicons name="book-outline" size={18} color={HUB_COLORS.primary} />
+            <Ionicons name="book-outline" size={18} color={colors.primary} />
           </View>
           <Text style={[styles.statValue, { fontSize: layout.scale(28), marginTop: layout.space("sm") }]}>
             {enrolled}
@@ -63,34 +67,35 @@ export function CoursesAreaCard({ enrolled, partners }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     overflow: "hidden",
   },
   title: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   subtitle: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 20,
   },
   statsRow: {
     flexDirection: "row",
   },
   statCard: {
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
   },
   statIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -99,12 +104,12 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontWeight: "800",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   statLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     marginTop: 2,
   },
   ctaBtn: {
@@ -112,7 +117,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     minHeight: 48,
   },

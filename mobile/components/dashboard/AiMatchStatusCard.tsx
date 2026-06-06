@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { StudentAiMatchStatus } from "@/api/dashboardApi";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { STUDENT_ROUTES } from "@/lib/studentRoutes";
 
@@ -21,6 +23,8 @@ export function AiMatchStatusCard({
   followingAssociationCount = 0,
 }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (loading && !status) {
     return (
@@ -35,10 +39,10 @@ export function AiMatchStatusCard({
         ]}
       >
         <View style={styles.header}>
-          <Ionicons name="sparkles" size={14} color={HUB_COLORS.primary} />
+          <Ionicons name="sparkles" size={14} color={colors.primary} />
           <Text style={[styles.title, { fontSize: layout.scale(14) }]}>AI Match Status</Text>
         </View>
-        <ActivityIndicator color={HUB_COLORS.primary} style={{ marginTop: 12 }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 12 }} />
       </View>
     );
   }
@@ -62,7 +66,7 @@ export function AiMatchStatusCard({
       ]}
     >
       <View style={styles.header}>
-        <Ionicons name="sparkles" size={14} color={HUB_COLORS.primary} />
+        <Ionicons name="sparkles" size={14} color={colors.primary} />
         <Text style={[styles.title, { fontSize: layout.scale(14) }]}>AI Match Status</Text>
       </View>
 
@@ -109,11 +113,12 @@ export function AiMatchStatusCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
   },
   header: {
     flexDirection: "row",
@@ -122,42 +127,42 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
   headline: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     lineHeight: 22,
   },
   insight: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 20,
   },
   statusLine: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 20,
   },
   statusLabel: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   link: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
   },
   outlineBtn: {
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 8,
     minHeight: 36,
     justifyContent: "center",
   },
   outlineBtnText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontWeight: "600",
     fontSize: 14,
   },

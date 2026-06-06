@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { AUTH_COLORS } from "@/constants/authTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type RegTextFieldProps = {
@@ -29,6 +31,8 @@ export function RegTextField({
   tall = false,
 }: RegTextFieldProps) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={{ gap: layout.space("xs"), marginBottom: layout.space("md") }}>
@@ -37,7 +41,7 @@ export function RegTextField({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={colors.muted}
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
@@ -61,26 +65,27 @@ export function RegTextField({
   );
 }
 
-const styles = StyleSheet.create({
-  label: {
-    fontWeight: "600",
-    color: AUTH_COLORS.foreground,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: AUTH_COLORS.border,
-    backgroundColor: AUTH_COLORS.inputBg,
-    color: AUTH_COLORS.foreground,
-    width: "100%",
-  },
-  multiline: {
-    textAlignVertical: "top",
-    paddingTop: 12,
-  },
-  inputError: {
-    borderColor: "#FCA5A5",
-  },
-  error: {
-    color: "#DC2626",
-  },
-});
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
+    label: {
+      fontWeight: "600",
+      color: colors.foreground,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.inputBg,
+      color: colors.foreground,
+      width: "100%",
+    },
+    multiline: {
+      textAlignVertical: "top",
+      paddingTop: 12,
+    },
+    inputError: {
+      borderColor: "#FCA5A5",
+    },
+    error: {
+      color: "#DC2626",
+    },
+  });

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -21,6 +22,8 @@ export function ProfileTagInput({
   maxLength = 48,
 }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [draft, setDraft] = useState("");
 
   const addTag = () => {
@@ -51,7 +54,7 @@ export function ProfileTagInput({
             accessibilityLabel={`Remove ${tag}`}
           >
             <Text style={[styles.chipText, { fontSize: layout.fontSize.footer }]}>{tag}</Text>
-            <Ionicons name="close" size={14} color={HUB_COLORS.primary} />
+            <Ionicons name="close" size={14} color={colors.primary} />
           </Pressable>
         ))}
       </View>
@@ -60,7 +63,7 @@ export function ProfileTagInput({
           value={draft}
           onChangeText={setDraft}
           placeholder={placeholder}
-          placeholderTextColor={HUB_COLORS.muted}
+          placeholderTextColor={colors.muted}
           maxLength={maxLength}
           onSubmitEditing={addTag}
           returnKeyType="done"
@@ -93,10 +96,11 @@ export function ProfileTagInput({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   label: {
     fontWeight: "600",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   wrap: {
     flexDirection: "row",
@@ -107,13 +111,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
+    borderColor: colors.primaryBorder,
     paddingVertical: 8,
   },
   chipText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
   },
   row: {
@@ -123,19 +127,19 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.inputBg,
-    color: HUB_COLORS.foreground,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBg,
+    color: colors.foreground,
   },
   addBtn: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
-    backgroundColor: HUB_COLORS.primarySoft,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
     justifyContent: "center",
     alignItems: "center",
   },
   addBtnText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
   },
 });

@@ -1,31 +1,33 @@
-import { Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import type { Href } from "expo-router";
 
+import { MobileNavHeader } from "@/components/navigation/MobileNavHeader";
 import { HUB_COLORS } from "@/constants/studentHubTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
   title: string;
   children: ReactNode;
+  fallbackHref?: Href;
+  onBackPress?: () => void;
 };
 
-export function PublicProfileShell({ title, children }: Props) {
+export function PublicProfileShell({ title, children, fallbackHref, onBackPress }: Props) {
   const layout = useResponsiveLayout();
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={[styles.topBar, { paddingHorizontal: layout.horizontalPadding }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="chevron-back" size={24} color={HUB_COLORS.foreground} />
-        </Pressable>
-        <Text style={styles.topTitle} numberOfLines={1}>
-          {title}
-        </Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <MobileNavHeader
+        title={title}
+        fallbackHref={fallbackHref}
+        onBackPress={onBackPress}
+        backColor={HUB_COLORS.foreground}
+        titleColor={HUB_COLORS.foreground}
+        backgroundColor={HUB_COLORS.cardBg}
+        borderColor={HUB_COLORS.border}
+      />
       <View style={[styles.body, { paddingHorizontal: layout.horizontalPadding, paddingBottom: layout.space("xxl") }]}>
         {children}
       </View>
@@ -37,22 +39,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: HUB_COLORS.background,
-  },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
-  },
-  topTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontWeight: "700",
-    color: HUB_COLORS.foreground,
-    fontSize: 16,
   },
   body: {
     flex: 1,

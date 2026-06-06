@@ -21,7 +21,8 @@ import {
 } from "@/api/followingApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { StudentWorkspaceScreen } from "@/components/student/StudentWorkspaceScreen";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type FollowingTab = "all" | "companies" | "associations";
@@ -46,6 +47,8 @@ function FollowingRow({
   unfollowing: boolean;
 }) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const resolvedLogo = logoUrl ? resolveApiFileUrl(logoUrl) : null;
 
   return (
@@ -71,10 +74,10 @@ function FollowingRow({
         </Pressable>
         <Pressable style={styles.outlineBtn} onPress={onUnfollow} disabled={unfollowing}>
           {unfollowing ? (
-            <ActivityIndicator size="small" color={HUB_COLORS.muted} />
+            <ActivityIndicator size="small" color={colors.muted} />
           ) : (
             <>
-              <Ionicons name="person-remove-outline" size={16} color={HUB_COLORS.muted} />
+              <Ionicons name="person-remove-outline" size={16} color={colors.muted} />
               <Text style={styles.outlineBtnText}>Unfollow</Text>
             </>
           )}
@@ -86,6 +89,8 @@ function FollowingRow({
 
 export default function FollowingScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [tab, setTab] = useState<FollowingTab>("all");
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<FollowingCompany[]>([]);
@@ -169,7 +174,7 @@ export default function FollowingScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={HUB_COLORS.primary} style={{ marginTop: 24 }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
       ) : isEmpty ? (
         <Text style={styles.empty}>
           {tab === "companies"
@@ -223,7 +228,8 @@ export default function FollowingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   tabs: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -232,34 +238,34 @@ const styles = StyleSheet.create({
   tab: {
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: HUB_COLORS.inputBg,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     minHeight: 44,
     justifyContent: "center",
   },
   tabActive: {
-    backgroundColor: HUB_COLORS.primarySoft,
-    borderColor: HUB_COLORS.primaryBorder,
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primaryBorder,
   },
   tabText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontWeight: "600",
     fontSize: 13,
   },
   tabTextActive: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   groupTitle: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 15,
   },
   row: {
     width: "100%",
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     gap: 12,
   },
   rowMain: {
@@ -278,11 +284,11 @@ const styles = StyleSheet.create({
   },
   rowName: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 16,
   },
   rowDetail: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 13,
     marginTop: 2,
   },
@@ -292,7 +298,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryBtn: {
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -309,20 +315,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     minHeight: 44,
-    backgroundColor: HUB_COLORS.inputBg,
+    backgroundColor: colors.inputBg,
   },
   outlineBtnText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontWeight: "600",
     fontSize: 14,
   },
   empty: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 22,
     textAlign: "center",
   },

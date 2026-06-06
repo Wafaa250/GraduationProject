@@ -1,11 +1,13 @@
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { WorkspaceAccountHeader } from "@/components/navigation/WorkspaceAccountHeader";
 import { AUTH_COLORS } from "@/constants/authTheme";
 
 export default function DoctorDashboardScreen() {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <WorkspaceAccountHeader profileHref="/doctor/dashboard" settingsHref="/doctor/dashboard" avatarRole="doctor" />
       <View style={styles.content}>
         <Text style={styles.title}>Doctor Dashboard</Text>
         <Text style={styles.subtitle}>Authenticated doctor home route.</Text>

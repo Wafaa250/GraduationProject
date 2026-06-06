@@ -1,11 +1,13 @@
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { WorkspaceAccountHeader } from "@/components/navigation/WorkspaceAccountHeader";
 import { AUTH_COLORS } from "@/constants/authTheme";
 
 export default function CompanyDashboardScreen() {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <WorkspaceAccountHeader profileHref="/company" settingsHref="/company" avatarRole="company" />
       <View style={styles.content}>
         <Text style={styles.title}>Company Dashboard</Text>
         <Text style={styles.subtitle}>Authenticated company home route.</Text>

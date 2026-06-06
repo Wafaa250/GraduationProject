@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -14,12 +14,15 @@ import { FeedHeader } from "@/components/communication/FeedHeader";
 import { FeedPostCard } from "@/components/communication/FeedPostCard";
 import { FeedPostComposer } from "@/components/communication/FeedPostComposer";
 import { FeedRecommendedCarousel } from "@/components/communication/FeedRecommendedCarousel";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { FeedItem } from "@/lib/feedTypes";
 
 export default function CommunicationHubScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,7 +60,7 @@ export default function CommunicationHubScreen() {
       <FeedPostComposer onPosted={() => void loadFeed(true)} />
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={HUB_COLORS.primary} size="large" />
+          <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.loadingText}>Loading feed...</Text>
         </View>
       ) : loadFailed ? (
@@ -93,8 +96,8 @@ export default function CommunicationHubScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void onRefresh()}
-            tintColor={HUB_COLORS.primary}
-            colors={[HUB_COLORS.primary]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -103,35 +106,36 @@ export default function CommunicationHubScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: HUB_COLORS.background,
-  },
-  loadingWrap: {
-    alignItems: "center",
-    paddingVertical: 32,
-    gap: 12,
-  },
-  loadingText: {
-    color: HUB_COLORS.muted,
-    fontSize: 14,
-  },
-  emptyWrap: {
-    alignItems: "center",
-    paddingVertical: 32,
-    gap: 8,
-  },
-  emptyTitle: {
-    fontWeight: "700",
-    fontSize: 16,
-    color: HUB_COLORS.foreground,
-    textAlign: "center",
-  },
-  emptyDescription: {
-    color: HUB_COLORS.muted,
-    fontSize: 14,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-});
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    loadingWrap: {
+      alignItems: "center",
+      paddingVertical: 32,
+      gap: 12,
+    },
+    loadingText: {
+      color: colors.muted,
+      fontSize: 14,
+    },
+    emptyWrap: {
+      alignItems: "center",
+      paddingVertical: 32,
+      gap: 8,
+    },
+    emptyTitle: {
+      fontWeight: "700",
+      fontSize: 16,
+      color: colors.foreground,
+      textAlign: "center",
+    },
+    emptyDescription: {
+      color: colors.muted,
+      fontSize: 14,
+      textAlign: "center",
+      lineHeight: 20,
+    },
+  });

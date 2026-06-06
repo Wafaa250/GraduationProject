@@ -13,6 +13,9 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { MobileNavHeader } from "@/components/navigation/MobileNavHeader";
+import { STUDENT_ROUTES } from "@/lib/studentRoutes";
+
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { getMe } from "@/api/meApi";
 import { updateProfile } from "@/api/profileApi";
@@ -21,7 +24,8 @@ import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { RegTextField } from "@/components/registration/RegTextField";
 import { HubSectionCard } from "@/components/student/HubSectionCard";
 import { ProfileTagInput } from "@/components/student/ProfileTagInput";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
 import { setItem } from "@/utils/authStorage";
@@ -42,6 +46,8 @@ function resolveAvailability(value: string | null | undefined): string {
 
 export default function EditProfileScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -157,7 +163,7 @@ export default function EditProfileScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={HUB_COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading your profile…</Text>
       </View>
     );
@@ -165,6 +171,14 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <MobileNavHeader
+        title="Edit profile"
+        fallbackHref={STUDENT_ROUTES.profile}
+        backColor={colors.foreground}
+        titleColor={colors.foreground}
+        backgroundColor={colors.cardBg}
+        borderColor={colors.border}
+      />
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -178,11 +192,7 @@ export default function EditProfileScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View>
-          <Pressable onPress={() => router.back()} style={styles.backRow} accessibilityRole="button">
-            <Ionicons name="arrow-back" size={18} color={HUB_COLORS.primary} />
-            <Text style={styles.backText}>Back to profile</Text>
-          </Pressable>
-          <Text style={[styles.title, { fontSize: layout.fontSize.title, marginTop: layout.space("md") }]}>
+          <Text style={[styles.title, { fontSize: layout.fontSize.title }]}>
             Edit your profile
           </Text>
           <Text style={[styles.subtitle, { fontSize: layout.fontSize.body, marginTop: layout.space("sm") }]}>
@@ -310,10 +320,11 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
   },
   content: {
     flexGrow: 1,
@@ -323,15 +334,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
     gap: 12,
   },
   loadingText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   title: {
     fontWeight: "800",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   backRow: {
     flexDirection: "row",
@@ -340,12 +351,12 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   backText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
     fontSize: 14,
   },
   subtitle: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 22,
   },
   photoRow: {
@@ -353,7 +364,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   photoAction: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
   },
   removePhoto: {
@@ -364,7 +375,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontWeight: "600",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     marginBottom: 8,
   },
   optionWrap: {
@@ -374,27 +385,27 @@ const styles = StyleSheet.create({
   },
   optionChip: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.inputBg,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBg,
     paddingHorizontal: 14,
     paddingVertical: 10,
     minHeight: 44,
     justifyContent: "center",
   },
   optionChipActive: {
-    borderColor: HUB_COLORS.primaryBorder,
-    backgroundColor: HUB_COLORS.primarySoft,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
   },
   optionText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontWeight: "600",
     fontSize: 14,
   },
   optionTextActive: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   muted: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 13,
   },
   footer: {
@@ -406,20 +417,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     borderTopWidth: 1,
-    borderTopColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
+    borderTopColor: colors.border,
+    backgroundColor: colors.cardBg,
     paddingTop: 12,
   },
   cancelBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 12,
   },
   cancelBtnText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontWeight: "700",
   },
   saveWrap: {

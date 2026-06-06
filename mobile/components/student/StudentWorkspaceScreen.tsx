@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { Href } from "expo-router";
 
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import { MobileNavHeader } from "@/components/navigation/MobileNavHeader";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -11,6 +14,10 @@ type Props = {
   children: ReactNode;
   refreshing?: boolean;
   onRefresh?: () => void;
+  showBack?: boolean;
+  fallbackHref?: Href | string;
+  onBackPress?: () => void;
+  navTitle?: string;
 };
 
 export function StudentWorkspaceScreen({
@@ -19,11 +26,28 @@ export function StudentWorkspaceScreen({
   children,
   refreshing = false,
   onRefresh,
+  showBack = false,
+  fallbackHref,
+  onBackPress,
+  navTitle,
 }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {showBack ? (
+        <MobileNavHeader
+          title={navTitle}
+          fallbackHref={fallbackHref}
+          onBackPress={onBackPress}
+          backColor={colors.foreground}
+          titleColor={colors.foreground}
+          backgroundColor={colors.cardBg}
+          borderColor={colors.border}
+        />
+      ) : null}
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -37,7 +61,7 @@ export function StudentWorkspaceScreen({
         keyboardShouldPersistTaps="handled"
         refreshControl={
           onRefresh ? (
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={HUB_COLORS.primary} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           ) : undefined
         }
       >
@@ -55,25 +79,27 @@ export function StudentWorkspaceScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: HUB_COLORS.background,
-  },
-  content: {
-    flexGrow: 1,
-    width: "100%",
-  },
-  header: {
-    width: "100%",
-  },
-  title: {
-    fontWeight: "800",
-    color: HUB_COLORS.foreground,
-    letterSpacing: -0.4,
-  },
-  subtitle: {
-    color: HUB_COLORS.muted,
-    lineHeight: 22,
-  },
-});
+function createStyles(colors: ReturnType<typeof useHubTheme>["colors"]) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      flexGrow: 1,
+      width: "100%",
+    },
+    header: {
+      width: "100%",
+    },
+    title: {
+      fontWeight: "800",
+      color: colors.foreground,
+      letterSpacing: -0.4,
+    },
+    subtitle: {
+      color: colors.muted,
+      lineHeight: 22,
+    },
+  });
+}

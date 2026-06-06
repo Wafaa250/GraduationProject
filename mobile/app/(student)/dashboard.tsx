@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -27,7 +27,8 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { GraduationProjectCard } from "@/components/dashboard/GraduationProjectCard";
 import { StudentInsightsGrid } from "@/components/dashboard/StudentInsightsGrid";
 import { TeamInvitationsCard } from "@/components/dashboard/TeamInvitationsCard";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   mapGradProject,
@@ -40,6 +41,8 @@ import { getGraduationSectionTitle } from "@/lib/graduationProjectTypes";
 
 export default function StudentDashboardScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [insights, setInsights] = useState<InsightMetric[]>([]);
@@ -86,8 +89,8 @@ export default function StudentDashboardScreen() {
           value: String(teammatesCount),
           hint: "AI-matched to your skills",
           icon: "people",
-          tint: HUB_COLORS.primarySoft,
-          iconColor: HUB_COLORS.primary,
+          tint: colors.primarySoft,
+          iconColor: colors.primary,
         },
         {
           key: "projects",
@@ -96,7 +99,7 @@ export default function StudentDashboardScreen() {
           hint: "Open for collaboration",
           icon: "folder",
           tint: "rgba(16, 185, 129, 0.12)",
-          iconColor: HUB_COLORS.association,
+          iconColor: colors.association,
         },
         {
           key: "match",
@@ -114,7 +117,7 @@ export default function StudentDashboardScreen() {
           hint: "Awaiting your reply",
           icon: "mail",
           tint: "rgba(14, 165, 233, 0.12)",
-          iconColor: HUB_COLORS.doctor,
+          iconColor: colors.doctor,
         },
       ]);
 
@@ -135,7 +138,7 @@ export default function StudentDashboardScreen() {
       if (!silent) setLoading(false);
       setMatchStatusLoading(false);
     }
-  }, []);
+  }, [colors]);
 
   useEffect(() => {
     void loadDashboard();
@@ -177,7 +180,7 @@ export default function StudentDashboardScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={HUB_COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading your dashboard…</Text>
         </View>
       </SafeAreaView>
@@ -200,8 +203,8 @@ export default function StudentDashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void onRefresh()}
-            tintColor={HUB_COLORS.primary}
-            colors={[HUB_COLORS.primary]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
@@ -230,19 +233,20 @@ export default function StudentDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: HUB_COLORS.background,
-  },
-  loadingWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: {
-    color: HUB_COLORS.muted,
-    fontSize: 14,
-  },
-});
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    loadingWrap: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+    },
+    loadingText: {
+      color: colors.muted,
+      fontSize: 14,
+    },
+  });

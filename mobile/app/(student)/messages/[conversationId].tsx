@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { MobileNavHeader } from "@/components/navigation/MobileNavHeader";
+
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
   deleteConversation,
@@ -25,7 +27,8 @@ import {
   type ConversationMessage,
 } from "@/api/conversationsApi";
 import { getMe } from "@/api/meApi";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   formatStudentMessageTime,
@@ -34,6 +37,8 @@ import {
 
 export default function MessageThreadScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const conversationNumericId = Number(conversationId);
   const listRef = useRef<FlatList<ConversationMessage>>(null);
@@ -127,21 +132,23 @@ export default function MessageThreadScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <View style={[styles.topBar, { paddingHorizontal: layout.horizontalPadding }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={HUB_COLORS.foreground} />
-        </Pressable>
-        <Text style={styles.topTitle} numberOfLines={1}>
-          {title}
-        </Text>
-        <Pressable onPress={handleDelete} disabled={deleting} hitSlop={8}>
-          {deleting ? (
-            <ActivityIndicator size="small" color={HUB_COLORS.muted} />
-          ) : (
-            <Ionicons name="trash-outline" size={20} color={HUB_COLORS.muted} />
-          )}
-        </Pressable>
-      </View>
+      <MobileNavHeader
+        title={title}
+        fallbackHref="/messages"
+        backColor={colors.foreground}
+        titleColor={colors.foreground}
+        backgroundColor={colors.cardBg}
+        borderColor={colors.border}
+        rightSlot={
+          <Pressable onPress={handleDelete} disabled={deleting} hitSlop={8}>
+            {deleting ? (
+              <ActivityIndicator size="small" color={colors.muted} />
+            ) : (
+              <Ionicons name="trash-outline" size={20} color={colors.muted} />
+            )}
+          </Pressable>
+        }
+      />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -149,7 +156,7 @@ export default function MessageThreadScreen() {
         keyboardVerticalOffset={layout.scale(8)}
       >
         {loading ? (
-          <ActivityIndicator color={HUB_COLORS.primary} style={{ marginTop: 32 }} />
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
         ) : (
           <FlatList
             ref={listRef}
@@ -171,7 +178,7 @@ export default function MessageThreadScreen() {
             value={draft}
             onChangeText={setDraft}
             placeholder="Write a message..."
-            placeholderTextColor={HUB_COLORS.muted}
+            placeholderTextColor={colors.muted}
             style={[styles.input, { borderRadius: layout.radius.input, fontSize: layout.fontSize.body }]}
             multiline
           />
@@ -192,10 +199,11 @@ export default function MessageThreadScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
   },
   flex: {
     flex: 1,
@@ -206,8 +214,8 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.cardBg,
   },
   backBtn: {
     padding: 4,
@@ -215,7 +223,7 @@ const styles = StyleSheet.create({
   topTitle: {
     flex: 1,
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 16,
   },
   bubbleWrap: {
@@ -235,15 +243,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   bubbleMine: {
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
   },
   bubbleOther: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
   },
   bubbleText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     lineHeight: 20,
     fontSize: 15,
   },
@@ -252,7 +260,7 @@ const styles = StyleSheet.create({
   },
   bubbleTime: {
     fontSize: 11,
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     alignSelf: "flex-end",
   },
   bubbleTimeMine: {
@@ -263,8 +271,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
+    borderTopColor: colors.border,
+    backgroundColor: colors.cardBg,
     paddingTop: 10,
   },
   input: {
@@ -272,9 +280,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
     maxHeight: 120,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.inputBg,
-    color: HUB_COLORS.foreground,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBg,
+    color: colors.foreground,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -283,6 +291,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
   },
 });

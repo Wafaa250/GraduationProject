@@ -1,5 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,9 +23,11 @@ import {
 import { GradientAuthButton } from "@/components/auth/GradientAuthButton";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { HubSectionCard } from "@/components/student/HubSectionCard";
+import { ThemeModeSelector } from "@/components/student/ThemeModeSelector";
 import { RegTextField } from "@/components/registration/RegTextField";
 import { StudentWorkspaceScreen } from "@/components/student/StudentWorkspaceScreen";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
 import { setItem } from "@/utils/authStorage";
@@ -54,6 +56,8 @@ const NOTIFICATION_ITEMS: {
 
 export default function SettingsScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -187,13 +191,19 @@ export default function SettingsScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={HUB_COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <StudentWorkspaceScreen title="Settings" subtitle="Account, security, and preferences.">
+    <StudentWorkspaceScreen
+      title="Settings"
+      subtitle="Account, security, and preferences."
+      showBack
+      fallbackHref="/feed"
+      navTitle="Settings"
+    >
       <HubSectionCard title="Account settings" description="Update your name and profile photo.">
         <Pressable onPress={() => void pickPhoto()} style={styles.photoRow}>
           <FeedAvatar name={fullName || "Student"} size={layout.scale(64)} avatarBase64={photo} roleType="student" />
@@ -217,6 +227,11 @@ export default function SettingsScreen() {
         <GradientAuthButton label="Update password" onPress={() => void savePassword()} loading={savingPassword} />
       </HubSectionCard>
 
+      <HubSectionCard title="Appearance" description="Customize how SkillSwap looks on your device.">
+        <Text style={[styles.appearanceLabel, { fontSize: layout.fontSize.label }]}>Theme Mode</Text>
+        <ThemeModeSelector />
+      </HubSectionCard>
+
       <HubSectionCard title="Notification preferences">
         {NOTIFICATION_ITEMS.map((item) => (
           <View key={item.key} style={styles.switchRow}>
@@ -227,8 +242,8 @@ export default function SettingsScreen() {
             <Switch
               value={notifications[item.key]}
               onValueChange={(value) => setNotifications((prev) => ({ ...prev, [item.key]: value }))}
-              trackColor={{ false: HUB_COLORS.border, true: HUB_COLORS.primarySoft }}
-              thumbColor={notifications[item.key] ? HUB_COLORS.primary : "#FFFFFF"}
+              trackColor={{ false: colors.border, true: colors.primarySoft }}
+              thumbColor={notifications[item.key] ? colors.primary : "#FFFFFF"}
             />
           </View>
         ))}
@@ -260,93 +275,99 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: HUB_COLORS.background,
-  },
-  photoRow: {
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  photoLabel: {
-    color: HUB_COLORS.primary,
-    fontWeight: "600",
-  },
-  forgotLink: {
-    alignSelf: "flex-start",
-    marginBottom: 8,
-  },
-  forgotText: {
-    color: HUB_COLORS.primary,
-    fontWeight: "600",
-  },
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 8,
-  },
-  switchText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  switchLabel: {
-    fontWeight: "700",
-    color: HUB_COLORS.foreground,
-  },
-  switchDescription: {
-    color: HUB_COLORS.muted,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-  interestWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  interestChip: {
-    borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.inputBg,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    minHeight: 44,
-    justifyContent: "center",
-  },
-  interestChipSelected: {
-    backgroundColor: HUB_COLORS.primarySoft,
-    borderColor: HUB_COLORS.primaryBorder,
-  },
-  interestText: {
-    color: HUB_COLORS.foreground,
-    fontWeight: "600",
-  },
-  interestTextSelected: {
-    color: HUB_COLORS.primary,
-  },
-  readOnlyField: {
-    gap: 6,
-    marginBottom: 16,
-  },
-  readOnlyLabel: {
-    color: HUB_COLORS.muted,
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  readOnlyValue: {
-    color: HUB_COLORS.foreground,
-    fontSize: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    borderRadius: 16,
-    backgroundColor: HUB_COLORS.inputBg,
-  },
-});
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
+    centered: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+    },
+    photoRow: {
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 8,
+    },
+    photoLabel: {
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    appearanceLabel: {
+      fontWeight: "700",
+      color: colors.foreground,
+      marginBottom: 4,
+    },
+    forgotLink: {
+      alignSelf: "flex-start",
+      marginBottom: 8,
+    },
+    forgotText: {
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    switchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      paddingVertical: 8,
+    },
+    switchText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    switchLabel: {
+      fontWeight: "700",
+      color: colors.foreground,
+    },
+    switchDescription: {
+      color: colors.muted,
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: 2,
+    },
+    interestWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    interestChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.inputBg,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      minHeight: 44,
+      justifyContent: "center",
+    },
+    interestChipSelected: {
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.primaryBorder,
+    },
+    interestText: {
+      color: colors.foreground,
+      fontWeight: "600",
+    },
+    interestTextSelected: {
+      color: colors.primary,
+    },
+    readOnlyField: {
+      gap: 6,
+      marginBottom: 16,
+    },
+    readOnlyLabel: {
+      color: colors.muted,
+      fontWeight: "600",
+      fontSize: 14,
+    },
+    readOnlyValue: {
+      color: colors.foreground,
+      fontSize: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 16,
+      backgroundColor: colors.inputBg,
+    },
+  });

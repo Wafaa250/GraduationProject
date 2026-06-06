@@ -75,19 +75,26 @@ export default function StudentCourseProjectScreen() {
 
   if (!validIds || loading) {
     return (
-      <StudentWorkspaceScreen title="Course Project" subtitle="Loading project details…">
+      <StudentWorkspaceScreen
+        title="Course Project"
+        subtitle="Loading project details…"
+        showBack
+        fallbackHref={studentCoursePath(courseId)}
+        navTitle="Project"
+      >
         <ActivityIndicator color={HUB_COLORS.primary} />
       </StudentWorkspaceScreen>
     );
   }
 
   return (
-    <StudentWorkspaceScreen title={title} subtitle="Course project details">
-      <Pressable style={styles.backBtn} onPress={() => router.replace(studentCoursePath(courseId) as never)}>
-        <Ionicons name="arrow-back" size={16} color={HUB_COLORS.muted} />
-        <Text style={styles.backText}>Back to course</Text>
-      </Pressable>
-
+    <StudentWorkspaceScreen
+      title={title}
+      subtitle="Course project details"
+      showBack
+      fallbackHref={studentCoursePath(courseId)}
+      navTitle="Project"
+    >
       <HubSectionCard title="Project overview" description={description}>
         <Text style={styles.meta}>Team size: {teamSize}</Text>
         {skills.length > 0 ? <ChipList items={skills} /> : null}

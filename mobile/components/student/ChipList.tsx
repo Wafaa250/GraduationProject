@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -10,6 +11,8 @@ type Props = {
 
 export function ChipList({ items, emptyLabel = "None listed" }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (!items.length) {
     return <Text style={[styles.empty, { fontSize: layout.fontSize.body }]}>{emptyLabel}</Text>;
@@ -36,22 +39,24 @@ export function ChipList({ items, emptyLabel = "None listed" }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    width: "100%",
-  },
-  chip: {
-    backgroundColor: HUB_COLORS.primarySoft,
-    borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
-  },
-  chipText: {
-    color: HUB_COLORS.primary,
-    fontWeight: "600",
-  },
-  empty: {
-    color: HUB_COLORS.muted,
-  },
-});
+function createStyles(colors: ReturnType<typeof useHubTheme>["colors"]) {
+  return StyleSheet.create({
+    wrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      width: "100%",
+    },
+    chip: {
+      backgroundColor: colors.primarySoft,
+      borderWidth: 1,
+      borderColor: colors.primaryBorder,
+    },
+    chipText: {
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    empty: {
+      color: colors.muted,
+    },
+  });
+}

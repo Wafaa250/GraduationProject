@@ -21,7 +21,7 @@ import {
   mapEnrolledToCard,
   type ManageCourseCardModel,
 } from "@/lib/studentManageCourses";
-import { studentCoursePath } from "@/lib/studentRoutes";
+import { studentCoursePath, STUDENT_ROUTES } from "@/lib/studentRoutes";
 
 type CourseListStats = Record<number, { students: number; projects: number; announcements: number }>;
 
@@ -159,7 +159,13 @@ export default function StudentCoursesScreen() {
 
   if (loading) {
     return (
-      <StudentWorkspaceScreen title="Manage My Courses" subtitle="Loading your enrolled courses…">
+      <StudentWorkspaceScreen
+        title="Manage My Courses"
+        subtitle="Loading your enrolled courses…"
+        showBack
+        fallbackHref={STUDENT_ROUTES.dashboard}
+        navTitle="Courses"
+      >
         <ActivityIndicator color={HUB_COLORS.primary} />
       </StudentWorkspaceScreen>
     );
@@ -169,6 +175,9 @@ export default function StudentCoursesScreen() {
     <StudentWorkspaceScreen
       title="Manage My Courses"
       subtitle="View your enrolled courses, sections, classmates, projects, and course updates."
+      showBack
+      fallbackHref={STUDENT_ROUTES.dashboard}
+      navTitle="Courses"
       refreshing={refreshing}
       onRefresh={() => void onRefresh()}
     >

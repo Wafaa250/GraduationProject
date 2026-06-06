@@ -2,9 +2,10 @@ import { Image } from "expo-image";
 import { StyleSheet, Text, View, type ImageStyle, type ViewStyle } from "react-native";
 
 import { resolveApiFileUrl } from "@/api/axiosInstance";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { profileInitialsFromName } from "@/lib/profileAvatar";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
-import { HUB_COLORS, type HubRoleType } from "@/constants/studentHubTheme";
+import type { HubRoleType } from "@/constants/studentHubTheme";
 
 type Props = {
   name: string;
@@ -16,12 +17,13 @@ type Props = {
 };
 
 export function FeedAvatar({ name, size, avatarUrl, avatarBase64, roleType, style }: Props) {
+  const { colors } = useHubTheme();
   const fromBase64 = avatarBase64 ? profilePhotoUrl(avatarBase64) : null;
   const fromUrl = avatarUrl ? resolveApiFileUrl(avatarUrl) ?? avatarUrl : null;
   const src = fromBase64 ?? fromUrl;
   const initials = profileInitialsFromName(name);
-  const roleColor = roleType ? HUB_COLORS[roleType] : HUB_COLORS.primary;
-  const roleBg = roleType ? HUB_COLORS.roleBg[roleType] : HUB_COLORS.primarySoft;
+  const roleColor = roleType ? colors[roleType] : colors.primary;
+  const roleBg = roleType ? colors.roleBg[roleType] : colors.primarySoft;
 
   if (src) {
     return (

@@ -1,8 +1,11 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
+import type { ProfileMenuAnchor } from "@/components/navigation/ProfileDropdownMenu";
+
 type HubAccountMenuContextValue = {
   menuOpen: boolean;
-  openMenu: () => void;
+  menuAnchor: ProfileMenuAnchor | null;
+  openMenu: (anchor: ProfileMenuAnchor) => void;
   closeMenu: () => void;
 };
 
@@ -10,14 +13,22 @@ const HubAccountMenuContext = createContext<HubAccountMenuContextValue | null>(n
 
 export function HubAccountMenuProvider({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<ProfileMenuAnchor | null>(null);
 
   const value = useMemo(
     () => ({
       menuOpen,
-      openMenu: () => setMenuOpen(true),
-      closeMenu: () => setMenuOpen(false),
+      menuAnchor,
+      openMenu: (anchor: ProfileMenuAnchor) => {
+        setMenuAnchor(anchor);
+        setMenuOpen(true);
+      },
+      closeMenu: () => {
+        setMenuOpen(false);
+        setMenuAnchor(null);
+      },
     }),
-    [menuOpen],
+    [menuOpen, menuAnchor],
   );
 
   return <HubAccountMenuContext.Provider value={value}>{children}</HubAccountMenuContext.Provider>;

@@ -29,7 +29,8 @@ import { ChipList } from "@/components/student/ChipList";
 import { HubSectionCard } from "@/components/student/HubSectionCard";
 import { ProfileFieldRow } from "@/components/student/ProfileFieldRow";
 import { StudentWorkspaceScreen } from "@/components/student/StudentWorkspaceScreen";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
 import {
@@ -49,6 +50,8 @@ import { STUDENT_ROUTES } from "@/lib/studentRoutes";
 
 export default function StudentProfileScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudentMeResponse | null>(null);
@@ -148,7 +151,7 @@ export default function StudentProfileScreen() {
   if (loading && !profile) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={HUB_COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading your profile…</Text>
       </View>
     );
@@ -203,7 +206,7 @@ export default function StudentProfileScreen() {
         </View>
 
         <View style={styles.collabBadge}>
-          <Ionicons name="sparkles" size={12} color={HUB_COLORS.primary} />
+          <Ionicons name="sparkles" size={12} color={colors.primary} />
           <Text style={styles.collabText}>OPEN TO COLLABORATION</Text>
         </View>
 
@@ -233,13 +236,13 @@ export default function StudentProfileScreen() {
         {strength ? (
           <View style={styles.completionRingWrap}>
             <Svg width={layout.scale(88)} height={layout.scale(88)} viewBox="0 0 100 100">
-              <Circle cx="50" cy="50" r="42" stroke={HUB_COLORS.border} strokeWidth="8" fill="none" />
+              <Circle cx="50" cy="50" r="42" stroke={colors.border} strokeWidth="8" fill="none" />
               <G rotation="-90" origin="50, 50">
                 <Circle
                   cx="50"
                   cy="50"
                   r="42"
-                  stroke={HUB_COLORS.primary}
+                  stroke={colors.primary}
                   strokeWidth="8"
                   fill="none"
                   strokeLinecap="round"
@@ -278,7 +281,7 @@ export default function StudentProfileScreen() {
             onPress={() => void handleShare()}
             accessibilityRole="button"
           >
-            <Ionicons name="share-outline" size={18} color={HUB_COLORS.foreground} />
+            <Ionicons name="share-outline" size={18} color={colors.foreground} />
             <Text style={styles.shareBtnText}>Share Profile</Text>
           </Pressable>
         </View>
@@ -328,7 +331,7 @@ export default function StudentProfileScreen() {
           <View style={[styles.domainWrap, { gap: layout.space("sm") }]}>
             {technicalSkills.map((name) => (
               <View key={name} style={[styles.domainCard, { borderRadius: layout.radius.input }]}>
-                <Ionicons name="sparkles-outline" size={16} color={HUB_COLORS.primary} />
+                <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
                 <Text style={styles.domainText}>{name}</Text>
               </View>
             ))}
@@ -369,11 +372,11 @@ export default function StudentProfileScreen() {
               </Text>
               <View style={styles.projectMetaRow}>
                 <Text style={styles.projectMeta}>
-                  <Ionicons name="people-outline" size={12} color={HUB_COLORS.muted} />{" "}
+                  <Ionicons name="people-outline" size={12} color={colors.muted} />{" "}
                   {project.currentMembers} members
                 </Text>
                 <Text style={styles.projectMeta}>
-                  <Ionicons name="time-outline" size={12} color={HUB_COLORS.muted} />{" "}
+                  <Ionicons name="time-outline" size={12} color={colors.muted} />{" "}
                   {projectDuration(project.createdAt)}
                 </Text>
               </View>
@@ -416,13 +419,13 @@ export default function StudentProfileScreen() {
               <Ionicons
                 name={item.done ? "checkmark-circle" : "ellipse-outline"}
                 size={20}
-                color={item.done ? "#10B981" : HUB_COLORS.muted}
+                color={item.done ? "#10B981" : colors.muted}
               />
               <Text style={[styles.checklistText, !item.done && styles.checklistTextPending]}>
                 {item.text}
               </Text>
               {!item.done ? (
-                <Ionicons name="arrow-forward" size={16} color={HUB_COLORS.primary} />
+                <Ionicons name="arrow-forward" size={16} color={colors.primary} />
               ) : null}
             </View>
           ))}
@@ -440,7 +443,7 @@ export default function StudentProfileScreen() {
               onPress={() => router.push(`/organizations/${membership.organizationId}` as never)}
             >
               <View style={styles.orgIcon}>
-                <Ionicons name="people-outline" size={20} color={HUB_COLORS.primary} />
+                <Ionicons name="people-outline" size={20} color={colors.primary} />
               </View>
               <View style={styles.orgText}>
                 <Text style={styles.projectTitle}>{membership.organizationName}</Text>
@@ -448,7 +451,7 @@ export default function StudentProfileScreen() {
                   {membership.roleTitle || membership.membershipKind}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={HUB_COLORS.muted} />
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </Pressable>
           ))
         )}
@@ -458,9 +461,12 @@ export default function StudentProfileScreen() {
 }
 
 function MetaItem({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.metaItem}>
-      <Ionicons name={icon} size={14} color={HUB_COLORS.muted} />
+      <Ionicons name={icon} size={14} color={colors.muted} />
       <Text style={styles.metaText} numberOfLines={2}>
         {text}
       </Text>
@@ -468,16 +474,17 @@ function MetaItem({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
     gap: 12,
   },
   loadingText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 14,
   },
   errorText: {
@@ -487,9 +494,9 @@ const styles = StyleSheet.create({
   heroCard: {
     width: "100%",
     alignItems: "center",
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
   },
   avatarWrap: {
     position: "relative",
@@ -503,7 +510,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#10B981",
     borderWidth: 3,
-    borderColor: HUB_COLORS.cardBg,
+    borderColor: colors.cardBg,
   },
   collabBadge: {
     flexDirection: "row",
@@ -512,18 +519,18 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   collabText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
     fontSize: 11,
     letterSpacing: 0.6,
   },
   heroName: {
     fontWeight: "800",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     textAlign: "center",
   },
   heroMeta: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     textAlign: "center",
   },
   heroMetaRow: {
@@ -539,7 +546,7 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   metaText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 13,
     flexShrink: 1,
   },
@@ -550,19 +557,19 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   tagChip: {
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
+    borderColor: colors.primaryBorder,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   tagChipText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
     fontSize: 12,
   },
   tagPlaceholder: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   completionRingWrap: {
     alignItems: "center",
@@ -575,11 +582,11 @@ const styles = StyleSheet.create({
   },
   completionPct: {
     fontWeight: "800",
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   completionCaption: {
     fontSize: 11,
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontWeight: "600",
   },
   actionRow: {
@@ -612,26 +619,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBg,
     paddingHorizontal: 12,
   },
   shareBtnText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontWeight: "700",
     fontSize: 15,
   },
   bodyText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     lineHeight: 22,
   },
   subheading: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     marginTop: 4,
   },
   muted: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 20,
   },
   domainWrap: {
@@ -644,15 +651,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.inputBg,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBg,
     paddingHorizontal: 12,
     paddingVertical: 10,
     minWidth: "45%",
     flexGrow: 1,
   },
   domainText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontWeight: "600",
     fontSize: 13,
     flexShrink: 1,
@@ -661,7 +668,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   linkAction: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
     marginBottom: 8,
   },
@@ -669,14 +676,14 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: HUB_COLORS.border,
+    borderBottomColor: colors.border,
   },
   projectTitle: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   projectRole: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
     fontSize: 13,
   },
@@ -685,7 +692,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   projectMeta: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 12,
   },
   completionHeader: {
@@ -696,18 +703,18 @@ const styles = StyleSheet.create({
   },
   completionBig: {
     fontWeight: "800",
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   progressTrack: {
     height: 10,
     borderRadius: 999,
-    backgroundColor: HUB_COLORS.border,
+    backgroundColor: colors.border,
     overflow: "hidden",
     marginVertical: 12,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 999,
   },
   checklistRow: {
@@ -723,12 +730,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16, 185, 129, 0.08)",
   },
   checklistPending: {
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.inputBg,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBg,
   },
   checklistText: {
     flex: 1,
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 14,
   },
   checklistTextPending: {
@@ -740,15 +747,15 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     marginBottom: 8,
-    backgroundColor: HUB_COLORS.inputBg,
+    backgroundColor: colors.inputBg,
   },
   orgIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },

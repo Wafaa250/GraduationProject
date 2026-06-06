@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { InsightMetric } from "@/lib/dashboardMappers";
 
@@ -18,6 +20,8 @@ const ICON_MAP: Record<InsightMetric["icon"], keyof typeof Ionicons.glyphMap> = 
 
 export function StudentInsightsGrid({ metrics }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const cardWidth = layout.deviceSize === "tablet" ? layout.scale(220) : layout.scale(168);
 
   return (
@@ -77,20 +81,21 @@ export function StudentInsightsGrid({ metrics }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   heading: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   subheading: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   scrollContent: {
     flexDirection: "row",
   },
   card: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     overflow: "hidden",
   },
   cardTop: {
@@ -106,20 +111,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   value: {
     fontWeight: "800",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     letterSpacing: -0.5,
   },
   hint: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   iconWrap: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },

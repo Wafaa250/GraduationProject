@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,7 +22,8 @@ import {
   type FeedRecommendedItem,
 } from "@/api/feedApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   feedRecommendedRoleBadgeLabel,
@@ -37,6 +38,8 @@ import {
 
 export function FeedRecommendedCarousel() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [items, setItems] = useState<FeedRecommendedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [followBusyId, setFollowBusyId] = useState<string | null>(null);
@@ -114,7 +117,7 @@ export function FeedRecommendedCarousel() {
   const cardWidth = layout.scale(168);
 
   const renderCard = ({ item }: { item: FeedRecommendedItem }) => {
-    const roleColor = HUB_COLORS[item.type];
+    const roleColor = colors[item.type];
     const hint = recommendedFollowHint(item.type);
     const showFollow = item.canFollow;
     const showMessage = item.canMessage && (item.userId ?? 0) > 0;
@@ -146,7 +149,7 @@ export function FeedRecommendedCarousel() {
             {item.subtitle}
           </Text>
         ) : null}
-        <View style={[styles.badge, { backgroundColor: HUB_COLORS.roleBg[item.type] }]}>
+        <View style={[styles.badge, { backgroundColor: colors.roleBg[item.type] }]}>
           <Text style={[styles.badgeText, { color: roleColor, fontSize: layout.scale(11) }]}>
             {feedRecommendedRoleBadgeLabel(item.type)}
           </Text>
@@ -164,7 +167,7 @@ export function FeedRecommendedCarousel() {
               style={[styles.actionBtn, styles.viewProfileBtn, { borderRadius: layout.radius.input }]}
               onPress={() => router.push(feedRecommendedProfilePath(item) as never)}
             >
-              <Ionicons name="person-outline" size={14} color={HUB_COLORS.primary} />
+              <Ionicons name="person-outline" size={14} color={colors.primary} />
               <Text style={styles.actionBtnText}>View Profile</Text>
             </Pressable>
           ) : null}
@@ -180,11 +183,11 @@ export function FeedRecommendedCarousel() {
               disabled={followBusyId === item.id}
             >
               {followBusyId === item.id ? (
-                <ActivityIndicator size="small" color={HUB_COLORS.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <>
                   {!item.isFollowing ? (
-                    <Ionicons name="person-add-outline" size={14} color={HUB_COLORS.primary} />
+                    <Ionicons name="person-add-outline" size={14} color={colors.primary} />
                   ) : null}
                   <Text
                     style={[
@@ -206,10 +209,10 @@ export function FeedRecommendedCarousel() {
               disabled={messageBusyId === item.id}
             >
               {messageBusyId === item.id ? (
-                <ActivityIndicator size="small" color={HUB_COLORS.foreground} />
+                <ActivityIndicator size="small" color={colors.foreground} />
               ) : (
                 <>
-                  <Ionicons name="chatbubble-outline" size={14} color={HUB_COLORS.foreground} />
+                  <Ionicons name="chatbubble-outline" size={14} color={colors.foreground} />
                   <Text style={[styles.actionBtnText, styles.messageBtnText]}>Message</Text>
                 </>
               )}
@@ -237,7 +240,7 @@ export function FeedRecommendedCarousel() {
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color={HUB_COLORS.primary} />
+          <ActivityIndicator color={colors.primary} />
         </View>
       ) : items.length === 0 ? (
         <Text style={[styles.empty, { paddingHorizontal: layout.horizontalPadding }]}>
@@ -260,28 +263,29 @@ export function FeedRecommendedCarousel() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   section: {
     width: "100%",
   },
   sectionTitle: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   loadingRow: {
     paddingVertical: 24,
     alignItems: "center",
   },
   empty: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 14,
   },
   card: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     gap: 6,
-    shadowColor: HUB_COLORS.cardShadow,
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 6,
@@ -289,11 +293,11 @@ const styles = StyleSheet.create({
   },
   cardName: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     marginTop: 4,
   },
   cardSubtitle: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 18,
   },
   badge: {
@@ -307,7 +311,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   hint: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 15,
   },
   cardActions: {
@@ -326,28 +330,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
-    backgroundColor: HUB_COLORS.primarySoft,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
     minHeight: 32,
   },
   actionBtnFollowing: {
-    backgroundColor: HUB_COLORS.inputBg,
-    borderColor: HUB_COLORS.border,
+    backgroundColor: colors.inputBg,
+    borderColor: colors.border,
   },
   messageBtn: {
-    backgroundColor: HUB_COLORS.inputBg,
-    borderColor: HUB_COLORS.border,
+    backgroundColor: colors.inputBg,
+    borderColor: colors.border,
     justifyContent: "center",
   },
   messageBtnText: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   actionBtnText: {
     fontSize: 12,
     fontWeight: "600",
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   actionBtnTextFollowing: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
 });

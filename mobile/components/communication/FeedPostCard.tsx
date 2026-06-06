@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,7 +21,9 @@ import {
   unfollowOrganization,
 } from "@/api/feedApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
-import { HUB_COLORS, type HubRoleType } from "@/constants/studentHubTheme";
+import type { HubRoleType } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   extractFeedPostTags,
@@ -56,6 +58,8 @@ const ROLE_ICONS: Record<HubRoleType, keyof typeof Ionicons.glyphMap> = {
 
 export function FeedPostCard({ item }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const published = formatFeedPublished(item.createdAt);
   const tags = extractFeedPostTags(item);
   const actionLabel = feedPostActionLabel(item);
@@ -75,7 +79,7 @@ export function FeedPostCard({ item }: Props) {
   const canFollow = feedPostSupportsFollow(item);
   const followEntityId = item.followEntityId ?? 0;
   const roleType = item.sourceType as HubRoleType;
-  const roleColor = HUB_COLORS[roleType] ?? HUB_COLORS.primary;
+  const roleColor = colors[roleType] ?? colors.primary;
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
@@ -194,7 +198,7 @@ export function FeedPostCard({ item }: Props) {
             style={[styles.fileCard, { borderRadius: layout.radius.input }]}
             onPress={() => void openUrl(fileSrc)}
           >
-            <Ionicons name="document-text-outline" size={22} color={HUB_COLORS.primary} />
+            <Ionicons name="document-text-outline" size={22} color={colors.primary} />
             <View style={styles.fileMeta}>
               <Text style={styles.fileName} numberOfLines={1}>
                 {attachmentFileName(fileSrc)}
@@ -208,7 +212,7 @@ export function FeedPostCard({ item }: Props) {
       {!socialPost ? (
         <View style={styles.footer}>
           <Pressable
-            style={[styles.actionBtn, { backgroundColor: HUB_COLORS.roleBg[roleType], borderRadius: layout.radius.input }]}
+            style={[styles.actionBtn, { backgroundColor: colors.roleBg[roleType], borderRadius: layout.radius.input }]}
             onPress={handleAction}
           >
             <Text style={[styles.actionText, { color: roleColor }]}>{actionLabel}</Text>
@@ -225,11 +229,11 @@ export function FeedPostCard({ item }: Props) {
               disabled={followBusy}
             >
               {followBusy ? (
-                <ActivityIndicator size="small" color={HUB_COLORS.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <>
                   {!isFollowing ? (
-                    <Ionicons name="person-add-outline" size={14} color={HUB_COLORS.primary} />
+                    <Ionicons name="person-add-outline" size={14} color={colors.primary} />
                   ) : null}
                   <Text style={[styles.followText, isFollowing && styles.followTextActive]}>
                     {isFollowing ? "Following" : "Follow"}
@@ -244,13 +248,14 @@ export function FeedPostCard({ item }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     gap: 12,
-    shadowColor: HUB_COLORS.cardShadow,
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 6,
@@ -266,7 +271,7 @@ const styles = StyleSheet.create({
   },
   author: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   roleLine: {
     flexDirection: "row",
@@ -279,21 +284,21 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 12,
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   date: {
     fontSize: 12,
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   body: {
     gap: 8,
   },
   title: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   description: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     lineHeight: 22,
   },
   tags: {
@@ -302,21 +307,21 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tag: {
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
   },
   tagText: {
     fontSize: 12,
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
   },
   postImage: {
     width: "100%",
     aspectRatio: 16 / 9,
     maxHeight: 280,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
   },
   fileCard: {
     flexDirection: "row",
@@ -324,8 +329,8 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.primarySoft,
+    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
   },
   fileMeta: {
     flex: 1,
@@ -333,12 +338,12 @@ const styles = StyleSheet.create({
   },
   fileName: {
     fontWeight: "600",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 14,
   },
   fileAction: {
     fontSize: 12,
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
   },
   footer: {
@@ -363,20 +368,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
-    backgroundColor: HUB_COLORS.primarySoft,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
     minHeight: 36,
   },
   followBtnActive: {
-    backgroundColor: HUB_COLORS.inputBg,
-    borderColor: HUB_COLORS.border,
+    backgroundColor: colors.inputBg,
+    borderColor: colors.border,
   },
   followText: {
     fontSize: 13,
     fontWeight: "600",
-    color: HUB_COLORS.primary,
+    color: colors.primary,
   },
   followTextActive: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
 });

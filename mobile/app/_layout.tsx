@@ -4,14 +4,41 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { ThemePreferenceProvider, useThemePreference } from "@/contexts/ThemePreferenceContext";
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function RootNavigation() {
+  const { colorScheme, colors } = useThemePreference();
+
+  const navigationTheme =
+    colorScheme === "dark"
+      ? {
+          ...DarkTheme,
+          colors: {
+            ...DarkTheme.colors,
+            primary: colors.primary,
+            background: colors.background,
+            card: colors.cardBg,
+            text: colors.foreground,
+            border: colors.border,
+            notification: colors.primary,
+          },
+        }
+      : {
+          ...DefaultTheme,
+          colors: {
+            ...DefaultTheme.colors,
+            primary: colors.primary,
+            background: colors.background,
+            card: colors.cardBg,
+            text: colors.foreground,
+            border: colors.border,
+            notification: colors.primary,
+          },
+        };
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+    <>
+      <ThemeProvider value={navigationTheme}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
@@ -31,12 +58,22 @@ export default function RootLayout() {
           <Stack.Screen name="organizations/[id]" />
           <Stack.Screen name="doctor/dashboard" />
           <Stack.Screen name="company/index" />
-          <Stack.Screen name="association/dashboard" />
+          <Stack.Screen name="association" options={{ headerShown: false }} />
           <Stack.Screen name="courses" options={{ headerShown: false }} />
           <Stack.Screen name="graduation-projects" options={{ headerShown: false }} />
         </Stack>
-        <StatusBar style="auto" />
       </ThemeProvider>
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <ThemePreferenceProvider>
+        <RootNavigation />
+      </ThemePreferenceProvider>
     </SafeAreaProvider>
   );
 }

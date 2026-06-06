@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,8 @@ import {
   type GraduationNotification,
 } from "@/api/notificationsApi";
 import { StudentWorkspaceScreen } from "@/components/student/StudentWorkspaceScreen";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getStudentNotificationTarget } from "@/lib/studentNotificationNavigation";
 
@@ -37,6 +38,8 @@ function formatNotificationTime(iso: string): string {
 
 export default function NotificationsScreen() {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<GraduationNotification[]>([]);
   const [markingAll, setMarkingAll] = useState(false);
@@ -102,14 +105,14 @@ export default function NotificationsScreen() {
         style={[styles.markAllBtn, { borderRadius: layout.radius.input }]}
       >
         {markingAll ? (
-          <ActivityIndicator size="small" color={HUB_COLORS.primary} />
+          <ActivityIndicator size="small" color={colors.primary} />
         ) : (
           <Text style={styles.markAllText}>Mark all as read</Text>
         )}
       </Pressable>
 
       {loading ? (
-        <ActivityIndicator color={HUB_COLORS.primary} style={{ marginTop: 24 }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
       ) : items.length === 0 ? (
         <Text style={styles.empty}>You&apos;re all caught up. New notifications will appear here.</Text>
       ) : (
@@ -149,7 +152,8 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   markAllBtn: {
     alignSelf: "flex-start",
     paddingHorizontal: 14,
@@ -157,27 +161,27 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
-    backgroundColor: HUB_COLORS.primarySoft,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
   },
   markAllText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
   },
   empty: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     textAlign: "center",
     lineHeight: 22,
   },
   item: {
     width: "100%",
-    backgroundColor: HUB_COLORS.cardBg,
+    backgroundColor: colors.cardBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     gap: 6,
   },
   itemUnread: {
-    borderColor: HUB_COLORS.primaryBorder,
+    borderColor: colors.primaryBorder,
     backgroundColor: "rgba(99, 102, 241, 0.06)",
   },
   itemHeader: {
@@ -188,18 +192,18 @@ const styles = StyleSheet.create({
   itemTitle: {
     flex: 1,
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     fontSize: 15,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     marginTop: 6,
   },
   itemBody: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     lineHeight: 20,
     fontSize: 14,
   },
@@ -210,11 +214,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   itemTime: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 12,
   },
   itemAction: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
     fontSize: 13,
   },

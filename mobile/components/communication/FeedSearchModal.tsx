@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,7 +25,9 @@ import {
   type HubSearchResults,
 } from "@/api/feedApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
-import { HUB_COLORS, type HubRoleType } from "@/constants/studentHubTheme";
+import type { HubRoleType } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { feedPostRoleLabel } from "@/lib/feedPostDisplay";
 import {
@@ -86,6 +88,8 @@ function displayUsername(row: FeedSearchResultRow): string | null {
 export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange }: Props) {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -211,22 +215,22 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
           ]}
         >
           <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Close search">
-            <Ionicons name="arrow-back" size={layout.iconSize + 4} color={HUB_COLORS.foreground} />
+            <Ionicons name="arrow-back" size={layout.iconSize + 4} color={colors.foreground} />
           </Pressable>
           <View style={[styles.searchWrap, { borderRadius: layout.radius.input, flex: 1 }]}>
-            <Ionicons name="search" size={layout.iconSize} color={HUB_COLORS.muted} />
+            <Ionicons name="search" size={layout.iconSize} color={colors.muted} />
             <TextInput
               value={query}
               onChangeText={handleQueryChange}
               placeholder="Search students, doctors, companies..."
-              placeholderTextColor={HUB_COLORS.muted}
+              placeholderTextColor={colors.muted}
               style={[styles.searchInput, { fontSize: layout.fontSize.body }]}
               autoFocus
               returnKeyType="search"
             />
             {query.length > 0 ? (
               <Pressable onPress={() => handleQueryChange("")} hitSlop={8}>
-                <Ionicons name="close-circle" size={layout.iconSize} color={HUB_COLORS.muted} />
+                <Ionicons name="close-circle" size={layout.iconSize} color={colors.muted} />
               </Pressable>
             ) : null}
           </View>
@@ -234,7 +238,7 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
 
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color={HUB_COLORS.primary} />
+            <ActivityIndicator color={colors.primary} />
             <Text style={styles.loadingText}>Searching…</Text>
           </View>
         ) : error ? (
@@ -257,7 +261,7 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
             stickySectionHeadersEnabled={false}
             renderSectionHeader={({ section }) => (
               <View style={[styles.sectionHeader, { marginTop: layout.space("md") }]}>
-                <Ionicons name={section.icon} size={16} color={HUB_COLORS.primary} />
+                <Ionicons name={section.icon} size={16} color={colors.primary} />
                 <Text style={[styles.sectionTitle, { fontSize: layout.fontSize.label }]}>
                   {section.title} ({section.data.length})
                 </Text>
@@ -353,10 +357,11 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: "row",
@@ -367,16 +372,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: HUB_COLORS.inputBg,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 44,
   },
   searchInput: {
     flex: 1,
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     padding: 0,
   },
   centered: {
@@ -387,7 +392,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     fontSize: 14,
   },
   errorText: {
@@ -395,7 +400,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   emptyText: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
     textAlign: "center",
   },
   sectionHeader: {
@@ -406,12 +411,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   resultCard: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
-    backgroundColor: HUB_COLORS.cardBg,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBg,
     padding: 12,
     marginBottom: 10,
     gap: 12,
@@ -428,14 +433,14 @@ const styles = StyleSheet.create({
   },
   resultName: {
     fontWeight: "700",
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
   resultUsername: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "600",
   },
   resultSubtitle: {
-    color: HUB_COLORS.muted,
+    color: colors.muted,
   },
   actionRow: {
     flexDirection: "row",
@@ -443,23 +448,23 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     borderWidth: 1,
-    borderColor: HUB_COLORS.primaryBorder,
-    backgroundColor: HUB_COLORS.primarySoft,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 8,
     minHeight: 36,
     justifyContent: "center",
   },
   actionBtnFollowing: {
-    backgroundColor: HUB_COLORS.inputBg,
-    borderColor: HUB_COLORS.border,
+    backgroundColor: colors.inputBg,
+    borderColor: colors.border,
   },
   actionBtnText: {
-    color: HUB_COLORS.primary,
+    color: colors.primary,
     fontWeight: "700",
     fontSize: 13,
   },
   actionBtnTextFollowing: {
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
   },
 });

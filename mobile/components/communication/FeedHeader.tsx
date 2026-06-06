@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -14,7 +14,8 @@ import { getMe } from "@/api/meApi";
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { FeedSearchModal } from "@/components/communication/FeedSearchModal";
-import { HUB_COLORS } from "@/constants/studentHubTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useHubAccountMenu } from "@/contexts/HubAccountMenuContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
@@ -26,7 +27,10 @@ type Props = {
 
 export function FeedHeader({ onSearchActiveChange }: Props) {
   const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { openMenu } = useHubAccountMenu();
+  const avatarRef = useRef<View>(null);
   const [displayName, setDisplayName] = useState("Student");
   const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,6 +64,12 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
   const avatarSize = layout.scale(40);
   const iconSize = layout.iconSize;
 
+  const openAccountMenu = () => {
+    avatarRef.current?.measureInWindow((x, y, width, height) => {
+      openMenu({ x, y, width, height });
+    });
+  };
+
   const openSearch = () => {
     setSearchOpen(true);
     onSearchActiveChange?.(true);
@@ -85,15 +95,16 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
         ]}
       >
         <View style={styles.topRow}>
-          <Pressable
-            onPress={openMenu}
-            accessibilityRole="button"
-            accessibilityLabel="Open account menu"
-            hitSlop={8}
-          >
+          <View ref={avatarRef} collapsable={false}>
+            <Pressable
+              onPress={openAccountMenu}
+              accessibilityRole="button"
+              accessibilityLabel="Open account menu"
+              hitSlop={8}
+            >
             {loadingProfile ? (
               <View style={[styles.avatarPlaceholder, { width: avatarSize, height: avatarSize }]}>
-                <ActivityIndicator size="small" color={HUB_COLORS.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : (
               <FeedAvatar
@@ -103,16 +114,17 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
                 roleType="student"
               />
             )}
-          </Pressable>
+            </Pressable>
+          </View>
 
           <View style={[styles.searchWrap, { borderRadius: layout.radius.input }]}>
-            <Ionicons name="search" size={iconSize} color={HUB_COLORS.muted} />
+            <Ionicons name="search" size={iconSize} color={colors.muted} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               onFocus={openSearch}
               placeholder="Search people, companies..."
-              placeholderTextColor={HUB_COLORS.muted}
+              placeholderTextColor={colors.muted}
               style={[styles.searchInput, { fontSize: layout.fontSize.body }]}
               returnKeyType="search"
               onSubmitEditing={openSearch}
@@ -129,7 +141,7 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
             hitSlop={8}
             style={styles.notifBtn}
           >
-            <Ionicons name="notifications-outline" size={iconSize + 2} color={HUB_COLORS.foreground} />
+            <Ionicons name="notifications-outline" size={iconSize + 2} color={colors.foreground} />
             {unreadNotifications > 0 ? (
               <View style={styles.notifBadge}>
                 <Text style={styles.notifBadgeText}>
@@ -151,9 +163,10 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
   container: {
-    backgroundColor: HUB_COLORS.background,
+    backgroundColor: colors.background,
   },
   topRow: {
     flexDirection: "row",
@@ -164,23 +177,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 20,
-    backgroundColor: HUB_COLORS.primarySoft,
+    backgroundColor: colors.primarySoft,
   },
   searchWrap: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: HUB_COLORS.inputBg,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: HUB_COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 44,
   },
   searchInput: {
     flex: 1,
-    color: HUB_COLORS.foreground,
+    color: colors.foreground,
     padding: 0,
   },
   notifBtn: {
@@ -194,7 +207,7 @@ const styles = StyleSheet.create({
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: HUB_COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 3,
