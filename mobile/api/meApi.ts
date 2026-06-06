@@ -1,4 +1,5 @@
 import api from "@/api/axiosInstance";
+import type { NotificationPreferences } from "@/api/profileSettingsApi";
 
 export type StudentMeResponse = {
   role: string;
@@ -11,7 +12,22 @@ export type StudentMeResponse = {
   faculty?: string;
   major?: string;
   academicYear?: string;
+  gpa?: number | null;
+  bio?: string | null;
+  availability?: string | null;
+  lookingFor?: string | null;
+  github?: string | null;
+  linkedin?: string | null;
+  portfolio?: string | null;
   profilePictureBase64?: string | null;
+  languages?: string[];
+  roles?: string[];
+  technicalSkills?: string[];
+  tools?: string[];
+  generalSkills?: string[];
+  majorSkills?: string[];
+  notificationPreferences?: NotificationPreferences;
+  aiProjectInterests?: string[];
   graduationProjectCourses?: string[];
 };
 

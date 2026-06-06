@@ -25,9 +25,15 @@ export default function RootLayout() {
           <Stack.Screen name="forgot-password/verify" />
           <Stack.Screen name="forgot-password/reset" />
           <Stack.Screen name="(student)" options={{ headerShown: false }} />
+          <Stack.Screen name="students/[userId]" />
+          <Stack.Screen name="doctors/[userId]" />
+          <Stack.Screen name="companies/[id]" />
+          <Stack.Screen name="organizations/[id]" />
           <Stack.Screen name="doctor/dashboard" />
           <Stack.Screen name="company/index" />
           <Stack.Screen name="association/dashboard" />
+          <Stack.Screen name="courses" options={{ headerShown: false }} />
+          <Stack.Screen name="graduation-projects" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

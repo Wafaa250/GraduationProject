@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { getMe } from "@/api/meApi";
+import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { FeedSearchModal } from "@/components/communication/FeedSearchModal";
 import { HUB_COLORS } from "@/constants/studentHubTheme";
@@ -31,16 +32,22 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const loadProfile = useCallback(async () => {
     setLoadingProfile(true);
     try {
-      const me = await getMe();
+      const [me, unread] = await Promise.all([
+        getMe(),
+        getAllNotificationsUnreadCount().catch(() => 0),
+      ]);
       setDisplayName(me.name?.trim() || "Student");
       setAvatarBase64(me.profilePictureBase64 ?? null);
+      setUnreadNotifications(unread);
     } catch {
       const storedName = await getItem("name");
       if (storedName) setDisplayName(storedName);
+      setUnreadNotifications(0);
     } finally {
       setLoadingProfile(false);
     }
@@ -113,13 +120,23 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
           </View>
 
           <Pressable
-            onPress={() => router.push("/notifications")}
+            onPress={() => {
+              setUnreadNotifications(0);
+              router.push("/notifications");
+            }}
             accessibilityRole="button"
             accessibilityLabel="Notifications"
             hitSlop={8}
             style={styles.notifBtn}
           >
             <Ionicons name="notifications-outline" size={iconSize + 2} color={HUB_COLORS.foreground} />
+            {unreadNotifications > 0 ? (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
         </View>
       </View>
@@ -168,5 +185,23 @@ const styles = StyleSheet.create({
   },
   notifBtn: {
     padding: 4,
+    position: "relative",
+  },
+  notifBadge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: HUB_COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
   },
 });

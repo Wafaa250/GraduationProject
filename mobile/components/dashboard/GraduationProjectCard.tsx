@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { HUB_COLORS } from "@/constants/studentHubTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { GraduationProjectView } from "@/lib/dashboardMappers";
+import { STUDENT_ROUTES } from "@/lib/studentRoutes";
 
 type Props = {
   project: GraduationProjectView | null;
@@ -14,10 +16,6 @@ type Props = {
 export function GraduationProjectCard({ project, sectionTitle, courseLabels }: Props) {
   const layout = useResponsiveLayout();
   const empty = !project;
-
-  const showComingSoon = (action: string) => {
-    Alert.alert("Coming soon", `${action} will be available in a future mobile update.`);
-  };
 
   return (
     <View
@@ -59,7 +57,7 @@ export function GraduationProjectCard({ project, sectionTitle, courseLabels }: P
           </Text>
           <Pressable
             style={[styles.ctaBtn, { borderRadius: layout.radius.button, marginTop: layout.space("md") }]}
-            onPress={() => showComingSoon("Create graduation project")}
+            onPress={() => router.push(STUDENT_ROUTES.createGraduationProject as never)}
           >
             <Ionicons name="add" size={18} color="#FFFFFF" />
             <Text style={styles.ctaText}>Create {sectionTitle}</Text>
@@ -107,7 +105,7 @@ export function GraduationProjectCard({ project, sectionTitle, courseLabels }: P
             </View>
             <Pressable
               style={[styles.workspaceBtn, { borderRadius: layout.radius.input }]}
-              onPress={() => showComingSoon("Graduation project workspace")}
+              onPress={() => router.push(STUDENT_ROUTES.graduationProjectWorkspace as never)}
             >
               <Text style={styles.workspaceText}>Open Workspace</Text>
             </Pressable>

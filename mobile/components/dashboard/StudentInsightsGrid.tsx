@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HUB_COLORS } from "@/constants/studentHubTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -18,8 +18,7 @@ const ICON_MAP: Record<InsightMetric["icon"], keyof typeof Ionicons.glyphMap> = 
 
 export function StudentInsightsGrid({ metrics }: Props) {
   const layout = useResponsiveLayout();
-  const isTablet = layout.deviceSize === "tablet";
-  const cardBasis = isTablet ? "23%" : "47%";
+  const cardWidth = layout.deviceSize === "tablet" ? layout.scale(220) : layout.scale(168);
 
   return (
     <View style={{ marginBottom: layout.space("lg") }}>
@@ -30,16 +29,18 @@ export function StudentInsightsGrid({ metrics }: Props) {
         Your collaboration signals at a glance.
       </Text>
 
-      <View style={[styles.grid, { gap: layout.space("md") }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { gap: layout.space("md"), paddingRight: layout.space("sm") }]}
+      >
         {metrics.map((metric) => (
           <View
             key={metric.key}
             style={[
               styles.card,
               {
-                flexBasis: cardBasis,
-                flexGrow: 1,
-                minWidth: isTablet ? 140 : 148,
+                width: cardWidth,
                 borderRadius: layout.radius.button,
                 padding: layout.space("md"),
                 backgroundColor: metric.tint,
@@ -71,7 +72,7 @@ export function StudentInsightsGrid({ metrics }: Props) {
             </View>
           </View>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -84,9 +85,8 @@ const styles = StyleSheet.create({
   subheading: {
     color: HUB_COLORS.muted,
   },
-  grid: {
+  scrollContent: {
     flexDirection: "row",
-    flexWrap: "wrap",
   },
   card: {
     borderWidth: 1,

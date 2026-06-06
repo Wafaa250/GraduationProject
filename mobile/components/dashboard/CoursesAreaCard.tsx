@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { HUB_COLORS } from "@/constants/studentHubTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { STUDENT_ROUTES } from "@/lib/studentRoutes";
 
 type Props = {
   enrolled: number;
@@ -52,9 +54,7 @@ export function CoursesAreaCard({ enrolled, partners }: Props) {
 
       <Pressable
         style={[styles.ctaBtn, { borderRadius: layout.radius.button, marginTop: layout.space("lg") }]}
-        onPress={() =>
-          Alert.alert("Coming soon", "Manage My Courses will be available in a future mobile update.")
-        }
+        onPress={() => router.push(STUDENT_ROUTES.studentCourses as never)}
       >
         <Text style={styles.ctaText}>Manage My Courses</Text>
         <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />

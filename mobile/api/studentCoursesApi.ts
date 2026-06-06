@@ -1,4 +1,5 @@
 import api from "@/api/axiosInstance";
+import type { GraduationNotification } from "@/api/notificationsApi";
 import { filterEligibleCourseProjects } from "@/lib/courseProjectEligibility";
 
 export type EnrolledCourse = {
@@ -14,15 +15,79 @@ export type EnrolledCourse = {
   };
 };
 
+export type StudentCourseSection = {
+  id: number;
+  name: string;
+  courseId: number;
+  days: string[];
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  capacity?: number;
+};
+
 export type StudentCourseDetail = {
   courseId: number;
   name: string;
   code: string;
   semester?: string | null;
+  createdAt?: string;
   doctorId: number;
   doctorName: string;
   mySectionId: number;
   mySectionName: string;
+  sections: StudentCourseSection[];
+};
+
+export type CourseEnrollmentStudent = {
+  studentId: number;
+  name?: string | null;
+  universityId?: string | null;
+  university?: string | null;
+  major?: string | null;
+  email?: string | null;
+  enrolledAt?: string;
+  sectionId?: number | null;
+  userId?: number | null;
+  skills: string[];
+};
+
+export type CourseMyTeamMember = {
+  studentId: number;
+  userId: number;
+  name: string;
+  universityId?: string;
+  matchScore?: number;
+  skills?: string[];
+};
+
+export type CourseMyTeamResponse = {
+  projectId: number;
+  projectTitle: string;
+  courseId: number;
+  teamId: number;
+  teamIndex: number;
+  members: CourseMyTeamMember[];
+};
+
+export type ManualTeamStudent = {
+  id: number;
+  name: string;
+  email: string;
+  skills: string[];
+  sectionName: string;
+  avatar?: string | null;
+  bio?: string | null;
+  hasPendingRequest: boolean;
+  isAlreadyInTeam: boolean;
+  availabilityStatus: string;
+  availabilityReason: string;
+};
+
+export type ManualTeamStudentsResponse = {
+  projectId: number;
+  projectTitle: string;
+  teamSize: number;
+  students: ManualTeamStudent[];
 };
 
 export type StudentCourseProjectSection = {
@@ -34,8 +99,14 @@ export type StudentCourseProject = {
   id: number;
   courseId: number;
   title: string;
+  description?: string | null;
+  teamSize: number;
   applyToAllSections?: boolean;
+  allowCrossSectionTeams?: boolean;
+  aiMode?: string | null;
+  createdAt?: string;
   sections?: StudentCourseProjectSection[];
+  hasTeam?: boolean;
 };
 
 export type TeamInvitationItem = {
@@ -59,6 +130,38 @@ export async function getEnrolledCourses(): Promise<EnrolledCourse[]> {
 
 export async function getStudentCourseDetail(courseId: number): Promise<StudentCourseDetail> {
   const { data } = await api.get<StudentCourseDetail>(`/courses/${courseId}`);
+  return {
+    ...data,
+    sections: Array.isArray(data.sections) ? data.sections : [],
+  };
+}
+
+export async function getCourseEnrollmentStudents(
+  courseId: number,
+): Promise<CourseEnrollmentStudent[]> {
+  const { data } = await api.get<CourseEnrollmentStudent[]>(`/courses/${courseId}/students`);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getCourseProjectMyTeam(
+  projectId: number,
+): Promise<CourseMyTeamResponse | null> {
+  try {
+    const { data } = await api.get<CourseMyTeamResponse>(`/courses/projects/${projectId}/my-team`);
+    return data;
+  } catch (err: unknown) {
+    if (isAxiosNotFound(err)) return null;
+    throw err;
+  }
+}
+
+export async function getManualTeamStudents(
+  courseId: number,
+  projectId: number,
+): Promise<ManualTeamStudentsResponse> {
+  const { data } = await api.get<ManualTeamStudentsResponse>(
+    `/courses/${courseId}/projects/${projectId}/manual-team/students`,
+  );
   return data;
 }
 
@@ -112,6 +215,79 @@ export async function acceptTeamInvitation(invitationId: number): Promise<void> 
 
 export async function rejectTeamInvitation(invitationId: number): Promise<void> {
   await api.post(`/courses/team-invitations/${invitationId}/reject`);
+}
+
+const INVITATION_EVENT_PREFIX = "course_teammate_invitation_";
+const ANNOUNCEMENT_EVENT_TYPES = new Set([
+  "course_project_created",
+  "course_project_updated",
+  "course_project_deleted",
+  "course_teams_generated",
+  "course_team_member_added",
+  "course_team_member_removed",
+]);
+
+export async function getStudentCourseAnnouncements(
+  courseProjectIds: number[],
+  doctorName?: string,
+): Promise<
+  {
+    id: number;
+    title: string;
+    message: string;
+    doctor: string;
+    date: string;
+    createdAt: string;
+    projectId: number | null;
+    eventType: string;
+  }[]
+> {
+  let rows: GraduationNotification[] = [];
+  try {
+    const { data } = await api.get<GraduationNotification[]>("/notifications", {
+      params: { take: 100, category: "course" },
+    });
+    rows = Array.isArray(data) ? data : [];
+  } catch {
+    rows = [];
+  }
+
+  const projectIdSet = new Set(courseProjectIds);
+  const courseRows = rows.filter((n) => {
+    if (n.category !== "course") return false;
+    if (n.eventType.startsWith(INVITATION_EVENT_PREFIX)) return false;
+    if (!ANNOUNCEMENT_EVENT_TYPES.has(n.eventType)) return false;
+    if (n.projectId == null) return true;
+    return projectIdSet.has(n.projectId);
+  });
+
+  return courseRows
+    .map((n) => ({
+      id: n.id,
+      title: n.title,
+      message: n.body,
+      doctor: doctorName?.trim() || "Instructor",
+      date: formatAnnouncementDate(n.createdAt),
+      createdAt: n.createdAt,
+      projectId: n.projectId,
+      eventType: n.eventType,
+    }))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+function formatAnnouncementDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function isAxiosNotFound(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "response" in err &&
+    (err as { response?: { status?: number } }).response?.status === 404
+  );
 }
 
 function parseTeamInvitationsResponse(data: unknown): TeamInvitationItem[] {

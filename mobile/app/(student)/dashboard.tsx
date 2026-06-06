@@ -11,7 +11,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
-import { getDashboardSummary } from "@/api/dashboardApi";
+import { getDashboardSummary, getStudentAiMatchStatus, type StudentAiMatchStatus } from "@/api/dashboardApi";
+import { getFollowing } from "@/api/followingApi";
 import { getGraduationProjectsMyEnvelope } from "@/api/gradProjectApi";
 import { getMe } from "@/api/meApi";
 import {
@@ -20,6 +21,7 @@ import {
   getEnrolledCourses,
   rejectTeamInvitation,
 } from "@/api/studentCoursesApi";
+import { AiMatchStatusCard } from "@/components/dashboard/AiMatchStatusCard";
 import { CoursesAreaCard } from "@/components/dashboard/CoursesAreaCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { GraduationProjectCard } from "@/components/dashboard/GraduationProjectCard";
@@ -48,16 +50,23 @@ export default function StudentDashboardScreen() {
   const [enrolledCount, setEnrolledCount] = useState(0);
   const [partnerActivity, setPartnerActivity] = useState(0);
   const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
+  const [matchStatus, setMatchStatus] = useState<StudentAiMatchStatus | null>(null);
+  const [matchStatusLoading, setMatchStatusLoading] = useState(true);
+  const [followingCompanyCount, setFollowingCompanyCount] = useState(0);
+  const [followingAssociationCount, setFollowingAssociationCount] = useState(0);
 
   const loadDashboard = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [me, summary, gradEnvelope, teamInvites, enrolled] = await Promise.all([
+      setMatchStatusLoading(true);
+      const [me, summary, gradEnvelope, teamInvites, enrolled, aiMatch, following] = await Promise.all([
         getMe(),
         getDashboardSummary(),
         getGraduationProjectsMyEnvelope(),
         getEligibleTeamInvitations(),
         getEnrolledCourses(),
+        getStudentAiMatchStatus().catch(() => null),
+        getFollowing().catch(() => ({ companies: [], associations: [] })),
       ]);
 
       const teammatesCount =
@@ -117,10 +126,14 @@ export default function StudentDashboardScreen() {
       );
       setEnrolledCount(enrolled.length);
       setPartnerActivity(teammatesCount);
+      setMatchStatus(aiMatch);
+      setFollowingCompanyCount(following.companies.length);
+      setFollowingAssociationCount(following.associations.length);
     } catch (err) {
       Alert.alert("Could not load dashboard", parseApiErrorMessage(err));
     } finally {
       if (!silent) setLoading(false);
+      setMatchStatusLoading(false);
     }
   }, []);
 
@@ -206,6 +219,12 @@ export default function StudentDashboardScreen() {
           courseLabels={gradCourseLabels}
         />
         <CoursesAreaCard enrolled={enrolledCount} partners={partnerActivity} />
+        <AiMatchStatusCard
+          status={matchStatus}
+          loading={matchStatusLoading}
+          followingCompanyCount={followingCompanyCount}
+          followingAssociationCount={followingAssociationCount}
+        />
       </ScrollView>
     </SafeAreaView>
   );

@@ -82,3 +82,83 @@ export function getRegistrationGraduationCourses(
 
   return ["Graduation Project 1", "Graduation Project 2"];
 }
+
+export type GraduationProjectTypeOption = {
+  type: GraduationProjectType;
+  stageId: "gp1" | "gp2" | "gp";
+  label: string;
+  shortLabel: string;
+  description: string;
+};
+
+export function projectTypeToStage(type: string | null | undefined): "gp1" | "gp2" | "gp" {
+  switch (normalizeProjectType(type)) {
+    case GRADUATION_PROJECT_TYPE.GP1:
+      return "gp1";
+    case GRADUATION_PROJECT_TYPE.GP2:
+      return "gp2";
+    default:
+      return "gp";
+  }
+}
+
+export function stageToProjectType(stage: string): GraduationProjectType {
+  if (stage === "gp1") return GRADUATION_PROJECT_TYPE.GP1;
+  if (stage === "gp2") return GRADUATION_PROJECT_TYPE.GP2;
+  return GRADUATION_PROJECT_TYPE.GP;
+}
+
+export function getGraduationProjectTypeOptions(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): GraduationProjectTypeOption[] {
+  const track = resolveGraduationTrack(faculty, major);
+
+  if (track === "general") {
+    return [
+      {
+        type: GRADUATION_PROJECT_TYPE.GP,
+        stageId: "gp",
+        label: "Graduation Project",
+        shortLabel: "Graduation Project",
+        description: "Single graduation project track for your faculty.",
+      },
+    ];
+  }
+
+  if (track === "computer-engineering") {
+    return [
+      {
+        type: GRADUATION_PROJECT_TYPE.GP1,
+        stageId: "gp1",
+        label: "Graduation Project 1 (Software)",
+        shortLabel: "GP1 Software",
+        description: "Software-focused graduation project.",
+      },
+      {
+        type: GRADUATION_PROJECT_TYPE.GP2,
+        stageId: "gp2",
+        label: "Graduation Project 2 (Hardware)",
+        shortLabel: "GP2 Hardware",
+        description: "Hardware-focused graduation project.",
+      },
+    ];
+  }
+
+  return [
+    {
+      type: GRADUATION_PROJECT_TYPE.GP1,
+      stageId: "gp1",
+      label: "Graduation Project 1",
+      shortLabel: "Graduation Project 1",
+      description: "First graduation project stage.",
+    },
+    {
+      type: GRADUATION_PROJECT_TYPE.GP2,
+      stageId: "gp2",
+      label: "Graduation Project 2",
+      shortLabel: "Graduation Project 2",
+      description: "Second graduation project stage.",
+    },
+  ];
+}

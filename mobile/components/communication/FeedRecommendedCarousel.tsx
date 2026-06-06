@@ -29,12 +29,18 @@ import {
   recommendedFollowHint,
   sortRecommendedForDisplay,
 } from "@/lib/feedRecommendedDisplay";
+import { openFeedRecommendedMessage } from "@/lib/feedRecommendedMessage";
+import {
+  feedRecommendedProfilePath,
+  feedRecommendedShowsViewProfile,
+} from "@/lib/feedRecommendedNavigation";
 
 export function FeedRecommendedCarousel() {
   const layout = useResponsiveLayout();
   const [items, setItems] = useState<FeedRecommendedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [followBusyId, setFollowBusyId] = useState<string | null>(null);
+  const [messageBusyId, setMessageBusyId] = useState<string | null>(null);
   const rotationRef = useRef(0);
   const excludeRef = useRef<string[]>([]);
 
@@ -92,13 +98,27 @@ export function FeedRecommendedCarousel() {
     }
   };
 
-  const cardWidth = layout.scale(148);
+  const handleMessage = async (item: FeedRecommendedItem) => {
+    const userId = item.userId ?? 0;
+    if (!item.canMessage || userId <= 0 || messageBusyId) return;
+    setMessageBusyId(item.id);
+    try {
+      await openFeedRecommendedMessage(userId);
+    } catch (err) {
+      Alert.alert("Could not start conversation", parseApiErrorMessage(err));
+    } finally {
+      setMessageBusyId(null);
+    }
+  };
+
+  const cardWidth = layout.scale(168);
 
   const renderCard = ({ item }: { item: FeedRecommendedItem }) => {
     const roleColor = HUB_COLORS[item.type];
     const hint = recommendedFollowHint(item.type);
     const showFollow = item.canFollow;
-    const showMessage = item.canMessage;
+    const showMessage = item.canMessage && (item.userId ?? 0) > 0;
+    const showViewProfile = feedRecommendedShowsViewProfile(item);
 
     return (
       <View
@@ -139,6 +159,16 @@ export function FeedRecommendedCarousel() {
         ) : null}
 
         <View style={styles.cardActions}>
+          {showViewProfile ? (
+            <Pressable
+              style={[styles.actionBtn, styles.viewProfileBtn, { borderRadius: layout.radius.input }]}
+              onPress={() => router.push(feedRecommendedProfilePath(item) as never)}
+            >
+              <Ionicons name="person-outline" size={14} color={HUB_COLORS.primary} />
+              <Text style={styles.actionBtnText}>View Profile</Text>
+            </Pressable>
+          ) : null}
+
           {showFollow ? (
             <Pressable
               style={[
@@ -172,10 +202,17 @@ export function FeedRecommendedCarousel() {
           {showMessage ? (
             <Pressable
               style={[styles.actionBtn, styles.messageBtn, { borderRadius: layout.radius.input }]}
-              onPress={() => router.push("/messages")}
+              onPress={() => void handleMessage(item)}
+              disabled={messageBusyId === item.id}
             >
-              <Ionicons name="chatbubble-outline" size={14} color={HUB_COLORS.foreground} />
-              <Text style={styles.actionBtnText}>Message</Text>
+              {messageBusyId === item.id ? (
+                <ActivityIndicator size="small" color={HUB_COLORS.foreground} />
+              ) : (
+                <>
+                  <Ionicons name="chatbubble-outline" size={14} color={HUB_COLORS.foreground} />
+                  <Text style={[styles.actionBtnText, styles.messageBtnText]}>Message</Text>
+                </>
+              )}
             </Pressable>
           ) : null}
         </View>
@@ -274,10 +311,13 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   cardActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: "column",
     gap: 6,
     marginTop: 4,
+    width: "100%",
+  },
+  viewProfileBtn: {
+    justifyContent: "center",
   },
   actionBtn: {
     flexDirection: "row",
@@ -297,6 +337,10 @@ const styles = StyleSheet.create({
   messageBtn: {
     backgroundColor: HUB_COLORS.inputBg,
     borderColor: HUB_COLORS.border,
+    justifyContent: "center",
+  },
+  messageBtnText: {
+    color: HUB_COLORS.foreground,
   },
   actionBtnText: {
     fontSize: 12,
