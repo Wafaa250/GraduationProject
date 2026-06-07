@@ -57,7 +57,7 @@ function RootNavigation() {
           <Stack.Screen name="companies/[id]" />
           <Stack.Screen name="organizations/[id]" />
           <Stack.Screen name="doctor" options={{ headerShown: false }} />
-          <Stack.Screen name="company/index" />
+          <Stack.Screen name="company" options={{ headerShown: false }} />
           <Stack.Screen name="association" options={{ headerShown: false }} />
           <Stack.Screen name="courses" options={{ headerShown: false }} />
           <Stack.Screen name="graduation-projects" options={{ headerShown: false }} />

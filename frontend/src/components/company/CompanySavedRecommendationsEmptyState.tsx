@@ -3,6 +3,12 @@ import { Bookmark, ChevronRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { COMPANY_ROUTES } from "@/routes/paths";
+import {
+  COMPANY_SAVED_EMPTY_INTRO,
+  COMPANY_SAVED_EMPTY_STEP_1,
+  COMPANY_SAVED_EMPTY_STEP_2,
+  COMPANY_SAVED_EMPTY_STEP_3,
+} from "@/lib/companyWorkspaceCopy";
 
 export function CompanySavedRecommendationsEmptyState() {
   return (
@@ -14,14 +20,13 @@ export function CompanySavedRecommendationsEmptyState() {
             <Bookmark className="h-9 w-9" aria-hidden />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-primary font-semibold mb-2">
-            Your shortlist
+            Saved recommendations
           </p>
           <h2 className="text-xl md:text-2xl font-semibold tracking-tight">
             No saved recommendations yet
           </h2>
           <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-            Save promising students and AI-built teams while reviewing matches. Your whole workspace
-            shares this shortlist — add notes and come back before reaching out externally.
+            {COMPANY_SAVED_EMPTY_INTRO}
           </p>
           <ul className="mt-8 text-left text-sm text-muted-foreground space-y-3 max-w-md mx-auto">
             <li className="flex gap-3">
@@ -29,8 +34,8 @@ export function CompanySavedRecommendationsEmptyState() {
                 1
               </span>
               <span>
-                <span className="text-foreground font-medium">Run AI recommendations</span> on a project
-                request to discover candidates and teams.
+                <span className="text-foreground font-medium">Open AI recommendations</span> —{" "}
+                {COMPANY_SAVED_EMPTY_STEP_1}
               </span>
             </li>
             <li className="flex gap-3">
@@ -38,8 +43,8 @@ export function CompanySavedRecommendationsEmptyState() {
                 2
               </span>
               <span>
-                <span className="text-foreground font-medium">Bookmark interesting profiles</span> with
-                the save button on any student or team card.
+                <span className="text-foreground font-medium">Save from recommendations</span> —{" "}
+                {COMPANY_SAVED_EMPTY_STEP_2}
               </span>
             </li>
             <li className="flex gap-3">
@@ -47,8 +52,8 @@ export function CompanySavedRecommendationsEmptyState() {
                 3
               </span>
               <span>
-                <span className="text-foreground font-medium">Review and add notes here</span> before
-                contacting candidates outside SkillSwap.
+                <span className="text-foreground font-medium">Review your shortlist</span> —{" "}
+                {COMPANY_SAVED_EMPTY_STEP_3}
               </span>
             </li>
           </ul>
@@ -56,7 +61,7 @@ export function CompanySavedRecommendationsEmptyState() {
             <Button asChild className="rounded-xl cw-btn-gradient shadow-sm border-0 min-w-[220px]">
               <Link to={COMPANY_ROUTES.requests}>
                 <Sparkles className="h-4 w-4 mr-1.5" />
-                Browse project requests
+                Open project requests
               </Link>
             </Button>
             <Button asChild variant="outline" className="rounded-xl min-w-[220px]">

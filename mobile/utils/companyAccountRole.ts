@@ -6,3 +6,7 @@ export function isCompanyWorkspaceAccountRole(role: string | null | undefined): 
   const r = normalizeAccountRole(role);
   return r === "company" || r === "companymember";
 }
+
+export function isCompanyOwnerAccountRole(role: string | null | undefined): boolean {
+  return normalizeAccountRole(role) === "company";
+}

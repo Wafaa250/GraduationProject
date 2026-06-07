@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   Bookmark,
-  GitCompare,
   Mail,
   GraduationCap,
   Clock,
@@ -33,10 +32,6 @@ import {
 } from "@/api/companyApi";
 import { COMPANY_ROUTES } from "@/routes/paths";
 import { mapStudentDiscoveryContact } from "@/lib/studentDiscoveryContact";
-import {
-  getCompareStudentIds,
-  toggleCompareStudent,
-} from "@/lib/companyDiscoveryStorage";
 
 function initials(name: string): string {
   return name
@@ -97,7 +92,6 @@ export function CompanyStudentDiscoveryProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [inCompare, setInCompare] = useState(false);
 
   const backHref = useMemo(() => {
     if (!Number.isFinite(requestId) || requestId < 1) return COMPANY_ROUTES.requests;
@@ -129,7 +123,6 @@ export function CompanyStudentDiscoveryProfilePage() {
       .then((data) => {
         if (!cancelled) {
           setProfile(data);
-          setInCompare(getCompareStudentIds(requestId).includes(studentProfileId));
         }
       })
       .catch((err) => {
@@ -170,21 +163,6 @@ export function CompanyStudentDiscoveryProfilePage() {
       }
     } catch (err) {
       toast.error(parseApiErrorMessage(err) || "Could not update saved state.");
-    }
-  };
-
-  const handleCompare = () => {
-    if (!Number.isFinite(requestId)) return;
-    const before = getCompareStudentIds(requestId);
-    const list = toggleCompareStudent(requestId, studentProfileId);
-    const added = !before.includes(studentProfileId) && list.includes(studentProfileId);
-    setInCompare(list.includes(studentProfileId));
-    if (added) {
-      toast.success(`Added to compare (${list.length}/4)`);
-    } else if (before.includes(studentProfileId)) {
-      toast.success("Removed from compare");
-    } else {
-      toast.error("Compare list is full (max 4 students).");
     }
   };
 
@@ -281,10 +259,6 @@ export function CompanyStudentDiscoveryProfilePage() {
             >
               <Bookmark className={cn("h-4 w-4 mr-1.5", saved && "fill-current")} />
               {saved ? "Saved" : "Save Recommendation"}
-            </Button>
-            <Button type="button" variant="outline" className="rounded-lg h-9" onClick={handleCompare}>
-              <GitCompare className="h-4 w-4 mr-1.5" />
-              {inCompare ? "In Compare" : "Add to Compare"}
             </Button>
             <Button
               type="button"
@@ -392,13 +366,6 @@ export function CompanyStudentDiscoveryProfilePage() {
                 ))}
               </div>
             )}
-          </CompanyLuxSection>
-
-          <CompanyLuxSection title="Experience">
-            <p className="text-sm text-muted-foreground italic">
-              Structured work experience is not stored separately yet. Review graduation projects
-              above for hands-on experience signals.
-            </p>
           </CompanyLuxSection>
         </div>
 

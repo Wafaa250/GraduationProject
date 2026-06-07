@@ -8,6 +8,10 @@ import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { CompanySkeleton } from "@/components/company/CompanySkeleton";
 import { CompanyEmptyState } from "@/components/company/CompanyEmptyState";
 import { cwLayout } from "@/lib/companyLayout";
+import {
+  COMPANY_RECOMMENDATIONS_STUDENTS_DESC,
+  COMPANY_RECOMMENDATIONS_TEAMS_DESC,
+} from "@/lib/companyWorkspaceCopy";
 import { CompanyRequestRecommendationSummary } from "@/components/company/CompanyRequestRecommendationSummary";
 import { CompanyCandidateCard } from "@/components/company/CompanyCandidateCard";
 import { CompanyTeamRecommendationCard } from "@/components/company/CompanyTeamRecommendationCard";
@@ -277,8 +281,8 @@ export function CompanyRequestRecommendationsPage() {
 
   const heroTitle = isTeamRequest ? "AI Team Recommendations" : "AI Student Recommendations";
   const heroDesc = isTeamRequest
-    ? "Complete student teams ranked for your project — review composition, chemistry, and contact members externally."
-    : "Students ranked by skill fit, experience, and project alignment — open profiles to contact them directly.";
+    ? COMPANY_RECOMMENDATIONS_TEAMS_DESC
+    : COMPANY_RECOMMENDATIONS_STUDENTS_DESC;
 
   return (
     <CompanyPageShell className="space-y-6">

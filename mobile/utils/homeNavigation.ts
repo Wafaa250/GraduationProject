@@ -9,7 +9,7 @@ export const MOBILE_ROUTES = {
   changePassword: "/change-password",
   feed: "/feed",
   doctorDashboard: "/doctor/dashboard",
-  companyDashboard: "/company",
+  companyDashboard: "/company/dashboard",
   associationDashboard: "/association/dashboard",
 } as const;
 

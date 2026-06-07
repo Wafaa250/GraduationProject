@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { collaborationFormatLabel } from "@/constants/companyRequestCatalog";
 import { COMPANY_ROUTES } from "@/routes/paths";
+import { COMPANY_REQUESTS_EMPTY } from "@/lib/companyWorkspaceCopy";
 
 function formatDate(iso: string): string {
   try {
@@ -224,7 +225,7 @@ export function CompanyRequestsPage() {
           <CompanyEmptyState
             icon={FileText}
             title="No project requests yet"
-            message="Create your first request and let SkillSwap AI recommend students and teams that match your requirements."
+            message={COMPANY_REQUESTS_EMPTY}
             action={{ label: "Create request", to: COMPANY_ROUTES.newRequest }}
           />
         </div>

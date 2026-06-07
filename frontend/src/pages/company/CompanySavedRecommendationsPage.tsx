@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { CompanyLuxHero, CompanyLuxStat } from "@/components/company/CompanyPremiumUI";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { cwLayout } from "@/lib/companyLayout";
+import { COMPANY_SAVED_PAGE_DESCRIPTION } from "@/lib/companyWorkspaceCopy";
 import { cn } from "@/lib/utils";
 import { CompanySavedRecommendationsEmptyState } from "@/components/company/CompanySavedRecommendationsEmptyState";
 import { CompanySavedRecommendationNoteField } from "@/components/company/CompanySavedRecommendationNoteField";
@@ -197,9 +198,9 @@ export function CompanySavedRecommendationsPage() {
   return (
     <CompanyPageShell>
       <CompanyLuxHero
-        eyebrow="Talent shortlist"
+        eyebrow="Saved recommendations"
         title="Saved Recommendations"
-        description="Your flagship shortlist — students and AI teams organised by request, with notes before outreach."
+        description={COMPANY_SAVED_PAGE_DESCRIPTION}
         aside={
           totalCount > 0 ? (
             <div className="grid grid-cols-2 gap-2 w-full cw-lux-hero-aside-stats">
@@ -213,7 +214,7 @@ export function CompanySavedRecommendationsPage() {
       {loading ? (
         <Card className="cw-card-elevated">
           <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading your shortlist…
+            Loading saved recommendations…
           </CardContent>
         </Card>
       ) : totalCount === 0 ? (

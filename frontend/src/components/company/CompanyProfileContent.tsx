@@ -12,6 +12,10 @@ import { CompanyLuxHero } from "@/components/company/CompanyPremiumUI";
 import { cwLayout } from "@/lib/companyLayout";
 import type { CompanyProfile } from "@/api/companyApi";
 import type { CompanyProfileMode } from "@/components/company/companyProfileTypes";
+import {
+  COMPANY_PROFILE_OWNER_DESCRIPTION,
+  COMPANY_PROFILE_WORKSPACE_NOTE,
+} from "@/lib/companyWorkspaceCopy";
 
 function normalizeUrl(url: string): string {
   const trimmed = url.trim();
@@ -126,13 +130,13 @@ export function CompanyProfileContent({
   return (
     <>
       <CompanyLuxHero
-        eyebrow="Public presence"
+        eyebrow="Company workspace"
         title="Company Profile"
         description={
           canEditProfile
-            ? "How students discover you when SkillSwap recommends your company — keep it sharp and complete."
+            ? COMPANY_PROFILE_OWNER_DESCRIPTION
             : mode === "visitor"
-              ? "Explore this company's public profile and contact details."
+              ? "Company profile and contact details."
               : "Company identity and contact details. Contact your company owner to request changes."
         }
       />
@@ -193,7 +197,7 @@ export function CompanyProfileContent({
                     onChange={(e) => setForm((prev) => ({ ...prev, about: e.target.value }))}
                     rows={4}
                     className="rounded-xl resize-none"
-                    placeholder="Describe your company and what students can expect."
+                    placeholder="Company description"
                     disabled={!canEditProfile}
                     readOnly={!canEditProfile}
                   />
@@ -343,9 +347,7 @@ export function CompanyProfileContent({
               </div>
 
               <div className="rounded-xl cw-insight-panel px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-                Discovery only — SkillSwap helps students discover companies, then they contact you
-                externally. No applications, pipelines, interviews, or recruitment workflows are
-                managed inside the platform.
+                {COMPANY_PROFILE_WORKSPACE_NOTE}
               </div>
             </CardContent>
           </Card>

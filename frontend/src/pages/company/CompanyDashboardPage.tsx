@@ -28,6 +28,16 @@ import {
   requestLifecycleStatusLabel,
 } from "@/lib/companyRequestDisplay";
 import { COMPANY_ROUTES } from "@/routes/paths";
+import {
+  COMPANY_ACTIVE_REQUESTS_SUBTITLE,
+  COMPANY_DASHBOARD_BROWSE_REQUESTS,
+  COMPANY_DASHBOARD_DESCRIPTION,
+  COMPANY_DASHBOARD_NO_REQUESTS,
+  COMPANY_DASHBOARD_NO_SAVED_STUDENTS,
+  COMPANY_DASHBOARD_NO_SAVED_TEAMS,
+  COMPANY_WORKSPACE_ACTIVITY_EMPTY,
+  COMPANY_WORKSPACE_EYEBROW,
+} from "@/lib/companyWorkspaceCopy";
 import { CompanyPageShell } from "@/components/company/CompanyPageShell";
 import { isCompanyOwner } from "@/lib/companyWorkspace";
 import { cn } from "@/lib/utils";
@@ -114,14 +124,14 @@ export function CompanyDashboardPage() {
   return (
     <CompanyPageShell className="space-y-7">
       <CompanyLuxHero
-        eyebrow="AI Discovery Workspace"
+        eyebrow={COMPANY_WORKSPACE_EYEBROW}
         title={
           <>
             Welcome back,{" "}
             <span className="text-[hsl(var(--cw-accent))]">{companyName}</span>
           </>
         }
-        description="Discover students and AI-generated teams that match your project needs."
+        description={COMPANY_DASHBOARD_DESCRIPTION}
         actions={
           <>
             <Button asChild size="default" className="rounded-lg h-10 cw-btn-gradient border-0 px-5 shadow-md">
@@ -184,7 +194,7 @@ export function CompanyDashboardPage() {
             <div className="cw-bento-span-8 space-y-5">
               <CompanyLuxPanel
                 title="Active Requests"
-                description="Your open collaboration requests and saved shortlists."
+                description={COMPANY_ACTIVE_REQUESTS_SUBTITLE}
                 action={
                   hasMoreRequests ? (
                     <Button asChild variant="ghost" size="sm" className="h-8 text-xs rounded-lg">
@@ -197,7 +207,7 @@ export function CompanyDashboardPage() {
                   <CompanyEmptyState
                     compact
                     icon={FileText}
-                    message="Create your first collaboration request to start discovering students and AI-generated teams."
+                    message={COMPANY_DASHBOARD_NO_REQUESTS}
                     action={{ label: "Create Request", to: COMPANY_ROUTES.newRequest }}
                   />
                 ) : (
@@ -274,10 +284,10 @@ export function CompanyDashboardPage() {
                     <CompanyEmptyState
                       compact
                       icon={Bookmark}
-                      message="Shortlisted candidates from your requests will appear here."
+                      message={COMPANY_DASHBOARD_NO_SAVED_STUDENTS}
                       action={
                         activeRequests > 0
-                          ? { label: "Browse recommendations", to: COMPANY_ROUTES.requests }
+                          ? { label: COMPANY_DASHBOARD_BROWSE_REQUESTS, to: COMPANY_ROUTES.requests }
                           : undefined
                       }
                     />
@@ -339,10 +349,10 @@ export function CompanyDashboardPage() {
                     <CompanyEmptyState
                       compact
                       icon={UsersRound}
-                      message="AI-generated teams you save will appear here."
+                      message={COMPANY_DASHBOARD_NO_SAVED_TEAMS}
                       action={
                         activeRequests > 0
-                          ? { label: "Browse requests", to: COMPANY_ROUTES.requests }
+                          ? { label: COMPANY_DASHBOARD_BROWSE_REQUESTS, to: COMPANY_ROUTES.requests }
                           : undefined
                       }
                     />
@@ -399,7 +409,7 @@ export function CompanyDashboardPage() {
                   <CompanyEmptyState
                     compact
                     icon={TrendingUp}
-                    message="Workspace actions from your team will appear here."
+                    message={COMPANY_WORKSPACE_ACTIVITY_EMPTY}
                   />
                 ) : (
                   <ul className="cw-activity-timeline space-y-4">

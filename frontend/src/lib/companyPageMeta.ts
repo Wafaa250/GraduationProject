@@ -1,4 +1,8 @@
 import { COMPANY_ROUTES } from "@/routes/paths";
+import {
+  COMPANY_PAGE_META,
+  COMPANY_PROFILE_SUBTITLE,
+} from "@/lib/companyWorkspaceCopy";
 
 export type CompanyPageMeta = {
   title: string;
@@ -8,31 +12,31 @@ export type CompanyPageMeta = {
 /** Route-aware page context for the company topbar (presentation only). */
 export function getCompanyPageMeta(pathname: string): CompanyPageMeta | null {
   if (pathname === COMPANY_ROUTES.dashboard) {
-    return { title: "Dashboard", subtitle: "Hiring workspace overview" };
+    return { title: "Dashboard", subtitle: COMPANY_PAGE_META.dashboard };
   }
   if (pathname === COMPANY_ROUTES.requests) {
-    return { title: "Project Requests", subtitle: "Manage collaboration requests" };
+    return { title: "Project Requests", subtitle: COMPANY_PAGE_META.requests };
   }
   if (pathname === COMPANY_ROUTES.newRequest) {
     return { title: "New Request" };
   }
   if (pathname.startsWith(`${COMPANY_ROUTES.requests}/`) && pathname.includes("/recommendations")) {
-    return { title: "AI Recommendations", subtitle: "Matched candidates and teams" };
+    return { title: "AI Recommendations", subtitle: COMPANY_PAGE_META.recommendations };
   }
   if (pathname.startsWith(`${COMPANY_ROUTES.requests}/`) && pathname.includes("/edit")) {
     return { title: "Edit Request", subtitle: "Update project requirements" };
   }
   if (pathname.match(/^\/company\/requests\/\d+$/)) {
-    return { title: "Request Details", subtitle: "Roles, status, and shortlists" };
+    return { title: "Request Details", subtitle: COMPANY_PAGE_META.requestDetail };
   }
   if (pathname.startsWith(`${COMPANY_ROUTES.requests}/`)) {
     return { title: "Project Request", subtitle: "Request workspace" };
   }
   if (pathname === COMPANY_ROUTES.saved) {
-    return { title: "Saved Recommendations", subtitle: "Your shortlisted talent" };
+    return { title: "Saved Recommendations", subtitle: COMPANY_PAGE_META.saved };
   }
   if (pathname === COMPANY_ROUTES.profile) {
-    return { title: "Company Profile", subtitle: "Public company information" };
+    return { title: "Company Profile", subtitle: COMPANY_PROFILE_SUBTITLE };
   }
   if (pathname === COMPANY_ROUTES.members) {
     return { title: "Workspace Members", subtitle: "Team access and invitations" };

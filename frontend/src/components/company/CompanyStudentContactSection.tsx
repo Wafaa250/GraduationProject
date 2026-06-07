@@ -1,5 +1,6 @@
 import { ExternalLink, Mail, Github, Globe, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { COMPANY_STUDENT_CONTACT_INTRO } from "@/lib/companyWorkspaceCopy";
 import type { StudentDiscoveryContact } from "@/types/studentDiscoveryContact";
 
 type Props = {
@@ -71,8 +72,7 @@ export function CompanyStudentContactSection({ contact, compact = false }: Props
     <div className={compact ? "space-y-2" : "space-y-2.5"}>
       {!compact && (
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Reach out directly — SkillSwap facilitates discovery; conversations happen outside the
-          platform.
+          {COMPANY_STUDENT_CONTACT_INTRO}
         </p>
       )}
       {email && (
