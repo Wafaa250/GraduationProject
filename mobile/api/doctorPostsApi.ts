@@ -28,6 +28,7 @@ export type CreateDoctorPostPayload = {
 
 export type UpdateDoctorPostPayload = {
   content: string;
+  file?: MobileDoctorPostFile | null;
   removeAttachment?: boolean;
 };
 
@@ -104,6 +105,13 @@ export async function updateDoctorPost(
   const form = new FormData();
   form.append("content", payload.content);
   if (payload.removeAttachment) form.append("removeAttachment", "true");
+  if (payload.file) {
+    form.append("file", {
+      uri: payload.file.uri,
+      name: payload.file.name,
+      type: payload.file.mimeType,
+    } as unknown as Blob);
+  }
 
   const { data } = await api.put<Record<string, unknown>>(`/doctor-posts/${postId}`, form, {
     headers: { "Content-Type": "multipart/form-data" },

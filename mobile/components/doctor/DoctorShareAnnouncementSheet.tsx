@@ -26,7 +26,7 @@ import {
   type MobileDoctorPostFile,
 } from "@/api/doctorPostsApi";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 type PendingAttachment = {
   file: MobileDoctorPostFile;
@@ -43,7 +43,7 @@ const INPUT_HEIGHT = 84;
 
 export function DoctorShareAnnouncementSheet({ visible, onClose, onPublished }: Props) {
   const insets = useSafeAreaInsets();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
   const [content, setContent] = useState("");
   const [attachment, setAttachment] = useState<PendingAttachment | null>(null);

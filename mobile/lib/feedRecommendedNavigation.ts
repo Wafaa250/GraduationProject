@@ -27,3 +27,15 @@ export function feedRecommendedShowsViewProfile(item: FeedRecommendedItem): bool
       return false;
   }
 }
+
+export function feedRecommendedShowsFollow(type: FeedRecommendedItem["type"]): boolean {
+  return type === "company" || type === "association";
+}
+
+export function feedRecommendedShowsMessage(item: FeedRecommendedItem): boolean {
+  return (
+    (item.type === "student" || item.type === "doctor") &&
+    item.canMessage &&
+    (item.userId ?? 0) > 0
+  );
+}

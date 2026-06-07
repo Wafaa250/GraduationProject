@@ -19,7 +19,7 @@ import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { addStudentsToSection } from "@/api/doctorCoursesApi";
 import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { parseStudentIdsText } from "@/lib/courseWorkspaceUtils";
 import { addStudentsResultSummary } from "@/lib/doctorCourseUi";
@@ -34,7 +34,7 @@ type Props = {
 export function AddStudentsSheet({ visible, sectionId, onClose, onSaved }: Props) {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [idsText, setIdsText] = useState("");

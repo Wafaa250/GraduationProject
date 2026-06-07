@@ -29,7 +29,7 @@ import { DoctorHomeSkeleton } from "@/components/doctor/home/DoctorHomeSkeleton"
 import { DoctorHomeStatsStrip } from "@/components/doctor/home/DoctorHomeStatsStrip";
 import { DoctorShareAnnouncementSheet } from "@/components/doctor/DoctorShareAnnouncementSheet";
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import {
   countUniqueSupervisedStudents,
   mapCourseToCard,
@@ -47,7 +47,7 @@ const DASHBOARD_PREVIEW_LIMITS = {
 } as const;
 
 export default function DoctorDashboardScreen() {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorHomeStyles(colors), [colors]);
 
   const [loading, setLoading] = useState(true);
@@ -206,8 +206,9 @@ export default function DoctorDashboardScreen() {
             title="Supervision Requests"
             subtitle="Review and respond to student teams"
             icon={ClipboardList}
-            iconColor={colors.primary}
             count={pendingCount}
+            collapsible
+            defaultExpanded
             onSeeAll={() => router.push(DOCTOR_ROUTES.requests as Href)}
           >
             {previewRequests.length > 0 ? (
@@ -238,10 +239,10 @@ export default function DoctorDashboardScreen() {
             title="My Courses"
             subtitle="Courses you're teaching this term"
             icon={BookOpen}
-            iconColor="#A855F7"
-            iconBg="rgba(168, 85, 247, 0.12)"
             count={courses.length}
             seeAllLabel="Manage"
+            collapsible
+            defaultExpanded={courses.length === 0}
             onSeeAll={() => router.push(DOCTOR_ROUTES.courses as Href)}
           >
             {previewCourses.length > 0 ? (
@@ -265,9 +266,9 @@ export default function DoctorDashboardScreen() {
             title="Active Projects"
             subtitle="Graduation projects under your supervision"
             icon={FolderKanban}
-            iconColor={colors.doctor}
-            iconBg={colors.roleBg.doctor}
             count={activeCount}
+            collapsible
+            defaultExpanded={activeCount === 0}
             onSeeAll={() => router.push(DOCTOR_ROUTES.projects as Href)}
           >
             {previewProjects.length > 0 ? (
@@ -287,7 +288,7 @@ export default function DoctorDashboardScreen() {
             )}
           </DoctorHomeSection>
 
-          <DoctorHomeAnnouncements refreshKey={announcementsRefreshKey} />
+          <DoctorHomeAnnouncements refreshKey={announcementsRefreshKey} defaultExpanded={false} />
         </View>
       </ScrollView>
 

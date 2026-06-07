@@ -24,7 +24,7 @@ import {
 } from "@/api/doctorCoursesApi";
 import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDayLabel, SECTION_DAY_OPTIONS } from "@/lib/doctorCourseUi";
 
@@ -39,7 +39,7 @@ type Props = {
 export function SectionFormSheet({ visible, courseId, section, onClose, onSaved }: Props) {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isEdit = section != null;
 

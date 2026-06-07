@@ -1,28 +1,76 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import { getCommunicationFeed } from "@/api/feedApi";
+import type { StudentPost } from "@/api/studentPostsApi";
 import { FeedHeader } from "@/components/communication/FeedHeader";
 import { FeedPostCard } from "@/components/communication/FeedPostCard";
 import { FeedPostComposer } from "@/components/communication/FeedPostComposer";
 import { FeedRecommendedCarousel } from "@/components/communication/FeedRecommendedCarousel";
+import { HubFeedSkeleton } from "@/components/hub/HubSkeleton";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import type { FeedItem } from "@/lib/feedTypes";
+import { useHubDesign } from "@/hooks/use-hub-design";
+import { FEED_SOURCE_TYPES, type FeedItem } from "@/lib/feedTypes";
+import { studentPostToFeedItem } from "@/lib/studentPostFeed";
+
+function HubEmptyState({
+  icon,
+  title,
+  description,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  description: string;
+}) {
+  const hub = useHubDesign();
+  const { colors } = hub;
+
+  return (
+    <View style={[emptyStyles.wrap, { paddingHorizontal: hub.layout.horizontalPadding }]}>
+      <View style={[emptyStyles.iconWrap, { backgroundColor: colors.primarySoft }]}>
+        <Ionicons name={icon} size={28} color={colors.primary} />
+      </View>
+      <Text style={[emptyStyles.title, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[emptyStyles.description, { color: colors.muted }]}>{description}</Text>
+    </View>
+  );
+}
+
+const emptyStyles = StyleSheet.create({
+  wrap: {
+    alignItems: "center",
+    paddingVertical: 36,
+    gap: 10,
+  },
+  iconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  title: {
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "center",
+  },
+  description: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+    maxWidth: 300,
+  },
+});
 
 export default function CommunicationHubScreen() {
-  const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const hub = useHubDesign();
+  const { colors } = hub;
+  const { colors: themeColors } = useHubTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,30 +101,51 @@ export default function CommunicationHubScreen() {
     setRefreshing(false);
   }, [loadFeed]);
 
+  const handleSocialPostUpdated = useCallback((post: StudentPost) => {
+    setItems((prev) =>
+      prev.map((entry) => {
+        if (entry.relatedEntityId !== post.id) return entry;
+        if (entry.relatedEntityType !== FEED_SOURCE_TYPES.studentPost) return entry;
+        return studentPostToFeedItem(post, entry);
+      }),
+    );
+  }, []);
+
+  const handleSocialPostDeleted = useCallback((postId: number) => {
+    setItems((prev) =>
+      prev.filter(
+        (entry) =>
+          !(
+            entry.relatedEntityType === FEED_SOURCE_TYPES.studentPost &&
+            entry.relatedEntityId === postId
+          ),
+      ),
+    );
+  }, []);
+
   const listHeader = (
     <View>
       <FeedHeader />
       <FeedRecommendedCarousel />
       <FeedPostComposer onPosted={() => void loadFeed(true)} />
+
       {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading feed...</Text>
+        <View style={styles.skeletonStack}>
+          <HubFeedSkeleton />
+          <HubFeedSkeleton />
         </View>
       ) : loadFailed ? (
-        <View style={[styles.emptyWrap, { paddingHorizontal: layout.horizontalPadding }]}>
-          <Text style={styles.emptyTitle}>No activity available yet.</Text>
-          <Text style={styles.emptyDescription}>
-            We couldn&apos;t refresh the activity stream right now. Pull down to try again.
-          </Text>
-        </View>
+        <HubEmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't load your feed"
+          description="Pull down to refresh and try again."
+        />
       ) : items.length === 0 ? (
-        <View style={[styles.emptyWrap, { paddingHorizontal: layout.horizontalPadding }]}>
-          <Text style={styles.emptyTitle}>Your feed is quiet.</Text>
-          <Text style={styles.emptyDescription}>
-            Follow companies and associations, or create a post to get started.
-          </Text>
-        </View>
+        <HubEmptyState
+          icon="newspaper-outline"
+          title="Your feed is quiet"
+          description="Follow companies and associations, or share an update to get started."
+        />
       ) : null}
     </View>
   );
@@ -86,10 +155,16 @@ export default function CommunicationHubScreen() {
       <FlatList
         data={loading ? [] : items}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <FeedPostCard item={item} />}
+        renderItem={({ item }) => (
+          <FeedPostCard
+            item={item}
+            onSocialPostUpdated={handleSocialPostUpdated}
+            onSocialPostDeleted={handleSocialPostDeleted}
+          />
+        )}
         ListHeaderComponent={listHeader}
         contentContainerStyle={{
-          paddingBottom: layout.space("xl"),
+          paddingBottom: hub.layout.space("xl"),
           flexGrow: 1,
         }}
         refreshControl={
@@ -98,6 +173,7 @@ export default function CommunicationHubScreen() {
             onRefresh={() => void onRefresh()}
             tintColor={colors.primary}
             colors={[colors.primary]}
+            progressBackgroundColor={colors.cardBg}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -112,30 +188,7 @@ const createStyles = (colors: HubColorScheme) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    loadingWrap: {
-      alignItems: "center",
-      paddingVertical: 32,
-      gap: 12,
-    },
-    loadingText: {
-      color: colors.muted,
-      fontSize: 14,
-    },
-    emptyWrap: {
-      alignItems: "center",
-      paddingVertical: 32,
-      gap: 8,
-    },
-    emptyTitle: {
-      fontWeight: "700",
-      fontSize: 16,
-      color: colors.foreground,
-      textAlign: "center",
-    },
-    emptyDescription: {
-      color: colors.muted,
-      fontSize: 14,
-      textAlign: "center",
-      lineHeight: 20,
+    skeletonStack: {
+      gap: 0,
     },
   });

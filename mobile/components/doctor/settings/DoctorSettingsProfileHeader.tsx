@@ -7,7 +7,7 @@ import {
   doctorCardShadow,
 } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDoctorDisplayName } from "@/lib/doctorHubMappers";
 
@@ -20,7 +20,7 @@ type Props = {
 
 export function DoctorSettingsProfileHeader({ name, email, photo, onChangePhoto }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   const displayName = formatDoctorDisplayName(name);

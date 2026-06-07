@@ -1,25 +1,29 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
+import { DOCTOR_STATUS, doctorBrandAccent } from "@/constants/doctorHubTheme";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { ProjectHealthStatus } from "@/lib/doctorActiveProjectUi";
 
-const STATUS: Record<ProjectHealthStatus, { label: string; bg: string; text: string; dot: string }> = {
-  active: {
+function projectStatusUi(status: ProjectHealthStatus, colors: HubColorScheme) {
+  if (status === "completed") {
+    return {
+      label: "Team complete",
+      bg: DOCTOR_STATUS.success.bg,
+      text: DOCTOR_STATUS.success.fg,
+      dot: DOCTOR_STATUS.success.fg,
+    };
+  }
+
+  const brand = doctorBrandAccent(colors);
+  return {
     label: "Supervised",
-    bg: "rgba(124, 58, 237, 0.12)",
-    text: "#7C3AED",
-    dot: "#7C3AED",
-  },
-  completed: {
-    label: "Team complete",
-    bg: "rgba(16, 185, 129, 0.12)",
-    text: "#059669",
-    dot: "#10B981",
-  },
-};
+    bg: brand.bg,
+    text: brand.fg,
+    dot: brand.fg,
+  };
+}
 
 type Props = {
   status: ProjectHealthStatus;
@@ -28,7 +32,8 @@ type Props = {
 
 export function ActiveProjectStatusBadge({ status, compact }: Props) {
   const layout = useResponsiveLayout();
-  const ui = STATUS[status];
+  const { colors } = useDoctorTheme();
+  const ui = projectStatusUi(status, colors);
 
   return (
     <View

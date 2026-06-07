@@ -10,7 +10,7 @@ import {
 } from "@/components/doctor/ui/doctorDesignSystem";
 import { MessageConversationAvatar } from "@/components/messages/MessageConversationAvatar";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDoctorHubRelativeTime } from "@/lib/doctorHubMappers";
 import {
@@ -28,7 +28,7 @@ type Props = {
 
 export function DoctorConversationCard({ item, currentUserId, onPress }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const name = getDoctorConversationDisplayName(item, currentUserId);

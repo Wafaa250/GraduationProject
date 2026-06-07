@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { DoctorStatusBadge } from "@/components/doctor/DoctorStatusBadge";
 import { createDoctorHomeStyles, HOME_SPACE } from "@/components/doctor/home/doctorHomeStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import type { DoctorRequestCardModel } from "@/lib/doctorHubMappers";
 
 type Props = {
@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function DoctorHomeRequestCard({ request, busy, onAccept, onReject, showDivider }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorHomeStyles(colors);
   const pending = request.status === "pending";
   const skills = request.skills.slice(0, 2);

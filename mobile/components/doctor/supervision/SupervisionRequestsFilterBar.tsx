@@ -6,7 +6,7 @@ import {
   doctorCardShadow,
 } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { STATUS_TABS, type SupervisionRequestTab } from "@/lib/supervisionRequestUi";
 
@@ -19,7 +19,7 @@ type Props = {
 
 export function SupervisionRequestsFilterBar({ value, counts, loading, onChange }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   return (

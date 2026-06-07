@@ -29,7 +29,7 @@ import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesign
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
 import { DoctorStackHeader } from "@/components/doctor/ui/DoctorStackHeader";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDoctorHubDate } from "@/lib/doctorHubMappers";
 import { doctorProjectChatPath, DOCTOR_ROUTES } from "@/lib/doctorRoutes";
@@ -40,7 +40,7 @@ export default function DoctorProjectDetailScreen() {
   const { projectId: idParam } = useLocalSearchParams<{ projectId: string }>();
   const projectId = Number(idParam);
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [loading, setLoading] = useState(true);

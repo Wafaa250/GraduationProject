@@ -2,8 +2,9 @@ import { StyleSheet, Text, View } from "react-native";
 
 import type { DoctorSupervisorRequestsSummary } from "@/api/doctorDashboardApi";
 import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
+import { DOCTOR_STATUS } from "@/constants/doctorHubTheme";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -12,24 +13,25 @@ type Props = {
 };
 
 const ITEMS = [
-  { key: "pendingCount" as const, label: "Pending", color: "#D97706" },
-  { key: "acceptedCount" as const, label: "Accepted", color: "#059669" },
-  { key: "rejectedCount" as const, label: "Rejected", color: "#DC2626" },
-  { key: "totalCount" as const, label: "Total", color: "#7C3AED" },
+  { key: "pendingCount" as const, label: "Pending", color: DOCTOR_STATUS.warning.fg },
+  { key: "acceptedCount" as const, label: "Accepted", color: DOCTOR_STATUS.success.fg },
+  { key: "rejectedCount" as const, label: "Rejected", color: DOCTOR_STATUS.error.fg },
+  { key: "totalCount" as const, label: "Total", colorKey: "primary" as const },
 ];
 
 export function SupervisionRequestsStatsStrip({ summary, loading }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   return (
     <View style={styles.wrap}>
       {ITEMS.map((item, index) => {
         const value = loading ? "—" : String(summary[item.key]);
+        const color = "colorKey" in item ? colors.primary : item.color;
         return (
           <View key={item.key} style={[styles.cell, index > 0 && styles.cellBorder]}>
-            <Text style={[styles.value, { color: loading ? colors.muted : item.color, fontSize: layout.scale(20) }]}>
+            <Text style={[styles.value, { color: loading ? colors.muted : color, fontSize: layout.scale(20) }]}>
               {value}
             </Text>
             <Text style={[styles.label, { fontSize: layout.scale(11) }]} numberOfLines={1}>

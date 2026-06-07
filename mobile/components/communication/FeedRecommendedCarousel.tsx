@@ -2,17 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
 import {
-  COMMUNICATION_HUB_SUGGESTIONS_REFRESH_MS,
   followCompany,
   followOrganization,
   getFeedRecommended,
@@ -22,44 +19,68 @@ import {
   type FeedRecommendedItem,
 } from "@/api/feedApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
+import { HubButton } from "@/components/hub/HubButton";
+import { HubRecommendedSkeleton } from "@/components/hub/HubSkeleton";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useHubDesign } from "@/hooks/use-hub-design";
 import {
   feedRecommendedRoleBadgeLabel,
-  recommendedFollowHint,
   sortRecommendedForDisplay,
 } from "@/lib/feedRecommendedDisplay";
 import { openFeedRecommendedMessage } from "@/lib/feedRecommendedMessage";
 import {
   feedRecommendedProfilePath,
+  feedRecommendedShowsFollow,
+  feedRecommendedShowsMessage,
   feedRecommendedShowsViewProfile,
 } from "@/lib/feedRecommendedNavigation";
+import { getHubRoleAccent } from "@/lib/hubRoleAccent";
+import {
+  bumpRecommendedRotationTick,
+  FEED_RECOMMENDED_DISPLAY_COUNT,
+  FEED_RECOMMENDED_ROTATE_MS,
+  getStoredRecommendedRotationTick,
+  readLastRecommendedIds,
+  saveLastRecommendedIds,
+} from "@/lib/feedRecommendedRotation";
 
 export function FeedRecommendedCarousel() {
-  const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const hub = useHubDesign();
+  const { colors, layout } = hub;
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [items, setItems] = useState<FeedRecommendedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [followBusyId, setFollowBusyId] = useState<string | null>(null);
   const [messageBusyId, setMessageBusyId] = useState<string | null>(null);
   const rotationRef = useRef(0);
-  const excludeRef = useRef<string[]>([]);
+  const itemsRef = useRef<FeedRecommendedItem[]>([]);
 
   const loadRecommended = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
+      rotationRef.current = await bumpRecommendedRotationTick(rotationRef.current);
+
+      const excludeIds =
+        silent && itemsRef.current.length > 0
+          ? itemsRef.current.map((i) => i.id)
+          : await readLastRecommendedIds();
+
       const response = await getFeedRecommended({
         rotation: rotationRef.current,
-        exclude: excludeRef.current,
+        exclude: excludeIds.length > 0 ? excludeIds : undefined,
       });
-      const sorted = sortRecommendedForDisplay(response.items);
+      const sorted = sortRecommendedForDisplay(response.items).slice(
+        0,
+        FEED_RECOMMENDED_DISPLAY_COUNT,
+      );
+      itemsRef.current = sorted;
       setItems(sorted);
-      excludeRef.current = sorted.map((i) => i.id);
+      await saveLastRecommendedIds(sorted.map((i) => i.id));
     } catch (err) {
       if (!silent) {
         console.warn("Recommended feed failed", parseApiErrorMessage(err));
+        itemsRef.current = [];
+        setItems([]);
       }
     } finally {
       if (!silent) setLoading(false);
@@ -67,14 +88,16 @@ export function FeedRecommendedCarousel() {
   }, []);
 
   useEffect(() => {
-    void loadRecommended();
+    void (async () => {
+      rotationRef.current = await getStoredRecommendedRotationTick();
+      await loadRecommended();
+    })();
   }, [loadRecommended]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      rotationRef.current += 1;
       void loadRecommended(true);
-    }, COMMUNICATION_HUB_SUGGESTIONS_REFRESH_MS);
+    }, FEED_RECOMMENDED_ROTATE_MS);
     return () => clearInterval(interval);
   }, [loadRecommended]);
 
@@ -114,137 +137,122 @@ export function FeedRecommendedCarousel() {
     }
   };
 
-  const cardWidth = layout.scale(168);
+  const cardWidth = layout.scale(152);
 
   const renderCard = ({ item }: { item: FeedRecommendedItem }) => {
-    const roleColor = colors[item.type];
-    const hint = recommendedFollowHint(item.type);
-    const showFollow = item.canFollow;
-    const showMessage = item.canMessage && (item.userId ?? 0) > 0;
+    const showFollow = feedRecommendedShowsFollow(item.type) && item.canFollow && item.entityId > 0;
+    const showMessage = feedRecommendedShowsMessage(item);
     const showViewProfile = feedRecommendedShowsViewProfile(item);
+    const matchLabel = item.matchScore > 0 ? `${item.matchScore}% match` : null;
+    const roleLabel = feedRecommendedRoleBadgeLabel(item.type);
+    const roleAccent = getHubRoleAccent(colors, item.type);
 
     return (
       <View
         style={[
           styles.card,
+          hub.shadow,
           {
             width: cardWidth,
-            borderRadius: layout.radius.button,
-            padding: layout.space("md"),
+            borderRadius: hub.card.radius,
+            padding: hub.card.padding - 2,
+            borderColor: roleAccent.border,
           },
         ]}
       >
+        <View
+          style={[
+            styles.cardAccent,
+            {
+              backgroundColor: roleAccent.fg,
+              borderTopLeftRadius: hub.card.radius,
+              borderTopRightRadius: hub.card.radius,
+            },
+          ]}
+        />
         <FeedAvatar
           name={item.name}
-          size={layout.scale(48)}
+          size={hub.avatar.recommended}
           avatarUrl={item.avatarUrl}
           avatarBase64={item.avatarBase64}
           roleType={item.type}
         />
-        <Text style={[styles.cardName, { fontSize: layout.fontSize.label }]} numberOfLines={1}>
+
+        <Text style={[styles.cardName, hub.type.author]} numberOfLines={1}>
           {item.name}
         </Text>
-        {item.subtitle ? (
-          <Text style={[styles.cardSubtitle, { fontSize: layout.fontSize.footer }]} numberOfLines={2}>
-            {item.subtitle}
-          </Text>
-        ) : null}
-        <View style={[styles.badge, { backgroundColor: colors.roleBg[item.type] }]}>
-          <Text style={[styles.badgeText, { color: roleColor, fontSize: layout.scale(11) }]}>
-            {feedRecommendedRoleBadgeLabel(item.type)}
-          </Text>
-        </View>
 
-        {hint ? (
-          <Text style={[styles.hint, { fontSize: layout.scale(11) }]} numberOfLines={2}>
-            {hint}
-          </Text>
-        ) : null}
+        <Text style={styles.cardSubtitle} numberOfLines={1}>
+          {item.subtitle?.trim() || roleLabel}
+        </Text>
+
+        {matchLabel ? <Text style={styles.matchLabel}>{matchLabel}</Text> : null}
 
         <View style={styles.cardActions}>
           {showViewProfile ? (
-            <Pressable
-              style={[styles.actionBtn, styles.viewProfileBtn, { borderRadius: layout.radius.input }]}
+            <HubButton
+              label="View Profile"
+              variant="primary"
+              size="sm"
+              icon="person-outline"
+              fullWidth
+              accent={item.type}
               onPress={() => router.push(feedRecommendedProfilePath(item) as never)}
-            >
-              <Ionicons name="person-outline" size={14} color={colors.primary} />
-              <Text style={styles.actionBtnText}>View Profile</Text>
-            </Pressable>
+            />
           ) : null}
 
-          {showFollow ? (
-            <Pressable
-              style={[
-                styles.actionBtn,
-                item.isFollowing && styles.actionBtnFollowing,
-                { borderRadius: layout.radius.input },
-              ]}
-              onPress={() => void toggleFollow(item)}
-              disabled={followBusyId === item.id}
-            >
-              {followBusyId === item.id ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <>
-                  {!item.isFollowing ? (
-                    <Ionicons name="person-add-outline" size={14} color={colors.primary} />
-                  ) : null}
-                  <Text
-                    style={[
-                      styles.actionBtnText,
-                      item.isFollowing && styles.actionBtnTextFollowing,
-                    ]}
-                  >
-                    {item.isFollowing ? "Following" : "Follow"}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          ) : null}
-
-          {showMessage ? (
-            <Pressable
-              style={[styles.actionBtn, styles.messageBtn, { borderRadius: layout.radius.input }]}
-              onPress={() => void handleMessage(item)}
-              disabled={messageBusyId === item.id}
-            >
-              {messageBusyId === item.id ? (
-                <ActivityIndicator size="small" color={colors.foreground} />
-              ) : (
-                <>
-                  <Ionicons name="chatbubble-outline" size={14} color={colors.foreground} />
-                  <Text style={[styles.actionBtnText, styles.messageBtnText]}>Message</Text>
-                </>
-              )}
-            </Pressable>
-          ) : null}
+          {(showFollow || showMessage) && (
+            <View style={styles.secondaryRow}>
+              {showFollow ? (
+                <HubButton
+                  label={item.isFollowing ? "Following" : "Follow"}
+                  variant="secondary"
+                  size="sm"
+                  icon={item.isFollowing ? undefined : "person-add-outline"}
+                  loading={followBusyId === item.id}
+                  active={item.isFollowing}
+                  accent={item.type}
+                  onPress={() => void toggleFollow(item)}
+                />
+              ) : null}
+              {showMessage ? (
+                <HubButton
+                  label="Message"
+                  variant="secondary"
+                  size="sm"
+                  icon="chatbubble-outline"
+                  loading={messageBusyId === item.id}
+                  accent={item.type}
+                  onPress={() => void handleMessage(item)}
+                />
+              ) : null}
+            </View>
+          )}
         </View>
       </View>
     );
   };
 
   return (
-    <View style={[styles.section, { paddingBottom: layout.space("md") }]}>
+    <View style={[styles.section, { paddingBottom: layout.space("sm") }]}>
       <Text
         style={[
           styles.sectionTitle,
+          hub.type.sectionTitle,
           {
-            fontSize: layout.fontSize.label,
             paddingHorizontal: layout.horizontalPadding,
             marginBottom: layout.space("sm"),
           },
         ]}
       >
-        Recommended For You
+        Recommended for you
       </Text>
 
       {loading ? (
-        <View style={styles.loadingRow}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <HubRecommendedSkeleton />
       ) : items.length === 0 ? (
         <Text style={[styles.empty, { paddingHorizontal: layout.horizontalPadding }]}>
-          No recommendations yet. Check back soon.
+          No recommendations yet.
         </Text>
       ) : (
         <FlatList
@@ -255,7 +263,7 @@ export function FeedRecommendedCarousel() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: layout.horizontalPadding,
-            gap: layout.space("md"),
+            gap: layout.space("sm") + 4,
           }}
         />
       )}
@@ -265,93 +273,50 @@ export function FeedRecommendedCarousel() {
 
 const createStyles = (colors: HubColorScheme) =>
   StyleSheet.create({
-  section: {
-    width: "100%",
-  },
-  sectionTitle: {
-    fontWeight: "700",
-    color: colors.foreground,
-  },
-  loadingRow: {
-    paddingVertical: 24,
-    alignItems: "center",
-  },
-  empty: {
-    color: colors.muted,
-    fontSize: 14,
-  },
-  card: {
-    backgroundColor: colors.cardBg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
-    shadowColor: colors.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  cardName: {
-    fontWeight: "700",
-    color: colors.foreground,
-    marginTop: 4,
-  },
-  cardSubtitle: {
-    color: colors.muted,
-    lineHeight: 18,
-  },
-  badge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    marginTop: 2,
-  },
-  badgeText: {
-    fontWeight: "600",
-  },
-  hint: {
-    color: colors.muted,
-    lineHeight: 15,
-  },
-  cardActions: {
-    flexDirection: "column",
-    gap: 6,
-    marginTop: 4,
-    width: "100%",
-  },
-  viewProfileBtn: {
-    justifyContent: "center",
-  },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primarySoft,
-    minHeight: 32,
-  },
-  actionBtnFollowing: {
-    backgroundColor: colors.inputBg,
-    borderColor: colors.border,
-  },
-  messageBtn: {
-    backgroundColor: colors.inputBg,
-    borderColor: colors.border,
-    justifyContent: "center",
-  },
-  messageBtnText: {
-    color: colors.foreground,
-  },
-  actionBtnText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-  actionBtnTextFollowing: {
-    color: colors.muted,
-  },
-});
+    section: { width: "100%" },
+    sectionTitle: { color: colors.foreground },
+    empty: { color: colors.muted, fontSize: 13 },
+    card: {
+      backgroundColor: colors.cardBg,
+      borderWidth: 1,
+      alignItems: "center",
+      gap: 4,
+      overflow: "hidden",
+    },
+    cardAccent: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+    },
+    cardName: {
+      color: colors.foreground,
+      marginTop: 6,
+      textAlign: "center",
+      width: "100%",
+    },
+    cardSubtitle: {
+      color: colors.muted,
+      fontSize: 12,
+      lineHeight: 16,
+      textAlign: "center",
+      width: "100%",
+    },
+    matchLabel: {
+      color: colors.muted,
+      fontSize: 11,
+      fontWeight: "500",
+      marginTop: 2,
+    },
+    cardActions: {
+      width: "100%",
+      gap: 6,
+      marginTop: 8,
+    },
+    secondaryRow: {
+      flexDirection: "row",
+      gap: 6,
+      width: "100%",
+    },
+  });

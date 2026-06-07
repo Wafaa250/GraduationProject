@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { CourseSectionWorkspace } from "@/api/doctorCoursesApi";
 import { DOCTOR_RADIUS, DOCTOR_SPACE, doctorCardStyle } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatSectionSchedule } from "@/lib/courseWorkspaceUtils";
 
@@ -18,7 +18,7 @@ type Props = {
 
 export function CourseSectionCard({ section, onOpen, onEdit, onDelete }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const schedule = formatSectionSchedule(section.days, section.timeFrom, section.timeTo);
 

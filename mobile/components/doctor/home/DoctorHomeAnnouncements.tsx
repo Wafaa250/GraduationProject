@@ -1,12 +1,10 @@
 import { ChevronDown, Megaphone, MoreHorizontal } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
@@ -14,13 +12,18 @@ import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
   deleteDoctorPost,
   getDoctorPostsFeed,
-  updateDoctorPost,
   type DoctorPost,
 } from "@/api/doctorPostsApi";
+import {
+  DoctorAnnouncementActionsDropdown,
+  type AnnouncementActionsAnchor,
+} from "@/components/doctor/home/DoctorAnnouncementActionsDropdown";
+import { DoctorAnnouncementAttachment } from "@/components/doctor/home/DoctorAnnouncementAttachment";
+import { DoctorAnnouncementEditSheet } from "@/components/doctor/home/DoctorAnnouncementEditSheet";
 import { createDoctorHomeStyles, HOME_SPACE } from "@/components/doctor/home/doctorHomeStyles";
 import { DoctorHomeEmptyState } from "@/components/doctor/home/DoctorHomeEmptyState";
 import { DoctorHomeSection } from "@/components/doctor/home/DoctorHomeSection";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import {
   doctorPostToFeedItem,
   formatAnnouncementDateTime,
@@ -30,10 +33,11 @@ import type { FeedItem } from "@/lib/feedTypes";
 
 type Props = {
   refreshKey: number;
+  defaultExpanded?: boolean;
 };
 
-export function DoctorHomeAnnouncements({ refreshKey }: Props) {
-  const { colors } = useHubTheme();
+export function DoctorHomeAnnouncements({ refreshKey, defaultExpanded = false }: Props) {
+  const { colors } = useDoctorTheme();
   const styles = createDoctorHomeStyles(colors);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -68,6 +72,8 @@ export function DoctorHomeAnnouncements({ refreshKey }: Props) {
       iconColor={colors.company}
       iconBg={colors.roleBg.company}
       count={feedItems.length}
+      collapsible
+      defaultExpanded={defaultExpanded}
     >
       {loading ? (
         <View style={[styles.card, styles.cardShadow, { flexDirection: "row", alignItems: "center", gap: 8, padding: HOME_SPACE.md }]}>
@@ -137,58 +143,49 @@ function AnnouncementRow({
   onUpdated: (p: DoctorPost) => void;
   onDeleted: (id: number) => void;
 }) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
+  const menuAnchorRef = useRef<View>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<AnnouncementActionsAnchor | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [editText, setEditText] = useState(post.content);
-  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const published = formatAnnouncementDateTime(item.createdAt);
 
   const openMenu = () => {
-    Alert.alert("Announcement", undefined, [
-      {
-        text: "Edit",
-        onPress: () => {
-          setEditText(post.content);
-          setEditOpen(true);
-        },
-      },
+    requestAnimationFrame(() => {
+      menuAnchorRef.current?.measureInWindow((x, y, width, height) => {
+        setMenuAnchor({ x, y, width, height });
+        setMenuOpen(true);
+      });
+    });
+  };
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setMenuAnchor(null);
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteDoctorPost(post.id);
+      onDeleted(post.id);
+    } catch (err) {
+      Alert.alert("Delete failed", parseApiErrorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert("Delete announcement?", "This action cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => {
-          Alert.alert("Delete?", "This cannot be undone.", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: () => void (async () => {
-                try {
-                  await deleteDoctorPost(post.id);
-                  onDeleted(post.id);
-                } catch (err) {
-                  Alert.alert("Delete failed", parseApiErrorMessage(err));
-                }
-              })(),
-            },
-          ]);
-        },
+        onPress: () => void handleDelete(),
       },
-      { text: "Cancel", style: "cancel" },
     ]);
-  };
-
-  const save = async () => {
-    const content = editText.trim();
-    if (!content) return;
-    setSaving(true);
-    try {
-      onUpdated(await updateDoctorPost(post.id, { content }));
-      setEditOpen(false);
-    } catch (err) {
-      Alert.alert("Update failed", parseApiErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
   };
 
   return (
@@ -196,56 +193,56 @@ function AnnouncementRow({
       {showDivider ? <View style={{ height: 1, backgroundColor: colors.border }} /> : null}
       <View style={{ padding: HOME_SPACE.md }}>
         <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 20 }} numberOfLines={4}>
-          {item.description?.trim() || "Untitled announcement"}
+          {post.content.trim() || item.description?.trim() || "Untitled announcement"}
         </Text>
+
+        <DoctorAnnouncementAttachment post={post} />
+
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
           <Text style={{ fontSize: 11, color: colors.muted }}>{published}</Text>
-          <Pressable onPress={openMenu} hitSlop={8}>
-            <MoreHorizontal size={16} color={colors.muted} strokeWidth={2} />
+          <Pressable
+            ref={menuAnchorRef}
+            collapsable={false}
+            onPress={openMenu}
+            hitSlop={10}
+            disabled={deleting}
+            accessibilityRole="button"
+            accessibilityLabel="Announcement options"
+            accessibilityState={{ expanded: menuOpen }}
+            style={({ pressed }) => ({
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed || menuOpen ? 0.75 : 1,
+              backgroundColor: menuOpen ? colors.primarySoft : "transparent",
+            })}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color={colors.muted} />
+            ) : (
+              <MoreHorizontal size={16} color={colors.muted} strokeWidth={2} />
+            )}
           </Pressable>
         </View>
       </View>
 
-      <Modal visible={editOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 20 }}>
-          <View style={{ backgroundColor: colors.cardBg, borderRadius: 14, padding: HOME_SPACE.lg }}>
-            <Text style={{ fontSize: 17, fontWeight: "700", color: colors.foreground }}>Edit announcement</Text>
-            <TextInput
-              value={editText}
-              onChangeText={setEditText}
-              multiline
-              placeholderTextColor={colors.muted}
-              style={{
-                marginTop: HOME_SPACE.md,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 10,
-                padding: HOME_SPACE.md,
-                fontSize: 14,
-                color: colors.foreground,
-                minHeight: 90,
-                textAlignVertical: "top",
-              }}
-            />
-            <View style={{ flexDirection: "row", gap: HOME_SPACE.sm, marginTop: HOME_SPACE.md }}>
-              <Pressable onPress={() => setEditOpen(false)} style={{ flex: 1, padding: 12, alignItems: "center" }}>
-                <Text style={{ fontWeight: "600", color: colors.muted }}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void save()}
-                disabled={saving}
-                style={{ flex: 1, padding: 12, alignItems: "center", backgroundColor: colors.primary, borderRadius: 10 }}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text style={{ fontWeight: "600", color: "#FFF" }}>Save</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <DoctorAnnouncementActionsDropdown
+        visible={menuOpen}
+        onClose={closeMenu}
+        anchor={menuAnchor}
+        deleting={deleting}
+        onEdit={() => setEditOpen(true)}
+        onDelete={confirmDelete}
+      />
+
+      <DoctorAnnouncementEditSheet
+        visible={editOpen}
+        post={post}
+        onClose={() => setEditOpen(false)}
+        onSaved={onUpdated}
+      />
     </>
   );
 }

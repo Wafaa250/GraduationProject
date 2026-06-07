@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { createDoctorHomeStyles, HOME_SPACE } from "@/components/doctor/home/doctorHomeStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 type Props = {
   icon: LucideIcon;
@@ -23,7 +23,7 @@ export function DoctorHomeEmptyState({
   actionLabel,
   onAction,
 }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorHomeStyles(colors);
   const tint = iconColor ?? colors.primary;
   const bg = iconBg ?? colors.primarySoft;

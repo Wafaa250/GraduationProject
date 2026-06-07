@@ -28,7 +28,7 @@ import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
 import { DoctorStackHeader } from "@/components/doctor/ui/DoctorStackHeader";
 import { MessagesEmptyState } from "@/components/messages/MessagesEmptyState";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   getDoctorConversationDisplayName,
@@ -41,7 +41,7 @@ import { DOCTOR_ROUTES } from "@/lib/doctorRoutes";
 
 export default function DoctorMessagesListScreen() {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [loading, setLoading] = useState(true);

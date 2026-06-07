@@ -2,10 +2,10 @@ import { StyleSheet, View } from "react-native";
 
 import { DOCTOR_RADIUS, DOCTOR_SPACE, doctorCardStyle } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 export function CoursesListSkeleton() {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   return (

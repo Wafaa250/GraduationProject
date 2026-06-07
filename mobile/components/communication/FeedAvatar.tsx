@@ -3,9 +3,10 @@ import { StyleSheet, Text, View, type ImageStyle, type ViewStyle } from "react-n
 
 import { resolveApiFileUrl } from "@/api/axiosInstance";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import type { HubRoleType } from "@/constants/studentHubTheme";
+import { getHubRoleAccent } from "@/lib/hubRoleAccent";
 import { profileInitialsFromName } from "@/lib/profileAvatar";
 import { resolveProfileImageUri } from "@/lib/profilePhotoUrl";
-import type { HubRoleType } from "@/constants/studentHubTheme";
 
 type Props = {
   name: string;
@@ -22,14 +23,24 @@ export function FeedAvatar({ name, size, avatarUrl, avatarBase64, roleType, styl
   const fromUrl = avatarUrl ? resolveApiFileUrl(avatarUrl) ?? avatarUrl : null;
   const src = fromBase64 ?? fromUrl;
   const initials = profileInitialsFromName(name);
-  const roleColor = roleType ? colors[roleType] : colors.primary;
-  const roleBg = roleType ? colors.roleBg[roleType] : colors.primarySoft;
+  const roleAccent = roleType ? getHubRoleAccent(colors, roleType) : null;
+  const roleColor = roleAccent?.fg ?? colors.primary;
+  const roleBg = roleAccent?.bg ?? colors.primarySoft;
 
   if (src) {
     return (
       <Image
         source={{ uri: src }}
-        style={[{ width: size, height: size, borderRadius: size / 2 }, style as ImageStyle]}
+        style={[
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: roleType ? 2 : 0,
+            borderColor: roleColor,
+          },
+          style as ImageStyle,
+        ]}
         contentFit="cover"
         accessibilityLabel={`${name} avatar`}
       />

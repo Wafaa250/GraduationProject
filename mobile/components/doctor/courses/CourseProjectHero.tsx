@@ -3,8 +3,9 @@ import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { DOCTOR_RADIUS, DOCTOR_SPACE, doctorCardStyle } from "@/components/doctor/ui/doctorDesignSystem";
+import { DOCTOR_STATUS, doctorBrandAccent } from "@/constants/doctorHubTheme";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { CourseProjectWorkspaceData } from "@/hooks/useCourseProjectWorkspace";
 import { formatAiMode } from "@/lib/courseWorkspaceUtils";
@@ -13,24 +14,29 @@ type Props = {
   workspace: CourseProjectWorkspaceData;
 };
 
-const TONE = {
-  success: { bg: "rgba(16, 185, 129, 0.12)", text: "#059669" },
-  warning: { bg: "rgba(245, 158, 11, 0.14)", text: "#D97706" },
-  info: { bg: "rgba(37, 99, 235, 0.12)", text: "#2563EB" },
-  purple: { bg: "rgba(124, 58, 237, 0.12)", text: "#7C3AED" },
-  pink: { bg: "rgba(219, 39, 119, 0.12)", text: "#DB2777" },
-  doctor: { bg: "rgba(99, 102, 241, 0.12)", text: "#6366F1" },
-} as const;
+type BadgeTone = "brand" | "success" | "warning";
+
+function badgePalette(tone: BadgeTone, colors: HubColorScheme) {
+  switch (tone) {
+    case "success":
+      return { bg: DOCTOR_STATUS.success.bg, text: DOCTOR_STATUS.success.fg };
+    case "warning":
+      return { bg: DOCTOR_STATUS.warning.bg, text: DOCTOR_STATUS.warning.fg };
+    default: {
+      const brand = doctorBrandAccent(colors);
+      return { bg: brand.bg, text: brand.fg };
+    }
+  }
+}
 
 export function CourseProjectHero({ workspace }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const teamSize = workspace.loading ? "…" : String(workspace.teamSize);
   const teamCount = workspace.loading ? "…" : String(workspace.teamCount);
   const formation = workspace.loading ? "…" : formatAiMode(workspace.aiMode);
-  const studentLed = workspace.aiMode.trim().toLowerCase() === "student";
   const teamsReady = !workspace.loading && workspace.teamCount > 0;
 
   return (
@@ -45,23 +51,19 @@ export function CourseProjectHero({ workspace }: Props) {
       <View style={styles.badges}>
         <HeroBadge
           label={teamsReady ? "Teams formed" : "Awaiting teams"}
-          tone="success"
-          activeTone={teamsReady ? "success" : "warning"}
+          tone={teamsReady ? "success" : "warning"}
+          colors={colors}
           layout={layout}
         />
         <HeroBadge
           label={`${teamCount} team${workspace.teamCount === 1 ? "" : "s"}`}
-          tone="info"
+          tone="brand"
           icon={Users2}
+          colors={colors}
           layout={layout}
         />
-        <HeroBadge label={`Size ${teamSize}`} tone="purple" icon={Layers} layout={layout} />
-        <HeroBadge
-          label={formation}
-          tone={studentLed ? "pink" : "doctor"}
-          icon={Sparkles}
-          layout={layout}
-        />
+        <HeroBadge label={`Size ${teamSize}`} tone="brand" icon={Layers} colors={colors} layout={layout} />
+        <HeroBadge label={formation} tone="brand" icon={Sparkles} colors={colors} layout={layout} />
       </View>
     </View>
   );
@@ -70,17 +72,17 @@ export function CourseProjectHero({ workspace }: Props) {
 function HeroBadge({
   label,
   tone,
-  activeTone,
   icon: Icon,
+  colors,
   layout,
 }: {
   label: string;
-  tone: keyof typeof TONE;
-  activeTone?: keyof typeof TONE;
+  tone: BadgeTone;
   icon?: typeof Users2;
+  colors: HubColorScheme;
   layout: ReturnType<typeof useResponsiveLayout>;
 }) {
-  const palette = TONE[activeTone ?? tone];
+  const palette = badgePalette(tone, colors);
   return (
     <View style={[stylesStatic.badge, { backgroundColor: palette.bg }]}>
       {Icon ? <Icon size={12} color={palette.text} strokeWidth={2} /> : null}

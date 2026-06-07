@@ -30,6 +30,7 @@ import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { feedPostRoleLabel } from "@/lib/feedPostDisplay";
+import { getHubRoleAccent, sectionKeyToRole } from "@/lib/hubRoleAccent";
 import {
   hubSearchProfilePath,
   hubSearchShowsViewProfile,
@@ -259,16 +260,21 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
             }}
             keyboardShouldPersistTaps="handled"
             stickySectionHeadersEnabled={false}
-            renderSectionHeader={({ section }) => (
+            renderSectionHeader={({ section }) => {
+              const sectionRole = sectionKeyToRole(section.key);
+              const sectionAccent = getHubRoleAccent(colors, sectionRole);
+              return (
               <View style={[styles.sectionHeader, { marginTop: layout.space("md") }]}>
-                <Ionicons name={section.icon} size={16} color={colors.primary} />
-                <Text style={[styles.sectionTitle, { fontSize: layout.fontSize.label }]}>
+                <Ionicons name={section.icon} size={16} color={sectionAccent.fg} />
+                <Text style={[styles.sectionTitle, { fontSize: layout.fontSize.label, color: sectionAccent.fg }]}>
                   {section.title} ({section.data.length})
                 </Text>
               </View>
-            )}
+              );
+            }}
             renderItem={({ item }) => {
               const role = roleFromEntityType(item.entityType);
+              const roleAccent = getHubRoleAccent(colors, role);
               const username = displayUsername(item);
               const key = rowKey(item);
               const showProfile = hubSearchShowsViewProfile(item);
@@ -278,7 +284,7 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
               const messageBusy = messageBusyKey === key;
 
               return (
-                <View style={[styles.resultCard, { borderRadius: layout.radius.input }]}>
+                <View style={[styles.resultCard, { borderRadius: layout.radius.input, borderColor: roleAccent.border }]}>
                   <View style={styles.resultTop}>
                     <FeedAvatar
                       name={item.name}
@@ -292,7 +298,7 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
                         {item.name}
                       </Text>
                       {username ? (
-                        <Text style={[styles.resultUsername, { fontSize: layout.fontSize.footer }]}>
+                        <Text style={[styles.resultUsername, { fontSize: layout.fontSize.footer, color: roleAccent.fg }]}>
                           {username}
                         </Text>
                       ) : null}
@@ -305,19 +311,33 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
                   <View style={[styles.actionRow, { gap: layout.space("sm") }]}>
                     {showProfile ? (
                       <Pressable
-                        style={[styles.actionBtn, { borderRadius: layout.radius.input }]}
+                        style={[
+                          styles.actionBtn,
+                          {
+                            borderRadius: layout.radius.input,
+                            backgroundColor: roleAccent.buttonPrimary,
+                            borderColor: roleAccent.buttonPrimary,
+                          },
+                        ]}
                         onPress={() => handleViewProfile(item)}
                       >
-                        <Text style={styles.actionBtnText}>View Profile</Text>
+                        <Text style={[styles.actionBtnText, styles.actionBtnTextPrimary]}>View Profile</Text>
                       </Pressable>
                     ) : null}
                     {showMessage ? (
                       <Pressable
-                        style={[styles.actionBtn, { borderRadius: layout.radius.input }]}
+                        style={[
+                          styles.actionBtn,
+                          {
+                            borderRadius: layout.radius.input,
+                            backgroundColor: roleAccent.buttonSecondaryBg,
+                            borderColor: roleAccent.buttonSecondaryBorder,
+                          },
+                        ]}
                         onPress={() => void handleMessage(item)}
                         disabled={messageBusy}
                       >
-                        <Text style={styles.actionBtnText}>
+                        <Text style={[styles.actionBtnText, { color: roleAccent.buttonSecondaryFg }]}>
                           {messageBusy ? "Opening…" : "Message"}
                         </Text>
                       </Pressable>
@@ -326,7 +346,12 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
                       <Pressable
                         style={[
                           styles.actionBtn,
-                          item.isFollowing && styles.actionBtnFollowing,
+                          item.isFollowing
+                            ? { backgroundColor: colors.inputBg, borderColor: colors.border }
+                            : {
+                                backgroundColor: roleAccent.buttonPrimary,
+                                borderColor: roleAccent.buttonPrimary,
+                              },
                           { borderRadius: layout.radius.input },
                         ]}
                         onPress={() => void handleFollow(item)}
@@ -335,7 +360,11 @@ export function FeedSearchModal({ visible, initialQuery, onClose, onQueryChange 
                         <Text
                           style={[
                             styles.actionBtnText,
-                            item.isFollowing && styles.actionBtnTextFollowing,
+                            {
+                              color: item.isFollowing
+                                ? colors.foreground
+                                : roleAccent.buttonPrimaryText,
+                            },
                           ]}
                         >
                           {followBusy
@@ -436,7 +465,6 @@ const createStyles = (colors: HubColorScheme) =>
     color: colors.foreground,
   },
   resultUsername: {
-    color: colors.primary,
     fontWeight: "600",
   },
   resultSubtitle: {
@@ -448,23 +476,16 @@ const createStyles = (colors: HubColorScheme) =>
   },
   actionBtn: {
     borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 8,
     minHeight: 36,
     justifyContent: "center",
   },
-  actionBtnFollowing: {
-    backgroundColor: colors.inputBg,
-    borderColor: colors.border,
-  },
   actionBtnText: {
-    color: colors.primary,
     fontWeight: "700",
     fontSize: 13,
   },
-  actionBtnTextFollowing: {
-    color: colors.foreground,
+  actionBtnTextPrimary: {
+    color: "#FFFFFF",
   },
 });

@@ -6,7 +6,7 @@ import type { CourseEnrolledStudent } from "@/api/doctorCoursesApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { DOCTOR_RADIUS, DOCTOR_SPACE, doctorInsetCardStyle } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { StudentAssignmentContext } from "@/lib/courseWorkspaceUtils";
 
@@ -20,7 +20,7 @@ type Props = {
 
 export function SectionStudentRow({ student, assignment, onRemove }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const displayName = student.name?.trim() || "Student";
 

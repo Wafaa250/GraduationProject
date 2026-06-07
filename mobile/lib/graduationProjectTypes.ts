@@ -108,6 +108,38 @@ export function stageToProjectType(stage: string): GraduationProjectType {
   return GRADUATION_PROJECT_TYPE.GP;
 }
 
+export function getBrowseProjectTypeFilters(
+  faculty: string | null | undefined,
+  major: string | null | undefined,
+): { value: "All" | GraduationProjectType; label: string }[] {
+  const options = getGraduationProjectTypeOptions(faculty, major);
+  return [
+    { value: "All", label: "All" },
+    ...options.map((o) => ({ value: o.type, label: o.shortLabel })),
+  ];
+}
+
+export function isProjectVisibleToStudent(
+  projectType: string | null | undefined,
+  ownerFaculty: string | null | undefined,
+  ownerMajor: string | null | undefined,
+  viewerFaculty: string | null | undefined,
+  viewerMajor: string | null | undefined,
+): boolean {
+  const type = normalizeProjectType(projectType);
+  const ownerTrack = resolveGraduationTrack(ownerFaculty, ownerMajor);
+  const viewerTrack = resolveGraduationTrack(viewerFaculty, viewerMajor);
+
+  if (viewerTrack === "general") {
+    return type === GRADUATION_PROJECT_TYPE.GP && ownerTrack === "general";
+  }
+
+  return (
+    (type === GRADUATION_PROJECT_TYPE.GP1 || type === GRADUATION_PROJECT_TYPE.GP2) &&
+    ownerTrack !== "general"
+  );
+}
+
 export function getGraduationProjectTypeOptions(
   faculty: string | null | undefined,
   major: string | null | undefined,

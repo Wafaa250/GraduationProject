@@ -17,12 +17,13 @@ import { DoctorProfileExpertiseSection } from "@/components/doctor/profile/Docto
 import { DoctorProfileAvatar, DoctorProfileCover, DoctorProfileHero } from "@/components/doctor/profile/DoctorProfileHero";
 import { createDoctorProfileStyles } from "@/components/doctor/profile/doctorProfileStyles";
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { DoctorStackHeader } from "@/components/doctor/ui/DoctorStackHeader";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useDoctorProfilePage } from "@/hooks/useDoctorProfilePage";
 import { DOCTOR_ROUTES } from "@/lib/doctorRoutes";
 
 export default function DoctorProfileScreen() {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
   const { loading, data, error, reload } = useDoctorProfilePage();
   const [refreshing, setRefreshing] = useState(false);
@@ -44,6 +45,7 @@ export default function DoctorProfileScreen() {
   if (loading && !data) {
     return (
       <DoctorScreen edges={["top"]}>
+        <DoctorStackHeader title="My Profile" variant="compact" />
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.stateDesc}>Loading profile…</Text>
@@ -55,6 +57,7 @@ export default function DoctorProfileScreen() {
   if (error && !data) {
     return (
       <DoctorScreen edges={["top"]}>
+        <DoctorStackHeader title="My Profile" variant="compact" />
         <View style={styles.centerState}>
           <AlertCircle size={40} color={colors.muted} strokeWidth={1.8} />
           <Text style={styles.stateTitle}>Could not load profile</Text>
@@ -70,6 +73,7 @@ export default function DoctorProfileScreen() {
   if (!data) {
     return (
       <DoctorScreen edges={["top"]}>
+        <DoctorStackHeader title="My Profile" variant="compact" />
         <View style={styles.centerState}>
           <User size={40} color={colors.muted} strokeWidth={1.8} />
           <Text style={styles.stateTitle}>Profile unavailable</Text>
@@ -81,6 +85,7 @@ export default function DoctorProfileScreen() {
 
   return (
     <DoctorScreen edges={["top"]}>
+      <DoctorStackHeader title="My Profile" subtitle="Your public doctor profile" variant="compact" />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}

@@ -25,7 +25,7 @@ export function getStudentNotificationTarget(n: GraduationNotification): string 
   }
 
   if (n.category === "course" || n.category === "ai") {
-    return "/dashboard";
+    return "/courses";
   }
 
   return null;

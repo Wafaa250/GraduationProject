@@ -1,7 +1,7 @@
 import { View } from "react-native";
 
 import { SkeletonBlock } from "@/components/doctor/DoctorDashboardSkeleton";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 function BubbleSkeleton({ align, width }: { align: "left" | "right"; width: `${number}%` }) {
@@ -22,7 +22,7 @@ function BubbleSkeleton({ align, width }: { align: "left" | "right"; width: `${n
 
 export function DoctorChatSkeleton() {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
 
   return (
     <View

@@ -8,7 +8,7 @@ type Props = {
 
 function scoreTone(score: number): string {
   if (score >= 85) return "#10B981";
-  if (score >= 70) return "#7C3AED";
+  if (score >= 70) return "#0EA5E9";
   return "#F59E0B";
 }
 

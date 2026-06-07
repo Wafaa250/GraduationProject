@@ -4,8 +4,9 @@ import { router, type Href } from "expo-router";
 import { useMemo, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { DOCTOR_STATUS } from "@/constants/doctorHubTheme";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { DoctorHubCourseCardModel } from "@/lib/doctorHubMappers";
 import { doctorCoursePath } from "@/lib/doctorRoutes";
@@ -14,18 +15,21 @@ type Props = {
   courses: DoctorHubCourseCardModel[];
 };
 
-const TONE_COLORS = {
-  primary: { gradient: ["rgba(124, 58, 237, 0.18)", "rgba(124, 58, 237, 0.04)"], icon: "#7C3AED" },
-  info: { gradient: ["rgba(14, 165, 233, 0.18)", "rgba(14, 165, 233, 0.04)"], icon: "#0EA5E9" },
-  success: { gradient: ["rgba(16, 185, 129, 0.18)", "rgba(16, 185, 129, 0.04)"], icon: "#10B981" },
-  warning: { gradient: ["rgba(245, 158, 11, 0.18)", "rgba(245, 158, 11, 0.04)"], icon: "#F59E0B" },
-} as const;
+function toneColors(colors: HubColorScheme) {
+  return {
+    primary: { gradient: [colors.primarySoft, "rgba(14, 165, 233, 0.04)"], icon: colors.primary },
+    info: { gradient: [colors.primarySoft, "rgba(14, 165, 233, 0.04)"], icon: colors.primary },
+    success: { gradient: [DOCTOR_STATUS.success.bg, "rgba(16, 185, 129, 0.04)"], icon: DOCTOR_STATUS.success.fg },
+    warning: { gradient: [DOCTOR_STATUS.warning.bg, "rgba(245, 158, 11, 0.04)"], icon: DOCTOR_STATUS.warning.fg },
+  } as const;
+}
 
 export function DoctorCourseCarousel({ courses }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const cardWidth = layout.deviceSize === "tablet" ? layout.scale(268) : layout.scale(232);
+  const tones = toneColors(colors);
 
   return (
     <ScrollView
@@ -36,7 +40,7 @@ export function DoctorCourseCarousel({ courses }: Props) {
       contentContainerStyle={{ gap: layout.space("sm"), paddingRight: layout.space("md") }}
     >
       {courses.map((course) => {
-        const tone = TONE_COLORS[course.color];
+        const tone = tones[course.color];
         return (
           <Pressable
             key={course.courseId}

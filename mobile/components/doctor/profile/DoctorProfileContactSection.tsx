@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 
 import { createDoctorProfileStyles } from "@/components/doctor/profile/doctorProfileStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 type Props = {
   email: string;
@@ -29,7 +29,7 @@ type TileProps = {
 };
 
 function ContactTile({ icon, label, hint, tint, bg, disabled, onPress }: TileProps) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorProfileStyles(colors);
 
   const body = (
@@ -61,7 +61,7 @@ function ContactTile({ icon, label, hint, tint, bg, disabled, onPress }: TilePro
 }
 
 export function DoctorProfileContactSection({ email, officeHours, linkedin }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
 
   const emailTrim = email.trim();

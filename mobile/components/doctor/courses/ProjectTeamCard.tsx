@@ -6,7 +6,7 @@ import type { CourseTeam } from "@/api/doctorCoursesApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { DOCTOR_RADIUS, DOCTOR_SPACE, doctorInsetCardStyle } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getTeamColorTheme } from "@/lib/courseTeamColors";
 
@@ -17,7 +17,7 @@ type Props = {
 
 export function ProjectTeamCard({ team, onView }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const theme = getTeamColorTheme(team.teamIndex);
   const teamName = `Team ${team.teamIndex + 1}`;

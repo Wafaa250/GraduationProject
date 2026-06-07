@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Text, View } from "react-native";
 
 import { createDoctorProfileStyles } from "@/components/doctor/profile/doctorProfileStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 type Props = {
   technicalSkills: string[];
@@ -20,7 +20,7 @@ type Group = {
 };
 
 function TagGroup({ title, tags, bg, border, color }: Group) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorProfileStyles(colors);
 
   return (
@@ -47,7 +47,7 @@ export function DoctorProfileExpertiseSection({
   researchInterests,
   preferredProjectAreas,
 }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
 
   const groups: Group[] = [

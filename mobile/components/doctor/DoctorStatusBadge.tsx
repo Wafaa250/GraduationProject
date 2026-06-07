@@ -1,16 +1,21 @@
 import { StyleSheet, Text, View } from "react-native";
+import { useMemo } from "react";
 
+import { DOCTOR_STATUS, doctorBrandAccent } from "@/constants/doctorHubTheme";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  pending: { bg: "rgba(124, 58, 237, 0.12)", text: "#7C3AED", label: "Pending" },
-  new: { bg: "rgba(124, 58, 237, 0.12)", text: "#7C3AED", label: "New" },
-  accepted: { bg: "rgba(16, 185, 129, 0.15)", text: "#10B981", label: "Accepted" },
-  rejected: { bg: "rgba(239, 68, 68, 0.12)", text: "#EF4444", label: "Rejected" },
-  reviewing: { bg: "rgba(245, 158, 11, 0.15)", text: "#F59E0B", label: "Reviewing" },
-};
+function statusStyles(colors: HubColorScheme): Record<string, { bg: string; text: string; label: string }> {
+  const brand = doctorBrandAccent(colors);
+  return {
+    pending: { bg: brand.bg, text: brand.fg, label: "Pending" },
+    new: { bg: brand.bg, text: brand.fg, label: "New" },
+    accepted: { bg: DOCTOR_STATUS.success.bg, text: DOCTOR_STATUS.success.fg, label: "Accepted" },
+    rejected: { bg: DOCTOR_STATUS.error.bg, text: DOCTOR_STATUS.error.fg, label: "Rejected" },
+    reviewing: { bg: DOCTOR_STATUS.warning.bg, text: DOCTOR_STATUS.warning.fg, label: "Reviewing" },
+  };
+}
 
 type Props = {
   status: string;
@@ -18,9 +23,10 @@ type Props = {
 
 export function DoctorStatusBadge({ status }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
+  const stylesByStatus = useMemo(() => statusStyles(colors), [colors]);
   const normalized = status.toLowerCase();
-  const config = STATUS_STYLES[normalized] ?? {
+  const config = stylesByStatus[normalized] ?? {
     bg: colors.primarySoft,
     text: colors.primary,
     label: status.charAt(0).toUpperCase() + status.slice(1),

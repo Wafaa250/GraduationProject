@@ -1,15 +1,15 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Bell, ChevronDown, MessageCircle, Plus, Sparkles } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Animated, Pressable, Text, View } from "react-native";
 
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
-import { DoctorProfileMenuSheet } from "@/components/doctor/DoctorProfileMenuSheet";
+import { useDoctorAccountMenu } from "@/components/doctor/DoctorAccountMenuProvider";
 import { createDoctorHomeStyles, HOME_SPACE } from "@/components/doctor/home/doctorHomeStyles";
 import { DOCTOR_RADIUS } from "@/components/doctor/ui/doctorDesignSystem";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getTimeOfDayGreeting } from "@/lib/doctorHubMappers";
 import { DOCTOR_ROUTES } from "@/lib/doctorRoutes";
@@ -34,10 +34,12 @@ export function DoctorHomeHeader({
   onComposePress,
 }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorHomeStyles(colors), [colors]);
+  const { toggleAccountMenu, closeAccountMenu, isMenuOpen } = useDoctorAccountMenu();
+  const profileAnchorRef = useRef<View>(null);
+  const chevronAnim = useRef(new Animated.Value(0)).current;
   const [unread, setUnread] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
   const avatarSize = layout.scale(50);
 
   const loadUnread = useCallback(async () => {
@@ -48,8 +50,23 @@ export function DoctorHomeHeader({
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { void loadUnread(); }, [loadUnread]));
-  useEffect(() => { void loadUnread(); }, [loadUnread]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadUnread();
+      return () => closeAccountMenu();
+    }, [loadUnread, closeAccountMenu]),
+  );
+  useEffect(() => {
+    void loadUnread();
+  }, [loadUnread]);
+
+  useEffect(() => {
+    Animated.timing(chevronAnim, {
+      toValue: isMenuOpen ? 1 : 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [isMenuOpen, chevronAnim]);
 
   const insight =
     pendingCount > 0
@@ -58,56 +75,78 @@ export function DoctorHomeHeader({
         ? `${activeCount} active project${activeCount === 1 ? "" : "s"} under supervision`
         : "Your supervision workspace is ready";
 
-  return (
-    <>
-      <LinearGradient
-        colors={[colors.gradient[0], colors.gradient[1], colors.cardBg]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        <View style={styles.heroInner}>
-          <View style={styles.heroRow}>
-            <Pressable
-              onPress={() => setMenuOpen(true)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Open doctor account menu"
-              style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
-            >
-              <View
-                style={[
-                  styles.avatarRing,
-                  {
-                    width: avatarSize + 8,
-                    height: avatarSize + 8,
-                    borderRadius: (avatarSize + 8) / 2,
-                  },
-                ]}
-              >
-                <FeedAvatar name={displayName} size={avatarSize} avatarBase64={profilePhoto} roleType="doctor" />
-              </View>
-            </Pressable>
+  const handleProfilePress = () => {
+    requestAnimationFrame(() => {
+      profileAnchorRef.current?.measureInWindow((x, y, width, height) => {
+        toggleAccountMenu({ x, y, width, height });
+      });
+    });
+  };
 
-            <Pressable
-              onPress={() => setMenuOpen(true)}
-              style={({ pressed }) => ({
-                flex: 1,
-                marginLeft: HOME_SPACE.md,
-                minWidth: 0,
-                opacity: pressed ? 0.92 : 1,
-              })}
-              accessibilityRole="button"
-              accessibilityLabel="Open doctor account menu"
+  const chevronRotation = chevronAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  const chevronColor = isMenuOpen ? colors.primary : "rgba(255,255,255,0.88)";
+
+  const runWithMenuClose = (action: () => void) => {
+    if (isMenuOpen) closeAccountMenu();
+    action();
+  };
+
+  return (
+    <LinearGradient
+      colors={[colors.gradient[0], colors.gradient[1], colors.cardBg]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.hero}
+    >
+      <View style={styles.heroInner}>
+        <View style={styles.heroRow}>
+          <Pressable
+            ref={profileAnchorRef}
+            collapsable={false}
+            onPress={handleProfilePress}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: isMenuOpen }}
+            accessibilityLabel="Doctor account menu"
+            style={({ pressed }) => ({
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              minWidth: 0,
+              marginRight: HOME_SPACE.sm,
+              borderRadius: DOCTOR_RADIUS.md,
+              paddingVertical: 2,
+              paddingRight: 4,
+              backgroundColor: isMenuOpen ? "rgba(255,255,255,0.12)" : pressed ? "rgba(255,255,255,0.08)" : "transparent",
+            })}
+          >
+            <View
+              style={[
+                styles.avatarRing,
+                {
+                  width: avatarSize + 8,
+                  height: avatarSize + 8,
+                  borderRadius: (avatarSize + 8) / 2,
+                  flexShrink: 0,
+                },
+              ]}
             >
+              <FeedAvatar name={displayName} size={avatarSize} avatarBase64={profilePhoto} roleType="doctor" />
+            </View>
+
+            <View style={{ flex: 1, marginLeft: HOME_SPACE.md, minWidth: 0 }}>
               <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: "600" }}>
                 {getTimeOfDayGreeting()}
               </Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2, gap: 6 }}>
                 <Text
                   style={{
-                    flex: 1,
-                    fontSize: 22,
+                    flexShrink: 1,
+                    fontSize: layout.scale(22),
                     fontWeight: "800",
                     color: "#FFFFFF",
                     letterSpacing: -0.5,
@@ -116,24 +155,31 @@ export function DoctorHomeHeader({
                 >
                   {greetingName}
                 </Text>
-                <ChevronDown size={18} color="rgba(255,255,255,0.85)" strokeWidth={2.5} />
+                <Animated.View style={{ flexShrink: 0, transform: [{ rotate: chevronRotation }] }}>
+                  <ChevronDown size={17} color={chevronColor} strokeWidth={2.5} />
+                </Animated.View>
               </View>
-              <View style={styles.rolePill}>
+              <View style={[styles.rolePill, { alignSelf: "flex-start" }]}>
                 <Text style={styles.rolePillText}>DOCTOR</Text>
               </View>
-            </Pressable>
+            </View>
+          </Pressable>
 
-          <View style={{ flexDirection: "row", gap: 6 }}>
+          <View style={{ flexDirection: "row", gap: 6, flexShrink: 0 }}>
             {onComposePress ? (
-              <HeaderIcon onPress={onComposePress} label="Share announcement">
+              <HeaderIcon onPress={() => runWithMenuClose(onComposePress)} label="Share announcement">
                 <Plus size={18} color={colors.foreground} strokeWidth={2.5} />
               </HeaderIcon>
             ) : null}
-            <HeaderIcon onPress={() => router.push(DOCTOR_ROUTES.notifications as Href)} label="Notifications" badge={unread}>
+            <HeaderIcon
+              onPress={() => runWithMenuClose(() => router.push(DOCTOR_ROUTES.notifications as Href))}
+              label="Notifications"
+              badge={unread}
+            >
               <Bell size={18} color={colors.foreground} strokeWidth={2} />
             </HeaderIcon>
             <HeaderIcon
-              onPress={() => router.push(DOCTOR_ROUTES.messages as Href)}
+              onPress={() => runWithMenuClose(() => router.push(DOCTOR_ROUTES.messages as Href))}
               label="Messages"
               badge={unreadMessages > 0 ? unreadMessages : undefined}
             >
@@ -160,14 +206,6 @@ export function DoctorHomeHeader({
         </View>
       </View>
     </LinearGradient>
-
-      <DoctorProfileMenuSheet
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        displayName={displayName}
-        profilePhoto={profilePhoto}
-      />
-    </>
   );
 }
 
@@ -182,7 +220,7 @@ function HeaderIcon({
   label: string;
   badge?: number;
 }) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorHomeStyles(colors);
 
   return (

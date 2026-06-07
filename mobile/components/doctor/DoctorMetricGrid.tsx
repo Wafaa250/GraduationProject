@@ -9,8 +9,9 @@ import { router, type Href } from "expo-router";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { doctorMetricToneColors } from "@/constants/doctorHubTheme";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   DOCTOR_HUB_METRIC_SLOTS,
@@ -32,20 +33,8 @@ type Props = {
 };
 
 function toneColors(tone: DoctorHubMetricTone, colors: HubColorScheme) {
-  switch (tone) {
-    case "primary":
-      return { accent: colors.primary, bg: colors.primarySoft, icon: colors.primary };
-    case "info":
-      return { accent: colors.doctor, bg: "rgba(14, 165, 233, 0.1)", icon: colors.doctor };
-    case "accent":
-      return { accent: "#A855F7", bg: "rgba(168, 85, 247, 0.1)", icon: "#A855F7" };
-    case "success":
-      return { accent: colors.association, bg: "rgba(16, 185, 129, 0.1)", icon: colors.association };
-    case "warning":
-      return { accent: colors.company, bg: "rgba(245, 158, 11, 0.1)", icon: colors.company };
-    default:
-      return { accent: colors.primary, bg: colors.primarySoft, icon: colors.primary };
-  }
+  const tint = doctorMetricToneColors(tone, colors);
+  return { accent: tint.fg, bg: tint.bg, icon: tint.fg };
 }
 
 function MetricCard({
@@ -60,7 +49,7 @@ function MetricCard({
   isLastOdd?: boolean;
 }) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createCardStyles(colors), [colors]);
   const Icon = ICON_MAP[slot.icon];
   const tone = toneColors(slot.tone, colors);
@@ -97,7 +86,7 @@ function MetricCard({
 
 export function DoctorMetricGrid({ values }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const slots = DOCTOR_HUB_METRIC_SLOTS;
   const rows: DoctorHubMetricSlot[][] = [];
   for (let i = 0; i < slots.length; i += 2) {

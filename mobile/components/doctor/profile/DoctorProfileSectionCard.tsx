@@ -4,7 +4,7 @@ import { Text, View } from "react-native";
 import {
   createDoctorProfileStyles,
 } from "@/components/doctor/profile/doctorProfileStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 type Props = {
   title: string;
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function DoctorProfileSectionCard({ title, description, children }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorProfileStyles(colors);
 
   return (
@@ -34,7 +34,7 @@ type RowProps = {
 };
 
 export function DoctorProfileInfoRow({ label, value, isLast }: RowProps) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorProfileStyles(colors);
   const text = value.trim();
 

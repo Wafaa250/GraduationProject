@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, TextInput, V
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const ATTACHMENT_UNAVAILABLE_MESSAGE =
@@ -68,7 +68,7 @@ function ComposerIconButton({
 export function DoctorChatComposer({ value, sending, disabled, onChange, onSend }: Props) {
   const layout = useResponsiveLayout();
   const insets = useSafeAreaInsets();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   const handleAttach = () => {

@@ -26,7 +26,7 @@ import { RegTextField } from "@/components/registration/RegTextField";
 import { HubSectionCard } from "@/components/student/HubSectionCard";
 import { ProfileTagInput } from "@/components/student/ProfileTagInput";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { mapDoctorMeToHeaderProfile } from "@/lib/doctorHubMappers";
 import { DOCTOR_ROUTES } from "@/lib/doctorRoutes";
@@ -47,7 +47,7 @@ const BIO_MAX = 500;
 
 export default function DoctorEditProfileScreen() {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [loading, setLoading] = useState(true);

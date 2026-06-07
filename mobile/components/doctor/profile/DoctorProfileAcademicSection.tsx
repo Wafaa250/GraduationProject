@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Text, View } from "react-native";
 
 import { createDoctorProfileStyles } from "@/components/doctor/profile/doctorProfileStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 type Props = {
   faculty: string;
@@ -21,7 +21,7 @@ type Row = {
 };
 
 function InfoRow({ icon, label, value }: Row) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorProfileStyles(colors);
   const text = value.trim();
 
@@ -48,7 +48,7 @@ export function DoctorProfileAcademicSection({
   university,
   yearsOfExperience,
 }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
 
   const rows: Row[] = [

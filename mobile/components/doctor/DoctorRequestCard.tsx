@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { DoctorStatusBadge } from "@/components/doctor/DoctorStatusBadge";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { DoctorRequestCardModel } from "@/lib/doctorHubMappers";
 
@@ -18,7 +18,7 @@ type Props = {
 
 export function DoctorRequestCard({ request, busyRequestId, onAccept, onReject }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isPending = request.status === "pending";
   const busy = busyRequestId === request.requestId;

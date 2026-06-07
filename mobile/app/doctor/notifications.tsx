@@ -26,7 +26,7 @@ import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesign
 import { NotificationRow } from "@/components/notifications/NotificationRow";
 import { NotificationsListSkeleton } from "@/components/notifications/NotificationsListSkeleton";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   getDoctorNotificationTarget,
@@ -64,7 +64,7 @@ function buildSectionItems(notifications: GraduationNotification[]): SectionItem
 
 export default function DoctorNotificationsScreen() {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [loading, setLoading] = useState(true);

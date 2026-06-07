@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
 
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function SkeletonBlock({ width = "100%", height, borderRadius = 8, style }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const opacity = useRef(new Animated.Value(0.45)).current;
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export function SkeletonBlock({ width = "100%", height, borderRadius = 8, style 
 
 export function DoctorDashboardSkeleton() {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors, layout);
 
   return (

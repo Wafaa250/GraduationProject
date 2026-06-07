@@ -34,7 +34,7 @@ import {
   SettingsSwitchRow,
 } from "@/components/settings/SettingsUIKit";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import type { ThemeMode } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { mapDoctorMeToHeaderProfile } from "@/lib/doctorHubMappers";
@@ -93,7 +93,7 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 
 export default function DoctorSettingsScreen() {
   const layout = useResponsiveLayout();
-  const { colors, themeMode, setThemeMode } = useHubTheme();
+  const { colors, themeMode, setThemeMode } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [loading, setLoading] = useState(true);
@@ -490,7 +490,7 @@ type PasswordInputRowProps = {
 
 function PasswordInputRow({ label, value, onChangeText, autoComplete }: PasswordInputRowProps) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
   const [visible, setVisible] = useState(false);
 

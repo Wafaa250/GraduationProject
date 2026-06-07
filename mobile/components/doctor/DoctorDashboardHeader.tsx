@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { getTimeOfDayGreeting } from "@/lib/doctorHubMappers";
 import { DOCTOR_ROUTES } from "@/lib/doctorRoutes";
@@ -20,7 +20,7 @@ type Props = {
 
 export function DoctorDashboardHeader({ displayName, greetingName, profilePhoto }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const avatarSize = layout.scale(52);

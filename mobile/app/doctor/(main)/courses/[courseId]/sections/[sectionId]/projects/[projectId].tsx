@@ -38,7 +38,7 @@ import { DOCTOR_RADIUS, DOCTOR_SPACE, doctorInsetCardStyle } from "@/components/
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
 import { DoctorStackHeader } from "@/components/doctor/ui/DoctorStackHeader";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useCourseProjectWorkspace } from "@/hooks/useCourseProjectWorkspace";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
@@ -69,7 +69,7 @@ export default function DoctorCourseProjectDetailScreen() {
   const projectId = Number(projectIdParam);
 
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { workspace, bundle, pageLoading, bundleLoading, error, projectMissing, reload } =

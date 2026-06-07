@@ -26,6 +26,12 @@ export type CreateStudentPostPayload = {
   file?: MobilePostFile | null;
 };
 
+export type UpdateStudentPostPayload = {
+  content: string;
+  file?: MobilePostFile | null;
+  removeAttachment?: boolean;
+};
+
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const FILE_EXTENSIONS = new Set([".pdf", ".docx"]);
 
@@ -81,4 +87,29 @@ export async function createStudentPost(payload: CreateStudentPostPayload): Prom
     headers: { "Content-Type": "multipart/form-data" },
   });
   return normalizePost(data);
+}
+
+export async function updateStudentPost(
+  postId: number,
+  payload: UpdateStudentPostPayload,
+): Promise<StudentPost> {
+  const form = new FormData();
+  form.append("content", payload.content);
+  if (payload.file) {
+    form.append("file", {
+      uri: payload.file.uri,
+      name: payload.file.name,
+      type: payload.file.mimeType,
+    } as unknown as Blob);
+  }
+  if (payload.removeAttachment) form.append("removeAttachment", "true");
+
+  const { data } = await api.put<Record<string, unknown>>(`/student-posts/${postId}`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return normalizePost(data);
+}
+
+export async function deleteStudentPost(postId: number): Promise<void> {
+  await api.delete(`/student-posts/${postId}`);
 }

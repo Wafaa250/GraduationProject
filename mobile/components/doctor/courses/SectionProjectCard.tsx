@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import type { CourseProjectWithTeams } from "@/api/doctorCoursesApi";
 import { DOCTOR_RADIUS, DOCTOR_SPACE, doctorInsetCardStyle } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { parseAiFormationFromDescription } from "@/lib/courseProjectAiConfig";
 import { formatAiMode, formatProjectSections } from "@/lib/courseWorkspaceUtils";
@@ -22,7 +22,7 @@ type Props = {
 export function SectionProjectCard({ courseId, sectionId, project, onManage }: Props) {
   const router = useRouter();
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { publicDescription } = parseAiFormationFromDescription(project.description);
   const workspacePath = doctorCourseProjectPath(courseId, sectionId, project.id);

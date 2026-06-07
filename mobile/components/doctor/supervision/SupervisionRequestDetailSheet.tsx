@@ -23,7 +23,7 @@ import { DoctorCompatibilityRing } from "@/components/doctor/supervision/DoctorC
 import { SupervisionStatusBadge } from "@/components/doctor/supervision/SupervisionStatusBadge";
 import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDoctorHubDate } from "@/lib/doctorHubMappers";
 import {
@@ -72,7 +72,7 @@ export function SupervisionRequestDetailSheet({
 }: Props) {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const slideAnim = useRef(new Animated.Value(600)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;

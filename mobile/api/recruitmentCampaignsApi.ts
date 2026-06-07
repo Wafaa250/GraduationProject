@@ -86,6 +86,50 @@ export type CreateRecruitmentQuestionPayload = {
 
 export type UpdateRecruitmentQuestionPayload = Partial<CreateRecruitmentQuestionPayload>;
 
+export type PublicRecruitmentCampaignSummary = {
+  id: number;
+  title: string;
+  coverImageUrl?: string | null;
+  applicationDeadline: string;
+  openPositionsCount: number;
+};
+
+export type PublicRecruitmentCampaignDetail = {
+  id: number;
+  organizationId: number;
+  title: string;
+  description: string;
+  applicationDeadline: string;
+  coverImageUrl?: string | null;
+  organizationName: string;
+  organizationLogoUrl?: string | null;
+  positions: RecruitmentPosition[];
+  questions?: RecruitmentQuestion[];
+};
+
+export async function getPublicRecruitmentCampaign(
+  organizationId: number,
+  campaignId: number,
+): Promise<PublicRecruitmentCampaignDetail> {
+  const { data } = await api.get<PublicRecruitmentCampaignDetail>(
+    `/organizations/${organizationId}/recruitment-campaigns/${campaignId}`,
+  );
+  return data;
+}
+
+export async function listPublicRecruitmentCampaigns(
+  organizationId: number,
+): Promise<PublicRecruitmentCampaignSummary[]> {
+  try {
+    const { data } = await api.get<PublicRecruitmentCampaignSummary[]>(
+      `/organizations/${organizationId}/recruitment-campaigns`,
+    );
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function listOrganizationRecruitmentCampaigns(): Promise<RecruitmentCampaign[]> {
   const { data } = await api.get<RecruitmentCampaign[]>("/organization/recruitment-campaigns");
   return data;

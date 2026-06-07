@@ -5,7 +5,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { ConversationMessage } from "@/api/conversationsApi";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   extractLinkAttachment,
@@ -34,7 +34,7 @@ export function DoctorChatBubble({
   isTeamChat,
 }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   const showSenderLabel = !isMine && isFirstInGroup && isTeamChat;

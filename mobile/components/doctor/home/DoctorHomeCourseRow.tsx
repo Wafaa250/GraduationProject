@@ -3,7 +3,7 @@ import { router, type Href } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
 import { createDoctorHomeStyles, HOME_SPACE } from "@/components/doctor/home/doctorHomeStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import type { DoctorHubCourseCardModel } from "@/lib/doctorHubMappers";
 import { doctorCoursePath } from "@/lib/doctorRoutes";
 
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function DoctorHomeCourseRow({ course, showDivider }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorHomeStyles(colors);
 
   return (
@@ -61,7 +61,7 @@ export function DoctorHomeCourseRow({ course, showDivider }: Props) {
 }
 
 function MetricPill({ label }: { label: string }) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createDoctorHomeStyles(colors);
 
   return (

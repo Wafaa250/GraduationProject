@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ConversationUser } from "@/api/conversationsApi";
 import { MessageConversationAvatar } from "@/components/messages/MessageConversationAvatar";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -17,7 +17,7 @@ type Props = {
 export function DoctorChatParticipantsSheet({ visible, participants, onClose }: Props) {
   const layout = useResponsiveLayout();
   const insets = useSafeAreaInsets();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   return (

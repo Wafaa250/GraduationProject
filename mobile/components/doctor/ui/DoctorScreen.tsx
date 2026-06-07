@@ -3,7 +3,7 @@ import { StyleSheet, View, type ViewStyle } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
 import { doctorScreenStyle } from "@/components/doctor/ui/doctorDesignSystem";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 type Props = {
   children: ReactNode;
@@ -14,7 +14,7 @@ type Props = {
 };
 
 export function DoctorScreen({ children, edges = ["top"], style, headerSurface }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
 
   return (
     <SafeAreaView

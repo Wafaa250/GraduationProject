@@ -307,6 +307,13 @@ export async function getGraduationProjectsMyEnvelope(): Promise<{
   return parseGraduationProjectsMyPayload(data);
 }
 
+/** GET /api/graduation-projects — discovery list for browse. */
+export async function listGraduationProjects(): Promise<GradProject[]> {
+  const { data } = await api.get<unknown>("/graduation-projects");
+  if (!Array.isArray(data)) return [];
+  return data.map(parseGradProject);
+}
+
 export async function createGraduationProject(
   payload: CreateGraduationProjectPayload,
 ): Promise<GradProject> {
@@ -354,6 +361,10 @@ export type GraduationProjectMembersResponse = {
 export async function getGraduationProjectById(projectId: number): Promise<GradProject> {
   const { data } = await api.get(`/graduation-projects/${projectId}`);
   return parseGradProject(data);
+}
+
+export async function joinGraduationProject(projectId: number): Promise<void> {
+  await api.post(`/graduation-projects/${projectId}/join`);
 }
 
 /** GET /api/graduation-projects/{id}/abstract-file — supervisor or project owner. */

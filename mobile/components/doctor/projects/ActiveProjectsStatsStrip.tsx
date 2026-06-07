@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -14,13 +14,13 @@ type Props = {
 
 export function ActiveProjectsStatsStrip({ supervised, teamsComplete, teamChats, loading }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   const items = [
-    { label: "Projects", value: supervised, color: "#7C3AED" },
-    { label: "Complete", value: teamsComplete, color: "#059669" },
-    { label: "Chats", value: teamChats, color: "#2563EB" },
+    { label: "Projects", value: supervised, color: colors.primary },
+    { label: "Complete", value: teamsComplete, color: colors.primary },
+    { label: "Chats", value: teamChats, color: colors.primary },
   ];
 
   return (

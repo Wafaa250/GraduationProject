@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useHubDesign } from "@/hooks/use-hub-design";
 
 type Props = {
   title: string;
@@ -11,55 +10,41 @@ type Props = {
   children: ReactNode;
 };
 
+/** Section card for padded screen layouts (profile, settings, detail pages). */
 export function HubSectionCard({ title, description, children }: Props) {
-  const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const hub = useHubDesign();
+  const styles = useMemo(() => createStyles(hub), [hub]);
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          borderRadius: layout.radius.input,
-          padding: layout.space("lg"),
-          gap: layout.space("md"),
-        },
-      ]}
-    >
+    <View style={styles.card}>
       <View>
-        <Text style={[styles.title, { fontSize: layout.fontSize.label }]}>{title}</Text>
-        {description ? (
-          <Text style={[styles.description, { fontSize: layout.fontSize.footer, marginTop: 4 }]}>
-            {description}
-          </Text>
-        ) : null}
+        <Text style={[styles.title, hub.type.sectionTitle]}>{title}</Text>
+        {description ? <Text style={[styles.description, hub.type.caption]}>{description}</Text> : null}
       </View>
       {children}
     </View>
   );
 }
 
-function createStyles(colors: ReturnType<typeof useHubTheme>["colors"]) {
+function createStyles(hub: ReturnType<typeof useHubDesign>) {
+  const { colors } = hub;
   return StyleSheet.create({
     card: {
       width: "100%",
       backgroundColor: colors.cardBg,
       borderWidth: 1,
       borderColor: colors.border,
-      shadowColor: colors.cardShadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 1,
-      shadowRadius: 8,
-      elevation: 2,
+      borderRadius: hub.card.radius,
+      padding: hub.card.padding,
+      gap: hub.card.gap,
+      ...hub.shadow,
     },
     title: {
-      fontWeight: "700",
       color: colors.foreground,
     },
     description: {
       color: colors.muted,
-      lineHeight: 18,
+      marginTop: 4,
     },
   });
 }

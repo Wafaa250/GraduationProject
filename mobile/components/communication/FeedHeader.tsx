@@ -17,7 +17,7 @@ import { FeedSearchModal } from "@/components/communication/FeedSearchModal";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useHubAccountMenu } from "@/contexts/HubAccountMenuContext";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useHubDesign } from "@/hooks/use-hub-design";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
 import { getItem } from "@/utils/authStorage";
 
@@ -26,8 +26,8 @@ type Props = {
 };
 
 export function FeedHeader({ onSearchActiveChange }: Props) {
-  const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const hub = useHubDesign();
+  const { colors, layout } = hub;
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { openMenu } = useHubAccountMenu();
   const avatarRef = useRef<View>(null);
@@ -61,9 +61,6 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
     void loadProfile();
   }, [loadProfile]);
 
-  const avatarSize = layout.scale(40);
-  const iconSize = layout.iconSize;
-
   const openAccountMenu = () => {
     avatarRef.current?.measureInWindow((x, y, width, height) => {
       openMenu({ x, y, width, height });
@@ -89,8 +86,7 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
           {
             paddingHorizontal: layout.horizontalPadding,
             paddingTop: layout.space("sm"),
-            paddingBottom: layout.space("md"),
-            gap: layout.space("md"),
+            paddingBottom: layout.space("sm"),
           },
         ]}
       >
@@ -102,34 +98,33 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
               accessibilityLabel="Open account menu"
               hitSlop={8}
             >
-            {loadingProfile ? (
-              <View style={[styles.avatarPlaceholder, { width: avatarSize, height: avatarSize }]}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : (
-              <FeedAvatar
-                name={displayName}
-                size={avatarSize}
-                avatarBase64={profilePhotoUrl(avatarBase64) ? avatarBase64 : null}
-                roleType="student"
-              />
-            )}
+              {loadingProfile ? (
+                <View
+                  style={[
+                    styles.avatarPlaceholder,
+                    { width: hub.avatar.header, height: hub.avatar.header },
+                  ]}
+                >
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : (
+                <FeedAvatar
+                  name={displayName}
+                  size={hub.avatar.header}
+                  avatarBase64={profilePhotoUrl(avatarBase64) ? avatarBase64 : null}
+                  roleType="student"
+                />
+              )}
             </Pressable>
           </View>
 
-          <View style={[styles.searchWrap, { borderRadius: layout.radius.input }]}>
-            <Ionicons name="search" size={iconSize} color={colors.muted} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onFocus={openSearch}
-              placeholder="Search people, companies..."
-              placeholderTextColor={colors.muted}
-              style={[styles.searchInput, { fontSize: layout.fontSize.body }]}
-              returnKeyType="search"
-              onSubmitEditing={openSearch}
-            />
-          </View>
+          <Pressable
+            style={[styles.searchWrap, { borderRadius: hub.radius.button }]}
+            onPress={openSearch}
+          >
+            <Ionicons name="search" size={hub.icon.md} color={colors.muted} />
+            <Text style={styles.searchPlaceholder}>Search people, companies...</Text>
+          </Pressable>
 
           <Pressable
             onPress={() => {
@@ -141,7 +136,7 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
             hitSlop={8}
             style={styles.notifBtn}
           >
-            <Ionicons name="notifications-outline" size={iconSize + 2} color={colors.foreground} />
+            <Ionicons name="notifications-outline" size={hub.icon.lg} color={colors.foreground} />
             {unreadNotifications > 0 ? (
               <View style={styles.notifBadge}>
                 <Text style={styles.notifBadgeText}>
@@ -165,56 +160,59 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
 
 const createStyles = (colors: HubColorScheme) =>
   StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  avatarPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-    backgroundColor: colors.primarySoft,
-  },
-  searchWrap: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.inputBg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 44,
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.foreground,
-    padding: 0,
-  },
-  notifBtn: {
-    padding: 4,
-    position: "relative",
-  },
-  notifBadge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 3,
-  },
-  notifBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-});
+    container: {
+      backgroundColor: colors.background,
+    },
+    topRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    avatarPlaceholder: {
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 20,
+      backgroundColor: colors.primarySoft,
+    },
+    searchWrap: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: colors.inputBg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      minHeight: 44,
+    },
+    searchPlaceholder: {
+      flex: 1,
+      color: colors.muted,
+      fontSize: 15,
+    },
+    notifBtn: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative",
+    },
+    notifBadge: {
+      position: "absolute",
+      top: 2,
+      right: 2,
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 3,
+    },
+    notifBadgeText: {
+      color: "#FFFFFF",
+      fontSize: 10,
+      fontWeight: "700",
+    },
+  });

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { createDoctorProfileStyles } from "@/components/doctor/profile/doctorProfileStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 const COLLAPSE_AT = 180;
 
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export function DoctorProfileAboutSection({ bio }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
   const text = bio.trim();
   const [expanded, setExpanded] = useState(false);

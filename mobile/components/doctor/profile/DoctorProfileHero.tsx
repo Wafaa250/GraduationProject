@@ -5,7 +5,7 @@ import { Linking, Pressable, Text, View } from "react-native";
 
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { createDoctorProfileStyles } from "@/components/doctor/profile/doctorProfileStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { DoctorProfileViewData } from "@/lib/doctorProfileTypes";
 import { uniqueDoctorProfileLabels } from "@/lib/doctorProfileText";
@@ -23,7 +23,7 @@ function normalizeUrl(url: string): string {
 }
 
 export function DoctorProfileCover() {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
 
   return (
@@ -43,7 +43,7 @@ type AvatarProps = {
 
 export function DoctorProfileAvatar({ name, photoUrl }: AvatarProps) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
   const avatarSize = layout.scale(112);
   const avatarBorder = 4;
@@ -74,7 +74,7 @@ export function DoctorProfileAvatar({ name, photoUrl }: AvatarProps) {
 }
 
 export function DoctorProfileHero({ data, onEditPress }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
 
   const headline = uniqueDoctorProfileLabels([data.academicRank, data.specialization]).join(" · ");

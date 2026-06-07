@@ -6,7 +6,7 @@ import {
   doctorCardShadow,
 } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { PROJECT_FILTER_TABS, type ProjectStatusFilter } from "@/lib/doctorActiveProjectUi";
 
@@ -19,7 +19,7 @@ type Props = {
 
 export function ActiveProjectsFilterBar({ value, counts, loading, onChange }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
   return (

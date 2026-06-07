@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { DoctorHubProjectCardModel } from "@/lib/doctorHubMappers";
 import { doctorProjectPath } from "@/lib/doctorRoutes";
@@ -15,7 +15,7 @@ type Props = {
 
 export function DoctorProjectCarousel({ projects }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const cardWidth = layout.deviceSize === "tablet" ? layout.scale(300) : layout.scale(260);
 

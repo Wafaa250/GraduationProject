@@ -103,3 +103,56 @@ export function eventFieldDraftToPayload(d: EventFieldDraft) {
     displayOrder: d.displayOrder,
   };
 }
+
+export function eventRegistrationFieldToFormField(
+  field: Pick<
+    EventRegistrationField,
+    "id" | "label" | "fieldType" | "placeholder" | "helpText" | "isRequired" | "options" | "displayOrder"
+  >,
+) {
+  return {
+    id: field.id,
+    label: field.label,
+    type: field.fieldType,
+    placeholder: field.placeholder,
+    helpText: field.helpText,
+    isRequired: field.isRequired,
+    options: field.options,
+    displayOrder: field.displayOrder,
+  };
+}
+
+export function validateEventRegistrationAnswers(
+  fields: Array<Pick<EventRegistrationField, "id" | "label" | "fieldType" | "isRequired" | "displayOrder">>,
+  values: Record<number, { value: string; values: string[] }>,
+): string | null {
+  const sorted = [...fields].sort((a, b) => a.displayOrder - b.displayOrder || a.id - b.id);
+  for (const field of sorted) {
+    const type = normalizeEventFieldType(field.fieldType);
+    const draft = values[field.id];
+    if (!field.isRequired) continue;
+    if (type === "CheckboxList") {
+      const selected = draft?.values?.filter((v) => v.trim()) ?? [];
+      if (selected.length === 0) return `"${field.label}" is required.`;
+    } else if (type === "FileUploadPlaceholder") {
+      continue;
+    } else if (!draft?.value?.trim()) {
+      return `"${field.label}" is required.`;
+    }
+  }
+  return null;
+}
+
+export function eventRegistrationValuesToPayload(
+  fields: Array<Pick<EventRegistrationField, "id" | "fieldType">>,
+  values: Record<number, { value: string; values: string[] }>,
+) {
+  return fields.map((field) => {
+    const type = normalizeEventFieldType(field.fieldType);
+    const draft = values[field.id];
+    if (type === "CheckboxList") {
+      return { fieldId: field.id, values: draft?.values ?? [] };
+    }
+    return { fieldId: field.id, value: draft?.value ?? "" };
+  });
+}

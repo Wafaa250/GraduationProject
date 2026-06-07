@@ -29,7 +29,7 @@ import { DoctorChatThreadHeader } from "@/components/doctor/messages/DoctorChatT
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
 import { MessagesEmptyState } from "@/components/messages/MessagesEmptyState";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   getDoctorConversationDisplayName,
@@ -44,7 +44,7 @@ type LoadError = "invalid" | "failed";
 
 export default function DoctorMessageThreadScreen() {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const conversationNumericId = Number(conversationId);

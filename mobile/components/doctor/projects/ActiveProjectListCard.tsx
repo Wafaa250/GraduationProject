@@ -6,7 +6,7 @@ import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { ActiveProjectStatusBadge } from "@/components/doctor/projects/ActiveProjectStatusBadge";
 import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { ActiveProjectCardModel } from "@/lib/doctorActiveProjectUi";
 import { formatDoctorHubDate } from "@/lib/doctorHubMappers";
@@ -19,7 +19,7 @@ type Props = {
 
 export function ActiveProjectListCard({ project, onOpen, onChat }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const visibleSkills = project.skills.slice(0, 2);
   const extraSkills = project.skills.length - visibleSkills.length;

@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { getItem } from "@/utils/authStorage";
 import { getHomePath } from "@/utils/homeNavigation";
 
@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function DoctorRouteGuard({ children }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const styles = createStyles(colors);

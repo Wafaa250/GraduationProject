@@ -1,3 +1,5 @@
+import { ASSOC_COLORS } from "@/constants/associationTheme";
+import { COMPANY_COLORS, COMPANY_COLORS_DARK } from "@/constants/companyTheme";
 import type { HubRoleType } from "@/constants/studentHubTheme";
 
 export type HubColorScheme = {
@@ -37,15 +39,15 @@ export const LIGHT_HUB_COLORS: HubColorScheme = {
   cardShadow: "rgba(15, 23, 42, 0.06)",
   student: "#6366F1",
   doctor: "#0EA5E9",
-  company: "#F59E0B",
-  association: "#10B981",
+  company: COMPANY_COLORS.accent,
+  association: ASSOC_COLORS.accent,
   tabBarBg: "#FFFFFF",
   tabBarBorder: "#E8E4F5",
   roleBg: {
     student: "rgba(99, 102, 241, 0.12)",
     doctor: "rgba(14, 165, 233, 0.12)",
-    company: "rgba(245, 158, 11, 0.12)",
-    association: "rgba(16, 185, 129, 0.12)",
+    company: COMPANY_COLORS.accentMuted,
+    association: ASSOC_COLORS.accentSoft,
   },
 };
 
@@ -64,15 +66,15 @@ export const DARK_HUB_COLORS: HubColorScheme = {
   cardShadow: "rgba(0, 0, 0, 0.35)",
   student: "#818CF8",
   doctor: "#38BDF8",
-  company: "#FBBF24",
-  association: "#34D399",
+  company: COMPANY_COLORS_DARK.accent,
+  association: ASSOC_COLORS.accentBar,
   tabBarBg: "#121826",
   tabBarBorder: "#2A3140",
   roleBg: {
     student: "rgba(129, 140, 248, 0.18)",
     doctor: "rgba(56, 189, 248, 0.18)",
-    company: "rgba(251, 191, 36, 0.18)",
-    association: "rgba(52, 211, 153, 0.18)",
+    company: COMPANY_COLORS_DARK.accentMuted,
+    association: "rgba(249, 115, 22, 0.18)",
   },
 };
 

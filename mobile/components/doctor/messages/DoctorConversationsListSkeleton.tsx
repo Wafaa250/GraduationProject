@@ -1,12 +1,12 @@
 import { View } from "react-native";
 
 import { SkeletonBlock } from "@/components/doctor/DoctorDashboardSkeleton";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 function ConversationRowSkeleton() {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const avatarSize = layout.scale(52);
 
   return (

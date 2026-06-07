@@ -19,7 +19,7 @@ import {
   type DoctorPost,
 } from "@/api/doctorPostsApi";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   doctorPostToFeedItem,
@@ -34,7 +34,7 @@ type Props = {
 
 export function DoctorAnnouncementsSection({ refreshKey }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -157,7 +157,7 @@ function AnnouncementCard({
   onDeleted: (postId: number) => void;
 }) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createCardStyles(colors), [colors]);
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(post.content);

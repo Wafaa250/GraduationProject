@@ -2,10 +2,10 @@ import { useEffect, useRef } from "react";
 import { Animated, ScrollView, View } from "react-native";
 
 import { createDoctorHomeStyles, HOME_SPACE, STAT_CHIP_WIDTH } from "@/components/doctor/home/doctorHomeStyles";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 
 function Block({ width, height, radius = 8 }: { width: number | `${number}%`; height: number; radius?: number }) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {

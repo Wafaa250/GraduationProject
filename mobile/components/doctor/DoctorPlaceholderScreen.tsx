@@ -9,7 +9,7 @@ import {
   doctorTypography,
 } from "@/components/doctor/ui/doctorDesignSystem";
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
@@ -19,7 +19,7 @@ type Props = {
 
 export function DoctorPlaceholderScreen({ title, description }: Props) {
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const type = doctorTypography(colors);
 
   return (

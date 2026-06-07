@@ -1,6 +1,36 @@
 import api, { parseApiErrorMessage } from "./axiosInstance";
+import { appendMobileUploadFile, type MobileUploadFile } from "./mobileUpload";
 
 export type RecruitmentApplicationStatus = "Pending" | "AiSuggested" | "Accepted" | "Rejected";
+
+export type StudentApplicationStatus = {
+  hasSubmitted: boolean;
+  applicationId?: number | null;
+  status?: RecruitmentApplicationStatus | null;
+  submittedAt?: string | null;
+  acceptedAt?: string | null;
+  organizationId?: number;
+  organizationName?: string;
+  campaignId?: number;
+  campaignTitle?: string;
+  positionId?: number;
+  positionRoleTitle?: string;
+  membershipKind?: string | null;
+  isOrganizationMember?: boolean;
+};
+
+export type RecruitmentApplicationAnswerInput = {
+  questionId: number;
+  value?: string | null;
+  values?: string[] | null;
+};
+
+export type RecruitmentApplicationSubmitResponse = {
+  applicationId: number;
+  status: RecruitmentApplicationStatus;
+  submittedAt: string;
+  message: string;
+};
 
 export type RecruitmentApplicationListItem = {
   id: number;
@@ -59,6 +89,45 @@ export async function listOrganizationRecruitmentApplications(
   const { data } = await api.get<RecruitmentApplicationListItem[]>(
     `/organization/recruitment-campaigns/${campaignId}/applications`,
     { params },
+  );
+  return data;
+}
+
+export async function getMyRecruitmentApplication(
+  organizationId: number,
+  campaignId: number,
+  positionId: number,
+): Promise<StudentApplicationStatus> {
+  const { data } = await api.get<StudentApplicationStatus>(
+    `/organizations/${organizationId}/recruitment-campaigns/${campaignId}/positions/${positionId}/applications/mine`,
+  );
+  return data;
+}
+
+export async function uploadRecruitmentApplicationFile(
+  organizationId: number,
+  campaignId: number,
+  file: MobileUploadFile,
+): Promise<string> {
+  const formData = new FormData();
+  appendMobileUploadFile(formData, "file", file);
+  const { data } = await api.post<{ fileUrl: string }>(
+    `/organizations/${organizationId}/recruitment-campaigns/${campaignId}/application-uploads`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data.fileUrl;
+}
+
+export async function submitRecruitmentApplication(
+  organizationId: number,
+  campaignId: number,
+  positionId: number,
+  answers: RecruitmentApplicationAnswerInput[],
+): Promise<RecruitmentApplicationSubmitResponse> {
+  const { data } = await api.post<RecruitmentApplicationSubmitResponse>(
+    `/organizations/${organizationId}/recruitment-campaigns/${campaignId}/positions/${positionId}/applications`,
+    { answers },
   );
   return data;
 }

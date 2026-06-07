@@ -14,8 +14,9 @@ import {
   HOME_SPACE,
   STAT_CHIP_WIDTH,
 } from "@/components/doctor/home/doctorHomeStyles";
+import { doctorMetricToneColors } from "@/constants/doctorHubTheme";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import {
   DOCTOR_HUB_METRIC_SLOTS,
   type DoctorHubMetricSlot,
@@ -35,23 +36,12 @@ type Props = {
   values: Record<DoctorMetricKey, number>;
 };
 
-function toneColors(tone: DoctorHubMetricTone, colors: HubColorScheme): { fg: string; bg: string } {
-  switch (tone) {
-    case "info":
-      return { fg: colors.doctor, bg: colors.roleBg.doctor };
-    case "success":
-      return { fg: colors.association, bg: colors.roleBg.association };
-    case "warning":
-      return { fg: colors.company, bg: colors.roleBg.company };
-    case "accent":
-      return { fg: "#A855F7", bg: "rgba(168, 85, 247, 0.12)" };
-    default:
-      return { fg: colors.primary, bg: colors.primarySoft };
-  }
+function toneColors(tone: DoctorHubMetricTone, colors: HubColorScheme) {
+  return doctorMetricToneColors(tone, colors);
 }
 
 function StatChip({ slot, value }: { slot: DoctorHubMetricSlot; value: number }) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorHomeStyles(colors), [colors]);
   const Icon = ICONS[slot.icon];
   const tint = toneColors(slot.tone, colors);
@@ -99,7 +89,7 @@ function StatChip({ slot, value }: { slot: DoctorHubMetricSlot; value: number })
 }
 
 export function DoctorHomeStatsStrip({ values }: Props) {
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createDoctorHomeStyles(colors), [colors]);
   const chipGap = HOME_SPACE.sm;
   const snapInterval = STAT_CHIP_WIDTH + chipGap;

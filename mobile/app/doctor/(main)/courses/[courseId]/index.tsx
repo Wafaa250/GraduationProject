@@ -22,7 +22,7 @@ import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesign
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
 import { DoctorStackHeader } from "@/components/doctor/ui/DoctorStackHeader";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useCourseWorkspace } from "@/hooks/useCourseWorkspace";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { courseSubtitle } from "@/lib/doctorCourseUi";
@@ -32,7 +32,7 @@ export default function DoctorCourseDetailScreen() {
   const { courseId: idParam } = useLocalSearchParams<{ courseId: string }>();
   const courseId = Number(idParam);
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { course, bundle, pageLoading, bundleLoading, error, reload } = useCourseWorkspace(courseId);

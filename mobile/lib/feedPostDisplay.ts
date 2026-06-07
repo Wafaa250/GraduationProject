@@ -1,4 +1,4 @@
-import type { FeedItem, FeedPublisherType } from "@/lib/feedTypes";
+import { FEED_SOURCE_TYPES, type FeedItem, type FeedPublisherType } from "@/lib/feedTypes";
 
 const TAG_LABELS = new Set([
   "skills",
@@ -11,6 +11,28 @@ const TAG_LABELS = new Set([
   "course",
   "mode",
 ]);
+
+export function resolveFeedPostRoleType(item: FeedItem): FeedPublisherType {
+  switch (item.relatedEntityType) {
+    case FEED_SOURCE_TYPES.doctorPost:
+    case FEED_SOURCE_TYPES.doctorAnnouncement:
+    case FEED_SOURCE_TYPES.doctorProject:
+    case FEED_SOURCE_TYPES.doctorCourseProject:
+      return "doctor";
+    case FEED_SOURCE_TYPES.studentPost:
+    case FEED_SOURCE_TYPES.studentCollaboration:
+      return "student";
+    case FEED_SOURCE_TYPES.companyOpportunity:
+    case FEED_SOURCE_TYPES.companyTalentRequest:
+      return "company";
+    case FEED_SOURCE_TYPES.associationEvent:
+    case FEED_SOURCE_TYPES.associationRecruitment:
+    case FEED_SOURCE_TYPES.associationRecruitmentPosition:
+      return "association";
+    default:
+      return item.sourceType;
+  }
+}
 
 export function feedPostRoleLabel(type: FeedPublisherType): string {
   switch (type) {

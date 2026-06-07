@@ -1,15 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
+import { router } from "expo-router";
 import { useCallback, useEffect, useState, useMemo } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { resolveApiFileUrl } from "@/api/axiosInstance";
 import {
@@ -20,11 +14,15 @@ import {
   unfollowCompany,
   unfollowOrganization,
 } from "@/api/feedApi";
+import type { StudentPost } from "@/api/studentPostsApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
+import { FeedSocialPostOwnerMenu } from "@/components/communication/FeedSocialPostOwnerMenu";
+import { HubButton } from "@/components/hub/HubButton";
+import { HubCard } from "@/components/hub/HubCard";
 import type { HubRoleType } from "@/constants/studentHubTheme";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
-import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useHubDesign } from "@/hooks/use-hub-design";
+import { convertWebPathToMobile, resolveFeedPostActionUrl } from "@/lib/feedActionRoutes";
 import {
   extractFeedPostTags,
   feedPostActionLabel,
@@ -32,11 +30,20 @@ import {
   feedPostSupportsFollow,
   formatFeedPublished,
   isSocialFeedPost,
+  resolveFeedPostRoleType,
 } from "@/lib/feedPostDisplay";
-import type { FeedItem } from "@/lib/feedTypes";
+import { FEED_SOURCE_TYPES, type FeedItem } from "@/lib/feedTypes";
+import { getHubRoleAccent } from "@/lib/hubRoleAccent";
+import {
+  getCurrentUserId,
+  isOwnStudentPost,
+  socialPostAuthorProfileUrl,
+} from "@/lib/studentPostFeed";
 
 type Props = {
   item: FeedItem;
+  onSocialPostUpdated?: (post: StudentPost) => void;
+  onSocialPostDeleted?: (postId: number) => void;
 };
 
 function attachmentFileName(url: string): string {
@@ -56,13 +63,14 @@ const ROLE_ICONS: Record<HubRoleType, keyof typeof Ionicons.glyphMap> = {
   association: "people-outline",
 };
 
-export function FeedPostCard({ item }: Props) {
-  const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+export function FeedPostCard({ item, onSocialPostUpdated, onSocialPostDeleted }: Props) {
+  const hub = useHubDesign();
+  const { colors } = hub;
   const styles = useMemo(() => createStyles(colors), [colors]);
   const published = formatFeedPublished(item.createdAt);
   const tags = extractFeedPostTags(item);
   const actionLabel = feedPostActionLabel(item);
+  const actionUrl = resolveFeedPostActionUrl(item);
   const socialPost = isSocialFeedPost(item);
   const isFileAttachment = socialPost && item.attachmentType === "File";
   const attachmentUrl = item.attachmentUrl ?? item.imageUrl ?? null;
@@ -78,11 +86,24 @@ export function FeedPostCard({ item }: Props) {
       : null;
   const canFollow = feedPostSupportsFollow(item);
   const followEntityId = item.followEntityId ?? 0;
-  const roleType = item.sourceType as HubRoleType;
-  const roleColor = colors[roleType] ?? colors.primary;
+  const roleType = resolveFeedPostRoleType(item) as HubRoleType;
+  const roleAccent = getHubRoleAccent(colors, roleType);
+  const roleColor = roleAccent.fg;
+  const authorProfileUrl = socialPost ? socialPostAuthorProfileUrl(item) : actionUrl;
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(0);
+
+  useEffect(() => {
+    void getCurrentUserId().then(setCurrentUserId);
+  }, []);
+
+  const ownsPost =
+    socialPost &&
+    item.relatedEntityType === FEED_SOURCE_TYPES.studentPost &&
+    isOwnStudentPost(item, currentUserId);
+  const showOwnerMenu = ownsPost && onSocialPostUpdated && onSocialPostDeleted;
 
   const loadFollowStatus = useCallback(async () => {
     if (!canFollow || followEntityId <= 0) return;
@@ -114,8 +135,7 @@ export function FeedPostCard({ item }: Props) {
     }
   };
 
-  const openUrl = async (url: string | null | undefined) => {
-    if (!url) return;
+  const openExternalUrl = async (url: string) => {
     const resolved = resolveApiFileUrl(url) ?? url;
     try {
       await Linking.openURL(resolved);
@@ -124,62 +144,85 @@ export function FeedPostCard({ item }: Props) {
     }
   };
 
-  const handleAction = () => {
-    const url = item.actionUrl?.trim();
-    if (url) {
-      void openUrl(url);
+  const navigateToPath = (path: string) => {
+    const mobilePath = convertWebPathToMobile(path) ?? path;
+    if (mobilePath.startsWith("http://") || mobilePath.startsWith("https://")) {
+      void openExternalUrl(mobilePath);
       return;
     }
-    Alert.alert("Coming soon", "This detail view will be available in a future mobile update.");
+    router.push(mobilePath as never);
   };
 
+  const handleAction = () => navigateToPath(actionUrl);
+  const handleAuthorPress = () => navigateToPath(authorProfileUrl);
+
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          marginHorizontal: layout.horizontalPadding,
-          marginBottom: layout.space("md"),
-          borderRadius: layout.radius.button,
-          padding: layout.space("md"),
-        },
-      ]}
-    >
+    <HubCard accentColor={roleColor}>
       <View style={styles.header}>
-        <FeedAvatar
-          name={item.sourceName}
-          size={layout.scale(44)}
-          avatarUrl={item.sourceAvatarUrl}
-          avatarBase64={item.sourceImageBase64}
-          roleType={roleType}
-        />
+        {socialPost ? (
+          <Pressable onPress={handleAuthorPress} accessibilityRole="button">
+            <FeedAvatar
+              name={item.sourceName}
+              size={hub.avatar.feed}
+              avatarUrl={item.sourceAvatarUrl}
+              avatarBase64={item.sourceImageBase64}
+              roleType={roleType}
+            />
+          </Pressable>
+        ) : (
+          <FeedAvatar
+            name={item.sourceName}
+            size={hub.avatar.feed}
+            avatarUrl={item.sourceAvatarUrl}
+            avatarBase64={item.sourceImageBase64}
+            roleType={roleType}
+          />
+        )}
+
         <View style={styles.headerMeta}>
-          <Text style={[styles.author, { fontSize: layout.fontSize.label }]}>{item.sourceName}</Text>
           {!socialPost ? (
-            <View style={styles.roleLine}>
-              <Ionicons name={ROLE_ICONS[roleType]} size={12} color={roleColor} />
-              <Text style={[styles.roleText, { color: roleColor }]}>{feedPostRoleLabel(roleType)}</Text>
-            </View>
-          ) : item.sourceSubtitle ? (
-            <Text style={styles.subtitle}>{item.sourceSubtitle}</Text>
+            <Text style={[styles.author, hub.type.author]}>{item.sourceName}</Text>
+          ) : (
+            <Pressable onPress={handleAuthorPress}>
+              <Text style={[styles.author, hub.type.author]}>{item.sourceName}</Text>
+            </Pressable>
+          )}
+          <View style={styles.roleLine}>
+            <Ionicons name={ROLE_ICONS[roleType]} size={12} color={roleColor} />
+            <Text style={[styles.roleText, { color: roleColor }]}>{feedPostRoleLabel(roleType)}</Text>
+          </View>
+          {item.sourceSubtitle ? (
+            <Text style={styles.subtitle} numberOfLines={1}>
+              {item.sourceSubtitle}
+            </Text>
           ) : null}
+        </View>
+
+        <View style={styles.headerRight}>
           {published ? <Text style={styles.date}>{published}</Text> : null}
+          {showOwnerMenu ? (
+            <FeedSocialPostOwnerMenu
+              item={item}
+              onUpdated={(post) => onSocialPostUpdated?.(post)}
+              onDeleted={onSocialPostDeleted}
+            />
+          ) : null}
         </View>
       </View>
 
       <View style={styles.body}>
         {!socialPost && item.title ? (
-          <Text style={[styles.title, { fontSize: layout.fontSize.body }]}>{item.title}</Text>
+          <Text style={[styles.title, hub.type.author]}>{item.title}</Text>
         ) : null}
         {item.description ? (
-          <Text style={[styles.description, { fontSize: layout.fontSize.body }]}>{item.description}</Text>
+          <Text style={[styles.description, hub.type.body]}>{item.description}</Text>
         ) : null}
 
         {!socialPost && tags.length > 0 ? (
           <View style={styles.tags}>
             {tags.map((tag) => (
-              <View key={`${item.id}-${tag}`} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
+              <View key={`${item.id}-${tag}`} style={[styles.tag, { backgroundColor: roleAccent.bg }]}>
+                <Text style={[styles.tagText, { color: roleColor }]}>{tag}</Text>
               </View>
             ))}
           </View>
@@ -188,200 +231,177 @@ export function FeedPostCard({ item }: Props) {
         {imageSrc ? (
           <Image
             source={{ uri: imageSrc }}
-            style={[styles.postImage, { borderRadius: layout.radius.input }]}
+            style={[
+              styles.postImage,
+              {
+                borderRadius: hub.radius.md,
+                borderColor: roleAccent.border,
+                backgroundColor: roleAccent.bg,
+              },
+            ]}
             contentFit="cover"
           />
         ) : null}
 
         {fileSrc ? (
           <Pressable
-            style={[styles.fileCard, { borderRadius: layout.radius.input }]}
-            onPress={() => void openUrl(fileSrc)}
+            style={[
+              styles.fileCard,
+              {
+                borderRadius: hub.radius.md,
+                borderColor: roleAccent.border,
+                backgroundColor: roleAccent.bg,
+              },
+            ]}
+            onPress={() => void openExternalUrl(fileSrc)}
           >
-            <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+            <View style={[styles.fileIconWrap, { backgroundColor: colors.cardBg }]}>
+              <Ionicons name="document-text-outline" size={20} color={roleColor} />
+            </View>
             <View style={styles.fileMeta}>
               <Text style={styles.fileName} numberOfLines={1}>
                 {attachmentFileName(fileSrc)}
               </Text>
-              <Text style={styles.fileAction}>Download file</Text>
+              <Text style={styles.fileAction}>Tap to open</Text>
             </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.muted} />
           </Pressable>
         ) : null}
       </View>
 
-      {!socialPost ? (
+      {socialPost ? (
         <View style={styles.footer}>
-          <Pressable
-            style={[styles.actionBtn, { backgroundColor: colors.roleBg[roleType], borderRadius: layout.radius.input }]}
+          <HubButton
+            label="View profile"
+            variant="secondary"
+            size="sm"
+            accent={roleType}
+            icon="person-outline"
+            onPress={handleAuthorPress}
+          />
+        </View>
+      ) : (
+        <View style={styles.footer}>
+          <HubButton
+            label={actionLabel}
+            variant="primary"
+            accent={roleType}
             onPress={handleAction}
-          >
-            <Text style={[styles.actionText, { color: roleColor }]}>{actionLabel}</Text>
-          </Pressable>
-
+          />
           {canFollow ? (
-            <Pressable
-              style={[
-                styles.followBtn,
-                isFollowing && styles.followBtnActive,
-                { borderRadius: layout.radius.input },
-              ]}
+            <HubButton
+              label={isFollowing ? "Following" : "Follow"}
+              variant="secondary"
+              icon={isFollowing ? undefined : "person-add-outline"}
+              loading={followBusy}
+              active={isFollowing}
+              accent={roleType}
               onPress={() => void toggleFollow()}
-              disabled={followBusy}
-            >
-              {followBusy ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <>
-                  {!isFollowing ? (
-                    <Ionicons name="person-add-outline" size={14} color={colors.primary} />
-                  ) : null}
-                  <Text style={[styles.followText, isFollowing && styles.followTextActive]}>
-                    {isFollowing ? "Following" : "Follow"}
-                  </Text>
-                </>
-              )}
-            </Pressable>
+            />
           ) : null}
         </View>
-      ) : null}
-    </View>
+      )}
+    </HubCard>
   );
 }
 
 const createStyles = (colors: HubColorScheme) =>
   StyleSheet.create({
-  card: {
-    backgroundColor: colors.cardBg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 12,
-    shadowColor: colors.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  header: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  headerMeta: {
-    flex: 1,
-    gap: 2,
-  },
-  author: {
-    fontWeight: "700",
-    color: colors.foreground,
-  },
-  roleLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  roleText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  subtitle: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-  date: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-  body: {
-    gap: 8,
-  },
-  title: {
-    fontWeight: "700",
-    color: colors.foreground,
-  },
-  description: {
-    color: colors.foreground,
-    lineHeight: 22,
-  },
-  tags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  tag: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  tagText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  postImage: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    maxHeight: 280,
-    backgroundColor: colors.primarySoft,
-  },
-  fileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.primarySoft,
-  },
-  fileMeta: {
-    flex: 1,
-    gap: 2,
-  },
-  fileName: {
-    fontWeight: "600",
-    color: colors.foreground,
-    fontSize: 14,
-  },
-  fileAction: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  footer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  actionBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    minHeight: 36,
-    justifyContent: "center",
-  },
-  actionText: {
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  followBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    backgroundColor: colors.primarySoft,
-    minHeight: 36,
-  },
-  followBtnActive: {
-    backgroundColor: colors.inputBg,
-    borderColor: colors.border,
-  },
-  followText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-  followTextActive: {
-    color: colors.muted,
-  },
-});
+    header: {
+      flexDirection: "row",
+      gap: 12,
+      alignItems: "flex-start",
+    },
+    headerMeta: {
+      flex: 1,
+      gap: 2,
+      paddingTop: 2,
+    },
+    headerRight: {
+      alignItems: "flex-end",
+      gap: 4,
+      minWidth: 48,
+    },
+    author: { color: colors.foreground },
+    roleLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    roleText: {
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    subtitle: {
+      fontSize: 12,
+      color: colors.muted,
+    },
+    date: {
+      fontSize: 11,
+      color: colors.muted,
+      fontWeight: "500",
+    },
+    body: {
+      gap: 10,
+      marginTop: 2,
+    },
+    title: {
+      color: colors.foreground,
+    },
+    description: {
+      color: colors.foreground,
+    },
+    tags: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 6,
+    },
+    tag: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+    },
+    tagText: {
+      fontSize: 11,
+      fontWeight: "600",
+    },
+    postImage: {
+      width: "100%",
+      aspectRatio: 16 / 9,
+      maxHeight: 260,
+      borderWidth: 1,
+    },
+    fileCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      padding: 12,
+      borderWidth: 1,
+    },
+    fileIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    fileMeta: {
+      flex: 1,
+      gap: 2,
+    },
+    fileName: {
+      fontWeight: "600",
+      color: colors.foreground,
+      fontSize: 14,
+    },
+    fileAction: {
+      fontSize: 11,
+      color: colors.muted,
+    },
+    footer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginTop: 4,
+    },
+  });

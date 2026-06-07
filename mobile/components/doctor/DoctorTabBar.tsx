@@ -4,7 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DOCTOR_RADIUS } from "@/components/doctor/ui/doctorDesignSystem";
-import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 const VISIBLE_TABS = new Set(["dashboard", "requests", "projects", "courses", "profile"]);
@@ -12,7 +12,7 @@ const VISIBLE_TABS = new Set(["dashboard", "requests", "projects", "courses", "p
 export function DoctorTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
-  const { colors } = useHubTheme();
+  const { colors } = useDoctorTheme();
   const bottomPad = Math.max(insets.bottom, 10);
 
   return (
