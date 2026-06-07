@@ -14,13 +14,17 @@ const api = axios.create({
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = await getItem('token')
+  const headers = AxiosHeaders.from(config.headers ?? {})
+
+  if (config.data instanceof FormData) {
+    headers.delete('Content-Type')
+  }
 
   if (token) {
-    // Axios v1 uses AxiosHeaders; merging ensures Authorization is actually sent
-    const headers = AxiosHeaders.from(config.headers ?? {})
     headers.set('Authorization', `Bearer ${token}`)
-    config.headers = headers
   }
+
+  config.headers = headers
 
   return config
 })

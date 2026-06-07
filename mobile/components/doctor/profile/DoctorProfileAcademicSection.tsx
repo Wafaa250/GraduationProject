@@ -60,19 +60,23 @@ export function DoctorProfileAcademicSection({
     {
       icon: "time-outline",
       label: "Years of experience",
-      value: yearsOfExperience != null ? String(yearsOfExperience) : "",
+      value: yearsOfExperience != null && yearsOfExperience > 0 ? String(yearsOfExperience) : "",
     },
-  ];
+  ].filter((row) => row.value.trim().length > 0) as Row[];
 
   return (
     <>
       <View style={styles.flatSection}>
         <Text style={styles.sectionTitle}>Academic Information</Text>
-        <View style={styles.infoList}>
-          {rows.map((row) => (
-            <InfoRow key={row.label} {...row} />
-          ))}
-        </View>
+        {rows.length === 0 ? (
+          <Text style={styles.tagEmpty}>No academic details added yet. Edit your profile to complete this section.</Text>
+        ) : (
+          <View style={styles.infoList}>
+            {rows.map((row) => (
+              <InfoRow key={row.label} {...row} />
+            ))}
+          </View>
+        )}
       </View>
       <View style={styles.sheetDivider} />
     </>

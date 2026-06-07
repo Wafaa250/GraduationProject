@@ -30,4 +30,8 @@ export type CourseProjectWorkspacePanelProps = {
   bundle: CourseProjectWorkspaceBundle | null;
   bundleLoading: boolean;
   onReload: () => void;
+  previewTeams?: CourseProjectTeamsResponse | null;
+  onPreviewReady?: (result: CourseProjectTeamsResponse) => void;
+  onClearPreview?: () => void;
+  onNavigateToTeams?: () => void;
 };

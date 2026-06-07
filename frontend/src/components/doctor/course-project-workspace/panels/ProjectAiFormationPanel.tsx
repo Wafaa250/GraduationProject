@@ -5,9 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CourseWorkspaceEmptyState } from "@/components/doctor/course-workspace/CourseWorkspaceEmptyState";
-import { TeamCard } from "@/components/doctor/course-project-workspace/TeamCard";
-import { ViewTeamDialog } from "@/components/doctor/course-project-workspace/ViewTeamDialog";
-import type { CourseTeam } from "@/api/doctorCoursesApi";
 import {
   buildDescriptionWithFormation,
   parseAiFormationFromDescription,
@@ -18,7 +15,6 @@ import {
   generateCourseProjectTeams,
   previewCourseProjectTeams,
   updateCourseProject,
-  type CourseProjectTeamsResponse,
 } from "@/api/doctorCoursesApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { toast } from "@/hooks/use-toast";
@@ -35,6 +31,9 @@ export function ProjectAiFormationPanel({
   bundle,
   bundleLoading,
   onReload,
+  onPreviewReady,
+  onClearPreview,
+  onNavigateToTeams,
 }: CourseProjectWorkspacePanelProps) {
   const [config, setConfig] = useState<AiFormationConfig>({
     teamSize: 4,
@@ -47,8 +46,6 @@ export function ProjectAiFormationPanel({
   const [savingConfig, setSavingConfig] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [preview, setPreview] = useState<CourseProjectTeamsResponse | null>(null);
-  const [viewTeam, setViewTeam] = useState<CourseTeam | null>(null);
 
   useEffect(() => {
     if (!bundle?.project) return;
@@ -64,8 +61,8 @@ export function ProjectAiFormationPanel({
       aiMatchingNotes: parsed.aiMatchingNotes ?? "",
     });
     setConfigSaved(true);
-    setPreview(null);
-  }, [bundle?.project]);
+    onClearPreview?.();
+  }, [bundle?.project, onClearPreview]);
 
   if (bundleLoading || !bundle) {
     return <div className="h-56 animate-pulse rounded-xl border border-border/60 bg-card" />;
@@ -126,7 +123,7 @@ export function ProjectAiFormationPanel({
     setPreviewing(true);
     try {
       const result = await previewCourseProjectTeams(workspace.courseId, workspace.projectId);
-      setPreview(result);
+      onPreviewReady?.(result);
       toast({ title: "Preview ready", description: `${result.teamCount} proposed teams.` });
     } catch (err) {
       toast({
@@ -154,12 +151,13 @@ export function ProjectAiFormationPanel({
     setGenerating(true);
     try {
       const result = await generateCourseProjectTeams(workspace.courseId, workspace.projectId);
-      setPreview(null);
+      onClearPreview?.();
       toast({
         title: regenerate ? "Teams regenerated" : "Teams generated",
         description: `${result.teamCount} teams saved for this project.`,
       });
       onReload();
+      onNavigateToTeams?.();
     } catch (err) {
       toast({
         variant: "destructive",
@@ -292,31 +290,6 @@ export function ProjectAiFormationPanel({
           </Button>
         )}
       </section>
-
-      {preview && preview.teams.length > 0 ? (
-        <section>
-          <h3 className="mb-3 text-sm font-semibold text-foreground">Preview (not saved)</h3>
-          <div className="grid gap-3 md:grid-cols-2">
-            {preview.teams.map((team) => (
-              <TeamCard
-                key={`preview-${team.teamIndex}`}
-                team={team}
-                onView={() => setViewTeam(team)}
-              />
-            ))}
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Preview uses live AI team generation without saving. Click Generate teams to persist.
-          </p>
-        </section>
-      ) : null}
-
-      <ViewTeamDialog
-        open={viewTeam != null}
-        team={viewTeam}
-        projectTitle={workspace.projectTitle}
-        onClose={() => setViewTeam(null)}
-      />
     </div>
   );
 }

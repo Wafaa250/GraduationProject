@@ -8,6 +8,7 @@ import { createDoctorProfileStyles } from "@/components/doctor/profile/doctorPro
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { DoctorProfileViewData } from "@/lib/doctorProfileTypes";
+import { uniqueDoctorProfileLabels } from "@/lib/doctorProfileText";
 
 type Props = {
   data: DoctorProfileViewData;
@@ -76,8 +77,8 @@ export function DoctorProfileHero({ data, onEditPress }: Props) {
   const { colors } = useHubTheme();
   const styles = useMemo(() => createDoctorProfileStyles(colors), [colors]);
 
-  const headline = [data.academicRank.trim(), data.specialization.trim()].filter(Boolean).join(" · ");
-  const chips = [data.faculty.trim(), data.department.trim(), data.specialization.trim()].filter(Boolean);
+  const headline = uniqueDoctorProfileLabels([data.academicRank, data.specialization]).join(" · ");
+  const chips = uniqueDoctorProfileLabels([data.faculty, data.department, data.specialization]);
   const linkedinTrim = data.linkedin.trim();
   const emailTrim = data.email.trim();
 

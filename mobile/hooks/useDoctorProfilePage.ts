@@ -5,6 +5,10 @@ import { getDoctorDashboardSummary } from "@/api/doctorDashboardApi";
 import { getDoctorMe } from "@/api/meApi";
 import { mapDoctorMeToHeaderProfile } from "@/lib/doctorHubMappers";
 import type { DoctorProfileViewData } from "@/lib/doctorProfileTypes";
+import {
+  sanitizeDoctorProfileList,
+  sanitizeDoctorProfileText,
+} from "@/lib/doctorProfileText";
 
 export function useDoctorProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -19,21 +23,21 @@ export function useDoctorProfilePage() {
       const dp = me.doctorProfile;
       const header = mapDoctorMeToHeaderProfile(me);
       setData({
-        name: me.user?.name ?? "",
-        email: me.user?.email ?? "",
-        department: dp?.department ?? "",
-        faculty: dp?.faculty ?? "",
-        specialization: dp?.specialization ?? "",
-        university: dp?.university ?? "",
-        academicRank: dp?.academicRank ?? "",
-        bio: dp?.bio ?? "",
+        name: sanitizeDoctorProfileText(me.user?.name) || me.user?.name?.trim() || "",
+        email: me.user?.email?.trim() ?? "",
+        department: sanitizeDoctorProfileText(dp?.department),
+        faculty: sanitizeDoctorProfileText(dp?.faculty),
+        specialization: sanitizeDoctorProfileText(dp?.specialization),
+        university: sanitizeDoctorProfileText(dp?.university),
+        academicRank: sanitizeDoctorProfileText(dp?.academicRank),
+        bio: sanitizeDoctorProfileText(dp?.bio),
         yearsOfExperience: dp?.yearsOfExperience ?? null,
-        officeHours: dp?.officeHours ?? "",
-        linkedin: dp?.linkedin ?? "",
-        technicalSkills: dp?.technicalSkills ?? [],
-        researchSkills: dp?.researchSkills ?? [],
-        researchInterests: dp?.researchInterests ?? [],
-        preferredProjectAreas: dp?.preferredProjectAreas ?? [],
+        officeHours: sanitizeDoctorProfileText(dp?.officeHours),
+        linkedin: sanitizeDoctorProfileText(dp?.linkedin),
+        technicalSkills: sanitizeDoctorProfileList(dp?.technicalSkills),
+        researchSkills: sanitizeDoctorProfileList(dp?.researchSkills),
+        researchInterests: sanitizeDoctorProfileList(dp?.researchInterests),
+        preferredProjectAreas: sanitizeDoctorProfileList(dp?.preferredProjectAreas),
         photoUrl: header.profilePhoto,
         supervisedStudents: summary.supervisedStudentsCount,
         activeProjects: summary.supervisedCount,

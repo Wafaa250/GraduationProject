@@ -42,4 +42,19 @@ namespace GraduationProject.API.DTOs
         public List<string> NotFound { get; set; } = new();
         public List<string> AlreadyEnrolled { get; set; } = new();
     }
+
+    public class ImportedStudentSummaryDto
+    {
+        public string UniversityId { get; set; } = string.Empty;
+        public string? Name { get; set; }
+    }
+
+    public class ImportSectionStudentsResultDto
+    {
+        public int ParsedCount { get; set; }
+        public int Added { get; set; }
+        public List<ImportedStudentSummaryDto> AddedStudents { get; set; } = new();
+        public List<string> Skipped { get; set; } = new();
+        public List<string> InvalidIds { get; set; } = new();
+    }
 }

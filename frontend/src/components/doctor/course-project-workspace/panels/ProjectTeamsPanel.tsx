@@ -6,7 +6,12 @@ import { ViewTeamDialog } from "@/components/doctor/course-project-workspace/Vie
 import type { CourseTeam } from "@/api/doctorCoursesApi";
 import type { CourseProjectWorkspacePanelProps } from "@/components/doctor/course-project-workspace/types";
 
-export function ProjectTeamsPanel({ workspace, bundle, bundleLoading }: CourseProjectWorkspacePanelProps) {
+export function ProjectTeamsPanel({
+  workspace,
+  bundle,
+  bundleLoading,
+  previewTeams,
+}: CourseProjectWorkspacePanelProps) {
   const [viewTeam, setViewTeam] = useState<CourseTeam | null>(null);
 
   if (bundleLoading) {
@@ -19,7 +24,9 @@ export function ProjectTeamsPanel({ workspace, bundle, bundleLoading }: CoursePr
     );
   }
 
-  const teams = bundle?.teams?.teams ?? [];
+  const savedTeams = bundle?.teams?.teams ?? [];
+  const isPreview = (previewTeams?.teams.length ?? 0) > 0;
+  const teams = isPreview ? previewTeams!.teams : savedTeams;
 
   if (teams.length === 0) {
     return (

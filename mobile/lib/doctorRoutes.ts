@@ -15,8 +15,28 @@ export function doctorProjectPath(projectId: number): string {
   return `/doctor/projects/${projectId}`;
 }
 
+export function doctorProjectChatPath(projectId: number): string {
+  return `/doctor/projects/chat/${projectId}`;
+}
+
 export function doctorCoursePath(courseId: number): string {
   return `/doctor/courses/${courseId}`;
+}
+
+export function doctorSectionPath(courseId: number, sectionId: number): string {
+  return `/doctor/courses/${courseId}/sections/${sectionId}`;
+}
+
+export function doctorCourseProjectPath(
+  courseId: number,
+  sectionId: number,
+  projectId: number,
+): string {
+  return `/doctor/courses/${courseId}/sections/${sectionId}/projects/${projectId}`;
+}
+
+export function doctorMessageThreadPath(conversationId: number): string {
+  return `/doctor/messages/${conversationId}`;
 }
 
 export type DoctorMetricKey = "pending" | "active" | "courses" | "students" | "messages";

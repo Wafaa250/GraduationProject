@@ -64,6 +64,13 @@ export type DoctorSupervisorRequest = {
   history?: DoctorSupervisorRequestHistoryItem[];
 };
 
+export type DoctorSupervisorRequestsSummary = {
+  pendingCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  totalCount: number;
+};
+
 export type DoctorSupervisedProject = {
   projectId: number;
   name: string;
@@ -102,9 +109,99 @@ export async function getDoctorSupervisorRequests(): Promise<DoctorSupervisorReq
   return Array.isArray(data) ? data : [];
 }
 
+export async function getDoctorSupervisorRequestsSummary(): Promise<DoctorSupervisorRequestsSummary> {
+  const { data } = await api.get<DoctorSupervisorRequestsSummary>("/doctors/me/requests-summary");
+  return {
+    pendingCount: data?.pendingCount ?? 0,
+    acceptedCount: data?.acceptedCount ?? 0,
+    rejectedCount: data?.rejectedCount ?? 0,
+    totalCount: data?.totalCount ?? 0,
+  };
+}
+
 export async function getDoctorSupervisedProjects(): Promise<DoctorSupervisedProject[]> {
-  const { data } = await api.get<DoctorSupervisedProject[]>("/doctors/me/supervised-projects");
-  return Array.isArray(data) ? data : [];
+  const { data } = await api.get("/doctors/me/supervised-projects");
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map(normalizeSupervisedProject).filter((p): p is DoctorSupervisedProject => p !== null);
+}
+
+function asRecord(raw: unknown): Record<string, unknown> | null {
+  return raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+}
+
+function pickString(raw: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function pickNullableString(raw: Record<string, unknown>, ...keys: string[]): string | null {
+  const value = pickString(raw, ...keys);
+  return value || null;
+}
+
+function pickNumber(raw: Record<string, unknown>, ...keys: string[]): number {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim() && !Number.isNaN(Number(value))) {
+      return Number(value);
+    }
+  }
+  return 0;
+}
+
+function pickBool(raw: Record<string, unknown>, ...keys: string[]): boolean {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "boolean") return value;
+  }
+  return false;
+}
+
+function pickStringList(raw: Record<string, unknown>, ...keys: string[]): string[] {
+  for (const key of keys) {
+    const value = raw[key];
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    }
+  }
+  return [];
+}
+
+function normalizeSupervisedProject(raw: unknown): DoctorSupervisedProject | null {
+  const record = asRecord(raw);
+  if (!record) return null;
+
+  const projectId = pickNumber(record, "projectId", "ProjectId");
+  if (!projectId) return null;
+
+  const ownerRaw = asRecord(record.owner ?? record.Owner) ?? {};
+  const studentId = pickNumber(ownerRaw, "studentId", "StudentId");
+
+  return {
+    projectId,
+    name: pickString(record, "name", "Name"),
+    description: pickNullableString(record, "description", "Description"),
+    projectType: pickString(record, "projectType", "ProjectType") || undefined,
+    projectTypeLabel: pickNullableString(record, "projectTypeLabel", "ProjectTypeLabel") ?? undefined,
+    requiredSkills: pickStringList(record, "requiredSkills", "RequiredSkills"),
+    preferredRoles: pickStringList(record, "preferredRoles", "PreferredRoles"),
+    partnersCount: pickNumber(record, "partnersCount", "PartnersCount"),
+    memberCount: pickNumber(record, "memberCount", "MemberCount"),
+    isFull: pickBool(record, "isFull", "IsFull"),
+    createdAt: pickString(record, "createdAt", "CreatedAt"),
+    owner: {
+      studentId,
+      userId: pickNumber(ownerRaw, "userId", "UserId"),
+      name: pickString(ownerRaw, "name", "Name"),
+      university: pickString(ownerRaw, "university", "University"),
+      major: pickString(ownerRaw, "major", "Major"),
+      faculty: pickNullableString(ownerRaw, "faculty", "Faculty"),
+    },
+  };
 }
 
 export async function acceptSupervisorRequest(

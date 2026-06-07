@@ -302,6 +302,82 @@ namespace GraduationProject.API.Controllers
             });
         }
 
+        [HttpPost("sections/{sectionId:int}/students/import")]
+        [Authorize(Roles = "doctor")]
+        [RequestSizeLimit(10 * 1024 * 1024)]
+        public async Task<IActionResult> ImportSectionStudents(
+            int sectionId,
+            [FromForm] IFormFile? file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "A roster file is required." });
+
+            var fileName = file.FileName ?? "roster";
+            var ext = Path.GetExtension(fileName).ToLowerInvariant();
+            var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ".csv", ".xlsx", ".docx", ".pdf", ".txt",
+            };
+            if (!allowed.Contains(ext))
+                return BadRequest(new { message = "Use CSV, Excel (.xlsx), Word (.docx), or PDF." });
+
+            var doctorId = await GetCurrentDoctorIdAsync();
+            if (doctorId == null)
+                return Unauthorized(new { message = "Doctor profile not found." });
+
+            var section = await _sectionRepo.GetByIdAsync(sectionId);
+            if (section == null)
+                return NotFound(new { message = "Section not found." });
+
+            var course = await _courseRepo.GetByIdAsync(section.CourseId);
+            if (course == null || course.DoctorId != doctorId.Value)
+                return Forbid();
+
+            byte[] bytes;
+            await using (var stream = file.OpenReadStream())
+            await using (var ms = new MemoryStream())
+            {
+                await stream.CopyToAsync(ms);
+                bytes = ms.ToArray();
+            }
+
+            var parsedIds = SectionStudentRosterParser.ParseIds(bytes, fileName);
+            if (parsedIds.Count == 0)
+            {
+                return Ok(new ImportSectionStudentsResultDto
+                {
+                    ParsedCount = 0,
+                    Added = 0,
+                });
+            }
+
+            var (added, notFound, alreadyEnrolled) =
+                await _sectionRepo.AddStudentsAsync(sectionId, parsedIds.ToList());
+
+            if (added.Count > 0)
+            {
+                await _notifications.NotifyStudentsAddedToSectionAsync(
+                    sectionId,
+                    section.Name,
+                    course.Id,
+                    course.Name,
+                    added.Select(e => e.StudentProfileId));
+            }
+
+            return Ok(new ImportSectionStudentsResultDto
+            {
+                ParsedCount = parsedIds.Count,
+                Added = added.Count,
+                AddedStudents = added.Select(e => new ImportedStudentSummaryDto
+                {
+                    UniversityId = e.Student?.StudentId ?? string.Empty,
+                    Name = e.Student?.User?.Name,
+                }).ToList(),
+                Skipped = alreadyEnrolled,
+                InvalidIds = notFound,
+            });
+        }
+
         [HttpGet("{courseId:int}/students")]
         [Authorize(Roles = "student")]
         public async Task<IActionResult> GetCourseStudents(int courseId)
@@ -1646,6 +1722,72 @@ namespace GraduationProject.API.Controllers
             return Ok(MapTeamsResponse(saved, project, students));
         }
 
+        [HttpPost("{courseId:int}/projects/{projectId:int}/preview-teams")]
+        [Authorize(Roles = "doctor")]
+        public async Task<IActionResult> PreviewTeams(int courseId, int projectId)
+        {
+            var doctorId = await GetCurrentDoctorIdAsync();
+            if (doctorId == null)
+                return Unauthorized(new { message = "Doctor profile not found." });
+
+            var course = await _courseRepo.GetByIdAsync(courseId);
+            if (course == null || course.DoctorId != doctorId.Value)
+                return NotFound(new { message = "Course not found." });
+
+            var project = await _projectRepo.GetByIdAsync(projectId);
+            if (project == null || project.CourseId != courseId)
+                return NotFound(new { message = "Project not found." });
+
+            if (project.AiMode != "doctor")
+                return BadRequest(new { message = "Team preview is only available for doctor-assign projects." });
+
+            List<SectionEnrollment> enrollments;
+            if (project.ApplyToAllSections)
+            {
+                enrollments = (await _sectionRepo.GetAllEnrollmentsByCourseIdAsync(courseId)).ToList();
+            }
+            else
+            {
+                var sectionIds = project.Sections.Select(s => s.CourseSectionId).ToHashSet();
+                var allEnrollments = await _sectionRepo.GetAllEnrollmentsByCourseIdAsync(courseId);
+                enrollments = allEnrollments.Where(e => sectionIds.Contains(e.CourseSectionId)).ToList();
+            }
+
+            if (enrollments.Count == 0)
+                return BadRequest(new { message = "No students enrolled in this project's sections." });
+
+            var students = enrollments
+                .GroupBy(e => e.StudentProfileId)
+                .Select(g =>
+                {
+                    var s = g.First().Student;
+                    var skills = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(s?.TechnicalSkills))
+                    {
+                        try { skills = JsonSerializer.Deserialize<List<string>>(s.TechnicalSkills) ?? new(); }
+                        catch { /* ignore */ }
+                    }
+                    return new StudentForTeam(
+                        StudentProfileId: g.Key,
+                        UserId: s?.UserId ?? 0,
+                        Name: s?.User?.Name ?? string.Empty,
+                        Skills: skills,
+                        Major: s?.Major,
+                        Bio: s?.Bio);
+                })
+                .ToList();
+
+            var result = await _teamService.GenerateTeamsAsync(
+                courseId,
+                projectId,
+                project.Title,
+                project.Description,
+                project.TeamSize,
+                students);
+
+            return Ok(MapPreviewTeamsResponse(result, enrollments));
+        }
+
         [HttpGet("{courseId:int}/projects/{projectId:int}/teams")]
         [Authorize(Roles = "doctor")]
         public async Task<IActionResult> GetSavedTeams(int courseId, int projectId)
@@ -1843,6 +1985,38 @@ namespace GraduationProject.API.Controllers
                 teamSize = project.TeamSize,
                 teamCount = teamList.Count,
                 teams = teamList.Select(t => MapTeamDto(t, students)),
+            };
+        }
+
+        private static object MapPreviewTeamsResponse(
+            GenerateTeamsResult result,
+            List<SectionEnrollment> enrollments)
+        {
+            var universityByStudentId = enrollments
+                .GroupBy(e => e.StudentProfileId)
+                .ToDictionary(g => g.Key, g => g.First().Student?.StudentId);
+
+            return new
+            {
+                projectId = result.ProjectId,
+                projectTitle = result.ProjectTitle,
+                teamSize = result.TeamSize,
+                teamCount = result.TeamCount,
+                teams = result.Teams.Select(t => new
+                {
+                    teamId = 0,
+                    teamIndex = t.TeamIndex,
+                    memberCount = t.MemberCount,
+                    members = t.Members.Select(m => new
+                    {
+                        studentId = m.StudentId,
+                        userId = m.UserId,
+                        name = m.Name,
+                        universityId = universityByStudentId.GetValueOrDefault(m.StudentId),
+                        matchScore = Math.Round(m.MatchScore, 1),
+                        skills = m.Skills,
+                    }),
+                }),
             };
         }
 

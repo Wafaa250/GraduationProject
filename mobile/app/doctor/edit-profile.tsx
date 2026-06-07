@@ -38,6 +38,10 @@ import {
   joinDoctorSkillList,
   splitDoctorSkillList,
 } from "@/lib/doctorProfileConstants";
+import {
+  sanitizeDoctorProfileList,
+  sanitizeDoctorProfileText,
+} from "@/lib/doctorProfileText";
 
 const BIO_MAX = 500;
 
@@ -69,19 +73,19 @@ export default function DoctorEditProfileScreen() {
     const dp = me.doctorProfile;
     setPhoto(header.profilePhoto);
     setFullName(me.user?.name ?? "");
-    setDepartment(dp?.department ?? "");
-    setFaculty(dp?.faculty ?? "");
-    setSpecialization(dp?.specialization ?? "");
-    setUniversity(dp?.university ?? "");
-    setAcademicRank(dp?.academicRank ?? "");
-    setBio(dp?.bio ?? "");
-    setLinkedin(dp?.linkedin ?? "");
-    setOfficeHours(dp?.officeHours ?? "");
+    setDepartment(sanitizeDoctorProfileText(dp?.department));
+    setFaculty(sanitizeDoctorProfileText(dp?.faculty));
+    setSpecialization(sanitizeDoctorProfileText(dp?.specialization));
+    setUniversity(sanitizeDoctorProfileText(dp?.university));
+    setAcademicRank(sanitizeDoctorProfileText(dp?.academicRank));
+    setBio(sanitizeDoctorProfileText(dp?.bio));
+    setLinkedin(sanitizeDoctorProfileText(dp?.linkedin));
+    setOfficeHours(sanitizeDoctorProfileText(dp?.officeHours));
     setYearsOfExperience(dp?.yearsOfExperience != null ? String(dp.yearsOfExperience) : "");
-    setTechnicalSkills(joinDoctorSkillList(dp?.technicalSkills ?? []));
-    setResearchSkills(joinDoctorSkillList(dp?.researchSkills ?? []));
-    setResearchInterests(dp?.researchInterests ?? []);
-    setPreferredProjectAreas(dp?.preferredProjectAreas ?? []);
+    setTechnicalSkills(joinDoctorSkillList(sanitizeDoctorProfileList(dp?.technicalSkills)));
+    setResearchSkills(joinDoctorSkillList(sanitizeDoctorProfileList(dp?.researchSkills)));
+    setResearchInterests(sanitizeDoctorProfileList(dp?.researchInterests));
+    setPreferredProjectAreas(sanitizeDoctorProfileList(dp?.preferredProjectAreas));
   }, []);
 
   useEffect(() => {
