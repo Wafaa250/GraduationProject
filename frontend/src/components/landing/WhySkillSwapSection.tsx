@@ -21,7 +21,7 @@ const rows = [
   {
     topic: "Organizations",
     traditional: "Manual volunteer coordination",
-    skillswap: "Opportunity posts with curated shortlists",
+    skillswap: "AI-curated candidate shortlists for each position",
   },
 ];
 

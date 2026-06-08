@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Megaphone, MessageSquare, Sparkles, UserCheck } from "lucide-react";
+import { Mail, Megaphone, Sparkles, UserCheck } from "lucide-react";
 import { ExperienceSection } from "@/components/landing/ExperienceSection";
 
 function CompaniesPanel() {
@@ -103,9 +103,9 @@ export function CompaniesSection() {
           desc: "Inspect profiles, portfolios, and match reasoning in one place.",
         },
         {
-          icon: MessageSquare,
+          icon: Mail,
           title: "Contact Talents",
-          desc: "Reach out in-app to start interviews or trial collaborations.",
+          desc: "View student contact information and connect through external communication channels.",
         },
       ]}
       panel={<CompaniesPanel />}
