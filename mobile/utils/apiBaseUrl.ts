@@ -9,35 +9,32 @@ function normalizeApiBaseUrl(raw: string): string {
   return `${trimmed}/api`
 }
 
-/** Expo dev server host (e.g. 192.168.x.x) when using Expo Go / LAN — API runs on same machine. */
-function devMachineHostFromExpo(): string | null {
-  const uri = Constants.expoConfig?.hostUri
-  if (!uri || typeof uri !== 'string') return null
-  const host = uri.split(':')[0]?.trim()
-  if (!host || host === 'localhost' || host === '127.0.0.1') return null
-  return host
-}
-
-/**
- * REST base URL including `/api`, e.g. `http://localhost:5262/api`.
- * Override with `EXPO_PUBLIC_API_BASE_URL` (with or without trailing `/api`).
- */
-export function getApiBaseUrl(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim()
-  if (fromEnv) return normalizeApiBaseUrl(fromEnv)
-
-  if (Platform.OS === 'web') {
+function webApiBaseUrl(): string {
+  if (typeof window === 'undefined') {
     return `http://localhost:${API_PORT}/api`
   }
 
-  const lan = devMachineHostFromExpo()
-  if (lan) {
-    return `http://${lan}:${API_PORT}/api`
+  const { hostname } = window.location
+
+  return `http://${hostname}:${API_PORT}/api`
+}
+
+export function getApiBaseUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim()
+
+  if (fromEnv) {
+    const url = normalizeApiBaseUrl(fromEnv)
+    console.log('API URL (env):', url)
+    return url
   }
 
-  if (Platform.OS === 'android') {
-    return `http://10.0.2.2:${API_PORT}/api`
+  if (Platform.OS === 'web') {
+    const url = webApiBaseUrl()
+    console.log('API URL (web):', url)
+    return url
   }
 
-  return `http://localhost:${API_PORT}/api`
+  const url = `http://localhost:${API_PORT}/api`
+  console.log('API URL (fallback):', url)
+  return url
 }

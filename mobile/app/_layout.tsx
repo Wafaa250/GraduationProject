@@ -60,7 +60,7 @@ function RootNavigation() {
           <Stack.Screen name="events/[eventId]" />
           <Stack.Screen name="recruitment/[campaignId]" />
           <Stack.Screen name="projects/[projectId]" />
-          <Stack.Screen name="company/talent-requests/[id]" />
+          <Stack.Screen name="(public)/company/talent-requests/[id]" />
           <Stack.Screen name="opportunities/companies/[companyProfileId]/[requestId]" />
           <Stack.Screen name="doctor" options={{ headerShown: false }} />
           <Stack.Screen name="company" options={{ headerShown: false }} />

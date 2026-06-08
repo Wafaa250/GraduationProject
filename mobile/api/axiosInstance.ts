@@ -7,10 +7,14 @@ import { getApiBaseUrl } from '@/utils/apiBaseUrl'
  * Single axios client for the app. All API modules should import `api` from here
  * so every request gets the Bearer token from SecureStore (native) or sessionStorage (web).
  */
+const baseURL = getApiBaseUrl()
 const api = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL,
   headers: { 'Content-Type': 'application/json' },
 })
+
+console.log('API URL:', baseURL)
+console.log('Axios baseURL:', api.defaults.baseURL)
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = await getItem('token')

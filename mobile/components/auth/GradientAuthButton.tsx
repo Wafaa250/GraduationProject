@@ -5,6 +5,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AUTH_COLORS } from "@/constants/authTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
+const DEFAULT_GRADIENT_COLORS = ["#6366F1", "#7C3AED", "#A855F7"] as const;
+
 type GradientAuthButtonProps = {
   label: string;
   onPress: () => void;
@@ -32,14 +34,18 @@ export function GradientAuthButton({
         {
           borderRadius: layout.radius.button,
           opacity: isDisabled ? 0.45 : pressed ? 0.92 : 1,
-          transform: pressed && !isDisabled ? [{ scale: 0.985 }] : undefined,
+          transform: [{ scale: pressed && !isDisabled ? 0.985 : 1 }],
         },
       ]}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
     >
       <LinearGradient
-        colors={[...AUTH_COLORS.gradient]}
+        colors={[
+          ...(Array.isArray(AUTH_COLORS.gradient) && AUTH_COLORS.gradient.length >= 2
+            ? AUTH_COLORS.gradient
+            : DEFAULT_GRADIENT_COLORS),
+        ]}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
         style={[
