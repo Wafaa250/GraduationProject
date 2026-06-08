@@ -25,6 +25,9 @@ namespace GraduationProject.API.Models
         [Column("role_title")]
         public string RoleTitle { get; set; } = string.Empty;
 
+        [Column("display_order")]
+        public int DisplayOrder { get; set; }
+
         [Column("major")]
         public string? Major { get; set; }
 

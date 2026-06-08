@@ -44,7 +44,7 @@ export type Collaboration = {
 
 export const students: Student[] = [
   {
-    id: "s1", name: "Lana Khaled", university: "Birzeit University", year: "4th year",
+    id: "s1", name: "Lana Khaled", university: "An-Najah National University", year: "4th year",
     specialization: "Software Engineering",
     skills: ["Flutter", "Dart", "Firebase", "UI/UX"], partialSkills: ["State Management"],
     interests: ["Mobile Apps", "EdTech", "Social Impact"], availability: "Available",
@@ -68,7 +68,7 @@ export const students: Student[] = [
     collaborationStyle: "Research-oriented, paper-aware, structured sprints.",
   },
   {
-    id: "s3", name: "Sara Mansour", university: "Bethlehem University", year: "Graduating",
+    id: "s3", name: "Sara Mansour", university: "An-Najah National University", year: "Graduating",
     specialization: "Design & HCI",
     skills: ["Figma", "User Research", "Prototyping", "Design Systems"],
     interests: ["Service Design", "Accessibility", "Civic Tech"],
@@ -78,7 +78,7 @@ export const students: Student[] = [
     collaborationStyle: "Workshop-driven, prototype early, iterate often.",
   },
   {
-    id: "s4", name: "Hadi Daoud", university: "Palestine Polytechnic", year: "4th year",
+    id: "s4", name: "Hadi Daoud", university: "An-Najah National University", year: "4th year",
     specialization: "Backend Engineering",
     skills: ["Node.js", "PostgreSQL", "Docker", "AWS"], partialSkills: ["Kubernetes"],
     interests: ["Distributed Systems", "Fintech"], availability: "Available",
@@ -88,7 +88,7 @@ export const students: Student[] = [
     collaborationStyle: "Spec-first, code reviews valued.",
   },
   {
-    id: "s5", name: "Rania Saleh", university: "Birzeit University", year: "Masters",
+    id: "s5", name: "Rania Saleh", university: "An-Najah National University", year: "Masters",
     specialization: "Machine Learning",
     skills: ["TensorFlow", "MLOps", "Computer Vision"], interests: ["Agritech", "Edge AI"],
     availability: "Limited", compatibility: 90, role: "ML Engineer",
@@ -97,7 +97,7 @@ export const students: Student[] = [
     collaborationStyle: "Hypothesis-driven, metrics-led.",
   },
   {
-    id: "s6", name: "Yousef Abu Rahma", university: "An-Najah", year: "3rd year",
+    id: "s6", name: "Yousef Abu Rahma", university: "An-Najah National University", year: "3rd year",
     specialization: "Full-Stack",
     skills: ["React", "TypeScript", "Next.js", "Tailwind"], interests: ["SaaS", "DX Tooling"],
     availability: "Available", compatibility: 87, role: "Frontend Engineer",

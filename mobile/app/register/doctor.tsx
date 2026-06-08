@@ -171,10 +171,10 @@ export default function DoctorRegisterScreen() {
             error={errors.fullName}
           />
           <RegTextField
-            label="University email"
+            label="Email"
             value={form.email}
             onChangeText={(v) => setField("email", v)}
-            placeholder="doctor@najah.edu"
+            placeholder="doctor.name@gmail.com"
             keyboardType="email-address"
             autoCapitalize="none"
             error={errors.email}

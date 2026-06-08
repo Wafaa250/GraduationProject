@@ -1,7 +1,7 @@
 SELECT 'users' AS entity, u.id, u.email, u.role FROM users u WHERE u.email LIKE '%+e2e@%' ORDER BY u.email;
 SELECT 'company_profiles' AS entity, cp.id, cp.company_name, cp.user_id FROM company_profiles cp WHERE cp.normalized_company_name = 'helix martin systems';
 SELECT 'company_members' AS entity, cm.id, cm.user_id, cm.company_profile_id, cm.role FROM company_members cm JOIN company_profiles cp ON cp.id = cm.company_profile_id WHERE cp.normalized_company_name = 'helix martin systems';
-SELECT 'student_profiles' AS entity, sp.id, u.email FROM student_profiles sp JOIN users u ON u.id = sp.user_id WHERE u.email LIKE '%+e2e@metrosu.edu' ORDER BY u.email;
+SELECT 'student_profiles' AS entity, sp.id, u.email FROM student_profiles sp JOIN users u ON u.id = sp.user_id WHERE u.email LIKE '%+e2e@gmail.com' ORDER BY u.email;
 SELECT 'company_requests' AS entity, cr.id, cr.title, cr.status, cr.request_status FROM company_requests cr JOIN company_profiles cp ON cp.id = cr.company_profile_id WHERE cp.normalized_company_name = 'helix martin systems' ORDER BY cr.id;
 SELECT 'recommendation_runs' AS entity, r.id, r.company_request_id, cr.title FROM company_request_recommendation_runs r JOIN company_requests cr ON cr.id = r.company_request_id JOIN company_profiles cp ON cp.id = cr.company_profile_id WHERE cp.normalized_company_name = 'helix martin systems';
 SELECT 'recommendations' AS entity, rec.id, rec.run_id, rec.rank, rec.student_profile_id, rec.score FROM company_request_recommendations rec JOIN company_requests cr ON cr.id = rec.company_request_id JOIN company_profiles cp ON cp.id = cr.company_profile_id WHERE cp.normalized_company_name = 'helix martin systems' ORDER BY rec.run_id, rec.rank;

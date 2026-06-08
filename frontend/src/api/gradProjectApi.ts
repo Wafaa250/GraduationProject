@@ -177,9 +177,14 @@ function parseGraduationProjectsMyPayload(raw: unknown): {
   return { role, project };
 }
 
-/** Inverse of create payload: partnersCount = teamSize - 1 */
+/** Stored total team capacity (including owner) → wizard desired team size. */
 export function partnersCountToTeamSize(partnersCount: number): number {
-  return Math.min(5, Math.max(1, partnersCount + 1));
+  return Math.min(5, Math.max(1, partnersCount));
+}
+
+/** Wizard desired team size → stored total team capacity (including owner). */
+export function teamSizeToPartnersCount(teamSize: number): number {
+  return Math.min(10, Math.max(1, teamSize));
 }
 
 export type GradProjectRecommendedStudent = {
@@ -273,32 +278,17 @@ export async function getRecommendedStudents(
 
   const rows = Array.isArray(data) ? data : [];
 
-  // TEMP: debug recommend-students pipeline (remove after investigation)
-  console.log("[recommend-students] exact response body", data);
-
-  const mapped = rows.map((row) => ({
-    studentId: row.studentId,
-    name: row.name?.trim() || `Student #${row.studentId}`,
-    major: row.major?.trim() ?? "",
-    university: row.university?.trim() ?? "",
-    skills: Array.isArray(row.skills) ? row.skills : [],
-    matchScore: normalizeMatchScore(row.matchScore),
-    reason: row.reason?.trim() || undefined,
-  }));
-
-  console.log("[recommend-students] candidate count before filtering", mapped.length);
-
-  const filtered = mapped.filter((row) => row.matchScore > 0);
-
-  console.log("[recommend-students] candidate count after matchScore > 0 filter", filtered.length);
-  if (mapped.length > 0 && filtered.length === 0) {
-    console.warn(
-      "[recommend-students] matchScore > 0 filter removed all results",
-      mapped.map((r) => ({ studentId: r.studentId, matchScore: r.matchScore })),
-    );
-  }
-
-  return filtered;
+  return rows
+    .map((row) => ({
+      studentId: row.studentId,
+      name: row.name?.trim() || `Student #${row.studentId}`,
+      major: row.major?.trim() ?? "",
+      university: row.university?.trim() ?? "",
+      skills: Array.isArray(row.skills) ? row.skills : [],
+      matchScore: normalizeMatchScore(row.matchScore),
+      reason: row.reason?.trim() || undefined,
+    }))
+    .filter((row) => row.matchScore >= 1);
 }
 
 type ParsedAiSupervisorRow = {

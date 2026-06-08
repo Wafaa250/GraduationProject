@@ -10,6 +10,7 @@ import {
   createGraduationProject,
   getGraduationProjectsMyEnvelope,
   partnersCountToTeamSize,
+  teamSizeToPartnersCount,
   projectTypeToStage,
   updateGraduationProject,
   type GradProject,
@@ -188,7 +189,7 @@ function buildProjectPayload(data: FormData) {
     requiredRoles: uniqueStrings(data.requiredRoles),
     skillPriorities: uniqueStrings(data.skillPriorities),
     lookingForTeammates: data.lookingForTeammates,
-    partnersCount: Math.min(10, Math.max(0, data.teamSize - 1)),
+    partnersCount: teamSizeToPartnersCount(data.teamSize),
   };
 }
 

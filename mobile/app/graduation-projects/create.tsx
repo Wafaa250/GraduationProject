@@ -80,7 +80,7 @@ export default function CreateGraduationProjectScreen() {
         setTechnologiesText((project.technologies ?? []).join(", "));
         setRequiredRolesText((project.requiredRoles ?? []).join(", "));
         setPreferredRolesText((project.preferredRoles ?? []).join(", "));
-        setTeamSize(String(Math.min(5, Math.max(1, project.partnersCount + 1))));
+        setTeamSize(String(Math.min(5, Math.max(1, project.partnersCount))));
         setLookingForTeammates(project.lookingForTeammates !== false);
       } else if (!stage && options[0]) {
         setStage(options[0].stageId);
@@ -121,7 +121,7 @@ export default function CreateGraduationProjectScreen() {
         requiredRoles: parseCommaList(requiredRolesText),
         skillPriorities: [],
         lookingForTeammates,
-        partnersCount: Math.min(10, Math.max(0, Number(teamSize) - 1)),
+        partnersCount: Math.min(10, Math.max(1, Number(teamSize) || 1)),
       };
 
       if (isEditMode && editingProjectId != null) {

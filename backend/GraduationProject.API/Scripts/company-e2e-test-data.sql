@@ -19,11 +19,11 @@ DELETE FROM users
 WHERE email IN (
   'marcus.chen+e2e@helixmartin.com',
   'priya.sharma+e2e@helixmartin.com',
-  'aisha.kamal+e2e@metrosu.edu',
-  'omar.hassan+e2e@metrosu.edu',
-  'layla.nasser+e2e@metrosu.edu',
-  'youssef.ali+e2e@metrosu.edu',
-  'sara.itani+e2e@metrosu.edu'
+  'aisha.kamal+e2e@gmail.com',
+  'omar.hassan+e2e@gmail.com',
+  'layla.nasser+e2e@gmail.com',
+  'youssef.ali+e2e@gmail.com',
+  'sara.itani+e2e@gmail.com'
 );
 */
 
@@ -55,7 +55,7 @@ SELECT
   'helixmartin.com',
   'helixmartin.com',
   'Industrial IoT & Predictive Analytics',
-  'Helix Martin Systems partners with universities to deliver predictive maintenance, field-service mobile apps, and analytics platforms for mid-market manufacturers across MENA and Europe.',
+  'Helix Martin Systems partners with An-Najah National University to deliver predictive maintenance, field-service mobile apps, and analytics platforms for mid-market manufacturers across MENA and Europe.',
   'Dubai, United Arab Emirates',
   'Dubai, United Arab Emirates',
   'Hybrid-first',
@@ -107,11 +107,11 @@ WHERE cp.normalized_company_name = 'helix martin systems';
 -- Student accounts (FK targets for invitations & recommendations)
 -- =============================================================================
 INSERT INTO users (name, email, password, role, must_change_password, created_at) VALUES
-  ('Aisha Kamal',   'aisha.kamal+e2e@metrosu.edu',   '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:00:00+00'),
-  ('Omar Hassan',   'omar.hassan+e2e@metrosu.edu',   '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:10:00+00'),
-  ('Layla Nasser',  'layla.nasser+e2e@metrosu.edu',  '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:20:00+00'),
-  ('Youssef Ali',   'youssef.ali+e2e@metrosu.edu',   '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:30:00+00'),
-  ('Sara Itani',    'sara.itani+e2e@metrosu.edu',    '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:40:00+00');
+  ('Aisha Kamal',   'aisha.kamal+e2e@gmail.com',   '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:00:00+00'),
+  ('Omar Hassan',   'omar.hassan+e2e@gmail.com',   '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:10:00+00'),
+  ('Layla Nasser',  'layla.nasser+e2e@gmail.com',  '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:20:00+00'),
+  ('Youssef Ali',   'youssef.ali+e2e@gmail.com',   '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:30:00+00'),
+  ('Sara Itani',    'sara.itani+e2e@gmail.com',    '$2a$11$5lQARt.0CzbCkNHdHYsJPuvHkqG/HClO82Odpgib685TresK13Joy', 'student', false, TIMESTAMPTZ '2025-09-01 08:40:00+00');
 
 INSERT INTO student_profiles (
   user_id, major, bio, student_id, university, faculty, academic_year, gpa,
@@ -119,25 +119,25 @@ INSERT INTO student_profiles (
   languages, tools, roles, technical_skills
 )
 SELECT u.id,
-  v.major, v.bio, v.student_id, 'Metropolitan State University', 'Faculty of Engineering', v.year, v.gpa,
+  v.major, v.bio, v.student_id, 'An-Najah National University', 'Faculty of Engineering and Information Technology', v.year, v.gpa,
   'Available from June 2026', 'Graduation project / internship',
   v.github, v.linkedin, v.portfolio,
   v.languages, v.tools, v.roles, v.skills
 FROM users u
 JOIN (VALUES
-  ('aisha.kamal+e2e@metrosu.edu',  'Computer Engineering', 'Final-year student focused on Flutter and Firebase for industrial mobile apps.', '202210451', 'Senior', 3.72,
+  ('aisha.kamal+e2e@gmail.com',  'Computer Engineering', 'Final-year student focused on Flutter and Firebase for industrial mobile apps.', '202210451', 'Senior', 3.72,
    'https://github.com/aisha-kamal-dev', 'https://linkedin.com/in/aishakamal', 'https://aishakamal.dev',
    '["English","Arabic"]', '["Flutter","Firebase","Figma"]', '["Mobile Developer"]', '["Flutter","Firebase","Dart","REST APIs"]'),
-  ('omar.hassan+e2e@metrosu.edu',    'Software Engineering', 'Backend-oriented developer with Azure IoT Hub and .NET experience.', '202210883', 'Senior', 3.55,
+  ('omar.hassan+e2e@gmail.com',    'Software Engineering', 'Backend-oriented developer with Azure IoT Hub and .NET experience.', '202210883', 'Senior', 3.55,
    'https://github.com/omar-hassan-iot', 'https://linkedin.com/in/omarhassan', NULL,
    '["English","Arabic"]', '["C#","Azure","Docker"]', '["Backend Developer"]', '["C#","ASP.NET Core","Azure IoT Hub","SQL Server"]'),
-  ('layla.nasser+e2e@metrosu.edu',   'Data Science', 'Analyst building dashboards with Python, SQL, and Power BI.', '202311204', 'Junior', 3.68,
+  ('layla.nasser+e2e@gmail.com',   'Data Science', 'Analyst building dashboards with Python, SQL, and Power BI.', '202311204', 'Junior', 3.68,
    'https://github.com/layla-nasser', 'https://linkedin.com/in/laylanasser', NULL,
    '["English","French"]', '["Python","Power BI","PostgreSQL"]', '["Data Analyst"]', '["Python","SQL","Power BI","Statistical Analysis"]'),
-  ('youssef.ali+e2e@metrosu.edu',    'Computer Science', 'Full-stack student with React and Node.js project experience.', '202410019', 'Sophomore', 3.41,
+  ('youssef.ali+e2e@gmail.com',    'Computer Science', 'Full-stack student with React and Node.js project experience.', '202410019', 'Sophomore', 3.41,
    'https://github.com/youssef-ali-fs', NULL, 'https://youssefali.me',
    '["English","Arabic"]', '["React","Node.js","PostgreSQL"]', '["Full-Stack Developer"]', '["React","Node.js","TypeScript","PostgreSQL"]'),
-  ('sara.itani+e2e@metrosu.edu',     'UX Design', 'Product designer with user research and prototyping skills.', '202310772', 'Senior', 3.64,
+  ('sara.itani+e2e@gmail.com',     'UX Design', 'Product designer with user research and prototyping skills.', '202310772', 'Senior', 3.64,
    NULL, 'https://linkedin.com/in/saraitani', 'https://behance.net/saraitani',
    '["English","Arabic"]', '["Figma","Miro"]', '["UX Designer"]', '["User Research","Wireframing","Prototyping","Design Systems"]')
 ) AS v(email, major, bio, student_id, year, gpa, github, linkedin, portfolio, languages, tools, roles, skills)
@@ -279,11 +279,11 @@ FROM company_request_recommendation_runs run
 JOIN company_requests cr ON cr.id = run.company_request_id
 JOIN company_profiles cp ON cp.id = cr.company_profile_id
 CROSS JOIN (VALUES
-  ('omar.hassan+e2e@metrosu.edu',   1, 91, '{"skillOverlap":34,"roleDisciplineAlignment":20,"profileRelevance":15,"collaborationFit":12,"profileQuality":10}', 'Strong alignment with IoT backend and Azure stack.', '["Azure IoT Hub project","Maintained co-op API services"]'),
-  ('aisha.kamal+e2e@metrosu.edu',   2, 84, '{"skillOverlap":28,"roleDisciplineAlignment":18,"profileRelevance":14,"collaborationFit":14,"profileQuality":10}', 'Mobile experience complements dashboard UX for supervisors.', '["Shipped Flutter MVP","Firebase real-time sync"]'),
-  ('youssef.ali+e2e@metrosu.edu',   3, 76, '{"skillOverlap":24,"roleDisciplineAlignment":16,"profileRelevance":13,"collaborationFit":13,"profileQuality":10}', 'Full-stack foundation; less IoT depth but fast learner.', '["React + Node capstone","PostgreSQL reporting"]'),
-  ('layla.nasser+e2e@metrosu.edu',  4, 68, '{"skillOverlap":20,"roleDisciplineAlignment":14,"profileRelevance":16,"collaborationFit":10,"profileQuality":8}', 'Analytics strength useful for risk-score dashboards.', '["Power BI dashboards","Python ETL scripts"]'),
-  ('sara.itani+e2e@metrosu.edu',    5, 62, '{"skillOverlap":12,"roleDisciplineAlignment":12,"profileRelevance":18,"collaborationFit":12,"profileQuality":8}', 'UX skills valuable for alert workflows; limited IoT coding.', '["User journey mapping","Design system documentation"]')
+  ('omar.hassan+e2e@gmail.com',   1, 91, '{"skillOverlap":34,"roleDisciplineAlignment":20,"profileRelevance":15,"collaborationFit":12,"profileQuality":10}', 'Strong alignment with IoT backend and Azure stack.', '["Azure IoT Hub project","Maintained co-op API services"]'),
+  ('aisha.kamal+e2e@gmail.com',   2, 84, '{"skillOverlap":28,"roleDisciplineAlignment":18,"profileRelevance":14,"collaborationFit":14,"profileQuality":10}', 'Mobile experience complements dashboard UX for supervisors.', '["Shipped Flutter MVP","Firebase real-time sync"]'),
+  ('youssef.ali+e2e@gmail.com',   3, 76, '{"skillOverlap":24,"roleDisciplineAlignment":16,"profileRelevance":13,"collaborationFit":13,"profileQuality":10}', 'Full-stack foundation; less IoT depth but fast learner.', '["React + Node capstone","PostgreSQL reporting"]'),
+  ('layla.nasser+e2e@gmail.com',  4, 68, '{"skillOverlap":20,"roleDisciplineAlignment":14,"profileRelevance":16,"collaborationFit":10,"profileQuality":8}', 'Analytics strength useful for risk-score dashboards.', '["Power BI dashboards","Python ETL scripts"]'),
+  ('sara.itani+e2e@gmail.com',    5, 62, '{"skillOverlap":12,"roleDisciplineAlignment":12,"profileRelevance":18,"collaborationFit":12,"profileQuality":8}', 'UX skills valuable for alert workflows; limited IoT coding.', '["User journey mapping","Design system documentation"]')
 ) AS v(email, rank, score, breakdown, reason, highlights)
 JOIN users u ON u.email = v.email
 JOIN student_profiles sp ON sp.user_id = u.id
@@ -329,12 +329,12 @@ JOIN company_requests cr ON cr.id = tr.company_request_id
 JOIN company_profiles cp ON cp.id = cr.company_profile_id
 JOIN company_request_roles crr ON crr.company_request_id = cr.id
 JOIN (VALUES
-  (1, 'Backend Engineer',  'omar.hassan+e2e@metrosu.edu',   92, 0.87, 'Best API/ETL fit for platform backbone.', '["ASP.NET Core","PostgreSQL"]'),
-  (1, 'Data Analyst',      'layla.nasser+e2e@metrosu.edu',  89, 0.84, 'Strong analytics and BI delivery.', '["Python","Power BI"]'),
-  (1, 'Product Designer',  'sara.itani+e2e@metrosu.edu',    85, 0.81, 'Executive dashboard UX and research.', '["Figma","User Research"]'),
-  (2, 'Backend Engineer',  'youssef.ali+e2e@metrosu.edu',   80, 0.76, 'Full-stack capable for API scaffolding.', '["Node.js","PostgreSQL"]'),
-  (2, 'Data Analyst',      'layla.nasser+e2e@metrosu.edu',  88, 0.83, 'Repeat fit for analytics workstream.', '["SQL","Statistical Analysis"]'),
-  (2, 'Product Designer',  'sara.itani+e2e@metrosu.edu',    90, 0.85, 'Design lead for stakeholder workshops.', '["Prototyping","Design Systems"]')
+  (1, 'Backend Engineer',  'omar.hassan+e2e@gmail.com',   92, 0.87, 'Best API/ETL fit for platform backbone.', '["ASP.NET Core","PostgreSQL"]'),
+  (1, 'Data Analyst',      'layla.nasser+e2e@gmail.com',  89, 0.84, 'Strong analytics and BI delivery.', '["Python","Power BI"]'),
+  (1, 'Product Designer',  'sara.itani+e2e@gmail.com',    85, 0.81, 'Executive dashboard UX and research.', '["Figma","User Research"]'),
+  (2, 'Backend Engineer',  'youssef.ali+e2e@gmail.com',   80, 0.76, 'Full-stack capable for API scaffolding.', '["Node.js","PostgreSQL"]'),
+  (2, 'Data Analyst',      'layla.nasser+e2e@gmail.com',  88, 0.83, 'Repeat fit for analytics workstream.', '["SQL","Statistical Analysis"]'),
+  (2, 'Product Designer',  'sara.itani+e2e@gmail.com',    90, 0.85, 'Design lead for stakeholder workshops.', '["Prototyping","Design Systems"]')
 ) AS v(team_rank, role_name, email, role_score, sim, reason, highlights)
   ON v.role_name = crr.role_name AND v.team_rank = tr.team_rank
 JOIN users u ON u.email = v.email
@@ -356,11 +356,11 @@ FROM company_requests cr
 JOIN company_profiles cp ON cp.id = cr.company_profile_id
 JOIN users owner ON owner.email = 'marcus.chen+e2e@helixmartin.com'
 JOIN (VALUES
-  ('Predictive Maintenance MVP', 'omar.hassan+e2e@metrosu.edu',   'IoT Software Engineer', 'pending',  91.00, 'recommendation', 'We would like you to lead the Azure IoT ingestion spike.', TIMESTAMPTZ '2026-05-22 10:00:00+00', NULL, NULL),
-  ('Predictive Maintenance MVP', 'aisha.kamal+e2e@metrosu.edu',   'IoT Software Engineer', 'pending',  84.00, 'recommendation', 'Interested in your Flutter experience for supervisor mobile alerts.', TIMESTAMPTZ '2026-05-23 09:30:00+00', NULL, NULL),
-  ('Predictive Maintenance MVP', 'youssef.ali+e2e@metrosu.edu',   'IoT Software Engineer', 'accepted', 76.00, 'manual', 'Welcome aboard — starting with API scaffolding.', TIMESTAMPTZ '2026-05-10 14:00:00+00', TIMESTAMPTZ '2026-05-12 08:00:00+00', NULL),
-  ('Predictive Maintenance MVP', 'layla.nasser+e2e@metrosu.edu',  'IoT Software Engineer', 'rejected', 68.00, 'manual', 'Thank you; role filled for analytics sub-stream.', TIMESTAMPTZ '2026-05-08 11:00:00+00', TIMESTAMPTZ '2026-05-09 16:00:00+00', NULL),
-  ('Mobile Field Service App',   'aisha.kamal+e2e@metrosu.edu',   'Flutter Developer',     'cancelled', 88.00, 'manual', 'Invitation withdrawn after project pause.', TIMESTAMPTZ '2026-04-01 10:00:00+00', NULL, TIMESTAMPTZ '2026-04-02 09:00:00+00')
+  ('Predictive Maintenance MVP', 'omar.hassan+e2e@gmail.com',   'IoT Software Engineer', 'pending',  91.00, 'recommendation', 'We would like you to lead the Azure IoT ingestion spike.', TIMESTAMPTZ '2026-05-22 10:00:00+00', NULL, NULL),
+  ('Predictive Maintenance MVP', 'aisha.kamal+e2e@gmail.com',   'IoT Software Engineer', 'pending',  84.00, 'recommendation', 'Interested in your Flutter experience for supervisor mobile alerts.', TIMESTAMPTZ '2026-05-23 09:30:00+00', NULL, NULL),
+  ('Predictive Maintenance MVP', 'youssef.ali+e2e@gmail.com',   'IoT Software Engineer', 'accepted', 76.00, 'manual', 'Welcome aboard — starting with API scaffolding.', TIMESTAMPTZ '2026-05-10 14:00:00+00', TIMESTAMPTZ '2026-05-12 08:00:00+00', NULL),
+  ('Predictive Maintenance MVP', 'layla.nasser+e2e@gmail.com',  'IoT Software Engineer', 'rejected', 68.00, 'manual', 'Thank you; role filled for analytics sub-stream.', TIMESTAMPTZ '2026-05-08 11:00:00+00', TIMESTAMPTZ '2026-05-09 16:00:00+00', NULL),
+  ('Mobile Field Service App',   'aisha.kamal+e2e@gmail.com',   'Flutter Developer',     'cancelled', 88.00, 'manual', 'Invitation withdrawn after project pause.', TIMESTAMPTZ '2026-04-01 10:00:00+00', NULL, TIMESTAMPTZ '2026-04-02 09:00:00+00')
 ) AS v(req_title, email, role_name, status, match_score, source, message, created_at, responded_at, cancelled_at)
   ON v.req_title = cr.title
 JOIN users u ON u.email = v.email
@@ -380,9 +380,9 @@ FROM company_profiles cp
 JOIN company_requests cr ON cr.company_profile_id = cp.id
 JOIN users owner ON owner.email = 'marcus.chen+e2e@helixmartin.com'
 JOIN (VALUES
-  ('Predictive Maintenance MVP', 'omar.hassan+e2e@metrosu.edu', 'Top pick for IoT backend — schedule technical interview.', TIMESTAMPTZ '2026-05-21 12:00:00+00'),
-  ('Predictive Maintenance MVP', 'aisha.kamal+e2e@metrosu.edu', 'Backup for mobile alert UI stream.', TIMESTAMPTZ '2026-05-21 12:30:00+00'),
-  ('Mobile Field Service App',   'aisha.kamal+e2e@metrosu.edu', 'Hold until project reactivated.', TIMESTAMPTZ '2026-04-01 15:00:00+00')
+  ('Predictive Maintenance MVP', 'omar.hassan+e2e@gmail.com', 'Top pick for IoT backend — schedule technical interview.', TIMESTAMPTZ '2026-05-21 12:00:00+00'),
+  ('Predictive Maintenance MVP', 'aisha.kamal+e2e@gmail.com', 'Backup for mobile alert UI stream.', TIMESTAMPTZ '2026-05-21 12:30:00+00'),
+  ('Mobile Field Service App',   'aisha.kamal+e2e@gmail.com', 'Hold until project reactivated.', TIMESTAMPTZ '2026-04-01 15:00:00+00')
 ) AS v(req_title, email, note, created_at) ON v.req_title = cr.title
 JOIN users u ON u.email = v.email
 JOIN student_profiles sp ON sp.user_id = u.id

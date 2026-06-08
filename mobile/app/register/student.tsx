@@ -6,7 +6,6 @@ import { router } from "expo-router";
 import { registerStudent } from "@/api/authApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { AcademicYearPicker } from "@/components/registration/AcademicYearPicker";
-import { GraduationCoursesBanner } from "@/components/registration/GraduationCoursesBanner";
 import { ReadyToSubmitCard } from "@/components/registration/ReadyToSubmitCard";
 import { RegSelectField } from "@/components/registration/RegSelectField";
 import { RegTextField } from "@/components/registration/RegTextField";
@@ -27,7 +26,6 @@ import {
 } from "@/constants/studentSkillPools";
 import { AUTH_COLORS } from "@/constants/authTheme";
 import { persistAuthSession } from "@/lib/authSession";
-import { getRegistrationGraduationCourses } from "@/lib/graduationProjectTypes";
 import { navigateHome } from "@/utils/homeNavigation";
 
 const STEP_TITLES = [
@@ -298,9 +296,6 @@ export default function StudentRegisterScreen() {
             placeholder={form.faculty ? "Select major" : "Select faculty first"}
             error={errors.major}
           />
-          {form.faculty && form.major ? (
-            <GraduationCoursesBanner courses={graduationCourses} />
-          ) : null}
           <AcademicYearPicker
             label="Academic year"
             options={ACADEMIC_YEARS}
@@ -394,7 +389,6 @@ export default function StudentRegisterScreen() {
               { label: "University", value: form.university },
               { label: "Faculty", value: form.faculty },
               { label: "Major", value: form.major },
-              { label: "Graduation courses", value: graduationCourses.join(" · ") },
               { label: "Year", value: form.academicYear },
               { label: "GPA", value: form.gpa || "—" },
             ]}

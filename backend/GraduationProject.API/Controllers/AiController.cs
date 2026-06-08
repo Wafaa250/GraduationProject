@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using GraduationProject.API.Data;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
@@ -24,11 +25,16 @@ namespace GraduationProject.API.Controllers
 
         private readonly ApplicationDbContext _db;
         private readonly IAiStudentRecommendationService _aiService;
+        private readonly ILogger<AiController> _logger;
 
-        public AiController(ApplicationDbContext db, IAiStudentRecommendationService aiService)
+        public AiController(
+            ApplicationDbContext db,
+            IAiStudentRecommendationService aiService,
+            ILogger<AiController> logger)
         {
             _db = db;
             _aiService = aiService;
+            _logger = logger;
         }
 
         [HttpPost("recommend-students")]
@@ -75,7 +81,32 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Project owner not found." });
 
             var requiredSkillNames = SkillHelper.ParseStringList(project.RequiredSkills);
-            var requiredSkillIds = await ResolveRequiredSkillIdsAsync(requiredSkillNames);
+            var allSkills = await _db.Skills
+                .AsNoTracking()
+                .Select(s => new { s.Id, s.Name })
+                .ToListAsync();
+            var requiredSkillIds = GraduationTeammateMatchHelper.ResolveSkillIds(
+                allSkills.Select(s => (s.Id, s.Name)),
+                requiredSkillNames);
+
+            var totalStudents = await _db.StudentProfiles.AsNoTracking().CountAsync();
+
+            var afterExcludeOwner = await _db.StudentProfiles
+                .AsNoTracking()
+                .Where(s => s.Id != project.OwnerId)
+                .CountAsync();
+
+            var afterExcludeMembers = await _db.StudentProfiles
+                .AsNoTracking()
+                .Where(s => s.Id != project.OwnerId && !memberIds.Contains(s.Id))
+                .CountAsync();
+
+            var afterExcludeGpOwners = await _db.StudentProfiles
+                .AsNoTracking()
+                .Where(s => s.Id != project.OwnerId &&
+                            !memberIds.Contains(s.Id) &&
+                            !gpOwnerSet.Contains(s.Id))
+                .CountAsync();
 
             var ownerMajor = projectOwner.Major;
             var students = await _db.StudentProfiles
@@ -88,27 +119,39 @@ namespace GraduationProject.API.Controllers
                             !gpOwnerSet.Contains(s.Id))
                 .ToListAsync();
 
-            var allSkillIds = students
-                .SelectMany(GetStudentSkillIds)
-                .Concat(requiredSkillIds)
-                .Distinct()
-                .ToList();
+            _logger.LogInformation(
+                "recommend-students projectId={ProjectId} pipeline: totalStudents={Total}, " +
+                "afterExcludeOwner={AfterOwner}, afterExcludeMembers={AfterMembers}, " +
+                "afterExcludeGpOwners={AfterGpOwners}, afterMajorFilter={AfterMajor} " +
+                "(ownerMajor={OwnerMajor}, requiredSkillNames={SkillCount}, resolvedSkillIds={ResolvedIds})",
+                request.ProjectId,
+                totalStudents,
+                afterExcludeOwner,
+                afterExcludeMembers,
+                afterExcludeGpOwners,
+                students.Count,
+                ownerMajor ?? "(null)",
+                requiredSkillNames.Count,
+                requiredSkillIds.Count);
 
-            var skillNameMap = await _db.Skills
-                .Where(s => allSkillIds.Contains(s.Id))
-                .ToDictionaryAsync(s => s.Id, s => s.Name);
+            if (students.Count == 0)
+            {
+                _logger.LogWarning(
+                    "recommend-students projectId={ProjectId}: no candidates after major/affiliation filters",
+                    request.ProjectId);
+                return Ok(new List<object>());
+            }
+
+            var skillNameMap = allSkills.ToDictionary(s => s.Id, s => s.Name);
 
             var candidates = students
                 .Select(s =>
                 {
                     var skillIds = GetStudentSkillIds(s).Distinct().ToList();
+                    var fallbackScore = GraduationTeammateMatchHelper.ComputeMatchScore(skillIds, requiredSkillIds);
                     var commonCount = requiredSkillIds.Count == 0
                         ? 0
-                        : requiredSkillIds.Count(id => skillIds.Contains(id));
-
-                    var fallbackScore = requiredSkillIds.Count > 0
-                        ? (int)Math.Min((double)commonCount / requiredSkillIds.Count * 100, 100)
-                        : 50;
+                        : skillIds.Count(id => requiredSkillIds.Contains(id));
 
                     var skillNames = skillIds
                         .Where(skillNameMap.ContainsKey)
@@ -128,14 +171,30 @@ namespace GraduationProject.API.Controllers
                         FallbackScore = fallbackScore
                     };
                 })
-                .Where(c => requiredSkillIds.Count == 0 || c.CommonSkills > 0)
+                .Where(c => QualifiesAsTeammateRecommendation(c.FallbackScore))
                 .OrderByDescending(c => c.FallbackScore)
+                .ThenByDescending(c => c.CommonSkills)
                 .ThenBy(c => c.StudentId)
                 .Take(MaxCandidates)
                 .ToList();
 
+            _logger.LogInformation(
+                "recommend-students projectId={ProjectId}: scoredCandidates={Scored}, " +
+                "withSkillOverlap={WithOverlap}, final={Final}",
+                request.ProjectId,
+                students.Count,
+                candidates.Count(c => c.CommonSkills > 0),
+                candidates.Count);
+
             if (candidates.Count == 0)
+            {
+                _logger.LogWarning(
+                    "recommend-students projectId={ProjectId}: all {Count} same-major candidates scored below minimum ({Min})",
+                    request.ProjectId,
+                    students.Count,
+                    MinTeammateMatchScore);
                 return Ok(new List<object>());
+            }
 
             var aiProject = new AiProjectInput
             {
@@ -328,16 +387,6 @@ namespace GraduationProject.API.Controllers
             return await _db.StudentProfiles
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.UserId == userId);
-        }
-
-        private async Task<List<int>> ResolveRequiredSkillIdsAsync(List<string> requiredSkillNames)
-        {
-            if (requiredSkillNames.Count == 0) return new List<int>();
-
-            return await _db.Skills
-                .Where(s => requiredSkillNames.Contains(s.Name))
-                .Select(s => s.Id)
-                .ToListAsync();
         }
 
         private static List<int> GetStudentSkillIds(StudentProfile student)

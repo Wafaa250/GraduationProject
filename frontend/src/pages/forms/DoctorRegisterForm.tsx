@@ -267,13 +267,13 @@ export default function DoctorRegisterForm({ onBack = null }: { onBack?: (() => 
             </RegField>
           </FormSection>
           <FormSection title="Sign-in credentials" description="Use your university email when possible.">
-            <RegField label="University email" htmlFor="doc-email" required error={errors.email}>
+            <RegField label="Email" htmlFor="doc-email" required error={errors.email}>
               <TextInput
                 id="doc-email"
                 type="email"
                 invalid={!!errors.email}
                 leading={<Mail className="h-4 w-4" />}
-                placeholder="doctor@najah.edu"
+                placeholder="doctor.name@gmail.com"
                 value={form.email}
                 onChange={(e) => set('email', e.target.value)}
               />

@@ -14,7 +14,6 @@ import { RegistrationStepFooter } from '@/components/registration/RegistrationSt
 import { RegistrationSuccess } from '@/components/registration/RegistrationSuccess'
 import { ProfilePhotoUpload } from '@/components/registration/ProfilePhotoUpload'
 import { ReviewGroup, ReviewItem } from '@/components/registration/Review'
-import { getRegistrationGraduationCourses } from '@/lib/graduationProjectTypes'
 import type { RegistrationStep } from '@/components/registration/types'
 import {
   CUSTOM_SKILL_MAX_LENGTH,
@@ -152,10 +151,6 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
 
   const availableFaculties = form.university ? (UNIVERSITY_FACULTIES[form.university] ?? []) : []
   const availableMajors = MAJORS[form.faculty] ?? []
-  const graduationCourses = getRegistrationGraduationCourses(
-    form.faculty || null,
-    form.major || null,
-  )
   const skillsData = getSkillsPack(form.faculty, form.major)
 
   const validate = () => {
@@ -496,18 +491,6 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
                 ))}
               </RegSelect>
             </RegField>
-            {form.faculty && form.major ? (
-              <div className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Graduation project courses
-                </p>
-                <ul className="mt-2 space-y-1 text-sm text-foreground">
-                  {graduationCourses.map((course) => (
-                    <li key={course}>{course}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
             <RegField label="Academic year" required error={fieldError('academicYear')}>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                 {ACADEMIC_YEARS.map((y) => (
@@ -656,7 +639,6 @@ export default function StudentRegisterForm({ onBack = null }: { onBack?: (() =>
             <ReviewItem label="University" value={form.university} />
             <ReviewItem label="Faculty" value={form.faculty} />
             <ReviewItem label="Major" value={form.major} />
-            <ReviewItem label="Graduation courses" value={graduationCourses.join(' · ') || '—'} />
             <ReviewItem label="Year" value={form.academicYear} />
             <ReviewItem label="GPA" value={form.gpa || '—'} />
           </ReviewGroup>

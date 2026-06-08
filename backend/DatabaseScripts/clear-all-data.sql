@@ -1,0 +1,77 @@
+-- =============================================================================
+-- SkillSwap: clear all application data (preserve schema + migrations)
+-- =============================================================================
+-- Run before skillswap-production-seed.sql when you want a clean reload.
+-- Excludes __EFMigrationsHistory
+-- =============================================================================
+
+BEGIN;
+
+TRUNCATE TABLE
+  company_activity_logs,
+  company_follows,
+  company_member_notification_preferences,
+  company_members,
+  company_profiles,
+  company_request_invitations,
+  company_request_recommendation_runs,
+  company_request_recommendations,
+  company_request_roles,
+  company_request_skills,
+  company_request_team_recommendation_members,
+  company_request_team_recommendation_runs,
+  company_request_team_recommendations,
+  company_requests,
+  company_saved_student_recommendations,
+  company_saved_team_recommendations,
+  company_talent_requests,
+  conversation_users,
+  conversations,
+  course_project_sections,
+  course_projects,
+  course_sections,
+  course_team_invitations,
+  course_team_members,
+  course_team_messages,
+  course_teams,
+  courses,
+  doctor_posts,
+  doctor_profiles,
+  feed_post_comments,
+  feed_post_engagements,
+  graduation_project_members,
+  graduation_project_milestones,
+  graduation_projects,
+  messages,
+  organization_follows,
+  password_reset_codes,
+  password_reset_tokens,
+  project_invitations,
+  recommendation_semantic_embeddings,
+  section_chat_messages,
+  section_enrollments,
+  skills,
+  student_association_profiles,
+  student_organization_event_registration_answers,
+  student_organization_event_registration_fields,
+  student_organization_event_registration_forms,
+  student_organization_event_registrations,
+  student_organization_events,
+  student_organization_members,
+  student_organization_recruitment_applicant_analyses,
+  student_organization_recruitment_application_answers,
+  student_organization_recruitment_applications,
+  student_organization_recruitment_campaigns,
+  student_organization_recruitment_positions,
+  student_organization_recruitment_questions,
+  student_organization_team_members,
+  student_posts,
+  student_profiles,
+  student_skills,
+  supervisor_cancellation_requests,
+  supervisor_requests,
+  user_notifications,
+  users
+RESTART IDENTITY CASCADE;
+
+COMMIT;
