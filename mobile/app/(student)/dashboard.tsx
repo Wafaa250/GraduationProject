@@ -1,3 +1,4 @@
+import { useLocalSearchParams, router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,6 +15,11 @@ import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { getDashboardSummary, getStudentAiMatchStatus, type StudentAiMatchStatus } from "@/api/dashboardApi";
 import { getFollowing } from "@/api/followingApi";
 import { getGraduationProjectsMyEnvelope } from "@/api/gradProjectApi";
+import {
+  acceptProjectInvitation,
+  getReceivedProjectInvitations,
+  rejectProjectInvitation,
+} from "@/api/invitationsApi";
 import { getMe } from "@/api/meApi";
 import {
   acceptTeamInvitation,
@@ -25,6 +31,7 @@ import { AiMatchStatusCard } from "@/components/dashboard/AiMatchStatusCard";
 import { CoursesAreaCard } from "@/components/dashboard/CoursesAreaCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { GraduationProjectCard } from "@/components/dashboard/GraduationProjectCard";
+import { GraduationTeamInvitationsCard } from "@/components/dashboard/GraduationTeamInvitationsCard";
 import { StudentInsightsGrid } from "@/components/dashboard/StudentInsightsGrid";
 import { TeamInvitationsCard } from "@/components/dashboard/TeamInvitationsCard";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
@@ -32,7 +39,9 @@ import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
   mapGradProject,
+  mapGraduationInvitations,
   mapInvitations,
+  type GraduationInvitationView,
   type GraduationProjectView,
   type InsightMetric,
   type TeamInvitationView,
@@ -43,16 +52,24 @@ export default function StudentDashboardScreen() {
   const layout = useResponsiveLayout();
   const { colors } = useHubTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { focus, invitationId } = useLocalSearchParams<{
+    focus?: string;
+    invitationId?: string;
+  }>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [insights, setInsights] = useState<InsightMetric[]>([]);
   const [invitations, setInvitations] = useState<TeamInvitationView[]>([]);
+  const [graduationInvitations, setGraduationInvitations] = useState<GraduationInvitationView[]>([]);
   const [gradProject, setGradProject] = useState<GraduationProjectView | null>(null);
   const [gradSectionTitle, setGradSectionTitle] = useState("Graduation Project");
   const [gradCourseLabels, setGradCourseLabels] = useState<string[]>([]);
   const [enrolledCount, setEnrolledCount] = useState(0);
   const [partnerActivity, setPartnerActivity] = useState(0);
   const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
+  const [busyGradInviteId, setBusyGradInviteId] = useState<string | null>(null);
+  const [highlightCourseInviteId, setHighlightCourseInviteId] = useState<string | null>(null);
+  const [highlightGradInviteId, setHighlightGradInviteId] = useState<string | null>(null);
   const [matchStatus, setMatchStatus] = useState<StudentAiMatchStatus | null>(null);
   const [matchStatusLoading, setMatchStatusLoading] = useState(true);
   const [followingCompanyCount, setFollowingCompanyCount] = useState(0);
@@ -62,11 +79,13 @@ export default function StudentDashboardScreen() {
     if (!silent) setLoading(true);
     try {
       setMatchStatusLoading(true);
-      const [me, summary, gradEnvelope, teamInvites, enrolled, aiMatch, following] = await Promise.all([
+      const [me, summary, gradEnvelope, teamInvites, gradInvites, enrolled, aiMatch, following] =
+        await Promise.all([
         getMe(),
         getDashboardSummary(),
         getGraduationProjectsMyEnvelope(),
         getEligibleTeamInvitations(),
+        getReceivedProjectInvitations(),
         getEnrolledCourses(),
         getStudentAiMatchStatus().catch(() => null),
         getFollowing().catch(() => ({ companies: [], associations: [] })),
@@ -122,6 +141,7 @@ export default function StudentDashboardScreen() {
       ]);
 
       setInvitations(mapInvitations(teamInvites));
+      setGraduationInvitations(mapGraduationInvitations(gradInvites));
       setGradSectionTitle(getGraduationSectionTitle(me.faculty, me.major));
       setGradCourseLabels(me.graduationProjectCourses ?? []);
       setGradProject(
@@ -143,6 +163,34 @@ export default function StudentDashboardScreen() {
   useEffect(() => {
     void loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    if (loading || !focus) return;
+
+    if (focus === "course-invitation") {
+      if (invitationId) {
+        const exists = invitations.some((inv) => inv.id === invitationId);
+        if (exists) {
+          setHighlightCourseInviteId(invitationId);
+        } else {
+          Alert.alert("Invitation unavailable", "This invitation is no longer available.");
+        }
+      }
+    }
+
+    if (focus === "graduation-invitation") {
+      if (invitationId) {
+        const exists = graduationInvitations.some((inv) => inv.id === invitationId);
+        if (exists) {
+          setHighlightGradInviteId(invitationId);
+        } else {
+          Alert.alert("Invitation unavailable", "This invitation is no longer available.");
+        }
+      }
+    }
+
+    router.setParams({ focus: undefined, invitationId: undefined });
+  }, [loading, focus, invitationId, invitations, graduationInvitations]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -173,6 +221,32 @@ export default function StudentDashboardScreen() {
       Alert.alert("Could not decline invitation", parseApiErrorMessage(err));
     } finally {
       setBusyInviteId(null);
+    }
+  };
+
+  const handleAcceptGraduation = async (id: string) => {
+    setBusyGradInviteId(id);
+    try {
+      await acceptProjectInvitation(Number(id));
+      Alert.alert("Invitation accepted", "You joined the graduation project team.");
+      await loadDashboard(true);
+    } catch (err) {
+      Alert.alert("Could not accept invitation", parseApiErrorMessage(err));
+    } finally {
+      setBusyGradInviteId(null);
+    }
+  };
+
+  const handleDeclineGraduation = async (id: string) => {
+    setBusyGradInviteId(id);
+    try {
+      await rejectProjectInvitation(Number(id));
+      Alert.alert("Invitation declined");
+      await loadDashboard(true);
+    } catch (err) {
+      Alert.alert("Could not decline invitation", parseApiErrorMessage(err));
+    } finally {
+      setBusyGradInviteId(null);
     }
   };
 
@@ -213,8 +287,16 @@ export default function StudentDashboardScreen() {
         <TeamInvitationsCard
           invitations={invitations}
           busyId={busyInviteId}
+          highlightId={highlightCourseInviteId}
           onAccept={(id) => void handleAccept(id)}
           onDecline={(id) => void handleDecline(id)}
+        />
+        <GraduationTeamInvitationsCard
+          invitations={graduationInvitations}
+          busyId={busyGradInviteId}
+          highlightId={highlightGradInviteId}
+          onAccept={(id) => void handleAcceptGraduation(id)}
+          onDecline={(id) => void handleDeclineGraduation(id)}
         />
         <GraduationProjectCard
           project={gradProject}

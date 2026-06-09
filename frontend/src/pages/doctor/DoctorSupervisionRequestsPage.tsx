@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Clock, Inbox, Loader2, XCircle } from "lucide-react";
 import {
   acceptSupervisorRequest,
@@ -35,11 +36,14 @@ const EMPTY_SUMMARY: DoctorSupervisorRequestsSummary = {
 };
 
 export default function DoctorSupervisionRequestsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<DoctorSupervisorRequest[]>([]);
   const [summary, setSummary] = useState<DoctorSupervisorRequestsSummary>(EMPTY_SUMMARY);
   const [activeTab, setActiveTab] = useState<(typeof STATUS_TABS)[number]["id"]>("all");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [highlightRequestId, setHighlightRequestId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,6 +70,58 @@ export default function DoctorSupervisionRequestsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const raw = searchParams.get("requestId");
+    if (!raw) return;
+    void load();
+  }, [searchParams, location.state, load]);
+
+  useEffect(() => {
+    if (loading) return;
+    const raw = searchParams.get("requestId");
+    if (!raw) return;
+    const requestId = Number(raw);
+    if (!Number.isFinite(requestId)) return;
+
+    const actualRoute = `${location.pathname}${location.search}`;
+    console.log("[NotificationInvitationTrace]", {
+      stage: "destination_page_mounted",
+      page: "DoctorSupervisionRequestsPage",
+      notificationType: "supervision_request",
+      entityId: requestId,
+      actualRoute,
+      requestCount: requests.length,
+    });
+
+    const match = requests.find((r) => r.requestId === requestId);
+    console.log("[NotificationInvitationTrace]", {
+      stage: "invitation_api_lookup",
+      notificationType: "supervision_request",
+      entityId: requestId,
+      found: Boolean(match),
+      availableIds: requests.map((r) => r.requestId),
+    });
+
+    if (match) {
+      setActiveTab("all");
+      setHighlightRequestId(requestId);
+      requestAnimationFrame(() => {
+        document
+          .getElementById(`supervision-request-${requestId}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    } else {
+      toast({
+        title: "Request unavailable",
+        description: "This invitation is no longer available.",
+      });
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("requestId");
+    setSearchParams(next, { replace: true });
+  }, [loading, requests, searchParams, setSearchParams, location.pathname, location.search, location.state]);
 
   const tabCounts = useMemo(() => supervisionTabCounts(requests), [requests]);
 
@@ -199,6 +255,7 @@ export default function DoctorSupervisionRequestsPage() {
                   key={r.requestId}
                   request={r}
                   busyRequestId={busyId}
+                  highlighted={highlightRequestId === r.requestId}
                   onAccept={(id) => void handleAccept(id, "")}
                   onReject={(id) => void handleReject(id, "")}
                 />

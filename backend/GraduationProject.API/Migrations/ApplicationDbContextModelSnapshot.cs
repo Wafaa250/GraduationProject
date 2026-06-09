@@ -1310,6 +1310,49 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("course_team_messages", (string)null);
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.DoctorPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentType")
+                        .HasColumnType("text")
+                        .HasColumnName("attachment_type");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("attachment_url");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("doctor_posts", (string)null);
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.DoctorProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -1318,6 +1361,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AvailableForSupervision")
+                        .HasColumnType("boolean")
+                        .HasColumnName("available_for_supervision");
 
                     b.Property<string>("Bio")
                         .HasColumnType("text")
@@ -1335,6 +1382,10 @@ namespace GraduationProject.API.Migrations
                     b.Property<string>("Linkedin")
                         .HasColumnType("text")
                         .HasColumnName("linkedin");
+
+                    b.Property<string>("NotificationPreferences")
+                        .HasColumnType("text")
+                        .HasColumnName("notification_preferences");
 
                     b.Property<string>("OfficeHours")
                         .HasColumnType("text")
@@ -1451,6 +1502,31 @@ namespace GraduationProject.API.Migrations
                         .IsUnique();
 
                     b.ToTable("feed_post_engagements", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.GraduationProjectDraft", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payload_json");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId1")
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("UserId1");
+
+                    b.ToTable("graduation_project_drafts", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.Message", b =>
@@ -1807,6 +1883,34 @@ namespace GraduationProject.API.Migrations
                         .IsUnique();
 
                     b.ToTable("skills", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentAccountSettings", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("AiProjectInterests")
+                        .HasColumnType("text")
+                        .HasColumnName("ai_project_interests");
+
+                    b.Property<string>("NotificationPreferences")
+                        .HasColumnType("text")
+                        .HasColumnName("notification_preferences");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId1")
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("UserId1");
+
+                    b.ToTable("student_account_settings", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.StudentAssociationProfile", b =>
@@ -2490,6 +2594,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("text")
@@ -2543,6 +2651,49 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("student_organization_team_members", (string)null);
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.StudentPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentType")
+                        .HasColumnType("text")
+                        .HasColumnName("attachment_type");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("attachment_url");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("student_posts", (string)null);
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -2563,6 +2714,14 @@ namespace GraduationProject.API.Migrations
                     b.Property<string>("Bio")
                         .HasColumnType("text")
                         .HasColumnName("bio");
+
+                    b.Property<string>("CollaborationPreferences")
+                        .HasColumnType("text")
+                        .HasColumnName("collaboration_preferences");
+
+                    b.Property<string>("ExpectedGraduation")
+                        .HasColumnType("text")
+                        .HasColumnName("expected_graduation");
 
                     b.Property<string>("Faculty")
                         .HasColumnType("text")
@@ -2591,6 +2750,14 @@ namespace GraduationProject.API.Migrations
                     b.Property<string>("Major")
                         .HasColumnType("text")
                         .HasColumnName("major");
+
+                    b.Property<string>("OtherLinks")
+                        .HasColumnType("text")
+                        .HasColumnName("other_links");
+
+                    b.Property<string>("PersonalWebsite")
+                        .HasColumnType("text")
+                        .HasColumnName("personal_website");
 
                     b.Property<string>("Portfolio")
                         .HasColumnType("text")
@@ -2645,6 +2812,18 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("abstract");
 
+                    b.Property<string>("AbstractFileBase64")
+                        .HasColumnType("text")
+                        .HasColumnName("abstract_file_base64");
+
+                    b.Property<string>("AbstractFileName")
+                        .HasColumnType("text")
+                        .HasColumnName("abstract_file_name");
+
+                    b.Property<DateTime?>("AbstractFileUploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("abstract_file_uploaded_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2661,6 +2840,10 @@ namespace GraduationProject.API.Migrations
                     b.Property<int>("PartnersCount")
                         .HasColumnType("integer")
                         .HasColumnName("partners_count");
+
+                    b.Property<string>("ProjectInterests")
+                        .HasColumnType("text")
+                        .HasColumnName("project_interests");
 
                     b.Property<string>("ProjectType")
                         .IsRequired()
@@ -3466,6 +3649,17 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Team");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.DoctorPost", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.DoctorProfile", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.User", "User")
@@ -3493,6 +3687,23 @@ namespace GraduationProject.API.Migrations
                     b.HasOne("GraduationProject.API.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.GraduationProjectDraft", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId1")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -3622,6 +3833,23 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Section");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentAccountSettings", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId1")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.StudentAssociationProfile", b =>
@@ -3879,6 +4107,17 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("SourceApplication");
 
                     b.Navigation("StudentProfile");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentPost", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>

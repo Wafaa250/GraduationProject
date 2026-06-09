@@ -34,9 +34,20 @@ type Props = {
   loading: boolean;
   data: DoctorProfileViewData | null;
   error?: string | null;
+  showMessageButton?: boolean;
+  messaging?: boolean;
+  onMessage?: () => void;
 };
 
-export function DoctorProfileView({ mode, loading, data, error }: Props) {
+export function DoctorProfileView({
+  mode,
+  loading,
+  data,
+  error,
+  showMessageButton = false,
+  messaging = false,
+  onMessage,
+}: Props) {
   if (loading) {
     return (
       <main className="flex min-h-[40vh] flex-1 items-center justify-center bg-gradient-mesh">
@@ -68,6 +79,9 @@ export function DoctorProfileView({ mode, loading, data, error }: Props) {
           specialization={data.specialization}
           photoUrl={data.photoUrl}
           showEditButton={mode === "owner"}
+          showMessageButton={showMessageButton}
+          messaging={messaging}
+          onMessage={onMessage}
         />
 
         {data.bio.trim() ? (

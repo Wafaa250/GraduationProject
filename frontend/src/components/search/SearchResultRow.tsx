@@ -17,9 +17,21 @@ type Props = {
   hit: FeedSearchResultRow;
   groupKey?: string;
   onSelect: () => void;
+  onMessage?: () => void;
+  onFollow?: () => void;
+  isFollowing?: boolean;
+  messaging?: boolean;
 };
 
-export function SearchResultRow({ hit, groupKey, onSelect }: Props) {
+export function SearchResultRow({
+  hit,
+  groupKey,
+  onSelect,
+  onMessage,
+  onFollow,
+  isFollowing = false,
+  messaging = false,
+}: Props) {
   const src = hitAvatar(hit);
   const meta = getSearchRoleMeta(hit.entityType, groupKey);
   const initials = hit.name
@@ -42,32 +54,68 @@ export function SearchResultRow({ hit, groupKey, onSelect }: Props) {
         ? `@${hit.email.split("@")[0]}`
         : null;
 
+  const entityType = hit.entityType.toLowerCase();
+  const isPerson = entityType === "student" || entityType === "doctor";
+  const isFollowable = entityType === "company" || entityType === "association";
+
   return (
-    <button
-      type="button"
-      className="global-search__result"
-      onClick={() => onSelect()}
-    >
-      <span className={cn("global-search__result-avatar", meta.avatarClass)}>
-        {src ? <img src={src} alt="" /> : initials}
-      </span>
-      <span className="global-search__result-text">
-        <span className="global-search__result-title">{hit.name}</span>
-        {usernameLine ? (
-          <span
-            className={cn(
-              "global-search__result-username",
-              isCompany && "global-search__result-username--company",
-            )}
-          >
-            {usernameLine}
-          </span>
-        ) : null}
-        {hit.subtitle &&
-        (!isCompany || hit.subtitle.trim() !== (usernameLine ?? "").trim()) ? (
-          <span className="global-search__result-subtitle">{hit.subtitle}</span>
-        ) : null}
-      </span>
-    </button>
+    <div className="global-search__result global-search__result--row">
+      <button type="button" className="global-search__result-main" onClick={() => onSelect()}>
+        <span className={cn("global-search__result-avatar", meta.avatarClass)}>
+          {src ? <img src={src} alt="" /> : initials}
+        </span>
+        <span className="global-search__result-text">
+          <span className="global-search__result-title">{hit.name}</span>
+          {usernameLine ? (
+            <span
+              className={cn(
+                "global-search__result-username",
+                isCompany && "global-search__result-username--company",
+              )}
+            >
+              {usernameLine}
+            </span>
+          ) : null}
+          {hit.subtitle &&
+          (!isCompany || hit.subtitle.trim() !== (usernameLine ?? "").trim()) ? (
+            <span className="global-search__result-subtitle">{hit.subtitle}</span>
+          ) : null}
+        </span>
+      </button>
+      {isPerson && onMessage ? (
+        <button
+          type="button"
+          className="global-search__result-action"
+          disabled={messaging}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMessage();
+          }}
+        >
+          {messaging ? "…" : "Message"}
+        </button>
+      ) : null}
+      {isFollowable && onFollow ? (
+        <button
+          type="button"
+          className="global-search__result-action"
+          onClick={(e) => {
+            e.stopPropagation();
+            onFollow();
+          }}
+        >
+          {isFollowing ? "Following" : "Follow"}
+        </button>
+      ) : null}
+      {!isPerson && !isFollowable ? (
+        <button type="button" className="global-search__result-action" onClick={() => onSelect()}>
+          View
+        </button>
+      ) : isPerson ? (
+        <button type="button" className="global-search__result-action" onClick={() => onSelect()}>
+          View
+        </button>
+      ) : null}
+    </div>
   );
 }

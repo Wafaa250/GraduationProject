@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getAllNotifications,
@@ -11,7 +12,12 @@ import {
   subscribeNotificationsHubReconnect,
 } from "@/lib/notificationsHub";
 import { getNotificationToastTitle } from "@/lib/notificationPresentation";
+import { ToastAction, type ToastActionElement } from "@/components/ui/toast";
 import { toast } from "@/hooks/use-toast";
+import {
+  getDoctorInvitationTargetLabel,
+  getStudentInvitationTargetLabel,
+} from "@/lib/notificationInvitationRouting";
 
 type UseNotificationsInboxOptions = {
   role: "student" | "doctor";
@@ -19,12 +25,15 @@ type UseNotificationsInboxOptions = {
   showToasts?: boolean;
   /** Mark all notifications read when the dropdown opens. */
   markAllReadOnOpen?: boolean;
+  /** Navigate when the user taps View on a real-time toast. */
+  onRealtimeNotificationClick?: (n: GraduationNotification) => void | Promise<void>;
 };
 
 export function useNotificationsInbox({
   role,
   showToasts = true,
   markAllReadOnOpen = true,
+  onRealtimeNotificationClick,
 }: UseNotificationsInboxOptions) {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -79,9 +88,24 @@ export function useNotificationsInbox({
         setUnreadCount((c) => c + 1);
       }
       if (showToasts && !openRef.current) {
+        const actionLabel =
+          role === "doctor"
+            ? getDoctorInvitationTargetLabel(payload)
+            : getStudentInvitationTargetLabel(payload);
         toast({
           title: getNotificationToastTitle(payload),
           description: payload.body?.trim() || undefined,
+          action:
+            onRealtimeNotificationClick && actionLabel
+              ? (React.createElement(
+                  ToastAction,
+                  {
+                    altText: actionLabel,
+                    onClick: () => void onRealtimeNotificationClick(payload),
+                  },
+                  actionLabel,
+                ) as unknown as ToastActionElement)
+              : undefined,
         });
       }
     });
@@ -92,7 +116,7 @@ export function useNotificationsInbox({
       unsubCreated();
       unsubReconnect();
     };
-  }, [refresh, showToasts]);
+  }, [refresh, showToasts, role, onRealtimeNotificationClick]);
 
   const toggleOpen = useCallback(() => {
     setOpen((wasOpen) => {
@@ -133,7 +157,15 @@ export function useNotificationsInbox({
   }, [unreadCount, markingAllRead]);
 
   const handleNotificationClick = useCallback(
-    async (n: GraduationNotification, onNavigate: () => void) => {
+    async (n: GraduationNotification, onNavigate: () => void | Promise<void>) => {
+      console.log("[NotificationInvitationTrace]", {
+        stage: "bell_item_click",
+        notificationId: n.id,
+        category: n.category,
+        eventType: n.eventType,
+        dedupKey: n.dedupKey ?? null,
+      });
+
       if (!n.readAt) {
         try {
           await markGraduationNotificationRead(n.id);
@@ -148,7 +180,7 @@ export function useNotificationsInbox({
         }
       }
       setOpen(false);
-      onNavigate();
+      await onNavigate();
     },
     [],
   );

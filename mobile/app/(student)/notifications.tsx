@@ -20,7 +20,7 @@ import { StudentWorkspaceScreen } from "@/components/student/StudentWorkspaceScr
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { getStudentNotificationTarget } from "@/lib/studentNotificationNavigation";
+import { resolveStudentNotificationNavigation } from "@/lib/handleInvitationNotificationClick";
 
 function formatNotificationTime(iso: string): string {
   try {
@@ -76,8 +76,11 @@ export default function NotificationsScreen() {
       }
     }
 
-    const target = getStudentNotificationTarget(notification);
-    if (target) router.push(target as never);
+    const { route, unavailableMessage } = await resolveStudentNotificationNavigation(notification);
+    if (unavailableMessage) {
+      Alert.alert("Invitation unavailable", unavailableMessage);
+    }
+    if (route) router.push(route as never);
   };
 
   const handleMarkAll = async () => {

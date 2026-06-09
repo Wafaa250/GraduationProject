@@ -10,11 +10,18 @@ import type { TeamInvitationView } from "@/lib/dashboardMappers";
 type Props = {
   invitations: TeamInvitationView[];
   busyId: string | null;
+  highlightId?: string | null;
   onAccept: (id: string) => void;
   onDecline: (id: string) => void;
 };
 
-export function TeamInvitationsCard({ invitations, busyId, onAccept, onDecline }: Props) {
+export function TeamInvitationsCard({
+  invitations,
+  busyId,
+  highlightId = null,
+  onAccept,
+  onDecline,
+}: Props) {
   const layout = useResponsiveLayout();
   const { colors } = useHubTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -59,10 +66,16 @@ export function TeamInvitationsCard({ invitations, busyId, onAccept, onDecline }
         <View style={{ gap: layout.space("sm") }}>
           {invitations.map((inv) => {
             const busy = busyId === inv.id;
+            const highlighted = highlightId === inv.id;
             return (
               <View
                 key={inv.id}
-                style={[styles.inviteRow, { borderRadius: layout.radius.input, padding: layout.space("md") }]}
+                nativeID={`course-invitation-${inv.id}`}
+                style={[
+                  styles.inviteRow,
+                  { borderRadius: layout.radius.input, padding: layout.space("md") },
+                  highlighted && styles.inviteRowHighlighted,
+                ]}
               >
                 <View style={styles.inviteTop}>
                   <View
@@ -178,12 +191,16 @@ const createStyles = (colors: HubColorScheme) =>
     marginTop: 6,
     lineHeight: 20,
   },
-  inviteRow: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    gap: 12,
-  },
+    inviteRow: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      gap: 12,
+    },
+    inviteRowHighlighted: {
+      borderColor: colors.primary,
+      borderWidth: 2,
+    },
   inviteTop: {
     flexDirection: "row",
     gap: 12,

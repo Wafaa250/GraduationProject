@@ -96,6 +96,19 @@ const StudentProfileEditPage = () => {
     setGithub(data.github ?? "");
     setPortfolio(data.portfolio ?? "");
     setPhoto(data.profilePictureBase64 ?? null);
+    const prefs = data.collaborationPreferences;
+    if (prefs?.workingStyle) setWorkingStyle(prefs.workingStyle);
+    if (prefs?.teamwork) setTeamwork(prefs.teamwork);
+    if (prefs?.collaboration) setCollab(prefs.collaboration);
+    if (data.otherLinks?.length) {
+      setOtherLinks(
+        data.otherLinks.map((link) => ({
+          id: crypto.randomUUID(),
+          label: link.label,
+          url: link.url,
+        })),
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -165,6 +178,14 @@ const StudentProfileEditPage = () => {
         linkedin: linkedin.trim() || undefined,
         portfolio: portfolio.trim() || undefined,
         profilePictureBase64: photo,
+        collaborationPreferences: {
+          workingStyle,
+          teamwork,
+          collaboration: collab,
+        },
+        otherLinks: otherLinks
+          .filter((l) => l.label.trim() && l.url.trim())
+          .map((l) => ({ label: l.label.trim(), url: l.url.trim() })),
       });
       const data = await getMe();
       applyMe(data);

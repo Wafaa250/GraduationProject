@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.API.Data;
+using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Services;
 
@@ -106,7 +107,37 @@ namespace GraduationProject.API.Controllers
                 // للتوافق مع ProfilePage.tsx اللي بيستخدم generalSkills/majorSkills
                 generalSkills   = roles,
                 majorSkills     = technicalSkills,
+                collaborationPreferences = DeserializeCollaborationPreferences(profile.CollaborationPreferences),
+                otherLinks               = DeserializeOtherLinks(profile.OtherLinks),
+                expectedGraduation       = profile.ExpectedGraduation,
+                personalWebsite          = profile.PersonalWebsite,
             });
+        }
+
+        private static CollaborationPreferencesDto? DeserializeCollaborationPreferences(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<CollaborationPreferencesDto>(json);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        private static List<OtherLinkDto> DeserializeOtherLinks(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new List<OtherLinkDto>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<OtherLinkDto>>(json) ?? new List<OtherLinkDto>();
+            }
+            catch (JsonException)
+            {
+                return new List<OtherLinkDto>();
+            }
         }
 
         // ── Doctor ───────────────────────────────────────────────────────────
@@ -151,8 +182,30 @@ namespace GraduationProject.API.Controllers
                     profilePictureBase64 = dp.ProfilePictureBase64,
                     technicalSkills,
                     researchSkills,
+                    supervisionCapacity = dp.SupervisionCapacity,
+                    availableForSupervision = dp.AvailableForSupervision,
+                    supervisionPreferences = new DoctorSupervisionPreferencesDto
+                    {
+                        SupervisionCapacity = dp.SupervisionCapacity,
+                        AvailableForSupervision = dp.AvailableForSupervision,
+                    },
+                    notificationPreferences = DeserializeDoctorNotificationPreferences(dp.NotificationPreferences),
                 },
             });
+        }
+
+        private static DoctorNotificationPreferencesDto DeserializeDoctorNotificationPreferences(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new DoctorNotificationPreferencesDto();
+            try
+            {
+                return JsonSerializer.Deserialize<DoctorNotificationPreferencesDto>(json)
+                    ?? new DoctorNotificationPreferencesDto();
+            }
+            catch (JsonException)
+            {
+                return new DoctorNotificationPreferencesDto();
+            }
         }
 
         // ── Company ──────────────────────────────────────────────────────────

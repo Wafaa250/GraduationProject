@@ -29,6 +29,11 @@ namespace GraduationProject.API.Models
         [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("updated_at")] public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+        [Column("abstract_file_name")] public string? AbstractFileName { get; set; }
+        [Column("abstract_file_base64")] public string? AbstractFileBase64 { get; set; }
+        [Column("abstract_file_uploaded_at")] public DateTime? AbstractFileUploadedAt { get; set; }
+        [Column("project_interests")] public string? ProjectInterests { get; set; }
+
         // Navigation
         public StudentProfile Owner { get; set; } = null!;
         public DoctorProfile? Supervisor { get; set; }

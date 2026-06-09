@@ -12,8 +12,15 @@ namespace GraduationProject.API.Services
     public class CompanyRequestInvitationService : ICompanyRequestInvitationService
     {
         private readonly ApplicationDbContext _db;
+        private readonly IGraduationProjectNotificationService _notifications;
 
-        public CompanyRequestInvitationService(ApplicationDbContext db) => _db = db;
+        public CompanyRequestInvitationService(
+            ApplicationDbContext db,
+            IGraduationProjectNotificationService notifications)
+        {
+            _db = db;
+            _notifications = notifications;
+        }
 
         public async Task<CompanyRequestInvitationDetailDto> CreateAsync(
             int companyProfileId,
@@ -23,6 +30,7 @@ namespace GraduationProject.API.Services
         {
             var request = await _db.CompanyRequests
                 .Include(r => r.Roles)
+                .Include(r => r.CompanyProfile)
                 .FirstOrDefaultAsync(r => r.Id == requestId && r.CompanyProfileId == companyProfileId);
 
             if (request == null)
@@ -73,6 +81,14 @@ namespace GraduationProject.API.Services
             _db.CompanyRequestInvitations.Add(invitation);
             await _db.SaveChangesAsync();
 
+            await _notifications.NotifyCompanyRequestInvitationReceivedAsync(
+                invitation.Id,
+                dto.StudentProfileId,
+                companyProfileId,
+                requestId,
+                request.CompanyProfile?.CompanyName ?? "A company",
+                request.Title);
+
             return await GetDetailByIdAsync(invitation.Id);
         }
 
@@ -111,6 +127,7 @@ namespace GraduationProject.API.Services
         {
             var invitation = await _db.CompanyRequestInvitations
                 .Include(i => i.CompanyRequest)
+                .Include(i => i.CompanyProfile)
                 .FirstOrDefaultAsync(i =>
                     i.Id == invitationId &&
                     i.CompanyRequestId == requestId &&
@@ -126,6 +143,15 @@ namespace GraduationProject.API.Services
             invitation.RespondedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+
+            await _notifications.NotifyCompanyRequestInvitationCancelledAsync(
+                invitation.Id,
+                invitation.StudentProfileId,
+                invitation.CompanyProfileId,
+                invitation.CompanyRequestId,
+                invitation.CompanyProfile.CompanyName,
+                invitation.CompanyRequest.Title);
+
             return await GetDetailByIdAsync(invitation.Id);
         }
 
@@ -159,6 +185,9 @@ namespace GraduationProject.API.Services
             string nextStatus)
         {
             var invitation = await _db.CompanyRequestInvitations
+                .Include(i => i.CompanyRequest)
+                .Include(i => i.CompanyProfile)
+                .Include(i => i.StudentProfile).ThenInclude(s => s.User)
                 .FirstOrDefaultAsync(i => i.Id == invitationId && i.StudentProfileId == studentProfileId);
 
             if (invitation == null) return null;
@@ -172,6 +201,29 @@ namespace GraduationProject.API.Services
                 invitation.CancelledAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+
+            var studentName = invitation.StudentProfile.User?.Name ?? "A student";
+            if (nextStatus == CompanyRequestInvitationStatus.Accepted)
+            {
+                await _notifications.NotifyCompanyRequestInvitationAcceptedAsync(
+                    invitation.Id,
+                    invitation.CompanyProfileId,
+                    invitation.CompanyRequestId,
+                    invitation.CompanyProfile.CompanyName,
+                    invitation.CompanyRequest.Title,
+                    studentName);
+            }
+            else if (nextStatus == CompanyRequestInvitationStatus.Rejected)
+            {
+                await _notifications.NotifyCompanyRequestInvitationRejectedAsync(
+                    invitation.Id,
+                    invitation.CompanyProfileId,
+                    invitation.CompanyRequestId,
+                    invitation.CompanyProfile.CompanyName,
+                    invitation.CompanyRequest.Title,
+                    studentName);
+            }
+
             return await GetDetailByIdAsync(invitation.Id);
         }
 

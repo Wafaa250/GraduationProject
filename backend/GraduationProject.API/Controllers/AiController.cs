@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using GraduationProject.API.Data;
+using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
 using GraduationProject.API.Services;
@@ -25,15 +26,18 @@ namespace GraduationProject.API.Controllers
 
         private readonly ApplicationDbContext _db;
         private readonly IAiStudentRecommendationService _aiService;
+        private readonly ISupervisorRecommendationResolver _supervisorRecommendations;
         private readonly ILogger<AiController> _logger;
 
         public AiController(
             ApplicationDbContext db,
             IAiStudentRecommendationService aiService,
+            ISupervisorRecommendationResolver supervisorRecommendations,
             ILogger<AiController> logger)
         {
             _db = db;
             _aiService = aiService;
+            _supervisorRecommendations = supervisorRecommendations;
             _logger = logger;
         }
 
@@ -162,6 +166,7 @@ namespace GraduationProject.API.Controllers
                     return new CandidateRow
                     {
                         StudentId = s.Id,
+                        UserId = s.UserId,
                         Name = s.User?.Name ?? string.Empty,
                         Major = s.Major ?? string.Empty,
                         University = s.University ?? string.Empty,
@@ -263,7 +268,6 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
-            // Allow both the project owner AND the team leader to request recommendations
             var isOwner = project.OwnerId == caller.Id;
             var isLeader = await _db.StudentProjectMembers
                 .AnyAsync(m => m.ProjectId == request.ProjectId && m.StudentId == caller.Id && m.Role == "leader");
@@ -271,113 +275,105 @@ namespace GraduationProject.API.Controllers
             if (!isOwner && !isLeader)
                 return StatusCode(403, new { message = "Only project leader can request AI recommendations." });
 
-            var requiredSkillNames = SkillHelper.ParseStringList(project.RequiredSkills);
-            var requiredSkillsNormalized = requiredSkillNames
+            var (matched, audit) = await _supervisorRecommendations.ResolveAsync(caller, project);
+
+            if (matched.Count == 0)
+            {
+                audit.TotalReturned = 0;
+                return Ok(Array.Empty<object>());
+            }
+
+            var requiredSkillNames = SkillHelper.ParseStringList(project.RequiredSkills)
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => s.Trim())
                 .ToList();
 
-            var student = caller; // already fetched above, no need for a second DB call
-
-
-            // Special case: Computer Engineering students also see Electrical Engineering supervisors.
-            var isComputerEngineeringStudent =
-                string.Equals(student.Major?.Trim(), "Computer Engineering", StringComparison.OrdinalIgnoreCase);
-
-            var doctors = await _db.DoctorProfiles
-                .Include(d => d.User)
-                .Where(d =>
-                    !string.IsNullOrEmpty(d.Department) &&
-                    !string.IsNullOrEmpty(student.Major) &&
-                    (
-                        d.Department.ToLower().Contains(student.Major.ToLower()) ||
-                        (isComputerEngineeringStudent &&
-                         d.Department.ToLower().Contains("electrical engineering"))
-                    )
-                )
-                .AsNoTracking()
-                .ToListAsync();
-
-            var candidates = doctors
-                .Select(d =>
-                {
-                    var specialization = d.Specialization ?? string.Empty;
-                    var matchedSkills = requiredSkillsNormalized.Count == 0
-                        ? 0
-                        : requiredSkillsNormalized.Count(skill =>
-                            specialization.IndexOf(skill, StringComparison.OrdinalIgnoreCase) >= 0);
-
-                    // If no required skills, give everyone a base score of 50 so AI can rank by bio/specialization.
-                    // If there ARE required skills but a doctor has 0 matches, still include them with score 0
-                    // so the AI can use bio + specialization context to rank properly.
-                    var fallbackScore = requiredSkillsNormalized.Count > 0
-                        ? (int)Math.Min((double)matchedSkills / requiredSkillsNormalized.Count * 100, 100)
-                        : 50;
-
-                    return new SupervisorCandidateRow
-                    {
-                        DoctorId = d.Id,
-                        Name = d.User?.Name ?? string.Empty,
-                        Specialization = specialization,
-                        Bio = d.Bio ?? string.Empty,
-                        MatchedSkills = matchedSkills,
-                        FallbackScore = fallbackScore
-                    };
-                })
-                // Always include ALL doctors from the same department — AI will rank them.
-                // Do not filter by MatchedSkills here; a doctor can be a good match based on
-                // bio and specialization even if skill keywords don't appear verbatim.
-                .OrderByDescending(c => c.FallbackScore)
+            var rankedCandidates = matched
+                .Select(c => RecommendedSupervisorHelper.MapMatchedDoctor(c, project.RequiredSkills))
+                .Where(RecommendedSupervisorHelper.IsPublishable)
+                .OrderByDescending(c => c.MatchScore)
                 .ThenBy(c => c.DoctorId)
                 .Take(MaxSupervisorCandidates)
                 .ToList();
 
-            if (candidates.Count == 0)
-                return NotFound(new { message = "No supervisors found in your department. Make sure doctors have their department set." });
+            if (rankedCandidates.Count == 0)
+            {
+                audit.TotalReturned = 0;
+                return Ok(Array.Empty<object>());
+            }
+
+            var candidateById = rankedCandidates.ToDictionary(c => c.DoctorId);
 
             var aiProject = new AiProjectInput
             {
                 Title = project.Name,
                 Abstract = project.Abstract ?? string.Empty,
-                RequiredSkills = requiredSkillNames
+                RequiredSkills = requiredSkillNames,
             };
 
-            var aiDoctors = candidates.Select(c => new AiDoctorInput
+            var aiDoctors = rankedCandidates.Select(c => new AiDoctorInput
             {
                 DoctorId = c.DoctorId,
                 Name = c.Name,
                 Specialization = c.Specialization,
-                Bio = c.Bio
+                Bio = matched.First(m => m.Doctor.Id == c.DoctorId).Doctor.Bio ?? string.Empty,
             }).ToList();
 
             var aiResults = await _aiService.RankSupervisorsAsync(aiProject, aiDoctors);
             if (aiResults != null && aiResults.Count > 0)
             {
-                var validIds = candidates.Select(c => c.DoctorId).ToHashSet();
                 var sanitized = aiResults
-                    .Where(r => validIds.Contains(r.DoctorId))
-                    .Select(r => new
+                    .Where(r => candidateById.ContainsKey(r.DoctorId))
+                    .Select(r =>
                     {
-                        doctorId = r.DoctorId,
-                        matchScore = Math.Clamp(r.MatchScore, 0, 100),
-                        reason = r.Reason ?? string.Empty
+                        var candidate = candidateById[r.DoctorId];
+                        var matchedSkillCount = requiredSkillNames.Count == 0
+                            ? 0
+                            : requiredSkillNames.Count(skill =>
+                                candidate.Specialization.IndexOf(skill, StringComparison.OrdinalIgnoreCase) >= 0);
+
+                        var reason = string.IsNullOrWhiteSpace(r.Reason)
+                            ? RecommendedSupervisorHelper.BuildSkillMatchReason(
+                                matchedSkillCount,
+                                requiredSkillNames.Count,
+                                candidate.Name)
+                            : r.Reason.Trim();
+
+                        return new RecommendedSupervisorDto
+                        {
+                            DoctorId = candidate.DoctorId,
+                            UserId = candidate.UserId,
+                            Name = candidate.Name,
+                            Specialization = candidate.Specialization,
+                            MatchScore = Math.Clamp(r.MatchScore, 0, 100),
+                            Reason = reason,
+                        };
                     })
+                    .Where(RecommendedSupervisorHelper.IsPublishable)
                     .ToList();
 
                 if (sanitized.Count > 0)
+                {
+                    audit.AfterAiScoring = sanitized.Count;
+                    audit.TotalReturned = sanitized.Count;
+                    _logger.LogInformation(
+                        "recommend-supervisors projectId={ProjectId} aiReturned={Count} matchTier={Tier}",
+                        request.ProjectId,
+                        sanitized.Count,
+                        audit.MatchTierUsed);
                     return Ok(sanitized);
+                }
             }
 
-            var fallback = candidates
-                .Select(c => new
-                {
-                    doctorId = c.DoctorId,
-                    matchScore = c.FallbackScore,
-                    reason = (string?)null
-                })
-                .ToList();
+            audit.AfterAiScoring = rankedCandidates.Count;
+            audit.TotalReturned = rankedCandidates.Count;
+            _logger.LogInformation(
+                "recommend-supervisors projectId={ProjectId} fallbackReturned={Count} matchTier={Tier}",
+                request.ProjectId,
+                rankedCandidates.Count,
+                audit.MatchTierUsed);
 
-            return Ok(fallback);
+            return Ok(rankedCandidates);
         }
 
         private async Task<StudentProfile?> GetStudentProfileAsync()
@@ -409,6 +405,7 @@ namespace GraduationProject.API.Controllers
             return new
             {
                 studentId = candidate.StudentId,
+                userId = candidate.UserId,
                 matchScore,
                 reason = reason ?? string.Empty,
                 name = candidate.Name,
@@ -431,22 +428,13 @@ namespace GraduationProject.API.Controllers
         private class CandidateRow
         {
             public int StudentId { get; set; }
+            public int UserId { get; set; }
             public string Name { get; set; } = string.Empty;
             public string Major { get; set; } = string.Empty;
             public string University { get; set; } = string.Empty;
             public string Bio { get; set; } = string.Empty;
             public List<string> Skills { get; set; } = new();
             public int CommonSkills { get; set; }
-            public int FallbackScore { get; set; }
-        }
-
-        private class SupervisorCandidateRow
-        {
-            public int DoctorId { get; set; }
-            public string Name { get; set; } = string.Empty;
-            public string Specialization { get; set; } = string.Empty;
-            public string Bio { get; set; } = string.Empty;
-            public int MatchedSkills { get; set; }
             public int FallbackScore { get; set; }
         }
     }

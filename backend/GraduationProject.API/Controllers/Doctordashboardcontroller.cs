@@ -123,6 +123,84 @@ namespace GraduationProject.API.Controllers
         }
 
         // =====================================================================
+        // GET /api/doctors/me/requests/{requestId}
+        // Single supervision request detail for notification deep-links.
+        // =====================================================================
+        [HttpGet("requests/{requestId:int}")]
+        public async Task<IActionResult> GetDoctorRequestById(int requestId)
+        {
+            if (AuthorizationHelper.GetRole(User) != "doctor")
+                return StatusCode(403, new { message = "Only doctors can access this endpoint." });
+
+            var doctor = await GetCurrentDoctorProfileAsync();
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found." });
+
+            var r = await _db.SupervisorRequests
+                .Where(req => req.Id == requestId && req.DoctorId == doctor.Id)
+                .Include(req => req.Project)
+                    .ThenInclude(p => p.Members)
+                        .ThenInclude(m => m.Student)
+                            .ThenInclude(s => s.User)
+                .Include(req => req.Sender).ThenInclude(s => s.User)
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            if (r == null)
+                return NotFound(new { message = "Request not found." });
+
+            List<string> skills;
+            try
+            {
+                skills = r.Project?.RequiredSkills is { } reqJson
+                    ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(reqJson) ?? new List<string>()
+                    : new List<string>();
+            }
+            catch
+            {
+                skills = new List<string>();
+            }
+
+            var members = (r.Project?.Members ?? Enumerable.Empty<Models.StudentProjectMember>())
+                .OrderBy(m => m.Role == "leader" ? 0 : 1)
+                .ThenBy(m => m.Student?.User?.Name ?? "")
+                .Select(m => new
+                {
+                    studentId = m.StudentId,
+                    name = m.Student?.User?.Name ?? "",
+                    role = m.Role,
+                    major = m.Student?.Major ?? "",
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                requestId = r.Id,
+                status = r.Status,
+                createdAt = r.CreatedAt,
+                respondedAt = r.RespondedAt,
+                project = new
+                {
+                    projectId = r.ProjectId,
+                    name = r.Project?.Name ?? "",
+                    description = r.Project?.Abstract,
+                    requiredSkills = skills,
+                    projectType = r.Project?.ProjectType ?? "GP",
+                    partnersCount = r.Project?.PartnersCount ?? 0,
+                    memberCount = r.Project?.Members.Count ?? 0,
+                    members,
+                },
+                sender = new
+                {
+                    studentId = r.SenderId,
+                    name = r.Sender?.User?.Name ?? "",
+                    major = r.Sender?.Major ?? "",
+                    university = r.Sender?.University ?? "",
+                },
+            });
+        }
+
+        // =====================================================================
         // GET /api/doctors/me/requests-summary
         //
         // Status counts for the Doctor Supervision Requests page stat cards.

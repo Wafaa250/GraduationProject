@@ -132,7 +132,17 @@ export function NotificationCenterDropdown({
                           ? "notif-center-item--unread border-primary/20 bg-primary/5"
                           : "border-border/60 opacity-85 hover:bg-secondary/50",
                       )}
-                      onClick={() => onNotificationClick(n)}
+                      onClick={() => {
+                        console.log("[NotificationInvitationTrace]", {
+                          stage: "view_invitation_click",
+                          notificationId: n.id,
+                          category: n.category,
+                          eventType: n.eventType,
+                          targetLabel: targetLabel ?? null,
+                          dedupKey: n.dedupKey ?? null,
+                        });
+                        onNotificationClick(n);
+                      }}
                     >
                       <div className="flex gap-2.5">
                         <span

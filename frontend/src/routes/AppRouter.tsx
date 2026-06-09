@@ -28,6 +28,7 @@ import DoctorCourseDetailPage from "@/pages/doctor/DoctorCourseDetailPage";
 import DoctorSectionDetailPage from "@/pages/doctor/DoctorSectionDetailPage";
 import DoctorCourseProjectDetailPage from "@/pages/doctor/DoctorCourseProjectDetailPage";
 import DoctorStudentProfilePage from "@/pages/doctor/DoctorStudentProfilePage";
+import DoctorStudentsDirectoryPage from "@/pages/doctor/DoctorStudentsDirectoryPage";
 import DoctorSettingsPage from "@/pages/doctor/DoctorSettingsPage";
 import { LandingPage } from "@/pages/LandingPage";
 import LoginPage from "@/pages/auth/LoginPage";
@@ -79,6 +80,9 @@ import CompanyPublicProfilePage from "@/pages/student/CompanyPublicProfilePage";
 import { CompanyTalentRequestDetailPage } from "@/pages/company/CompanyTalentRequestDetailPage";
 import { StudentCommunicationHubRoute } from "@/routes/studentRoutes";
 import { StudentCompanyRequestDetailRoute } from "@/routes/StudentCompanyRequestDetailRoute";
+import GraduationInvitationDetailPage from "@/pages/student/GraduationInvitationDetailPage";
+import CourseInvitationDetailPage from "@/pages/student/CourseInvitationDetailPage";
+import DoctorSupervisionInvitationDetailPage from "@/pages/doctor/DoctorSupervisionInvitationDetailPage";
 
 export function AppRouter() {
   return (
@@ -171,6 +175,14 @@ export function AppRouter() {
           <Route path={ROUTES.studentMessageThread} element={<StudentMessagesPage />} />
           <Route path={ROUTES.following} element={<FollowingPage />} />
           <Route path={ROUTES.settings} element={<StudentSettingsPage />} />
+          <Route
+            path={ROUTES.studentGraduationInvitation}
+            element={<GraduationInvitationDetailPage />}
+          />
+          <Route
+            path={ROUTES.studentCourseInvitation}
+            element={<CourseInvitationDetailPage />}
+          />
         </Route>
 
         <Route
@@ -187,6 +199,10 @@ export function AppRouter() {
           <Route path={ROUTES.doctorMessages} element={<DoctorMessagesPage />} />
           <Route path={ROUTES.doctorMessageThread} element={<DoctorMessagesPage />} />
           <Route path={ROUTES.doctorRequests} element={<DoctorSupervisionRequestsPage />} />
+          <Route
+            path={ROUTES.doctorSupervisionInvitation}
+            element={<DoctorSupervisionInvitationDetailPage />}
+          />
           <Route path={ROUTES.doctorProjects} element={<DoctorProjectsPage />} />
           <Route path={ROUTES.doctorProjectDetail} element={<DoctorProjectDetailPage />} />
           <Route path={ROUTES.doctorProjectChat} element={<DoctorProjectTeamChatPage />} />
@@ -195,6 +211,7 @@ export function AppRouter() {
           <Route path={ROUTES.doctorCourseDetail} element={<DoctorCourseDetailPage />} />
           <Route path={ROUTES.doctorSectionDetail} element={<DoctorSectionDetailPage />} />
           <Route path={ROUTES.doctorCourseProjectDetail} element={<DoctorCourseProjectDetailPage />} />
+          <Route path={ROUTES.doctorStudents} element={<DoctorStudentsDirectoryPage />} />
           <Route path={ROUTES.doctorStudentProfile} element={<DoctorStudentProfilePage />} />
           <Route path={ROUTES.doctorSettings} element={<DoctorSettingsPage />} />
         </Route>

@@ -64,6 +64,14 @@ namespace GraduationProject.API.Services
             int receiverStudentProfileId,
             CancellationToken ct = default);
 
+        Task NotifyInvitationAcceptedAsync(
+            int invitationId,
+            int projectId,
+            string projectName,
+            int senderStudentProfileId,
+            int receiverStudentProfileId,
+            CancellationToken ct = default);
+
         Task NotifyInvitationCancelledBySenderAsync(
             int invitationId,
             int projectId,
@@ -318,6 +326,72 @@ namespace GraduationProject.API.Services
             int companyProfileId,
             string memberName,
             int? actorUserId = null,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Creates a pending course teammate invitation notification (DB + SignalR).
+        /// Returns the new notification id, or null when skipped/failed.
+        /// </summary>
+        Task<int?> NotifyCourseTeammateInvitationPendingAsync(
+            int receiverUserId,
+            int courseProjectId,
+            string senderName,
+            string projectTitle,
+            string dedupKey,
+            CancellationToken ct = default);
+
+        Task NotifyCourseTeammateInvitationAcceptedAsync(
+            int senderUserId,
+            int courseProjectId,
+            int invitationNotificationId,
+            string receiverName,
+            string projectTitle,
+            CancellationToken ct = default);
+
+        Task NotifyCourseTeammateInvitationRejectedAsync(
+            int senderUserId,
+            int courseProjectId,
+            string receiverName,
+            string projectTitle,
+            CancellationToken ct = default);
+
+        /// <summary>Pushes SignalR for an existing persisted notification row.</summary>
+        Task PushStoredNotificationAsync(int notificationId, CancellationToken ct = default);
+
+        Task NotifyCompanyRequestInvitationReceivedAsync(
+            int invitationId,
+            int studentProfileId,
+            int companyProfileId,
+            int requestId,
+            string companyName,
+            string requestTitle,
+            CancellationToken ct = default);
+
+        Task NotifyCompanyRequestInvitationCancelledAsync(
+            int invitationId,
+            int studentProfileId,
+            int companyProfileId,
+            int requestId,
+            string companyName,
+            string requestTitle,
+            CancellationToken ct = default);
+
+        Task NotifyCompanyRequestInvitationAcceptedAsync(
+            int invitationId,
+            int companyProfileId,
+            int requestId,
+            string companyName,
+            string requestTitle,
+            string studentName,
+            CancellationToken ct = default);
+
+        Task NotifyCompanyRequestInvitationRejectedAsync(
+            int invitationId,
+            int companyProfileId,
+            int requestId,
+            string companyName,
+            string requestTitle,
+            string studentName,
             CancellationToken ct = default);
     }
 }

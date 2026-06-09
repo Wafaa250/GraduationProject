@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -54,6 +55,12 @@ export default function DoctorCoursesScreen() {
 
   const listHeader = (
     <View style={styles.listHeader}>
+      <Pressable
+        onPress={() => router.push("/doctor/courses/create" as Href)}
+        style={styles.createBtn}
+      >
+        <Text style={[styles.createBtnText, { fontSize: layout.scale(13) }]}>Create course</Text>
+      </Pressable>
       <Text style={[styles.subtitle, { fontSize: layout.scale(13) }]}>
         Your teaching load and course workspaces
       </Text>
@@ -119,6 +126,18 @@ function createStyles(colors: HubColorScheme) {
       paddingTop: DOCTOR_SPACE.sm,
       paddingBottom: DOCTOR_SPACE.md,
       gap: DOCTOR_SPACE.xs,
+    },
+    createBtn: {
+      alignSelf: "flex-start",
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      marginBottom: DOCTOR_SPACE.xs,
+    },
+    createBtnText: {
+      color: colors.onPrimary,
+      fontWeight: "700",
     },
     subtitle: {
       fontWeight: "500",

@@ -67,7 +67,7 @@ export default function DoctorProjectsPage() {
                 ownerFaculty: project.owner.faculty ?? details?.ownerFaculty,
                 ownerMajor: project.owner.major ?? details?.ownerMajor,
               }),
-            status: teamSize >= teamCapacity && teamCapacity > 0 ? "completed" : "active",
+            status: project.isFull ? "completed" : "active",
             title: project.name,
             description: project.description?.trim() || "No project description provided.",
             teamSize,

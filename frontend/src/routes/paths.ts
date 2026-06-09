@@ -50,6 +50,10 @@ export const ROUTES = {
   studentMessageThread: "/messages/:conversationId",
   /** Student account and preferences. */
   settings: "/settings",
+  /** Actionable invitation detail pages (notification deep-links). */
+  studentGraduationInvitation: "/invitations/graduation/:invitationId",
+  studentCourseInvitation: "/invitations/course/:invitationId",
+  doctorSupervisionInvitation: "/doctor/invitations/supervision/:requestId",
   /** Doctor hub */
   doctorDashboard: "/doctor/dashboard",
   doctorProfile: "/doctor/profile",
@@ -66,6 +70,7 @@ export const ROUTES = {
   doctorSectionDetail: "/doctor/courses/:courseId/sections/:sectionId",
   doctorCourseProjectDetail:
     "/doctor/courses/:courseId/sections/:sectionId/projects/:projectId",
+  doctorStudents: "/doctor/students",
   doctorStudentProfile: "/doctor/students/:userId",
   doctorSettings: "/doctor/settings",
 } as const;
@@ -113,6 +118,19 @@ export function studentCoursePath(courseId: number) {
 export function studentCourseProjectPath(courseId: number, projectId: number) {
   return `/courses/${courseId}/projects/${projectId}`;
 }
+
+export function studentGraduationInvitationPath(invitationId: number | string) {
+  return `/invitations/graduation/${invitationId}`;
+}
+
+export function studentCourseInvitationPath(invitationId: number | string) {
+  return `/invitations/course/${invitationId}`;
+}
+
+export function doctorSupervisionInvitationPath(requestId: number | string) {
+  return `/doctor/invitations/supervision/${requestId}`;
+}
+
 /** Company workspace (post-login, role === company). */
 export const COMPANY_ROUTES = {
   root: "/company",

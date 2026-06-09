@@ -331,22 +331,29 @@ export function StudentProfileView({
   const remainingCount = completionSuggestions.filter((s) => !s.done).length;
 
   const preferenceValues = useMemo(() => {
+    const prefs = me?.collaborationPreferences;
     const availability = me?.availability?.trim();
     return [
-      "Not specified",
-      "Not specified",
-      "Not specified",
-      "Not specified",
-      availability ? availability : "Not specified",
-      "Not specified",
+      prefs?.workingStyle?.trim() || "—",
+      prefs?.teamwork?.trim() || "—",
+      prefs?.collaboration?.trim() || "—",
+      availability || "—",
+      me?.lookingFor?.trim() || "—",
+      me?.aiProjectInterests?.length ? me.aiProjectInterests.join(", ") : "—",
     ];
-  }, [me?.availability]);
+  }, [me]);
 
   const portfolioLinks = useMemo(() => {
     if (!me) return [];
     return LINK_DEFS.map(({ key, icon, label }) => {
       if (key === "website") {
-        return { icon, label, handle: "Not connected", url: null as string | null };
+        const url = me.personalWebsite?.trim();
+        return {
+          icon,
+          label,
+          handle: url ? linkHandle(url) : "—",
+          url: url ?? null,
+        };
       }
       const url = me[key]?.trim();
       return {
@@ -432,7 +439,11 @@ export function StudentProfileView({
     { icon: Code2, label: "Major", value: displayText(me.major) },
     { icon: Calendar, label: "Academic Year", value: displayText(me.academicYear) },
     { icon: Award, label: "GPA", value: formatGpa(me.gpa) },
-    { icon: Trophy, label: "Expected Graduation", value: "Not provided yet." },
+    {
+      icon: Trophy,
+      label: "Expected Graduation",
+      value: displayText(me.expectedGraduation ?? undefined),
+    },
   ];
 
   const aboutBlocks = [

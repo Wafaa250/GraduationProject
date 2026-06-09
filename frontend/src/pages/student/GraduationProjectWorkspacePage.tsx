@@ -25,6 +25,7 @@ import {
   Brain,
   Loader2,
   MoreVertical,
+  Pencil,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,20 +37,24 @@ import { cn } from "@/components/ui/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import "@/styles/project-workspace-hub.css";
-import { ROUTES } from "@/routes/paths";
+import { ROUTES, studentMessageThreadPath } from "@/routes/paths";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
+import { startConversation } from "@/api/conversationsApi";
 import {
   deleteGraduationProject,
   deriveProjectStatus,
+  getGraduationProjectAbstractFile,
   getGraduationProjectsMyEnvelope,
   getRecommendedStudents,
   getRecommendedSupervisors,
+  isValidSupervisorRecommendation,
   inviteStudentToProject,
   requestProjectSupervisor,
   projectTypeLabel,
   resolveProjectTypeLabel,
   type GradProject,
+  type GradProjectAbstractFile,
   type GradProjectMember,
   type GradProjectRecommendedStudent,
   type GradProjectRecommendedSupervisor,
@@ -217,6 +222,8 @@ export default function GraduationProjectWorkspacePage() {
   const [heroActionsMenuOpen, setHeroActionsMenuOpen] = useState(false);
   const heroActionsMenuRef = useRef<HTMLDivElement>(null);
   const [deletingProject, setDeletingProject] = useState(false);
+  const [messagingUserId, setMessagingUserId] = useState<number | null>(null);
+  const [abstractFile, setAbstractFile] = useState<GradProjectAbstractFile | null>(null);
   const isOwner = Boolean(
     project?.isOwner ||
       envelopeRole === "owner" ||
@@ -328,9 +335,9 @@ export default function GraduationProjectWorkspacePage() {
 
       if (owner || leader) {
         tasks.push(
-          getRecommendedStudents(proj.id).then((rows) => {
-            setAiTeammates(rows);
-          }),
+          getRecommendedStudents(proj.id)
+            .then((rows) => setAiTeammates(rows))
+            .catch(() => setAiTeammates([])),
         );
       } else {
         setAiTeammates([]);
@@ -340,7 +347,15 @@ export default function GraduationProjectWorkspacePage() {
         tasks.push(
           getRecommendedSupervisors(proj.id)
             .then((rows) => {
-              setSupervisors(rows);
+              const valid = rows.filter(isValidSupervisorRecommendation);
+              if (import.meta.env.DEV) {
+                console.info("[SupervisorRecommendationTrace] recommendations_rendered", {
+                  projectId: proj.id,
+                  received: rows.length,
+                  rendered: valid.length,
+                });
+              }
+              setSupervisors(valid);
             })
             .catch(() => {
               setSupervisors([]);
@@ -352,15 +367,21 @@ export default function GraduationProjectWorkspacePage() {
 
       if (owner) {
         tasks.push(
-          getSentProjectInvitations(proj.id).then((rows) => {
-            setSentInvitations(rows);
-          }),
+          getSentProjectInvitations(proj.id)
+            .then((rows) => setSentInvitations(rows))
+            .catch(() => setSentInvitations([])),
         );
       } else {
         setSentInvitations([]);
       }
 
-      await Promise.all(tasks);
+      tasks.push(
+        getGraduationProjectAbstractFile(proj.id)
+          .then((file) => setAbstractFile(file))
+          .catch(() => setAbstractFile(null)),
+      );
+
+      await Promise.allSettled(tasks);
     } catch (err) {
       toast({
         variant: "destructive",
@@ -371,6 +392,26 @@ export default function GraduationProjectWorkspacePage() {
       setLoading(false);
     }
   }, [navigate, queryProjectId]);
+
+  const handleMessageUser = useCallback(
+    (userId: number) => {
+      if (!userId || userId === me?.userId) return;
+      setMessagingUserId(userId);
+      void startConversation(userId)
+        .then((conversationId) => {
+          navigate(studentMessageThreadPath(conversationId), { state: { focusComposer: true } });
+        })
+        .catch((err) => {
+          toast({
+            variant: "destructive",
+            title: "Could not start conversation",
+            description: parseApiErrorMessage(err),
+          });
+        })
+        .finally(() => setMessagingUserId(null));
+    },
+    [me?.userId, navigate],
+  );
 
   useEffect(() => {
     void loadWorkspace();
@@ -403,6 +444,19 @@ export default function GraduationProjectWorkspacePage() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [heroActionsMenuOpen]);
+
+  useEffect(() => {
+    if (!deleteDialogOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !deletingProject) {
+        setDeleteDialogOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [deleteDialogOpen, deletingProject]);
 
   const refreshProject = async () => {
     const envelope = await getGraduationProjectsMyEnvelope();
@@ -599,20 +653,20 @@ export default function GraduationProjectWorkspacePage() {
                           className="h-9 w-9 rounded-lg"
                           aria-expanded={heroActionsMenuOpen}
                           aria-haspopup="menu"
-                          aria-label="More actions"
+                          aria-label="Project actions"
                           onClick={() => setHeroActionsMenuOpen((open) => !open)}
                         >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                         {heroActionsMenuOpen && (
                           <Card
-                            className="absolute right-0 top-11 z-40 w-[min(100vw-2rem,11rem)] border-border/60 shadow-elevated"
+                            className="absolute right-0 top-11 z-40 w-[min(100vw-2rem,12rem)] border-border/60 shadow-elevated"
                             role="menu"
-                            aria-label="More actions"
+                            aria-label="Project actions"
                           >
                             <CardContent className="p-1">
                               <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                More Actions
+                                Project Actions
                               </p>
                               <Link
                                 to={ROUTES.createGraduationProject}
@@ -621,7 +675,7 @@ export default function GraduationProjectWorkspacePage() {
                                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
                                 onClick={() => setHeroActionsMenuOpen(false)}
                               >
-                                <FileText className="h-4 w-4 text-muted-foreground" aria-hidden />
+                                <Pencil className="h-4 w-4 text-muted-foreground" aria-hidden />
                                 Edit Project
                               </Link>
                               <button
@@ -650,6 +704,32 @@ export default function GraduationProjectWorkspacePage() {
                     {(project.abstract ?? project.description ?? "").trim() ||
                       "No project abstract provided yet."}
                   </p>
+                  {abstractFile ? (
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
+                      <FileText className="h-4 w-4 shrink-0 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {abstractFile.fileName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded{" "}
+                          {new Date(abstractFile.uploadedAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <a
+                        href={abstractFile.downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  ) : null}
 
                   <div className="mt-6 space-y-4">
                     <div>
@@ -774,6 +854,18 @@ export default function GraduationProjectWorkspacePage() {
                         Project Owner{isOwner ? " · You" : ""}
                       </p>
                     </div>
+                    {!isOwner && ownerMember?.userId ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="rounded-lg shrink-0"
+                        disabled={messagingUserId === ownerMember.userId}
+                        onClick={() => handleMessageUser(ownerMember.userId)}
+                        aria-label="Message project owner"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    ) : null}
                   </div>
                   {project.supervisor && (
                     <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
@@ -789,6 +881,18 @@ export default function GraduationProjectWorkspacePage() {
                             : ""}
                         </p>
                       </div>
+                      {project.supervisor.userId !== me?.userId ? (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="rounded-lg shrink-0"
+                          disabled={messagingUserId === project.supervisor.userId}
+                          onClick={() => handleMessageUser(project.supervisor!.userId)}
+                          aria-label="Message supervisor"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -901,9 +1005,18 @@ export default function GraduationProjectWorkspacePage() {
                         {[m.major, m.university].filter(Boolean).join(" · ") || "—"}
                       </p>
                     </div>
-                    <Button size="icon" variant="ghost" className="rounded-lg" disabled>
-                      <MessageCircle className="h-4 w-4" />
-                    </Button>
+                    {m.userId !== me?.userId ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="rounded-lg"
+                        disabled={messagingUserId === m.userId}
+                        onClick={() => handleMessageUser(m.userId)}
+                        aria-label={`Message ${m.name}`}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    ) : null}
                   </div>
                   <div className="mt-4 flex items-center justify-between">
                     <Chip>{memberDisplayRole(m)}</Chip>
@@ -1045,9 +1158,20 @@ export default function GraduationProjectWorkspacePage() {
                                   : "Invite"}
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="rounded-lg" disabled>
-                            <ArrowUpRight className="h-4 w-4" />
-                          </Button>
+                          {s.userId ? (
+                            <Button variant="ghost" size="icon" className="rounded-lg" asChild>
+                              <Link
+                                to={ROUTES.studentDirectoryProfile(s.userId)}
+                                aria-label={`View ${s.name} profile`}
+                              >
+                                <ArrowUpRight className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" className="rounded-lg" disabled>
+                              <ArrowUpRight className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -1222,15 +1346,15 @@ export default function GraduationProjectWorkspacePage() {
               <Card className="border-2 border-dashed border-border bg-secondary/30 shadow-none">
                 <CardContent className="p-8 text-center">
                   <GraduationCap className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
-                  <p className="text-sm font-semibold">No supervisor recommendations</p>
+                  <p className="text-sm font-semibold">No supervisor recommendations available yet.</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Recommendations appear when the project leader requests matches.
+                    Recommendations appear when eligible faculty in your department have complete profiles.
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-4 lg:grid-cols-2">
-                {supervisors.map((s, i) => {
+                {supervisors.filter(isValidSupervisorRecommendation).map((s, i) => {
                   const specChips = splitSpecialization(s.specialization);
                   const requestPending = pendingSupervisorDoctorIds.has(s.doctorId);
                   return (
@@ -1304,8 +1428,10 @@ export default function GraduationProjectWorkspacePage() {
                                 ? "Request pending"
                                 : "Request Supervision"}
                           </Button>
-                          <Button variant="ghost" className="rounded-lg" disabled>
-                            View profile
+                          <Button variant="ghost" className="rounded-lg" asChild>
+                            <Link to={ROUTES.doctorPublicProfile(s.userId!)}>
+                              View profile
+                            </Link>
                           </Button>
                         </div>
                       </CardContent>
@@ -1332,11 +1458,13 @@ export default function GraduationProjectWorkspacePage() {
           <Card className="w-full max-w-md border-border/60 shadow-elevated">
             <CardContent className="p-6">
               <h2 id="delete-project-title" className="font-display text-lg font-bold text-foreground">
-                Delete graduation project?
+                Are you sure you want to delete this graduation project?
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                This will permanently delete &ldquo;{project.name}&rdquo; and its team data. This
-                action cannot be undone.
+                This action cannot be undone.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Project &ldquo;{project.name}&rdquo; and its team data will be permanently removed.
               </p>
               <div className="mt-6 flex flex-wrap justify-end gap-2">
                 <Button
@@ -1360,7 +1488,7 @@ export default function GraduationProjectWorkspacePage() {
                   ) : (
                     <Trash2 className="mr-2 h-4 w-4" />
                   )}
-                  Delete project
+                  Delete
                 </Button>
               </div>
             </CardContent>

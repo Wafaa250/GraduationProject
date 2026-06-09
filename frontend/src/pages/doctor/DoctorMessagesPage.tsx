@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { appendLiveMessage, useLiveConversationMessages } from "@/hooks/useLiveConversationMessages";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   getConversations,
@@ -94,6 +95,16 @@ export default function DoctorMessagesPage() {
       setThread(null);
     }
   }, [selectedId, loadThread]);
+
+  const handleLiveMessage = useCallback(
+    (payload: Parameters<typeof appendLiveMessage>[1]) => {
+      setThread((prev) => appendLiveMessage(prev, payload, profile.userId));
+      void loadList();
+    },
+    [profile.userId, loadList],
+  );
+
+  useLiveConversationMessages(selectedId, handleLiveMessage);
 
   const handleSelectConversation = (id: number) => {
     navigate(doctorMessageThreadPath(id));

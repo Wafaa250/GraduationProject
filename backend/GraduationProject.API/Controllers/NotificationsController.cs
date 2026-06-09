@@ -56,13 +56,14 @@ namespace GraduationProject.API.Controllers
                     n.Body,
                     n.EventType,
                     n.ProjectId,
+                    n.DedupKey,
                     n.CreatedAt,
                     n.ReadAt,
                 })
                 .ToListAsync();
 
             _logger.LogInformation(
-                "[Notifications] GET list userId={UserId} category={Category} returned={Count}",
+                "[Notifications] NOTIFICATION FETCHED userId={UserId} category={Category} returned={Count}",
                 userId, cat, items.Count);
 
             return Ok(items);
@@ -85,7 +86,7 @@ namespace GraduationProject.API.Controllers
             var count = await query.CountAsync();
 
             _logger.LogInformation(
-                "[Notifications] GET unread-count userId={UserId} category={Category} count={Count}",
+                "[Notifications] NOTIFICATION FETCHED unread-count userId={UserId} category={Category} count={Count}",
                 userId, cat, count);
 
             return Ok(new { count });

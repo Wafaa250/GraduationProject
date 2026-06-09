@@ -8,11 +8,15 @@ import {
 } from "@/api/aiApi";
 import {
   createGraduationProject,
+  deleteGraduationProjectDraft,
+  getGraduationProjectDraft,
   getGraduationProjectsMyEnvelope,
   partnersCountToTeamSize,
+  saveGraduationProjectDraft,
   teamSizeToPartnersCount,
   projectTypeToStage,
   updateGraduationProject,
+  uploadGraduationProjectAbstractFile,
   type GradProject,
 } from "@/api/gradProjectApi";
 import { getMe } from "@/api/meApi";
@@ -69,7 +73,7 @@ type FormData = {
   skills: string[];
   technologies: string[];
   preferredRoles: string[];
-  teamSize: number;
+  teamSize: number | null;
   requiredRoles: string[];
   skillPriorities: string[];
   lookingForTeammates: boolean;
@@ -84,7 +88,7 @@ const initialData: FormData = {
   skills: [],
   technologies: [],
   preferredRoles: [],
-  teamSize: 4,
+  teamSize: null,
   requiredRoles: [],
   skillPriorities: [],
   lookingForTeammates: true,
@@ -175,7 +179,7 @@ function projectToFormData(project: GradProject): FormData {
     requiredRoles: project.requiredRoles ?? [],
     skillPriorities: project.skillPriorities ?? [],
     lookingForTeammates: project.lookingForTeammates ?? true,
-    interests: [],
+    interests: project.projectInterests ?? [],
   };
 }
 
@@ -190,7 +194,19 @@ function buildProjectPayload(data: FormData) {
     skillPriorities: uniqueStrings(data.skillPriorities),
     lookingForTeammates: data.lookingForTeammates,
     partnersCount: teamSizeToPartnersCount(data.teamSize),
+    projectInterests: uniqueStrings(data.interests),
   };
+}
+
+async function readFileBase64(file: File): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+  const comma = dataUrl.indexOf(",");
+  return comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
 }
 
 const ABSTRACT_FILE_ACCEPT = ".pdf,.docx";
@@ -248,6 +264,7 @@ export default function CreateGraduationProjectPage() {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [abstractFile, setAbstractFile] = useState<File | null>(null);
   const [stageOptions, setStageOptions] = useState<GraduationProjectTypeOption[]>([]);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   const isEditMode = editingProjectId != null;
 
@@ -304,12 +321,19 @@ export default function CreateGraduationProjectPage() {
           return;
         }
 
-        const saved = sessionStorage.getItem(WIZARD_DRAFT_KEY);
-        if (saved) {
-          try {
-            setData((d) => ({ ...d, ...JSON.parse(saved) }));
-          } catch {
-            /* ignore corrupt draft */
+        try {
+          const draft = await getGraduationProjectDraft();
+          if (draft.payload && typeof draft.payload === "object") {
+            setData((d) => ({ ...d, ...(draft.payload as Partial<FormData>) }));
+          }
+        } catch {
+          const saved = sessionStorage.getItem(WIZARD_DRAFT_KEY);
+          if (saved) {
+            try {
+              setData((d) => ({ ...d, ...JSON.parse(saved) }));
+            } catch {
+              /* ignore corrupt draft */
+            }
           }
         }
       } catch {
@@ -323,7 +347,12 @@ export default function CreateGraduationProjectPage() {
 
   useEffect(() => {
     if (hasExistingProject || isEditMode) return;
-    sessionStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(data));
+    const timer = window.setTimeout(() => {
+      void saveGraduationProjectDraft(data).catch(() => {
+        sessionStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(data));
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
   }, [data, hasExistingProject, isEditMode]);
 
   const update = <K extends keyof FormData>(k: K, v: FormData[K]) =>
@@ -346,7 +375,7 @@ export default function CreateGraduationProjectPage() {
       case 3:
         return data.skills.length > 0 && data.technologies.length > 0;
       case 4:
-        return data.requiredRoles.length > 0;
+        return data.teamSize != null && data.requiredRoles.length > 0;
       case 5:
         return isEditMode || data.interests.length > 0;
       case 6:
@@ -373,6 +402,7 @@ export default function CreateGraduationProjectPage() {
     { label: "Stage selected", done: !!data.stage },
     { label: "Project info added", done: Boolean(data.title.trim() && isAbstractComplete(data)) },
     { label: "Skills added", done: data.skills.length > 0 && data.technologies.length > 0 },
+    { label: "Team size selected", done: data.teamSize != null },
     { label: "Roles selected", done: data.requiredRoles.length > 0 },
     { label: "Interests selected", done: data.interests.length > 0 },
   ];
@@ -382,25 +412,38 @@ export default function CreateGraduationProjectPage() {
   const handleSubmitProject = async () => {
     if (submitting) return;
     if (!isEditMode && hasExistingProject) return;
+    if (data.teamSize == null) return;
     setSubmitting(true);
     try {
       const payload = buildProjectPayload(data);
       if (isEditMode && editingProjectId != null) {
         await updateGraduationProject(editingProjectId, payload);
+        if (abstractFile) {
+          const fileBase64 = await readFileBase64(abstractFile);
+          await uploadGraduationProjectAbstractFile(
+            editingProjectId,
+            abstractFile.name,
+            fileBase64,
+          );
+        }
         toast({
           title: "Project updated",
           description: "Your graduation project changes were saved.",
         });
         navigate(ROUTES.graduationProjectWorkspace, { replace: true });
       } else {
-        // TODO: backend — upload abstractFile when provided and attach reference on create payload
-        await createGraduationProject(payload);
+        const created = await createGraduationProject(payload);
+        if (abstractFile) {
+          const fileBase64 = await readFileBase64(abstractFile);
+          await uploadGraduationProjectAbstractFile(created.id, abstractFile.name, fileBase64);
+        }
+        await deleteGraduationProjectDraft().catch(() => undefined);
         sessionStorage.removeItem(WIZARD_DRAFT_KEY);
         toast({
           title: "Graduation project created!",
           description: "Your project is live on SkillSwap.",
         });
-        navigate(ROUTES.dashboard);
+        navigate(ROUTES.graduationProjectWorkspace, { replace: true });
       }
     } catch (err) {
       toast({
@@ -549,9 +592,8 @@ export default function CreateGraduationProjectPage() {
 
       <div className="fixed bottom-0 inset-x-0 border-t border-border/60 bg-background/85 backdrop-blur-xl z-50">
         <div className="container max-w-7xl py-4 flex items-center justify-between gap-3">
-          {/* TODO: backend — draft auto-save endpoint not available */}
-          <div className="hidden sm:flex items-center gap-3 text-sm text-muted-foreground wizard-unsupported">
-            <div className="size-2 rounded-full bg-muted-foreground/40" />
+          <div className="hidden sm:flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="size-2 rounded-full bg-success animate-pulse" />
             Auto-saved
           </div>
           <div className="flex items-center gap-2 ml-auto">
@@ -562,15 +604,29 @@ export default function CreateGraduationProjectPage() {
             )}
             {step === 6 ? (
               <>
-                {/* TODO: backend — save draft endpoint not available */}
                 <Button
                   variant="outline"
                   size="lg"
-                  className="rounded-xl wizard-unsupported"
+                  className="rounded-xl"
                   type="button"
-                  disabled
+                  disabled={savingDraft}
+                  onClick={() => {
+                    setSavingDraft(true);
+                    void saveGraduationProjectDraft(data)
+                      .then(() => {
+                        toast({ title: "Draft saved", description: "You can continue later." });
+                      })
+                      .catch((err) => {
+                        toast({
+                          title: "Could not save draft",
+                          description: parseApiErrorMessage(err),
+                          variant: "destructive",
+                        });
+                      })
+                      .finally(() => setSavingDraft(false));
+                  }}
                 >
-                  <Save /> Save Draft
+                  <Save /> {savingDraft ? "Saving…" : "Save Draft"}
                 </Button>
                 <Button
                   size="lg"
@@ -716,7 +772,6 @@ function Step2({
       });
       return;
     }
-    // TODO: backend — persist uploaded abstract file via API when creating the project
     onAbstractFileChange(file, file.name);
   };
 
@@ -959,7 +1014,7 @@ function Step4({
         <div className="flex items-center justify-between mb-4">
           <Label className="text-sm font-semibold">Desired team size</Label>
           <Badge className="bg-gradient-primary text-primary-foreground text-base px-3 py-1">
-            {data.teamSize} members
+            {data.teamSize != null ? `${data.teamSize} members` : "Select size"}
           </Badge>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1027,7 +1082,6 @@ function Step5({
         title={<WizardStepTitleWithAmpersand before="Project interests " after=" domains" />}
         desc="Pick the areas your project lives in. Used to surface compatible peers and supervisors."
       />
-      {/* TODO: backend — project interest domains not on CreateStudentProjectDto */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {INTERESTS.map(({ id, label, icon: Icon }) => {
           const sel = data.interests.includes(id);
@@ -1116,7 +1170,7 @@ function Step6({
           requiredRoles: uniqueStrings(data.requiredRoles),
           skillPriorities: uniqueStrings(data.skillPriorities),
           interests: interestLabels,
-          teamSize: data.teamSize,
+          teamSize: data.teamSize ?? 1,
         });
         if (!cancelled) setPreview(result);
       } catch (err) {
@@ -1174,7 +1228,10 @@ function Step6({
         <ReviewChips title="Required Skills" items={data.skills} />
         <ReviewChips title="Technologies" items={data.technologies} />
         <ReviewChips title="Preferred Roles" items={data.preferredRoles} />
-        <ReviewCard title="Desired team size" value={`${data.teamSize} members`} />
+        <ReviewCard
+          title="Desired team size"
+          value={data.teamSize != null ? `${data.teamSize} members` : "—"}
+        />
         <ReviewCard
           title="Looking for teammates"
           value={data.lookingForTeammates ? "Yes" : "No"}
@@ -1386,7 +1443,10 @@ function LiveSummary({
             label="Technologies"
             value={data.technologies.length ? `${data.technologies.length} added` : ""}
           />
-          <SummaryRow label="Team size" value={`${data.teamSize}`} />
+          <SummaryRow
+            label="Team size"
+            value={data.teamSize != null ? `${data.teamSize}` : undefined}
+          />
           <SummaryRow
             label="Roles"
             value={data.requiredRoles.length ? `${data.requiredRoles.length} required` : ""}

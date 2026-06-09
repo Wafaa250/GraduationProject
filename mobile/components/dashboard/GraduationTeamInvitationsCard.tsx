@@ -1,0 +1,274 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import type { GraduationInvitationView } from "@/lib/dashboardMappers";
+
+type Props = {
+  invitations: GraduationInvitationView[];
+  busyId: string | null;
+  highlightId?: string | null;
+  onAccept: (id: string) => void;
+  onDecline: (id: string) => void;
+};
+
+export function GraduationTeamInvitationsCard({
+  invitations,
+  busyId,
+  highlightId = null,
+  onAccept,
+  onDecline,
+}: Props) {
+  const layout = useResponsiveLayout();
+  const { colors } = useHubTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const empty = invitations.length === 0;
+
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          borderRadius: layout.radius.button,
+          padding: layout.space("lg"),
+          marginBottom: layout.space("md"),
+        },
+      ]}
+    >
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.title, { fontSize: layout.scale(18) }]}>
+            Graduation project invitations
+          </Text>
+          <Text style={[styles.subtitle, { fontSize: layout.fontSize.footer }]}>
+            Pending invites to join a graduation project team.
+          </Text>
+        </View>
+        {!empty ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{invitations.length} pending</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {empty ? (
+        <View style={styles.empty}>
+          <View style={[styles.emptyIcon, { borderRadius: layout.radius.button }]}>
+            <Ionicons name="school-outline" size={28} color={colors.muted} />
+          </View>
+          <Text style={[styles.emptyTitle, { fontSize: layout.fontSize.label }]}>
+            No graduation project invitations
+          </Text>
+          <Text style={[styles.emptyText, { fontSize: layout.fontSize.footer }]}>
+            When a team invites you to their graduation project, you can accept or decline here.
+          </Text>
+        </View>
+      ) : (
+        <View style={{ gap: layout.space("sm") }}>
+          {invitations.map((inv) => {
+            const busy = busyId === inv.id;
+            const highlighted = highlightId === inv.id;
+            return (
+              <View
+                key={inv.id}
+                nativeID={`graduation-invitation-${inv.id}`}
+                style={[
+                  styles.inviteRow,
+                  {
+                    borderRadius: layout.radius.input,
+                    padding: layout.space("md"),
+                  },
+                  highlighted && styles.inviteRowHighlighted,
+                ]}
+              >
+                <View style={styles.inviteTop}>
+                  <View
+                    style={[
+                      styles.avatar,
+                      {
+                        width: layout.scale(44),
+                        height: layout.scale(44),
+                        borderRadius: layout.radius.input,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.avatarText, { fontSize: layout.scale(14) }]}>
+                      {inv.inviterInitials}
+                    </Text>
+                  </View>
+                  <View style={styles.inviteMeta}>
+                    <Text style={[styles.inviteTitle, { fontSize: layout.fontSize.label }]} numberOfLines={2}>
+                      {inv.inviter}{" "}
+                      <Text style={styles.inviteMuted}>invited you</Text>
+                    </Text>
+                    <Text style={[styles.inviteDetail, { fontSize: layout.fontSize.footer }]} numberOfLines={2}>
+                      {inv.project}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.actions}>
+                  <Pressable
+                    style={[styles.acceptBtn, { borderRadius: layout.radius.input, flex: 1 }]}
+                    onPress={() => onAccept(inv.id)}
+                    disabled={busy}
+                  >
+                    {busy ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                        <Text style={styles.acceptText}>Accept</Text>
+                      </>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={[styles.declineBtn, { borderRadius: layout.radius.input, flex: 1 }]}
+                    onPress={() => onDecline(inv.id)}
+                    disabled={busy}
+                  >
+                    <Ionicons name="close" size={16} color={colors.foreground} />
+                    <Text style={styles.declineText}>Decline</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const createStyles = (colors: HubColorScheme) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.cardBg,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+      marginBottom: 16,
+    },
+    title: {
+      fontWeight: "700",
+      color: colors.foreground,
+    },
+    subtitle: {
+      color: colors.muted,
+      marginTop: 2,
+    },
+    badge: {
+      backgroundColor: colors.primarySoft,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    badgeText: {
+      color: colors.primary,
+      fontWeight: "700",
+      fontSize: 12,
+    },
+    empty: {
+      alignItems: "center",
+      paddingVertical: 24,
+      paddingHorizontal: 12,
+    },
+    emptyIcon: {
+      width: 64,
+      height: 64,
+      backgroundColor: colors.primarySoft,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 12,
+    },
+    emptyTitle: {
+      fontWeight: "700",
+      color: colors.foreground,
+      textAlign: "center",
+    },
+    emptyText: {
+      color: colors.muted,
+      textAlign: "center",
+      marginTop: 6,
+      lineHeight: 20,
+    },
+    inviteRow: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      gap: 12,
+    },
+    inviteRowHighlighted: {
+      borderColor: colors.primary,
+      borderWidth: 2,
+    },
+    inviteTop: {
+      flexDirection: "row",
+      gap: 12,
+      alignItems: "flex-start",
+    },
+    avatar: {
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: {
+      color: "#FFFFFF",
+      fontWeight: "800",
+    },
+    inviteMeta: {
+      flex: 1,
+      gap: 4,
+    },
+    inviteTitle: {
+      fontWeight: "700",
+      color: colors.foreground,
+    },
+    inviteMuted: {
+      fontWeight: "400",
+      color: colors.muted,
+    },
+    inviteDetail: {
+      color: colors.muted,
+    },
+    actions: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    acceptBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      backgroundColor: colors.primary,
+      paddingVertical: 10,
+      minHeight: 40,
+    },
+    acceptText: {
+      color: "#FFFFFF",
+      fontWeight: "700",
+      fontSize: 14,
+    },
+    declineBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      backgroundColor: colors.inputBg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 10,
+      minHeight: 40,
+    },
+    declineText: {
+      color: colors.foreground,
+      fontWeight: "600",
+      fontSize: 14,
+    },
+  });

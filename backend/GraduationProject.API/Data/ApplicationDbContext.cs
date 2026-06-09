@@ -74,6 +74,8 @@ namespace GraduationProject.API.Data
         public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
         public DbSet<SupervisorRequest> SupervisorRequests => Set<SupervisorRequest>();
         public DbSet<SupervisorCancellationRequest> SupervisorCancellationRequests => Set<SupervisorCancellationRequest>();
+        public DbSet<GraduationProjectDraft> GraduationProjectDrafts => Set<GraduationProjectDraft>();
+        public DbSet<StudentAccountSettings> StudentAccountSettings => Set<StudentAccountSettings>();
 
         // ── Courses ──────────────────────────────────────────────────────────
         public DbSet<Course> Courses => Set<Course>();
@@ -830,6 +832,26 @@ namespace GraduationProject.API.Data
                 e.HasOne(m => m.Student)
                  .WithMany()
                  .HasForeignKey(m => m.StudentId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GraduationProjectDraft>(e =>
+            {
+                e.HasKey(d => d.UserId);
+                e.ToTable("graduation_project_drafts");
+                e.HasOne(d => d.User)
+                 .WithMany()
+                 .HasForeignKey(d => d.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StudentAccountSettings>(e =>
+            {
+                e.HasKey(s => s.UserId);
+                e.ToTable("student_account_settings");
+                e.HasOne(s => s.User)
+                 .WithMany()
+                 .HasForeignKey(s => s.UserId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 

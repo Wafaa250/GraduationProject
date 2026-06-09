@@ -238,8 +238,9 @@ export async function getTeamInvitations(): Promise<TeamInvitationItem[]> {
 }
 
 /** Team invitations limited to course projects the student is eligible to access. */
-export async function getEligibleTeamInvitations(): Promise<TeamInvitationItem[]> {
-  const invites = await getTeamInvitations();
+export async function filterEligibleCourseTeamInvitations(
+  invites: TeamInvitationItem[],
+): Promise<TeamInvitationItem[]> {
   if (invites.length === 0) return [];
 
   const courseIds = [...new Set(invites.map((i) => i.courseId))];
@@ -260,6 +261,12 @@ export async function getEligibleTeamInvitations(): Promise<TeamInvitationItem[]
   return invites.filter((inv) =>
     eligibleProjectIdsByCourse.get(inv.courseId)?.has(inv.projectId),
   );
+}
+
+/** @deprecated Prefer getTeamInvitations on the dashboard — eligibility filtering hides valid invites. */
+export async function getEligibleTeamInvitations(): Promise<TeamInvitationItem[]> {
+  const invites = await getTeamInvitations();
+  return filterEligibleCourseTeamInvitations(invites);
 }
 
 export async function acceptTeamInvitation(invitationId: number): Promise<void> {
@@ -341,7 +348,11 @@ function isAxiosNotFound(err: unknown): boolean {
 }
 
 function parseTeamInvitationsResponse(data: unknown): TeamInvitationItem[] {
-  const rows = Array.isArray(data) ? data : [];
+  const rows = Array.isArray(data)
+    ? data
+    : data != null && typeof data === "object"
+      ? [data]
+      : [];
   const out: TeamInvitationItem[] = [];
 
   for (const raw of rows) {

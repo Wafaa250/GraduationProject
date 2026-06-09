@@ -12,6 +12,7 @@ using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
 using GraduationProject.API.Models;
 using GraduationProject.API.Services;
+using Microsoft.Extensions.Logging;
 
 namespace GraduationProject.API.Controllers
 {
@@ -37,13 +38,19 @@ namespace GraduationProject.API.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly IGraduationProjectNotificationService _gpNotifications;
+        private readonly ISupervisorRecommendationResolver _supervisorRecommendations;
+        private readonly ILogger<StudentProjectController> _logger;
 
         public StudentProjectController(
             ApplicationDbContext db,
-            IGraduationProjectNotificationService gpNotifications)
+            IGraduationProjectNotificationService gpNotifications,
+            ISupervisorRecommendationResolver supervisorRecommendations,
+            ILogger<StudentProjectController> logger)
         {
             _db = db;
             _gpNotifications = gpNotifications;
+            _supervisorRecommendations = supervisorRecommendations;
+            _logger = logger;
         }
 
         // =====================================================================
@@ -485,6 +492,9 @@ namespace GraduationProject.API.Controllers
                                     ? JsonSerializer.Serialize(dto.RequiredSkills)
                                     : null,
                 PartnersCount = dto.PartnersCount,
+                ProjectInterests = dto.ProjectInterests.Count > 0
+                    ? JsonSerializer.Serialize(dto.ProjectInterests)
+                    : null,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
@@ -560,6 +570,11 @@ namespace GraduationProject.API.Controllers
                     ? JsonSerializer.Serialize(dto.RequiredSkills)
                     : null;
 
+            if (dto.ProjectInterests != null)
+                project.ProjectInterests = dto.ProjectInterests.Count > 0
+                    ? JsonSerializer.Serialize(dto.ProjectInterests)
+                    : null;
+
             project.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
@@ -582,22 +597,51 @@ namespace GraduationProject.API.Controllers
             if (student == null) return Forbid();
 
             var project = await _db.StudentProjects
+                .Include(p => p.Members)
+                .Include(p => p.Invitations)
+                .Include(p => p.SupervisorRequests)
+                .Include(p => p.SupervisorCancellationRequests)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
             if (project.OwnerId != student.Id)
-                return Forbid();
+                return StatusCode(403, new { message = "Only the project owner can delete this graduation project." });
 
             var projectId = project.Id;
             var projectName = project.Name;
             var actorUserId = AuthorizationHelper.GetUserId(User);
 
+            // Detach supervisor link before delete (FK uses Restrict on doctor profile).
+            project.SupervisorId = null;
+
+            // Clear abstract file payload stored on the project row.
+            project.AbstractFileName = null;
+            project.AbstractFileBase64 = null;
+            project.AbstractFileUploadedAt = null;
+
+            // Remove graduation-project notifications referencing this project.
+            var projectNotifications = await _db.UserNotifications
+                .Where(n =>
+                    n.ProjectId == projectId &&
+                    n.Category == GraduationProjectNotificationService.Category)
+                .ToListAsync();
+            if (projectNotifications.Count > 0)
+                _db.UserNotifications.RemoveRange(projectNotifications);
+
             await _gpNotifications.NotifyProjectDeletedAsync(projectId, projectName, actorUserId);
 
+            // Members, invitations, and supervisor requests cascade via EF configuration.
             _db.StudentProjects.Remove(project);
             await _db.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "[GraduationProject] DELETED projectId={ProjectId} ownerProfileId={OwnerProfileId} members={MemberCount} invitations={InvitationCount}",
+                projectId,
+                student.Id,
+                project.Members.Count,
+                project.Invitations.Count);
 
             return Ok(new { message = "Project deleted successfully." });
         }
@@ -819,6 +863,10 @@ namespace GraduationProject.API.Controllers
             _db.SupervisorRequests.Add(request);
             await _db.SaveChangesAsync();
 
+            _logger.LogInformation(
+                "[Notifications] INVITATION CREATED flow=supervision_request requestId={RequestId} projectId={ProjectId} doctorProfileId={DoctorProfileId} senderProfileId={SenderProfileId}",
+                request.Id, projectId, doctorId, caller.Id);
+
             await _gpNotifications.NotifySupervisionRequestReceivedAsync(
                 request.Id,
                 projectId,
@@ -890,7 +938,9 @@ namespace GraduationProject.API.Controllers
         // Returns doctors ranked by skill match against the project.
         // =====================================================================
         [HttpGet("{projectId:int}/recommended-supervisors")]
-        public async Task<ActionResult<IReadOnlyList<RecommendedSupervisorDto>>> GetRecommendedSupervisors(int projectId)
+        public async Task<ActionResult> GetRecommendedSupervisors(
+            int projectId,
+            [FromQuery] bool debug = false)
         {
             var caller = await GetStudentProfileAsync();
             if (caller == null) return Forbid();
@@ -902,22 +952,39 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
+            var isOwner = project.OwnerId == caller.Id;
             var isLeader = await _db.StudentProjectMembers
                 .AnyAsync(m => m.ProjectId == projectId && m.StudentId == caller.Id && m.Role == "leader");
 
-            if (!isLeader)
+            if (!isOwner && !isLeader)
                 return StatusCode(403, new { message = "Only the project leader can view recommended supervisors." });
 
-            var doctors = await _db.DoctorProfiles
-                .Include(d => d.User)
-                .Where(d => d.Department != null &&
-                            caller.Major != null &&
-                            d.Department.ToLower() == caller.Major.ToLower())
-                .AsNoTracking()
-                .ToListAsync();
+            var (matched, audit) = await _supervisorRecommendations.ResolveAsync(caller, project);
 
-            var rows = doctors.Select(d => (d.Id, d.UserId, d.User?.Name ?? string.Empty, d.Specialization)).ToList();
-            var result = RecommendedSupervisorHelper.Build(rows, project.RequiredSkills);
+            var result = matched
+                .Select(c => RecommendedSupervisorHelper.MapMatchedDoctor(c, project.RequiredSkills))
+                .Where(RecommendedSupervisorHelper.IsPublishable)
+                .OrderByDescending(r => r.MatchScore)
+                .ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            audit.AfterAiScoring = result.Count;
+            audit.TotalReturned = result.Count;
+
+            _logger.LogInformation(
+                "recommended-supervisors projectId={ProjectId} returned={Count} matchTier={Tier}",
+                projectId,
+                result.Count,
+                audit.MatchTierUsed);
+
+            if (debug)
+            {
+                return Ok(new
+                {
+                    recommendations = result,
+                    audit,
+                });
+            }
 
             return Ok(result);
         }
@@ -1210,6 +1277,10 @@ namespace GraduationProject.API.Controllers
             _db.ProjectInvitations.Add(invitation);
             await _db.SaveChangesAsync();
 
+            _logger.LogInformation(
+                "[Notifications] INVITATION CREATED flow=graduation_project_team invitationId={InvitationId} projectId={ProjectId} receiverProfileId={ReceiverProfileId} senderProfileId={SenderProfileId}",
+                invitation.Id, projectId, receiverId, senderProfile.Id);
+
             await _gpNotifications.NotifyInvitationReceivedAsync(
                 invitation.Id,
                 projectId,
@@ -1300,6 +1371,173 @@ namespace GraduationProject.API.Controllers
                 .ToListAsync();
         }
 
+        // =====================================================================
+        // GET /api/graduation-projects/draft
+        // =====================================================================
+        [HttpGet("draft")]
+        public async Task<IActionResult> GetDraft()
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null) return Forbid();
+
+            var draft = await _db.GraduationProjectDrafts.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == student.UserId);
+            if (draft == null)
+                return Ok(new GraduationProjectDraftDto { Payload = null, UpdatedAt = null });
+
+            object? payload = null;
+            try
+            {
+                payload = JsonSerializer.Deserialize<object>(draft.PayloadJson);
+            }
+            catch (JsonException)
+            {
+                payload = null;
+            }
+
+            return Ok(new GraduationProjectDraftDto
+            {
+                Payload = payload,
+                UpdatedAt = draft.UpdatedAt.ToString("o"),
+            });
+        }
+
+        // =====================================================================
+        // PUT /api/graduation-projects/draft
+        // =====================================================================
+        [HttpPut("draft")]
+        public async Task<IActionResult> SaveDraft([FromBody] SaveGraduationProjectDraftDto dto)
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null) return Forbid();
+
+            var json = JsonSerializer.Serialize(dto.Payload ?? new { });
+            var draft = await _db.GraduationProjectDrafts.FirstOrDefaultAsync(d => d.UserId == student.UserId);
+            if (draft == null)
+            {
+                draft = new GraduationProjectDraft { UserId = student.UserId };
+                _db.GraduationProjectDrafts.Add(draft);
+            }
+
+            draft.PayloadJson = json;
+            draft.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return Ok(new GraduationProjectDraftDto
+            {
+                Payload = dto.Payload,
+                UpdatedAt = draft.UpdatedAt.ToString("o"),
+            });
+        }
+
+        // =====================================================================
+        // DELETE /api/graduation-projects/draft
+        // =====================================================================
+        [HttpDelete("draft")]
+        public async Task<IActionResult> DeleteDraft()
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null) return Forbid();
+
+            var draft = await _db.GraduationProjectDrafts.FirstOrDefaultAsync(d => d.UserId == student.UserId);
+            if (draft != null)
+            {
+                _db.GraduationProjectDrafts.Remove(draft);
+                await _db.SaveChangesAsync();
+            }
+
+            return Ok(new { message = "Draft deleted." });
+        }
+
+        // =====================================================================
+        // GET /api/graduation-projects/{id}/abstract-file
+        // =====================================================================
+        [HttpGet("{id:int}/abstract-file")]
+        public async Task<IActionResult> GetAbstractFile(int id)
+        {
+            var callerProfileId = await GetCallerProfileIdAsync();
+            var project = await _db.StudentProjects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            if (!await CanAccessAbstractFileAsync(project, callerProfileId))
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(project.AbstractFileBase64) || string.IsNullOrWhiteSpace(project.AbstractFileName))
+                return NotFound(new { message = "No abstract file uploaded." });
+
+            var mime = project.AbstractFileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                ? "application/pdf"
+                : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+            return Ok(new GraduationProjectAbstractFileDto
+            {
+                FileName = project.AbstractFileName,
+                UploadedAt = (project.AbstractFileUploadedAt ?? project.UpdatedAt).ToString("o"),
+                DownloadUrl = $"data:{mime};base64,{project.AbstractFileBase64}",
+            });
+        }
+
+        // =====================================================================
+        // POST /api/graduation-projects/{id}/abstract-file
+        // =====================================================================
+        [HttpPost("{id:int}/abstract-file")]
+        public async Task<IActionResult> UploadAbstractFile(int id, [FromBody] UploadGraduationProjectAbstractFileDto dto)
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null) return Forbid();
+
+            var project = await _db.StudentProjects.FirstOrDefaultAsync(p => p.Id == id);
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            if (project.OwnerId != student.Id)
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(dto.FileName) || string.IsNullOrWhiteSpace(dto.FileBase64))
+                return BadRequest(new { message = "File name and content are required." });
+
+            var lower = dto.FileName.Trim().ToLowerInvariant();
+            if (!lower.EndsWith(".pdf") && !lower.EndsWith(".docx"))
+                return BadRequest(new { message = "Only PDF and DOCX files are supported." });
+
+            project.AbstractFileName = dto.FileName.Trim();
+            project.AbstractFileBase64 = dto.FileBase64.Trim();
+            project.AbstractFileUploadedAt = DateTime.UtcNow;
+            project.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            var mime = lower.EndsWith(".pdf") ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            return Ok(new GraduationProjectAbstractFileDto
+            {
+                FileName = project.AbstractFileName,
+                UploadedAt = project.AbstractFileUploadedAt.Value.ToString("o"),
+                DownloadUrl = $"data:{mime};base64,{project.AbstractFileBase64}",
+            });
+        }
+
+        private async Task<int?> GetCallerProfileIdAsync()
+        {
+            var student = await GetStudentProfileAsync();
+            if (student != null) return student.Id;
+
+            var userId = AuthorizationHelper.GetUserId(User);
+            if (!string.Equals(AuthorizationHelper.GetRole(User), "doctor", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var doctor = await _db.DoctorProfiles.AsNoTracking().FirstOrDefaultAsync(d => d.UserId == userId);
+            return doctor?.Id;
+        }
+
+        private async Task<bool> CanAccessAbstractFileAsync(StudentProject project, int? callerProfileId)
+        {
+            if (!callerProfileId.HasValue) return false;
+            if (project.OwnerId == callerProfileId.Value) return true;
+            if (project.SupervisorId == callerProfileId.Value) return true;
+            return await _db.StudentProjectMembers.AsNoTracking()
+                .AnyAsync(m => m.ProjectId == project.Id && m.StudentId == callerProfileId.Value);
+        }
+
         /// <summary>
         /// Maps a StudentProject entity to its response DTO.
         ///
@@ -1325,6 +1563,9 @@ namespace GraduationProject.API.Controllers
                 ProjectType = p.ProjectType,
                 RequiredSkills = p.RequiredSkills != null
                     ? JsonSerializer.Deserialize<List<string>>(p.RequiredSkills) ?? new()
+                    : new(),
+                ProjectInterests = p.ProjectInterests != null
+                    ? JsonSerializer.Deserialize<List<string>>(p.ProjectInterests) ?? new()
                     : new(),
                 PartnersCount = p.PartnersCount,
                 CurrentMembers = currentCount,

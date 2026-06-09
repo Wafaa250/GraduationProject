@@ -11,9 +11,11 @@ import {
   Linkedin,
   Link as LinkIcon,
   Mail,
+  MessageCircle,
   Users,
   Wrench,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { StudentDirectoryProfile } from "@/api/studentDirectoryApi";
 import type { GradProject } from "@/api/gradProjectApi";
 import type { DoctorStudentCourseTeam } from "@/hooks/useDoctorStudentProfileExtras";
@@ -27,6 +29,8 @@ type DoctorStudentProfileViewProps = {
   courseTeams: DoctorStudentCourseTeam[];
   enrollmentCount: number;
   extrasLoading?: boolean;
+  onMessage?: () => void;
+  messaging?: boolean;
 };
 
 function photoSrc(base64: string | null | undefined): string | null {
@@ -97,6 +101,8 @@ export function DoctorStudentProfileView({
   courseTeams,
   enrollmentCount,
   extrasLoading,
+  onMessage,
+  messaging = false,
 }: DoctorStudentProfileViewProps) {
   const avatar = photoSrc(student.profilePictureBase64);
   const technicalSkills = student.technicalSkills ?? [];
@@ -130,6 +136,18 @@ export function DoctorStudentProfileView({
               <Mail className="h-3.5 w-3.5 shrink-0" />
               {student.email}
             </p>
+            {onMessage ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                disabled={messaging}
+                onClick={onMessage}
+              >
+                <MessageCircle className="h-4 w-4" />
+                {messaging ? "Opening…" : "Message student"}
+              </Button>
+            ) : null}
             <div className="doctor-student-profile__meta">
               {student.major ? (
                 <span className="doctor-student-profile__meta-pill">

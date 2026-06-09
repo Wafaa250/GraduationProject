@@ -1,4 +1,5 @@
 import api from "./axiosInstance";
+import type { CollaborationPreferences, OtherLink } from "./profileApi";
 
 export type StudentMeResponse = {
   role: string;
@@ -29,6 +30,10 @@ export type StudentMeResponse = {
   aiProjectInterests?: string[];
   graduationProjectTrack?: "general" | "engineering" | "computer-engineering";
   graduationProjectCourses?: string[];
+  collaborationPreferences?: CollaborationPreferences | null;
+  otherLinks?: OtherLink[];
+  expectedGraduation?: string | null;
+  personalWebsite?: string | null;
 };
 
 export type NotificationPreferences = {

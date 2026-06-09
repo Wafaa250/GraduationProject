@@ -56,6 +56,11 @@ namespace GraduationProject.API.DTOs
         // حقول الـ Step 4 الجديدة
         public List<string>? Roles { get; set; }
         public List<string>? TechnicalSkills { get; set; }
+
+        public CollaborationPreferencesDto? CollaborationPreferences { get; set; }
+        public List<OtherLinkDto>? OtherLinks { get; set; }
+        public string? ExpectedGraduation { get; set; }
+        public string? PersonalWebsite { get; set; }
     }
 
     public class UpdateDoctorProfileDto

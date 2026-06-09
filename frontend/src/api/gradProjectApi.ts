@@ -74,6 +74,7 @@ export type GradProject = {
   requiredRoles?: string[];
   skillPriorities?: string[];
   lookingForTeammates?: boolean;
+  projectInterests?: string[];
   supervisor?: GradProjectSupervisor | null;
   members: GradProjectMember[];
   createdAt?: string;
@@ -85,6 +86,7 @@ export type CreateGraduationProjectPayload = {
   abstract?: string | null;
   projectType: "GP1" | "GP2" | "GP";
   requiredSkills: string[];
+  projectInterests?: string[];
   preferredRoles?: string[];
   requiredRoles?: string[];
   skillPriorities?: string[];
@@ -102,7 +104,44 @@ export type UpdateGraduationProjectPayload = {
   skillPriorities?: string[];
   lookingForTeammates?: boolean;
   partnersCount?: number;
+  projectInterests?: string[];
 };
+
+export type GraduationProjectDraft = {
+  payload: unknown | null;
+  updatedAt: string | null;
+};
+
+export async function getGraduationProjectDraft(): Promise<GraduationProjectDraft> {
+  const { data } = await api.get<{ payload?: unknown; updatedAt?: string | null }>(
+    "/graduation-projects/draft",
+  );
+  return { payload: data?.payload ?? null, updatedAt: data?.updatedAt ?? null };
+}
+
+export async function saveGraduationProjectDraft(payload: unknown): Promise<GraduationProjectDraft> {
+  const { data } = await api.put<{ payload?: unknown; updatedAt?: string | null }>(
+    "/graduation-projects/draft",
+    { payload },
+  );
+  return { payload: data?.payload ?? payload, updatedAt: data?.updatedAt ?? null };
+}
+
+export async function deleteGraduationProjectDraft(): Promise<void> {
+  await api.delete("/graduation-projects/draft");
+}
+
+export async function uploadGraduationProjectAbstractFile(
+  projectId: number,
+  fileName: string,
+  fileBase64: string,
+): Promise<GradProjectAbstractFile> {
+  const { data } = await api.post<GradProjectAbstractFile>(
+    `/graduation-projects/${projectId}/abstract-file`,
+    { fileName, fileBase64 },
+  );
+  return data;
+}
 
 export async function createGraduationProject(
   payload: CreateGraduationProjectPayload,
@@ -178,17 +217,20 @@ function parseGraduationProjectsMyPayload(raw: unknown): {
 }
 
 /** Stored total team capacity (including owner) → wizard desired team size. */
-export function partnersCountToTeamSize(partnersCount: number): number {
-  return Math.min(5, Math.max(1, partnersCount));
+export function partnersCountToTeamSize(partnersCount: number): number | null {
+  if (!Number.isFinite(partnersCount) || partnersCount < 1) return null;
+  return Math.min(5, partnersCount);
 }
 
 /** Wizard desired team size → stored total team capacity (including owner). */
-export function teamSizeToPartnersCount(teamSize: number): number {
+export function teamSizeToPartnersCount(teamSize: number | null | undefined): number {
+  if (teamSize == null || !Number.isFinite(teamSize) || teamSize < 1) return 0;
   return Math.min(10, Math.max(1, teamSize));
 }
 
 export type GradProjectRecommendedStudent = {
   studentId: number;
+  userId?: number;
   name: string;
   major: string;
   university: string;
@@ -260,6 +302,15 @@ function normalizeMatchScore(score: number): number {
   return Math.round(Math.min(100, Math.max(0, score)));
 }
 
+const PLACEHOLDER_STUDENT_NAME = /^student #\d+$/i;
+
+function isValidStudentRecommendation(row: GradProjectRecommendedStudent): boolean {
+  const name = row.name?.trim() ?? "";
+  if (!row.studentId || row.studentId <= 0) return false;
+  if (!name || PLACEHOLDER_STUDENT_NAME.test(name)) return false;
+  return Number.isFinite(row.matchScore);
+}
+
 /** POST /api/ai/recommend-students — owner or team leader only. */
 export async function getRecommendedStudents(
   projectId: number,
@@ -267,6 +318,7 @@ export async function getRecommendedStudents(
   const { data } = await api.post<
     {
       studentId: number;
+      userId?: number;
       matchScore: number;
       reason?: string | null;
       name?: string;
@@ -281,50 +333,60 @@ export async function getRecommendedStudents(
   return rows
     .map((row) => ({
       studentId: row.studentId,
-      name: row.name?.trim() || `Student #${row.studentId}`,
+      userId: row.userId && row.userId > 0 ? row.userId : undefined,
+      name: row.name?.trim() ?? "",
       major: row.major?.trim() ?? "",
       university: row.university?.trim() ?? "",
       skills: Array.isArray(row.skills) ? row.skills : [],
       matchScore: normalizeMatchScore(row.matchScore),
       reason: row.reason?.trim() || undefined,
     }))
+    .filter(isValidStudentRecommendation)
     .filter((row) => row.matchScore >= 1);
 }
 
-type ParsedAiSupervisorRow = {
-  doctorId: number;
-  matchScore: number;
-  reason?: string | null;
-  doctorName: string;
-  specialization: string;
-};
+const PLACEHOLDER_DOCTOR_NAME = /^doctor #\d+$/i;
 
-function supervisorDisplayName(doctorId: number, ...candidates: (string | undefined)[]): string {
-  for (const value of candidates) {
-    const trimmed = value?.trim();
-    if (trimmed) return trimmed;
-  }
-  return `Doctor #${doctorId}`;
+export function isValidSupervisorRecommendation(
+  row: GradProjectRecommendedSupervisor,
+): boolean {
+  const name = row.name?.trim() ?? "";
+  const reason = row.reason?.trim() ?? "";
+
+  if (!row.doctorId || row.doctorId <= 0) return false;
+  if (!row.userId || row.userId <= 0) return false;
+  if (!name || PLACEHOLDER_DOCTOR_NAME.test(name)) return false;
+  if (/^unknown doctor$/i.test(name)) return false;
+  if (!Number.isFinite(row.matchScore)) return false;
+  if (!reason) return false;
+  return true;
 }
 
-function parseAiSupervisorRows(data: unknown): ParsedAiSupervisorRow[] {
+function parseSupervisorApiRow(raw: Record<string, unknown>): GradProjectRecommendedSupervisor | null {
+  const doctorId = Number(raw.doctorId ?? raw.DoctorId ?? 0);
+  const userId = Number(raw.userId ?? raw.UserId ?? 0);
+  if (!doctorId) return null;
+
+  const reasonRaw = raw.reason ?? raw.Reason;
+  return {
+    doctorId,
+    userId: userId > 0 ? userId : undefined,
+    name: String(raw.doctorName ?? raw.DoctorName ?? raw.name ?? raw.Name ?? "").trim(),
+    specialization: String(raw.specialization ?? raw.Specialization ?? "").trim(),
+    matchScore: normalizeMatchScore(Number(raw.matchScore ?? raw.MatchScore ?? 0)),
+    reason: typeof reasonRaw === "string" ? reasonRaw.trim() : undefined,
+  };
+}
+
+function parseAiSupervisorRows(data: unknown): GradProjectRecommendedSupervisor[] {
   if (!Array.isArray(data)) return [];
-  const rows: ParsedAiSupervisorRow[] = [];
+  const rows: GradProjectRecommendedSupervisor[] = [];
   for (const raw of data) {
     if (!raw || typeof raw !== "object") continue;
-    const r = raw as Record<string, unknown>;
-    const doctorId = Number(r.doctorId ?? r.DoctorId ?? 0);
-    if (!doctorId) continue;
-    const reasonRaw = r.reason ?? r.Reason;
-    rows.push({
-      doctorId,
-      matchScore: Number(r.matchScore ?? r.MatchScore ?? 0),
-      reason: typeof reasonRaw === "string" ? reasonRaw : null,
-      doctorName: String(r.doctorName ?? r.DoctorName ?? r.name ?? r.Name ?? "").trim(),
-      specialization: String(r.specialization ?? r.Specialization ?? "").trim(),
-    });
+    const parsed = parseSupervisorApiRow(raw as Record<string, unknown>);
+    if (parsed) rows.push(parsed);
   }
-  return rows;
+  return rows.filter(isValidSupervisorRecommendation);
 }
 
 function parseCatalogSupervisorRows(data: unknown): GradProjectRecommendedSupervisor[] {
@@ -332,19 +394,10 @@ function parseCatalogSupervisorRows(data: unknown): GradProjectRecommendedSuperv
   const rows: GradProjectRecommendedSupervisor[] = [];
   for (const raw of data) {
     if (!raw || typeof raw !== "object") continue;
-    const r = raw as Record<string, unknown>;
-    const doctorId = Number(r.doctorId ?? r.DoctorId ?? 0);
-    if (!doctorId) continue;
-    const userId = Number(r.userId ?? r.UserId ?? 0);
-    rows.push({
-      doctorId,
-      userId: userId > 0 ? userId : undefined,
-      name: String(r.name ?? r.Name ?? "").trim(),
-      specialization: String(r.specialization ?? r.Specialization ?? "").trim(),
-      matchScore: normalizeMatchScore(Number(r.matchScore ?? r.MatchScore ?? 0)),
-    });
+    const parsed = parseSupervisorApiRow(raw as Record<string, unknown>);
+    if (parsed) rows.push(parsed);
   }
-  return rows;
+  return rows.filter(isValidSupervisorRecommendation);
 }
 
 /** GET /api/graduation-projects/{projectId}/recommended-supervisors — project leader only. */
@@ -356,8 +409,8 @@ export async function getRecommendedSupervisorsCatalog(
 }
 
 /**
- * POST /api/ai/recommend-supervisors + GET catalog merge
- * (same approach as mobile `enrichAiSupervisorsWithRecommended`).
+ * POST /api/ai/recommend-supervisors with GET catalog fallback.
+ * Only returns doctors with a real profile (name, userId, specialization, reason).
  */
 export async function getRecommendedSupervisors(
   projectId: number,
@@ -374,35 +427,34 @@ export async function getRecommendedSupervisors(
       ? parseCatalogSupervisorRows(catalogSettled.value.data)
       : [];
 
-  const catalogById = new Map(catalog.map((d) => [d.doctorId, d]));
+  const rows =
+    aiRows.length > 0
+      ? [...aiRows].sort(
+          (a, b) => normalizeMatchScore(b.matchScore) - normalizeMatchScore(a.matchScore),
+        )
+      : [...catalog].sort((a, b) => b.matchScore - a.matchScore);
 
-  if (aiRows.length > 0) {
-    return [...aiRows]
-      .sort((a, b) => normalizeMatchScore(b.matchScore) - normalizeMatchScore(a.matchScore))
-      .map((row) => {
-        const meta = catalogById.get(row.doctorId);
-        return {
-          doctorId: row.doctorId,
-          userId: meta?.userId,
-          name: supervisorDisplayName(
-            row.doctorId,
-            row.doctorName,
-            meta?.name,
-          ),
-          specialization:
-            row.specialization.trim() || meta?.specialization?.trim() || "",
-          matchScore: normalizeMatchScore(row.matchScore),
-          reason: row.reason?.trim() || undefined,
-        };
-      });
+  if (import.meta.env.DEV) {
+    console.info("[SupervisorRecommendationTrace] recommendations_received", {
+      projectId,
+      aiStatus: aiSettled.status,
+      catalogStatus: catalogSettled.status,
+      aiRawCount: aiSettled.status === "fulfilled" && Array.isArray(aiSettled.value.data)
+        ? aiSettled.value.data.length
+        : 0,
+      catalogRawCount: catalogSettled.status === "fulfilled" && Array.isArray(catalogSettled.value.data)
+        ? catalogSettled.value.data.length
+        : 0,
+      parsedCount: rows.length,
+      doctors: rows.map((r) => ({
+        doctorId: r.doctorId,
+        name: r.name,
+        matchScore: r.matchScore,
+      })),
+    });
   }
 
-  return catalog
-    .map((d) => ({
-      ...d,
-      name: supervisorDisplayName(d.doctorId, d.name),
-    }))
-    .sort((a, b) => b.matchScore - a.matchScore);
+  return rows;
 }
 
 /** Human-readable project lifecycle status from API fields. */

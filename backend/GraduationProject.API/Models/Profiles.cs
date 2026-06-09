@@ -32,6 +32,10 @@ namespace GraduationProject.API.Models
         [Column("tools")]             public string? Tools { get; set; }              // JSON array as string
         [Column("roles")]             public string? Roles { get; set; }              // JSON array: ["Frontend Developer", ...]
         [Column("technical_skills")]  public string? TechnicalSkills { get; set; }   // JSON array: ["Web Development", ...]
+        [Column("collaboration_preferences")] public string? CollaborationPreferences { get; set; }
+        [Column("other_links")]       public string? OtherLinks { get; set; }
+        [Column("expected_graduation")] public string? ExpectedGraduation { get; set; }
+        [Column("personal_website")]  public string? PersonalWebsite { get; set; }
 
         public User User { get; set; } = null!;
         public ICollection<StudentSkill> StudentSkills { get; set; } = new List<StudentSkill>();
@@ -71,6 +75,12 @@ namespace GraduationProject.API.Models
 
         [Column("research_skills")]
         public string? ResearchSkills { get; set; }
+
+        [Column("available_for_supervision")]
+        public bool AvailableForSupervision { get; set; } = true;
+
+        [Column("notification_preferences")]
+        public string? NotificationPreferences { get; set; }
 
         public User User { get; set; } = null!;
     }

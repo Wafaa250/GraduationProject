@@ -1157,24 +1157,6 @@ namespace GraduationProject.API.Controllers
             if (duplicatePending)
                 return Conflict(new { message = "A pending request already exists." });
 
-            // Data repair guard:
-            // Older rows may still keep the same dedup key after non-pending states,
-            // which violates the unique index (user_id, dedup_key) on re-send.
-            // Clear dedup on non-pending rows for this same key before inserting.
-            var staleSameKeyRows = await _db.UserNotifications
-                .Where(n =>
-                    n.UserId == receiverEnrollment.Student.UserId &&
-                    n.Category == "course" &&
-                    n.DedupKey == directDedup &&
-                    n.EventType != "course_teammate_invitation_pending")
-                .ToListAsync();
-            if (staleSameKeyRows.Count > 0)
-            {
-                foreach (var row in staleSameKeyRows)
-                    row.DedupKey = null;
-                await _db.SaveChangesAsync();
-            }
-
             var senderTeam = await _db.CourseTeams
                 .Include(t => t.Members)
                 .Where(t => t.CourseProjectId == projectId && t.Members.Any(m => m.StudentProfileId == me.Value))
@@ -1194,21 +1176,17 @@ namespace GraduationProject.API.Controllers
                 return BadRequest(new { message = "Your team already reached the project team size limit." });
 
             var senderName = myEnrollment.Student?.User?.Name ?? "A student";
-            _db.UserNotifications.Add(new UserNotification
-            {
-                UserId = receiverEnrollment.Student.UserId,
-                Category = "course",
-                EventType = "course_teammate_invitation_pending",
-                ProjectId = projectId,
-                Title = "Team request received",
-                Body = $"{senderName} invited you to join their team for \"{project.Title}\".",
-                DedupKey = directDedup,
-                CreatedAt = DateTime.UtcNow,
-                ReadAt = null,
-            });
+            var notificationId = await _notifications.NotifyCourseTeammateInvitationPendingAsync(
+                receiverEnrollment.Student.UserId,
+                projectId,
+                senderName,
+                project.Title,
+                directDedup);
 
-            await _db.SaveChangesAsync();
-            return Ok(new { message = "Team request sent successfully." });
+            if (!notificationId.HasValue)
+                return Conflict(new { message = "Could not deliver team invitation notification." });
+
+            return Ok(new { message = "Team request sent successfully.", notificationId = notificationId.Value });
         }
 
         [HttpGet("team-invitations")]
@@ -1263,6 +1241,103 @@ namespace GraduationProject.API.Controllers
             }
 
             return Ok(items);
+        }
+
+        [HttpGet("team-invitations/{invitationId:int}")]
+        [Authorize(Roles = "student")]
+        public async Task<IActionResult> GetTeamInvitationDetail(int invitationId)
+        {
+            var me = await GetCurrentStudentIdAsync();
+            if (me == null) return Unauthorized(new { message = "Student profile not found." });
+
+            var meUserId = AuthorizationHelper.GetUserId(User);
+            var invitation = await _db.UserNotifications
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n =>
+                    n.Id == invitationId &&
+                    n.UserId == meUserId &&
+                    n.Category == "course" &&
+                    n.EventType == "course_teammate_invitation_pending");
+
+            if (invitation == null)
+                return NotFound(new { message = "Invitation not found." });
+
+            if (invitation.DedupKey == null)
+                return BadRequest(new { message = "Invitation data is invalid." });
+
+            var parsed = ParseCourseInvitationDedupKey(invitation.DedupKey);
+            if (!parsed.HasValue)
+                return BadRequest(new { message = "Invitation data is invalid." });
+
+            var (projectId, senderId, receiverId) = parsed.Value;
+            if (receiverId != me.Value)
+                return Forbid();
+
+            var project = await _projectRepo.GetByIdAsync(projectId);
+            if (project == null) return NotFound(new { message = "Project not found." });
+
+            var course = await _courseRepo.GetByIdAsync(project.CourseId);
+            if (course == null) return NotFound(new { message = "Course not found." });
+
+            var sender = await _db.StudentProfiles
+                .Include(s => s.User)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == senderId);
+
+            var senderSection = await _db.SectionEnrollments
+                .Include(e => e.Section)
+                .AsNoTracking()
+                .Where(e => e.StudentProfileId == senderId && e.Section.CourseId == project.CourseId)
+                .Select(e => e.Section.Name)
+                .FirstOrDefaultAsync();
+
+            var senderTeam = await _db.CourseTeams
+                .Include(t => t.Members)
+                    .ThenInclude(m => m.Student)
+                        .ThenInclude(s => s.User)
+                .AsNoTracking()
+                .Where(t => t.CourseProjectId == projectId && t.Members.Any(m => m.StudentProfileId == senderId))
+                .FirstOrDefaultAsync();
+
+            var teamMembers = (senderTeam?.Members ?? Enumerable.Empty<CourseTeamMember>())
+                .OrderBy(m => m.StudentProfileId == senderId ? 0 : 1)
+                .Select(m => new
+                {
+                    studentId = m.StudentProfileId,
+                    name = m.Student?.User?.Name ?? "",
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                invitationId = invitation.Id,
+                status = "pending",
+                invitedAt = invitation.CreatedAt,
+                message = invitation.Body,
+                course = new
+                {
+                    courseId = course.Id,
+                    courseName = course.Name,
+                },
+                project = new
+                {
+                    projectId = project.Id,
+                    title = project.Title,
+                    description = project.Description ?? "",
+                    teamSize = project.TeamSize,
+                },
+                sender = new
+                {
+                    studentId = senderId,
+                    name = sender?.User?.Name ?? "Student",
+                    section = senderSection ?? "Unknown section",
+                },
+                team = new
+                {
+                    currentMembers = teamMembers,
+                    memberCount = teamMembers.Count,
+                },
+            });
         }
 
         [HttpPost("team-invitations/{invitationId:int}/accept")]
@@ -1341,6 +1416,7 @@ namespace GraduationProject.API.Controllers
             }
 
             var receiverStudent = await _db.StudentProfiles
+                .Include(s => s.User)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.UserId == meUserId);
             if (receiverStudent == null)
@@ -1457,21 +1533,25 @@ namespace GraduationProject.API.Controllers
                 c.DedupKey = null;
             }
 
-            _db.UserNotifications.Add(new UserNotification
-            {
-                UserId = senderUserId,
-                Category = "course",
-                EventType = "course_teammate_invitation_accepted",
-                ProjectId = projectId,
-                Title = "Invitation accepted",
-                Body = "Your teammate invitation was accepted.",
-                DedupKey = $"course-team-invite-accepted:{invitation.Id}",
-                CreatedAt = DateTime.UtcNow,
-                ReadAt = null,
-            });
-
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+
+            await _notifications.NotifyCourseTeammateInvitationAcceptedAsync(
+                senderUserId,
+                projectId,
+                invitation.Id,
+                receiverStudent.User?.Name ?? "A student",
+                project.Title);
+
+            var teamMemberUserIds = trackedTeam.Members.Select(m => m.UserId).ToList();
+            await _notifications.NotifyCourseTeamMemberAddedAsync(
+                projectId,
+                project.Title,
+                receiverStudent.Id,
+                trackedTeam.TeamIndex,
+                teamMemberUserIds,
+                oldTeamIndex: null,
+                oldTeamMemberUserIds: null);
 
             return Ok(new
             {
@@ -1501,26 +1581,29 @@ namespace GraduationProject.API.Controllers
             invitation.EventType = "course_teammate_invitation_rejected";
             invitation.ReadAt = DateTime.UtcNow;
             invitation.DedupKey = null;
+            await _db.SaveChangesAsync();
+
             if (parsed.HasValue)
             {
-                var (_, senderId, _) = parsed.Value;
+                var (projectId, senderId, _) = parsed.Value;
                 var senderUserId = await GetStudentUserId(senderId);
-                if (senderUserId > 0)
+                var receiver = await _db.StudentProfiles
+                    .Include(s => s.User)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.UserId == meUserId);
+                var project = invitation.ProjectId.HasValue
+                    ? await _projectRepo.GetByIdAsync(invitation.ProjectId.Value)
+                    : await _projectRepo.GetByIdAsync(projectId);
+                if (senderUserId > 0 && project != null)
                 {
-                    _db.UserNotifications.Add(new UserNotification
-                    {
-                        UserId = senderUserId,
-                        Category = "course",
-                        EventType = "course_teammate_invitation_rejected",
-                        ProjectId = invitation.ProjectId,
-                        Title = "Invitation rejected",
-                        Body = "Your teammate invitation was rejected.",
-                        CreatedAt = DateTime.UtcNow,
-                        ReadAt = null,
-                    });
+                    await _notifications.NotifyCourseTeammateInvitationRejectedAsync(
+                        senderUserId,
+                        project.Id,
+                        receiver?.User?.Name ?? "A student",
+                        project.Title);
                 }
             }
-            await _db.SaveChangesAsync();
+
             return Ok(new { message = "Invitation rejected." });
         }
 

@@ -1,19 +1,22 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { startConversation } from "@/api/conversationsApi";
 import { getStudentDirectoryProfile } from "@/api/studentDirectoryApi";
 import { DoctorHubPageHeader } from "@/components/doctor/hub/DoctorHubPageHeader";
 import { DoctorStudentProfileView } from "@/components/doctor/student-profile/DoctorStudentProfileView";
 import { useDoctorStudentProfileExtras } from "@/hooks/useDoctorStudentProfileExtras";
-import { ROUTES } from "@/routes/paths";
+import { ROUTES, doctorMessageThreadPath } from "@/routes/paths";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { toast } from "@/hooks/use-toast";
 import "@/styles/doctor-student-profile.css";
 
 export default function DoctorStudentProfilePage() {
+  const navigate = useNavigate();
   const { userId: idParam } = useParams<{ userId: string }>();
   const userId = Number(idParam);
   const [loading, setLoading] = useState(true);
+  const [messaging, setMessaging] = useState(false);
   const [student, setStudent] = useState<Awaited<ReturnType<typeof getStudentDirectoryProfile>> | null>(
     null,
   );
@@ -58,8 +61,8 @@ export default function DoctorStudentProfilePage() {
         <DoctorHubPageHeader
           title="Student profile"
           description="View skills, academic details, and course team memberships"
-          backTo={ROUTES.doctorDashboard}
-          backLabel="Dashboard"
+          backTo={ROUTES.doctorStudents}
+          backLabel="Students"
         />
         <DoctorStudentProfileView
           student={student}
@@ -67,6 +70,22 @@ export default function DoctorStudentProfilePage() {
           courseTeams={extras.courseTeams}
           enrollmentCount={extras.enrollmentCount}
           extrasLoading={extras.loading}
+          messaging={messaging}
+          onMessage={() => {
+            setMessaging(true);
+            void startConversation(student.userId)
+              .then((conversationId) => {
+                navigate(doctorMessageThreadPath(conversationId), { state: { focusComposer: true } });
+              })
+              .catch((err) => {
+                toast({
+                  variant: "destructive",
+                  title: "Could not start conversation",
+                  description: parseApiErrorMessage(err),
+                });
+              })
+              .finally(() => setMessaging(false));
+          }}
         />
       </div>
     </main>

@@ -57,6 +57,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, GraduationProject.API.Hubs.NameIdentifierUserIdProvider>();
 builder.Services.AddMemoryCache();
 
 // ===========================
@@ -108,6 +109,7 @@ builder.Services.AddScoped<ICourseTeamChatRepository, CourseTeamChatRepository>(
 builder.Services.AddHttpClient<ITeamGenerationService, OpenAiTeamGenerationService>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IGraduationProjectNotificationService, GraduationProjectNotificationService>();
+builder.Services.AddScoped<ISupervisorRecommendationResolver, SupervisorRecommendationResolver>();
 
 // ===========================
 // CORS

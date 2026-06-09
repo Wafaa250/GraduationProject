@@ -25,6 +25,8 @@ namespace GraduationProject.API.DTOs
 
         [Range(0, 10, ErrorMessage = "Partners count must be between 0 and 10")]
         public int PartnersCount { get; set; } = 0;
+
+        public List<string> ProjectInterests { get; set; } = new();
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
@@ -41,6 +43,8 @@ namespace GraduationProject.API.DTOs
 
         [Range(0, 10, ErrorMessage = "Partners count must be between 0 and 10")]
         public int? PartnersCount { get; set; }
+
+        public List<string>? ProjectInterests { get; set; }
     }
 
     // ── Member ────────────────────────────────────────────────────────────────
@@ -89,6 +93,7 @@ namespace GraduationProject.API.DTOs
         public string Name { get; set; } = string.Empty;
         public string Specialization { get; set; } = string.Empty;
         public int MatchScore { get; set; }
+        public string Reason { get; set; } = string.Empty;
     }
 
     // ── Response ──────────────────────────────────────────────────────────────
@@ -105,6 +110,7 @@ namespace GraduationProject.API.DTOs
         public string ProjectType { get; set; } = "GP";
 
         public List<string> RequiredSkills { get; set; } = new();
+        public List<string> ProjectInterests { get; set; } = new();
         public int PartnersCount { get; set; }
         public int CurrentMembers { get; set; }
         public bool IsFull { get; set; }

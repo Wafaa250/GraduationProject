@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getDoctorNotificationTarget } from "@/lib/doctorNotificationNavigation";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
+import { doctorHubShowsGlobalSearch } from "@/lib/doctorHubNav";
+import { resolveDoctorNotificationNavigation } from "@/lib/handleInvitationNotificationClick";
+import { navigateToInvitationRoute } from "@/lib/navigateToInvitationRoute";
+import { getDoctorNotificationTargetLabel } from "@/lib/doctorNotificationNavigation";
 import { Menu, User, Settings, LogOut, ChevronDown, MessageCircle, Plus } from "lucide-react";
 import { useDoctorShareUpdate } from "@/components/doctor/hub/DoctorShareUpdateContext";
 import { useDoctorHubProfile } from "./DoctorHubProfileContext";
@@ -23,8 +27,17 @@ export function DoctorHubHeader() {
   const profile = useDoctorHubProfile();
   const { openShareUpdate } = useDoctorShareUpdate();
   const isDashboard = pathname === ROUTES.doctorDashboard;
+  const showSearch = doctorHubShowsGlobalSearch(pathname);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const inbox = useNotificationsInbox({ role: "doctor", showToasts: true, markAllReadOnOpen: true });
+  const inbox = useNotificationsInbox({
+    role: "doctor",
+    showToasts: true,
+    markAllReadOnOpen: true,
+    onRealtimeNotificationClick: (n) =>
+      resolveDoctorNotificationNavigation(n).then((target) => {
+        navigateToInvitationRoute(navigate, target);
+      }),
+  });
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
@@ -67,9 +80,9 @@ export function DoctorHubHeader() {
   };
 
   const onDoctorNotificationClick = (n: GraduationNotification) => {
-    const target = getDoctorNotificationTarget(n);
-    void inbox.handleNotificationClick(n, () => {
-      if (target) navigate(target);
+    void inbox.handleNotificationClick(n, async () => {
+      const target = await resolveDoctorNotificationNavigation(n);
+      navigateToInvitationRoute(navigate, target);
     });
   };
 
@@ -79,6 +92,12 @@ export function DoctorHubHeader() {
         <button type="button" className="lg:hidden text-muted-foreground shrink-0" aria-label="Open menu">
           <Menu className="h-5 w-5" />
         </button>
+
+        {showSearch ? (
+          <div className="hidden md:block flex-1 max-w-xl">
+            <GlobalSearchBar variant="header" role="doctor" />
+          </div>
+        ) : null}
 
         <div className="ml-auto flex items-center gap-2 shrink-0">
           {isDashboard ? (
@@ -130,9 +149,7 @@ export function DoctorHubHeader() {
               markingAllRead={inbox.markingAllRead}
               onMarkAllRead={() => void inbox.handleMarkAllRead()}
               onNotificationClick={onDoctorNotificationClick}
-              getTargetLabel={(n) =>
-                getDoctorNotificationTarget(n) ? "Open related page" : null
-              }
+              getTargetLabel={(n) => getDoctorNotificationTargetLabel(n)}
               variant="doctor"
             />
           </div>

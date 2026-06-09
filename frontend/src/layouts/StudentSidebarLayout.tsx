@@ -32,7 +32,9 @@ import {
   StudentSidebarProfileCard,
   type StudentSidebarStats,
 } from "@/components/student/sidebar/StudentSidebarProfileCard";
-import { getStudentNotificationTarget } from "@/lib/studentNotificationNavigation";
+import { resolveStudentNotificationNavigation } from "@/lib/handleInvitationNotificationClick";
+import { navigateToInvitationRoute } from "@/lib/navigateToInvitationRoute";
+import { getStudentNotificationTargetLabel } from "@/lib/studentNotificationNavigation";
 import {
   getStudentProfilePhotoUrl,
   mergeStudentSkillLabels,
@@ -174,7 +176,15 @@ export function StudentSidebarLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [me, setMe] = useState<StudentMeResponse | null>(null);
-  const inbox = useNotificationsInbox({ role: "student", showToasts: true, markAllReadOnOpen: true });
+  const inbox = useNotificationsInbox({
+    role: "student",
+    showToasts: true,
+    markAllReadOnOpen: true,
+    onRealtimeNotificationClick: (n) =>
+      resolveStudentNotificationNavigation(n).then((target) => {
+        navigateToInvitationRoute(navigate, target);
+      }),
+  });
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -322,9 +332,9 @@ export function StudentSidebarLayout() {
   };
 
   const onStudentNotificationClick = (n: GraduationNotification) => {
-    const target = getStudentNotificationTarget(n);
-    void inbox.handleNotificationClick(n, () => {
-      if (target) navigate(target);
+    void inbox.handleNotificationClick(n, async () => {
+      const target = await resolveStudentNotificationNavigation(n);
+      navigateToInvitationRoute(navigate, target);
     });
   };
 
@@ -398,7 +408,7 @@ export function StudentSidebarLayout() {
             markingAllRead={inbox.markingAllRead}
             onMarkAllRead={() => void inbox.handleMarkAllRead()}
             onNotificationClick={onStudentNotificationClick}
-            getTargetLabel={(n) => (getStudentNotificationTarget(n) ? "View" : null)}
+            getTargetLabel={(n) => getStudentNotificationTargetLabel(n)}
             variant="student"
           />
         </div>

@@ -10,6 +10,7 @@ import {
   BookOpen,
   MessageCircle,
   Settings,
+  Users,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, badgeKey: null as string | null },
+  { key: "students", label: "Students", icon: Users, badgeKey: null as string | null },
   { key: "requests", label: "Supervision Requests", icon: Inbox, badgeKey: "pendingRequests" },
   { key: "projects", label: "Active Projects", icon: FolderKanban, badgeKey: "supervised" },
   { key: "courses", label: "Courses", icon: BookOpen, badgeKey: "courses" },

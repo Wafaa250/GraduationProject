@@ -2,6 +2,7 @@ import { ROUTES } from "@/routes/paths";
 
 export const DOCTOR_NAV_ROUTES: Record<string, string> = {
   dashboard: ROUTES.doctorDashboard,
+  students: ROUTES.doctorStudents,
   requests: ROUTES.doctorRequests,
   projects: ROUTES.doctorProjects,
   courses: ROUTES.doctorCourses,
@@ -10,6 +11,8 @@ export const DOCTOR_NAV_ROUTES: Record<string, string> = {
 };
 
 export function doctorNavKeyFromPath(pathname: string): string {
+  if (pathname === ROUTES.doctorStudents) return "students";
+  if (pathname.startsWith("/doctor/students/")) return "students";
   if (pathname.startsWith(ROUTES.doctorRequests)) return "requests";
   if (pathname.startsWith("/doctor/projects")) return "projects";
   if (pathname.startsWith("/doctor/courses/create")) return "courses";

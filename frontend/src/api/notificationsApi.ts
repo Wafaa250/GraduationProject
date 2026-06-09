@@ -46,11 +46,35 @@ export async function getNotifications(
 }
 
 /** GET /api/notifications — all categories for current user. */
+function normalizeNotification(raw: Record<string, unknown>): GraduationNotification | null {
+  const id = Number(raw.id ?? raw.Id);
+  if (!Number.isFinite(id)) return null;
+  const projectRaw = raw.projectId ?? raw.ProjectId;
+  return {
+    id,
+    category: String(raw.category ?? raw.Category ?? ""),
+    title: String(raw.title ?? raw.Title ?? ""),
+    body: String(raw.body ?? raw.Body ?? ""),
+    eventType: String(raw.eventType ?? raw.EventType ?? ""),
+    projectId: projectRaw != null ? Number(projectRaw) : null,
+    dedupKey: (raw.dedupKey ?? raw.DedupKey ?? null) as string | null,
+    createdAt: String(raw.createdAt ?? raw.CreatedAt ?? ""),
+    readAt: (raw.readAt ?? raw.ReadAt ?? null) as string | null,
+  };
+}
+
 export async function getAllNotifications(take = 50): Promise<GraduationNotification[]> {
-  const { data } = await api.get<GraduationNotification[]>("/notifications", {
+  const { data } = await api.get<unknown>("/notifications", {
     params: { take, category: "all" },
   });
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) return [];
+  const rows: GraduationNotification[] = [];
+  for (const raw of data) {
+    if (!raw || typeof raw !== "object") continue;
+    const normalized = normalizeNotification(raw as Record<string, unknown>);
+    if (normalized) rows.push(normalized);
+  }
+  return rows;
 }
 
 /** GET /api/notifications/unread-count */

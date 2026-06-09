@@ -1,14 +1,32 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Loader2, Search, Stethoscope, UserRound, Users } from "lucide-react";
+import {
+  Briefcase,
+  Building2,
+  Calendar,
+  Loader2,
+  Search,
+  Stethoscope,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { cn } from "@/components/ui/utils";
 import {
+  followCompany,
+  followOrganization,
   searchCommunicationHub,
+  unfollowCompany,
+  unfollowOrganization,
   type CommunicationHubSearchResults,
   type FeedSearchResultRow,
 } from "@/api/feedApi";
+import { startConversation } from "@/api/conversationsApi";
+import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { SearchResultRow } from "@/components/search/SearchResultRow";
 import { searchResultProfilePath } from "@/lib/feedDiscoverNavigation";
+import { doctorMessageThreadPath, studentMessageThreadPath } from "@/routes/paths";
+import { getMe } from "@/api/meApi";
+import { toast } from "@/hooks/use-toast";
 import "@/styles/global-search.css";
 
 const DEBOUNCE_MS = 300;
@@ -24,6 +42,9 @@ const GROUPS: SearchGroup[] = [
   { key: "doctors", label: "Doctors", icon: Stethoscope },
   { key: "companies", label: "Companies", icon: Building2 },
   { key: "associations", label: "Associations", icon: Users },
+  { key: "projects", label: "Projects", icon: Briefcase },
+  { key: "events", label: "Events", icon: Calendar },
+  { key: "opportunities", label: "Opportunities", icon: Briefcase },
 ];
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -37,9 +58,10 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 
 type Props = {
   variant?: "default" | "header";
+  role?: "student" | "doctor";
 };
 
-export function GlobalSearchBar({ variant = "header" }: Props) {
+export function GlobalSearchBar({ variant = "header", role = "student" }: Props) {
   const navigate = useNavigate();
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -47,6 +69,8 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<CommunicationHubSearchResults | null>(null);
+  const [followingIds, setFollowingIds] = useState<Record<string, boolean>>({});
+  const [messagingUserId, setMessagingUserId] = useState<number | null>(null);
   const searchGenerationRef = useRef(0);
 
   const debounced = useDebouncedValue(value, DEBOUNCE_MS);
@@ -117,6 +141,58 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
     navigate(path);
   };
 
+  const handleMessage = (hit: FeedSearchResultRow) => {
+    const userId = hit.userId ?? hit.entityId;
+    if (!userId) return;
+    setMessagingUserId(userId);
+    void startConversation(userId)
+      .then((conversationId) => {
+        setOpen(false);
+        setValue("");
+        setResults(null);
+        navigate(
+          role === "doctor"
+            ? doctorMessageThreadPath(conversationId)
+            : studentMessageThreadPath(conversationId),
+          { state: { focusComposer: true } },
+        );
+      })
+      .catch((err) => {
+        toast({
+          variant: "destructive",
+          title: "Could not start conversation",
+          description: parseApiErrorMessage(err),
+        });
+      })
+      .finally(() => setMessagingUserId(null));
+  };
+
+  const handleFollow = async (hit: FeedSearchResultRow) => {
+    const key = `${hit.entityType}-${hit.entityId}`;
+    const isFollowing = followingIds[key] ?? hit.isFollowing ?? false;
+    try {
+      const me = await getMe();
+      if ((me as { role?: string }).role !== "student") {
+        handleSelect(hit);
+        return;
+      }
+      if (hit.entityType.toLowerCase() === "company") {
+        if (isFollowing) await unfollowCompany(hit.entityId);
+        else await followCompany(hit.entityId);
+      } else if (hit.entityType.toLowerCase() === "association") {
+        if (isFollowing) await unfollowOrganization(hit.entityId);
+        else await followOrganization(hit.entityId);
+      }
+      setFollowingIds((prev) => ({ ...prev, [key]: !isFollowing }));
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Action failed",
+        description: parseApiErrorMessage(err),
+      });
+    }
+  };
+
   return (
     <div
       ref={rootRef}
@@ -171,14 +247,27 @@ export function GlobalSearchBar({ variant = "header" }: Props) {
                     <Icon className="h-3.5 w-3.5" aria-hidden />
                     {group.label} ({hits.length})
                   </h3>
-                  {hits.map((hit) => (
-                    <SearchResultRow
-                      key={`${group.key}-${hit.entityType}-${hit.entityId}-${hit.userId ?? 0}`}
-                      hit={hit}
-                      groupKey={group.key}
-                      onSelect={() => handleSelect(hit)}
-                    />
-                  ))}
+                  {hits.map((hit) => {
+                    const entityType = hit.entityType.toLowerCase();
+                    const followKey = `${hit.entityType}-${hit.entityId}`;
+                    const canMessage =
+                      (entityType === "student" || entityType === "doctor") &&
+                      (hit.userId ?? hit.entityId) > 0;
+                    const canFollow =
+                      entityType === "company" || entityType === "association";
+                    return (
+                      <SearchResultRow
+                        key={`${group.key}-${hit.entityType}-${hit.entityId}-${hit.userId ?? 0}`}
+                        hit={hit}
+                        groupKey={group.key}
+                        onSelect={() => handleSelect(hit)}
+                        onMessage={canMessage ? () => handleMessage(hit) : undefined}
+                        onFollow={canFollow ? () => void handleFollow(hit) : undefined}
+                        isFollowing={followingIds[followKey] ?? hit.isFollowing ?? false}
+                        messaging={messagingUserId === (hit.userId ?? hit.entityId)}
+                      />
+                    );
+                  })}
                 </section>
               );
             })

@@ -72,6 +72,23 @@ export function hasSufficientProjectPreviewInput(input: {
 export async function fetchProjectMatchingPreview(
   payload: ProjectPreviewRequest,
 ): Promise<ProjectPreviewResponse> {
-  const { data } = await api.post<Record<string, unknown>>("/ai/project-preview", payload);
-  return normalizePreviewResponse(data);
+  try {
+    const { data } = await api.post<Record<string, unknown>>("/ai/project-preview", payload);
+    return normalizePreviewResponse(data);
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status;
+    if (status === 404 || status === 405) {
+      return {
+        isAvailable: false,
+        message:
+          "Teammate matching preview is not available during setup. You can invite teammates from your project workspace after publishing.",
+        estimatedCompatibleStudentsCount: 0,
+        compatibilityScore: 0,
+        topMatchingSkills: [],
+        topMatchingRoles: [],
+        topRecommendedStudents: [],
+      };
+    }
+    throw err;
+  }
 }

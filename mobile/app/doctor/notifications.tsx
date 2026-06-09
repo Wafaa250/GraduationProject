@@ -28,10 +28,8 @@ import { NotificationsListSkeleton } from "@/components/notifications/Notificati
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import {
-  getDoctorNotificationTarget,
-  getDoctorNotificationTargetLabel,
-} from "@/lib/doctorNotificationNavigation";
+import { resolveDoctorNotificationNavigation } from "@/lib/handleInvitationNotificationClick";
+import { getDoctorNotificationTargetLabel } from "@/lib/doctorNotificationNavigation";
 import { DOCTOR_ROUTES } from "@/lib/doctorRoutes";
 
 type SectionItem =
@@ -134,8 +132,11 @@ export default function DoctorNotificationsScreen() {
       }
     }
 
-    const target = getDoctorNotificationTarget(notification);
-    if (target) router.push(target as Href);
+    const { route, unavailableMessage } = await resolveDoctorNotificationNavigation(notification);
+    if (unavailableMessage) {
+      Alert.alert("Request unavailable", unavailableMessage);
+    }
+    if (route) router.push(route as Href);
   };
 
   const renderItem = ({ item }: { item: SectionItem }) => {

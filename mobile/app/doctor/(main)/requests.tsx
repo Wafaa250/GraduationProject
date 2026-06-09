@@ -1,7 +1,7 @@
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ArrowDownUp } from "lucide-react-native";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActionSheetIOS,
   Alert,
@@ -58,6 +58,7 @@ export default function DoctorSupervisionRequestsScreen() {
   const layout = useResponsiveLayout();
   const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { requestId: requestIdParam } = useLocalSearchParams<{ requestId?: string }>();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -95,6 +96,23 @@ export default function DoctorSupervisionRequestsScreen() {
       void load(true);
     }, [load]),
   );
+
+  useEffect(() => {
+    if (loading || !requestIdParam) return;
+    const requestId = Number(requestIdParam);
+    if (!Number.isFinite(requestId)) return;
+
+    const match = requests.find((r) => r.requestId === requestId);
+    if (match) {
+      setActiveTab("all");
+      setSelectedRequest(match);
+      setDetailVisible(true);
+    } else {
+      Alert.alert("Request unavailable", "This invitation is no longer available.");
+    }
+
+    router.setParams({ requestId: undefined });
+  }, [loading, requestIdParam, requests]);
 
   const tabCounts = useMemo(() => supervisionTabCounts(requests), [requests]);
 

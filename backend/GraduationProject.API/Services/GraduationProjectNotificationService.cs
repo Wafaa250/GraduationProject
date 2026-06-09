@@ -9,6 +9,7 @@ using GraduationProject.API.Hubs;
 using GraduationProject.API.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GraduationProject.API.Services
 {
@@ -23,13 +24,16 @@ namespace GraduationProject.API.Services
 
         private readonly ApplicationDbContext _db;
         private readonly IHubContext<NotificationsHub> _hubContext;
+        private readonly ILogger<GraduationProjectNotificationService> _logger;
 
         public GraduationProjectNotificationService(
             ApplicationDbContext db,
-            IHubContext<NotificationsHub> hubContext)
+            IHubContext<NotificationsHub> hubContext,
+            ILogger<GraduationProjectNotificationService> logger)
         {
             _db = db;
             _hubContext = hubContext;
+            _logger = logger;
         }
 
         public async Task NotifyProjectCreatedAsync(int projectId, string projectName, int ownerStudentProfileId, CancellationToken ct = default)
@@ -201,8 +205,16 @@ namespace GraduationProject.API.Services
             int receiverStudentProfileId,
             CancellationToken ct = default)
         {
+            LogInvitationEvent("INVITATION CREATED", "graduation_project_team", invitationId, receiverStudentProfileId);
+
             var receiverUserId = await GetStudentUserIdAsync(receiverStudentProfileId, ct);
-            if (!receiverUserId.HasValue) return;
+            if (!receiverUserId.HasValue)
+            {
+                _logger.LogWarning(
+                    "[Notifications] NOTIFICATION SKIPPED flow=graduation_project_team invitationId={InvitationId} reason=receiver_user_not_found studentProfileId={StudentProfileId}",
+                    invitationId, receiverStudentProfileId);
+                return;
+            }
 
             var senderName = await GetStudentDisplayNameAsync(senderStudentProfileId, ct) ?? "A student";
 
@@ -213,7 +225,9 @@ namespace GraduationProject.API.Services
                 "Team invitation received",
                 $"{senderName} invited you to join \"{projectName}\".",
                 $"gp:invite:{invitationId}:{receiverUserId.Value}",
-                ct);
+                ct,
+                flow: "graduation_project_team",
+                invitationId: invitationId);
         }
 
         public async Task NotifyInvitationRejectedAsync(
@@ -236,6 +250,29 @@ namespace GraduationProject.API.Services
                 "Team invitation declined",
                 $"{receiverName} declined your invitation to join \"{projectName}\".",
                 $"gp:invite_reject:{invitationId}:{senderUserId.Value}",
+                ct);
+        }
+
+        public async Task NotifyInvitationAcceptedAsync(
+            int invitationId,
+            int projectId,
+            string projectName,
+            int senderStudentProfileId,
+            int receiverStudentProfileId,
+            CancellationToken ct = default)
+        {
+            var senderUserId = await GetStudentUserIdAsync(senderStudentProfileId, ct);
+            if (!senderUserId.HasValue) return;
+
+            var receiverName = await GetStudentDisplayNameAsync(receiverStudentProfileId, ct) ?? "The student";
+
+            await TryAddAsync(
+                senderUserId.Value,
+                "invitation_accepted",
+                projectId,
+                "Team invitation accepted",
+                $"{receiverName} accepted your invitation.",
+                $"gp:invite_accept:{invitationId}:{senderUserId.Value}",
                 ct);
         }
 
@@ -293,8 +330,16 @@ namespace GraduationProject.API.Services
             int doctorProfileId,
             CancellationToken ct = default)
         {
+            LogInvitationEvent("INVITATION CREATED", "supervision_request", supervisorRequestId, doctorProfileId);
+
             var doctorUserId = await GetDoctorUserIdByProfileIdAsync(doctorProfileId, ct);
-            if (!doctorUserId.HasValue) return;
+            if (!doctorUserId.HasValue)
+            {
+                _logger.LogWarning(
+                    "[Notifications] NOTIFICATION SKIPPED flow=supervision_request requestId={RequestId} reason=doctor_user_not_found doctorProfileId={DoctorProfileId}",
+                    supervisorRequestId, doctorProfileId);
+                return;
+            }
 
             var leaderName = await GetStudentDisplayNameAsync(leaderStudentProfileId, ct) ?? "A student";
 
@@ -305,7 +350,9 @@ namespace GraduationProject.API.Services
                 "Supervision request",
                 $"{leaderName} requested you to supervise \"{projectName}\".",
                 $"gp:supervisor_req:{supervisorRequestId}:{doctorUserId.Value}",
-                ct);
+                ct,
+                flow: "supervision_request",
+                invitationId: supervisorRequestId);
         }
 
         public async Task NotifySupervisionRequestAcceptedAsync(
@@ -959,6 +1006,229 @@ namespace GraduationProject.API.Services
 
             await _db.SaveChangesAsync(ct);
         }
+        public async Task<int?> NotifyCourseTeammateInvitationPendingAsync(
+            int receiverUserId,
+            int courseProjectId,
+            string senderName,
+            string projectTitle,
+            string dedupKey,
+            CancellationToken ct = default)
+        {
+            LogInvitationEvent("INVITATION CREATED", "course_team", courseProjectId, receiverUserId);
+
+            await ClearStaleCourseInvitationDedupAsync(receiverUserId, dedupKey, ct);
+
+            if (await ShouldSkipDedupAsync(receiverUserId, dedupKey, ct))
+            {
+                _logger.LogWarning(
+                    "[Notifications] NOTIFICATION SKIPPED flow=course_team projectId={ProjectId} recipientUserId={RecipientUserId} reason=dedup_exists dedupKey={DedupKey}",
+                    courseProjectId, receiverUserId, dedupKey);
+                return null;
+            }
+
+            var notification = new UserNotification
+            {
+                UserId = receiverUserId,
+                Category = CourseCategory,
+                EventType = "course_teammate_invitation_pending",
+                ProjectId = courseProjectId,
+                Title = "Team request received",
+                Body = $"{senderName} invited you to join their team for \"{projectTitle}\".",
+                DedupKey = dedupKey,
+                CreatedAt = DateTime.UtcNow,
+                ReadAt = null,
+            };
+
+            return await PersistAndPushAsync(notification, ct, "course_team", courseProjectId);
+        }
+
+        public async Task NotifyCourseTeammateInvitationAcceptedAsync(
+            int senderUserId,
+            int courseProjectId,
+            int invitationNotificationId,
+            string receiverName,
+            string projectTitle,
+            CancellationToken ct = default)
+        {
+            var name = string.IsNullOrWhiteSpace(receiverName) ? "A student" : receiverName.Trim();
+            var title = string.IsNullOrWhiteSpace(projectTitle) ? "the course project" : projectTitle.Trim();
+            await TryAddGenericAsync(
+                senderUserId,
+                CourseCategory,
+                "course_teammate_invitation_accepted",
+                courseProjectId,
+                "Invitation accepted",
+                $"{name} accepted your invitation.",
+                $"course-team-invite-accepted:{invitationNotificationId}",
+                ct,
+                flow: "course_team",
+                invitationId: invitationNotificationId);
+        }
+
+        public async Task NotifyCourseTeammateInvitationRejectedAsync(
+            int senderUserId,
+            int courseProjectId,
+            string receiverName,
+            string projectTitle,
+            CancellationToken ct = default)
+        {
+            var name = string.IsNullOrWhiteSpace(receiverName) ? "A student" : receiverName.Trim();
+            await TryAddGenericAsync(
+                senderUserId,
+                CourseCategory,
+                "course_teammate_invitation_rejected",
+                courseProjectId,
+                "Invitation rejected",
+                $"{name} rejected your invitation.",
+                $"course-team-invite-rejected:{courseProjectId}:{senderUserId}:{DateTime.UtcNow.Ticks}",
+                ct,
+                flow: "course_team",
+                invitationId: courseProjectId);
+        }
+
+        public async Task PushStoredNotificationAsync(int notificationId, CancellationToken ct = default)
+        {
+            var notification = await _db.UserNotifications
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == notificationId, ct);
+
+            if (notification == null)
+            {
+                _logger.LogWarning(
+                    "[Notifications] SIGNALR SKIPPED notificationId={NotificationId} reason=row_not_found",
+                    notificationId);
+                return;
+            }
+
+            await PushRealtimeAsync(notification, ct);
+        }
+
+        public async Task NotifyCompanyRequestInvitationReceivedAsync(
+            int invitationId,
+            int studentProfileId,
+            int companyProfileId,
+            int requestId,
+            string companyName,
+            string requestTitle,
+            CancellationToken ct = default)
+        {
+            LogInvitationEvent("INVITATION CREATED", "company_request", invitationId, studentProfileId);
+
+            var studentUserId = await GetStudentUserIdAsync(studentProfileId, ct);
+            if (!studentUserId.HasValue)
+            {
+                _logger.LogWarning(
+                    "[Notifications] NOTIFICATION SKIPPED flow=company_request invitationId={InvitationId} reason=student_user_not_found studentProfileId={StudentProfileId}",
+                    invitationId, studentProfileId);
+                return;
+            }
+
+            await TryAddGenericAsync(
+                studentUserId.Value,
+                CompanyCategory,
+                "company_request_invitation_received",
+                requestId,
+                "Company invitation received",
+                $"{companyName} invited you to join \"{requestTitle}\".",
+                $"company:invite:{invitationId}:{studentUserId.Value}",
+                ct,
+                flow: "company_request",
+                invitationId: invitationId);
+        }
+
+        public async Task NotifyCompanyRequestInvitationCancelledAsync(
+            int invitationId,
+            int studentProfileId,
+            int companyProfileId,
+            int requestId,
+            string companyName,
+            string requestTitle,
+            CancellationToken ct = default)
+        {
+            var studentUserId = await GetStudentUserIdAsync(studentProfileId, ct);
+            if (!studentUserId.HasValue) return;
+
+            await TryAddGenericAsync(
+                studentUserId.Value,
+                CompanyCategory,
+                "company_request_invitation_cancelled",
+                requestId,
+                "Company invitation cancelled",
+                $"{companyName} cancelled your invitation to \"{requestTitle}\".",
+                $"company:invite_cancel:{invitationId}:{studentUserId.Value}",
+                ct,
+                flow: "company_request",
+                invitationId: invitationId);
+        }
+
+        public async Task NotifyCompanyRequestInvitationAcceptedAsync(
+            int invitationId,
+            int companyProfileId,
+            int requestId,
+            string companyName,
+            string requestTitle,
+            string studentName,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetCompanyRecipientsAsync(
+                companyProfileId,
+                ownersOnly: true,
+                _ => true,
+                excludeUserId: null,
+                ct: ct);
+
+            var title = "Invitation accepted";
+            var body = $"{studentName} accepted your invitation to \"{requestTitle}\".";
+            foreach (var userId in recipients)
+            {
+                await TryAddGenericAsync(
+                    userId,
+                    CompanyCategory,
+                    "company_request_invitation_accepted",
+                    requestId,
+                    title,
+                    body,
+                    $"company:invite_accept:{invitationId}:{userId}",
+                    ct,
+                    flow: "company_request",
+                    invitationId: invitationId);
+            }
+        }
+
+        public async Task NotifyCompanyRequestInvitationRejectedAsync(
+            int invitationId,
+            int companyProfileId,
+            int requestId,
+            string companyName,
+            string requestTitle,
+            string studentName,
+            CancellationToken ct = default)
+        {
+            var recipients = await GetCompanyRecipientsAsync(
+                companyProfileId,
+                ownersOnly: true,
+                _ => true,
+                excludeUserId: null,
+                ct: ct);
+
+            var title = "Invitation declined";
+            var body = $"{studentName} declined your invitation to \"{requestTitle}\".";
+            foreach (var userId in recipients)
+            {
+                await TryAddGenericAsync(
+                    userId,
+                    CompanyCategory,
+                    "company_request_invitation_rejected",
+                    requestId,
+                    title,
+                    body,
+                    $"company:invite_reject:{invitationId}:{userId}",
+                    ct,
+                    flow: "company_request",
+                    invitationId: invitationId);
+            }
+        }
+
         private async Task TryAddAsync(
             int userId,
             string eventType,
@@ -966,10 +1236,17 @@ namespace GraduationProject.API.Services
             string title,
             string body,
             string? dedupKey,
-            CancellationToken ct)
+            CancellationToken ct,
+            string? flow = null,
+            int? invitationId = null)
         {
             if (await ShouldSkipDedupAsync(userId, dedupKey, ct))
+            {
+                _logger.LogWarning(
+                    "[Notifications] NOTIFICATION SKIPPED flow={Flow} invitationId={InvitationId} recipientUserId={RecipientUserId} reason=dedup_exists dedupKey={DedupKey}",
+                    flow ?? "graduation_project", invitationId, userId, dedupKey);
                 return;
+            }
 
             var notification = new UserNotification
             {
@@ -983,9 +1260,7 @@ namespace GraduationProject.API.Services
                 CreatedAt = DateTime.UtcNow,
                 ReadAt = null,
             };
-            _db.UserNotifications.Add(notification);
-            await _db.SaveChangesAsync(ct);
-            await PushRealtimeAsync(notification, ct);
+            await PersistAndPushAsync(notification, ct, flow ?? Category, invitationId);
         }
 
         private async Task TryAddGenericAsync(
@@ -996,10 +1271,17 @@ namespace GraduationProject.API.Services
             string title,
             string body,
             string? dedupKey,
-            CancellationToken ct)
+            CancellationToken ct,
+            string? flow = null,
+            int? invitationId = null)
         {
             if (await ShouldSkipDedupAsync(userId, dedupKey, ct))
+            {
+                _logger.LogWarning(
+                    "[Notifications] NOTIFICATION SKIPPED flow={Flow} invitationId={InvitationId} recipientUserId={RecipientUserId} reason=dedup_exists dedupKey={DedupKey}",
+                    flow ?? category, invitationId, userId, dedupKey);
                 return;
+            }
 
             var notification = new UserNotification
             {
@@ -1013,10 +1295,62 @@ namespace GraduationProject.API.Services
                 CreatedAt = DateTime.UtcNow,
                 ReadAt = null,
             };
-            _db.UserNotifications.Add(notification);
-            await _db.SaveChangesAsync(ct);
-            await PushRealtimeAsync(notification, ct);
+            await PersistAndPushAsync(notification, ct, flow ?? category, invitationId);
         }
+
+        private async Task<int?> PersistAndPushAsync(
+            UserNotification notification,
+            CancellationToken ct,
+            string flow,
+            int? invitationId)
+        {
+            _db.UserNotifications.Add(notification);
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "[Notifications] NOTIFICATION FAILED flow={Flow} invitationId={InvitationId} recipientUserId={RecipientUserId} eventType={EventType} dedupKey={DedupKey}",
+                    flow, invitationId, notification.UserId, notification.EventType, notification.DedupKey);
+                throw;
+            }
+
+            _logger.LogInformation(
+                "[Notifications] NOTIFICATION CREATED flow={Flow} invitationId={InvitationId} notificationId={NotificationId} recipientUserId={RecipientUserId} category={Category} eventType={EventType}",
+                flow, invitationId, notification.Id, notification.UserId, notification.Category, notification.EventType);
+
+            await PushRealtimeAsync(notification, ct);
+            return notification.Id;
+        }
+
+        private async Task ClearStaleCourseInvitationDedupAsync(int receiverUserId, string dedupKey, CancellationToken ct)
+        {
+            var staleRows = await _db.UserNotifications
+                .Where(n =>
+                    n.UserId == receiverUserId &&
+                    n.Category == CourseCategory &&
+                    n.DedupKey == dedupKey &&
+                    n.EventType != "course_teammate_invitation_pending")
+                .ToListAsync(ct);
+
+            if (staleRows.Count == 0) return;
+
+            foreach (var row in staleRows)
+                row.DedupKey = null;
+
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "[Notifications] Cleared {Count} stale course invitation dedup row(s) for userId={UserId} dedupKey={DedupKey}",
+                staleRows.Count, receiverUserId, dedupKey);
+        }
+
+        private void LogInvitationEvent(string phase, string flow, int invitationId, int recipientProfileOrUserId) =>
+            _logger.LogInformation(
+                "[Notifications] {Phase} flow={Flow} invitationId={InvitationId} recipientRef={RecipientRef}",
+                phase, flow, invitationId, recipientProfileOrUserId);
 
         private async Task AddManyParallelBodiesAsync(
             IEnumerable<int> userIds,
@@ -1174,19 +1508,34 @@ namespace GraduationProject.API.Services
 
         private async Task PushRealtimeAsync(UserNotification notification, CancellationToken ct)
         {
-            await _hubContext.Clients
-                .User(notification.UserId.ToString())
-                .SendAsync("NotificationCreated", new
-                {
-                    notification.Id,
-                    notification.Title,
-                    notification.Body,
-                    notification.EventType,
-                    notification.Category,
-                    notification.ProjectId,
-                    notification.CreatedAt,
-                    notification.ReadAt,
-                }, ct);
+            try
+            {
+                await _hubContext.Clients
+                    .User(notification.UserId.ToString())
+                    .SendAsync("NotificationCreated", new
+                    {
+                        notification.Id,
+                        notification.Title,
+                        notification.Body,
+                        notification.EventType,
+                        notification.Category,
+                        notification.ProjectId,
+                        notification.DedupKey,
+                        notification.CreatedAt,
+                        notification.ReadAt,
+                    }, ct);
+
+                _logger.LogInformation(
+                    "[Notifications] SIGNALR SENT notificationId={NotificationId} recipientUserId={RecipientUserId} eventType={EventType} category={Category}",
+                    notification.Id, notification.UserId, notification.EventType, notification.Category);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "[Notifications] SIGNALR FAILED notificationId={NotificationId} recipientUserId={RecipientUserId} eventType={EventType}",
+                    notification.Id, notification.UserId, notification.EventType);
+            }
         }
 
         // ── COMPANY WORKSPACE ────────────────────────────────────────────────

@@ -58,6 +58,86 @@ namespace GraduationProject.API.Controllers
         }
 
         // =====================================================================
+        // GET /api/invitations/{id}/detail
+        // Full invitation card data for the receiver (pending invitations).
+        // =====================================================================
+        [HttpGet("{id:int}/detail")]
+        public async Task<IActionResult> GetInvitationDetail(int id)
+        {
+            var student = await GetStudentProfileAsync();
+            if (student == null) return Forbid();
+
+            var invitation = await _db.ProjectInvitations
+                .AsNoTracking()
+                .Include(i => i.Project)
+                    .ThenInclude(p => p.Owner)
+                        .ThenInclude(o => o.User)
+                .Include(i => i.Project)
+                    .ThenInclude(p => p.Members)
+                        .ThenInclude(m => m.Student)
+                            .ThenInclude(s => s.User)
+                .Include(i => i.Sender)
+                    .ThenInclude(s => s.User)
+                .FirstOrDefaultAsync(i => i.Id == id);
+
+            if (invitation == null)
+                return NotFound(new { message = "Invitation not found." });
+
+            if (invitation.ReceiverId != student.Id)
+                return StatusCode(403, new { message = "Not authorized." });
+
+            var project = invitation.Project;
+            if (project == null)
+                return NotFound(new { message = "Project not found." });
+
+            List<string> skills;
+            try
+            {
+                skills = string.IsNullOrWhiteSpace(project.RequiredSkills)
+                    ? new List<string>()
+                    : System.Text.Json.JsonSerializer.Deserialize<List<string>>(project.RequiredSkills) ?? new List<string>();
+            }
+            catch
+            {
+                skills = new List<string>();
+            }
+
+            var members = project.Members
+                .OrderBy(m => m.Role == "leader" ? 0 : 1)
+                .ThenBy(m => m.Student?.User?.Name ?? "")
+                .Select(m => new
+                {
+                    studentId = m.StudentId,
+                    name = m.Student?.User?.Name ?? "",
+                    role = m.Role,
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                invitationId = invitation.Id,
+                status = invitation.Status,
+                createdAt = invitation.CreatedAt,
+                sender = new
+                {
+                    studentId = invitation.SenderId,
+                    name = invitation.Sender?.User?.Name ?? "",
+                },
+                project = new
+                {
+                    projectId = project.Id,
+                    title = project.Name,
+                    description = project.Abstract ?? "",
+                    ownerName = project.Owner?.User?.Name ?? "",
+                    teamSize = project.PartnersCount,
+                    currentMembers = project.Members.Count,
+                    requiredSkills = skills,
+                    members,
+                },
+            });
+        }
+
+        // =====================================================================
         // GET /api/invitations/sent/{projectId}
         // Returns all invitations sent for a specific project.
         // Only the project owner can access.
@@ -182,6 +262,13 @@ namespace GraduationProject.API.Controllers
             }
 
             await _gpNotifications.NotifyMemberJoinedAsync(project.Id, project.Name, student.Id);
+
+            await _gpNotifications.NotifyInvitationAcceptedAsync(
+                invitation.Id,
+                invitation.ProjectId,
+                project.Name,
+                invitation.SenderId,
+                invitation.ReceiverId);
 
             foreach (var expired in otherPending)
             {

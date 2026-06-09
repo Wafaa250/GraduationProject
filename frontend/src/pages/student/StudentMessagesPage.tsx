@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { appendLiveMessage, useLiveConversationMessages } from "@/hooks/useLiveConversationMessages";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   getConversationById,
@@ -96,6 +97,16 @@ export default function StudentMessagesPage() {
       setThread(null);
     }
   }, [selectedId, loadThread]);
+
+  const handleLiveMessage = useCallback(
+    (payload: Parameters<typeof appendLiveMessage>[1]) => {
+      setThread((prev) => appendLiveMessage(prev, payload, currentUserId));
+      void loadList();
+    },
+    [currentUserId, loadList],
+  );
+
+  useLiveConversationMessages(selectedId, handleLiveMessage);
 
   useEffect(() => {
     const state = location.state as { focusComposer?: boolean } | null;

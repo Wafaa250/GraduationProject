@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 type SupervisionRequestCardProps = {
   request: DoctorSupervisorRequest;
   busyRequestId?: number | null;
+  highlighted?: boolean;
   onAccept: (requestId: number) => void;
   onReject: (requestId: number) => void;
 };
@@ -49,6 +50,7 @@ function ScoreRing({ score }: { score: number }) {
 export function SupervisionRequestCard({
   request: r,
   busyRequestId,
+  highlighted = false,
   onAccept,
   onReject,
 }: SupervisionRequestCardProps) {
@@ -65,7 +67,13 @@ export function SupervisionRequestCard({
   const code = r.requestCode ?? `REQ-${String(r.requestId).padStart(5, "0")}`;
 
   return (
-    <article className="group rounded-2xl border border-border bg-card p-5 shadow-card hover:shadow-elevated hover:border-primary/20 transition-smooth animate-fade-in">
+    <article
+      id={`supervision-request-${r.requestId}`}
+      className={cn(
+        "group rounded-2xl border border-border bg-card p-5 shadow-card hover:shadow-elevated hover:border-primary/20 transition-smooth animate-fade-in",
+        highlighted && "ring-2 ring-primary/40 ring-offset-2 ring-offset-background",
+      )}
+    >
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-start gap-3 min-w-0">
           <div

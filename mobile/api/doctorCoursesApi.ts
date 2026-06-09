@@ -298,6 +298,35 @@ function normalizeCourseWorkspaceResponse(raw: Record<string, unknown>): CourseW
   };
 }
 
+export type CreateCoursePayload = {
+  name: string;
+  code: string;
+  semester: string;
+  academicYear: string;
+  description?: string;
+  allowCourseProjects?: boolean;
+  allowTeamFormation?: boolean;
+  allowAiTeamSuggestions?: boolean;
+  allowStudentCollaboration?: boolean;
+  defaultTeamFormationStrategy?: "doctor" | "student";
+};
+
+export async function createCourse(payload: CreateCoursePayload): Promise<DoctorCourse> {
+  const { data } = await api.post<Record<string, unknown>>("/courses", {
+    name: payload.name.trim(),
+    code: payload.code.trim(),
+    semester: payload.semester.trim(),
+    academicYear: payload.academicYear.trim(),
+    description: payload.description?.trim() || undefined,
+    allowCourseProjects: payload.allowCourseProjects ?? true,
+    allowTeamFormation: payload.allowTeamFormation ?? true,
+    allowAiTeamSuggestions: payload.allowAiTeamSuggestions ?? true,
+    allowStudentCollaboration: payload.allowStudentCollaboration ?? true,
+    defaultTeamFormationStrategy: payload.defaultTeamFormationStrategy ?? "doctor",
+  });
+  return normalizeDoctorCourse(data ?? {});
+}
+
 export async function getDoctorCourses(): Promise<DoctorCourse[]> {
   const { data } = await api.get<unknown[]>("/courses/my");
   return Array.isArray(data) ? data.map((row) => normalizeDoctorCourse(row as Record<string, unknown>)) : [];

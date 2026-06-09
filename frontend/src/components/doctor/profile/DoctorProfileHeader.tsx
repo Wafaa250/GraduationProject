@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Pencil } from "lucide-react";
+import { MessageCircle, Pencil } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/routes/paths";
@@ -14,6 +14,9 @@ type DoctorProfileHeaderProps = {
   photoUrl: string | null;
   /** Hide when viewing another doctor's profile (e.g. from search). */
   showEditButton?: boolean;
+  showMessageButton?: boolean;
+  messaging?: boolean;
+  onMessage?: () => void;
 };
 
 export function DoctorProfileHeader({
@@ -24,6 +27,9 @@ export function DoctorProfileHeader({
   specialization,
   photoUrl,
   showEditButton = true,
+  showMessageButton = false,
+  messaging = false,
+  onMessage,
 }: DoctorProfileHeaderProps) {
   const initials = initialsFromName(name || "?");
 
@@ -50,14 +56,22 @@ export function DoctorProfileHeader({
                 <MetaItem label="Specialization" value={specialization} className="sm:col-span-2" />
               </dl>
             </div>
-            {showEditButton ? (
-              <Button asChild className="shrink-0">
-                <Link to={ROUTES.doctorEditProfile}>
-                  <Pencil className="h-4 w-4" />
-                  Edit Profile
-                </Link>
-              </Button>
-            ) : null}
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              {showMessageButton ? (
+                <Button variant="outline" disabled={messaging} onClick={onMessage}>
+                  <MessageCircle className="h-4 w-4" />
+                  {messaging ? "Opening…" : "Message"}
+                </Button>
+              ) : null}
+              {showEditButton ? (
+                <Button asChild>
+                  <Link to={ROUTES.doctorEditProfile}>
+                    <Pencil className="h-4 w-4" />
+                    Edit Profile
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
