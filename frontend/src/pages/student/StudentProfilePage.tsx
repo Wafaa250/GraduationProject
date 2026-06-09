@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Loader2, MessageCircle } from "lucide-react";
 import "@/styles/skill-profile-hub.css";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
 import { getStudentDirectoryProfile } from "@/api/studentDirectoryApi";
@@ -14,7 +14,8 @@ import {
   getProfileStrength,
   type OrganizationMembership,
 } from "@/api/studentProfileApi";
-import { ROUTES } from "@/routes/paths";
+import { startConversation } from "@/api/conversationsApi";
+import { ROUTES, studentMessageThreadPath } from "@/routes/paths";
 import { toast } from "@/hooks/use-toast";
 import {
   GraduationCap,
@@ -228,13 +229,16 @@ export function StudentProfileView({
   userId,
   backHref = ROUTES.communicationHub,
 }: StudentProfileViewProps) {
+  const navigate = useNavigate();
   const isOwner = mode === "owner";
   const [me, setMe] = useState<StudentMeResponse | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [strength, setStrength] = useState<ProfileStrength | null>(null);
   const [projects, setProjects] = useState<GradProject[]>([]);
   const [memberships, setMemberships] = useState<OrganizationMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [messaging, setMessaging] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,12 +251,28 @@ export function StudentProfileView({
 
     (async () => {
       try {
+        const [session, directoryProfile] = await Promise.all([
+          getMe().catch(() => null),
+          mode === "owner"
+            ? Promise.resolve(null)
+            : getStudentDirectoryProfile(userId!).catch(() => null),
+        ]);
+
         const profile =
           mode === "owner"
-            ? await getMe()
-            : mapDirectoryProfileToMe(await getStudentDirectoryProfile(userId!));
+            ? session
+            : directoryProfile
+              ? mapDirectoryProfileToMe(directoryProfile)
+              : null;
+
         if (cancelled) return;
+        if (!profile) {
+          setError(mode === "owner" ? "Could not load your profile." : "Student not found.");
+          return;
+        }
+
         setMe(profile);
+        setCurrentUserId(session?.userId ?? null);
 
         const [strengthRes, projectRes, membershipRes] = await Promise.all([
           isOwner ? getProfileStrength().catch(() => null) : Promise.resolve(null),
@@ -351,6 +371,30 @@ export function StudentProfileView({
         description: "Copy the URL from your browser address bar.",
         variant: "destructive",
       });
+    }
+  };
+
+  const canMessageVisitor =
+    !isOwner &&
+    currentUserId != null &&
+    currentUserId > 0 &&
+    me != null &&
+    me.userId !== currentUserId;
+
+  const handleMessage = async () => {
+    if (!me || !canMessageVisitor) return;
+    setMessaging(true);
+    try {
+      const conversationId = await startConversation(me.userId);
+      navigate(studentMessageThreadPath(conversationId), { state: { focusComposer: true } });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Could not start conversation",
+        description: parseApiErrorMessage(err),
+      });
+    } finally {
+      setMessaging(false);
     }
   };
 
@@ -524,6 +568,22 @@ export function StudentProfileView({
                     </div>
                   ) : (
                     <div className="flex flex-col sm:flex-row gap-3 mt-6 justify-center md:justify-start">
+                      {canMessageVisitor ? (
+                        <Button
+                          size="lg"
+                          className="bg-[var(--gradient-hero)] text-primary-foreground border-0 shadow-[var(--shadow-glow)] hover:opacity-95"
+                          type="button"
+                          disabled={messaging}
+                          onClick={() => void handleMessage()}
+                        >
+                          {messaging ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden />
+                          ) : (
+                            <MessageCircle className="w-4 h-4 mr-2" aria-hidden />
+                          )}
+                          Message
+                        </Button>
+                      ) : null}
                       <Button
                         size="lg"
                         variant="outline"
