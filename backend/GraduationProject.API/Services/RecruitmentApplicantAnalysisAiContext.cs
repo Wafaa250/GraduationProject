@@ -13,6 +13,9 @@ namespace GraduationProject.API.Services
         /// <summary>applicationId -> (studentProfileId, studentUserId)</summary>
         public Dictionary<int, (int StudentProfileId, int StudentUserId)> ApplicationIndex { get; set; } = new();
 
+        /// <summary>studentProfileId -> applicationId (one application per student per position)</summary>
+        public Dictionary<int, int> StudentProfileToApplication { get; set; } = new();
+
         public Dictionary<int, StudentApplicantDisplayInfo> StudentDisplayByProfileId { get; set; } = new();
     }
 

@@ -101,7 +101,7 @@ namespace GraduationProject.API.Controllers
             return Ok(items);
         }
 
-        /// <summary>AI ranking of applicants for a single position (top neededCount only).</summary>
+        /// <summary>AI ranking of applicants for a single position (top 3 candidates).</summary>
         [HttpPost("{campaignId:int}/positions/{positionId:int}/analyze-applicants")]
         public async Task<IActionResult> AnalyzeApplicants(int campaignId, int positionId)
         {

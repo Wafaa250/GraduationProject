@@ -12,6 +12,9 @@ namespace GraduationProject.API.Helpers
 {
     public static class RecruitmentApplicantAnalysisHelper
     {
+        /// <summary>Default number of AI-ranked candidates returned per position.</summary>
+        public const int SuggestedCandidateCount = 3;
+
         public static string Truncate(string? text, int maxChars)
         {
             if (string.IsNullOrEmpty(text)) return string.Empty;

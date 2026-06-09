@@ -71,17 +71,20 @@ namespace GraduationProject.API.Services
             var systemMessage =
                 "You are SkillSwap's recruitment analyst. Use ONLY the JSON user payload (fields K, need, Q, A). " +
                 "Rank applicants by fit to the role and organization. " +
+                "Each object in array A includes applicationId and studentProfileId — copy those exact integers into your output " +
+                "(applicationId -> applicationId, studentProfileId -> studentId). Never swap, invent, or renumber ids. " +
                 "You MUST reply with a single valid JSON object and nothing else: no markdown, no code fences, no commentary, no prose before or after JSON. " +
                 "The JSON object MUST have exactly one property \"ranked\" whose value is a JSON array of at most " + context.TopK + " objects, " +
                 "sorted by matchScore descending (best first). " +
                 "Each array element MUST be an object with exactly these keys: " +
-                "\"studentId\" (integer, student profile id p), \"applicationId\" (integer i), \"matchScore\" (integer 0-100), " +
+                "\"studentId\" (integer, same as applicant studentProfileId), \"applicationId\" (integer, same as applicant applicationId), \"matchScore\" (integer 0-100), " +
                 "\"strengths\" (array of strings, may be empty), \"concerns\" (array of strings, may be empty), \"reason\" (string). " +
                 "Do not wrap the response in markdown. Do not use ```json. Output raw JSON only.";
 
             var userMessage =
                 "Return ONLY a JSON object of the form {\"ranked\":[...]} where ranked has at most " + context.TopK + " items. " +
-                "Field K in the payload is the maximum number of applicants to return. Payload:\n" +
+                "Field K is the maximum number of applicants to return. " +
+                "For each ranked item, applicationId and studentId MUST match an applicant in A exactly (studentId = that applicant's studentProfileId). Payload:\n" +
                 context.CompactPayloadJson;
 
             _logger.LogInformation(
@@ -301,8 +304,16 @@ namespace GraduationProject.API.Services
                 ["additionalProperties"] = false,
                 ["properties"] = new Dictionary<string, object>
                 {
-                    ["studentId"] = new Dictionary<string, object> { ["type"] = "integer" },
-                    ["applicationId"] = new Dictionary<string, object> { ["type"] = "integer" },
+                    ["studentId"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "integer",
+                        ["description"] = "Must equal the applicant studentProfileId from payload array A.",
+                    },
+                    ["applicationId"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "integer",
+                        ["description"] = "Must equal the applicant applicationId from payload array A.",
+                    },
                     ["matchScore"] = new Dictionary<string, object>
                     {
                         ["type"] = "integer",
@@ -608,25 +619,27 @@ namespace GraduationProject.API.Services
                 if (results.Count >= context.TopK)
                     break;
 
-                if (!context.ApplicationIndex.TryGetValue(row.ApplicationId, out var ids))
+                if (!TryResolveApplicant(row, context, out var applicationId, out var ids, out var resolution))
                 {
                     _logger.LogWarning(
-                        "RecruitmentAI: skipping unknown applicationId={AppId} (studentId={Sid})",
+                        "RecruitmentAI: skipping unresolvable row applicationId={AppId} studentId={Sid}",
                         row.ApplicationId,
                         row.StudentId);
                     continue;
                 }
 
-                if (row.StudentId != ids.StudentProfileId)
+                if (!string.IsNullOrEmpty(resolution))
                 {
-                    _logger.LogWarning(
-                        "RecruitmentAI: studentId mismatch for applicationId={AppId}: AI={AiSid} expected={ExSid} — trusting applicationId.",
+                    _logger.LogInformation(
+                        "RecruitmentAI: resolved row via {Resolution} AI applicationId={AiApp} studentId={AiSid} -> applicationId={ResolvedApp} studentProfileId={ResolvedProfile}",
+                        resolution,
                         row.ApplicationId,
                         row.StudentId,
+                        applicationId,
                         ids.StudentProfileId);
                 }
 
-                if (!seenApps.Add(row.ApplicationId))
+                if (!seenApps.Add(applicationId))
                     continue;
 
                 var score = Math.Clamp(row.MatchScore, 0, 100);
@@ -636,7 +649,7 @@ namespace GraduationProject.API.Services
                 {
                     StudentProfileId = ids.StudentProfileId,
                     StudentUserId = ids.StudentUserId,
-                    ApplicationId = row.ApplicationId,
+                    ApplicationId = applicationId,
                     MatchScore = score,
                     Strengths = row.Strengths ?? new List<string>(),
                     Concerns = row.Concerns ?? new List<string>(),
@@ -651,6 +664,52 @@ namespace GraduationProject.API.Services
                 diagnostic = "No rows matched known application ids after validation.";
 
             return results;
+        }
+
+        /// <summary>
+        /// Maps AI output ids to a known application. Handles direct match, swapped fields, and profile-id lookup.
+        /// </summary>
+        private bool TryResolveApplicant(
+            AiApplicantMatchRow row,
+            RecruitmentApplicantAnalysisAiContext context,
+            out int applicationId,
+            out (int StudentProfileId, int StudentUserId) ids,
+            out string? resolution)
+        {
+            resolution = null;
+
+            if (context.ApplicationIndex.TryGetValue(row.ApplicationId, out ids))
+            {
+                applicationId = row.ApplicationId;
+                return true;
+            }
+
+            if (row.StudentId > 0 && context.ApplicationIndex.TryGetValue(row.StudentId, out ids))
+            {
+                applicationId = row.StudentId;
+                resolution = "swapped-id-fields";
+                return true;
+            }
+
+            foreach (var profileId in new[] { row.StudentId, row.ApplicationId })
+            {
+                if (profileId <= 0)
+                    continue;
+
+                if (!context.StudentProfileToApplication.TryGetValue(profileId, out var byProfile))
+                    continue;
+
+                if (!context.ApplicationIndex.TryGetValue(byProfile, out ids))
+                    continue;
+
+                applicationId = byProfile;
+                resolution = "student-profile-lookup";
+                return true;
+            }
+
+            applicationId = 0;
+            ids = default;
+            return false;
         }
 
         private static string TruncateForLog(string? text, int maxChars)

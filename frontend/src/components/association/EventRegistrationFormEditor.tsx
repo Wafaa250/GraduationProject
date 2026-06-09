@@ -17,8 +17,6 @@ import {
   Paperclip,
   Phone,
   Plus,
-  Save,
-  Send,
   ToggleLeft,
   Trash2,
   Type,
@@ -262,32 +260,6 @@ export function EventRegistrationFormEditor({
     }
   }
 
-  const publishForm = async () => {
-    if (!metaTitle.trim()) {
-      toast.error('Form title is required.')
-      return
-    }
-    if (fields.length === 0) {
-      toast.error('Add at least one question before publishing.')
-      return
-    }
-    setSaving(true)
-    try {
-      const updated = await updateEventRegistrationForm(eventId, {
-        title: metaTitle.trim(),
-        description: metaDescription.trim() || null,
-      })
-      setForm((f) => ({ ...updated, fields: f.fields }))
-      onFormChange?.({ ...updated, fields: form.fields })
-      setLastSavedAt(updated.updatedAt ? new Date(updated.updatedAt) : new Date())
-      toast.success('Registration form published — students will complete this when registering.')
-    } catch (e) {
-      toast.error(parseApiErrorMessage(e))
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <div className="event-reg-form-builder" style={builderRoot}>
       {previewMode ? (
@@ -355,16 +327,6 @@ export function EventRegistrationFormEditor({
               </button>
               <button
                 type="button"
-                onClick={() => void saveMeta()}
-                disabled={saving}
-                className="erf-toolbar-ghost"
-                style={toolbarGhostBtn}
-              >
-                <Save size={16} />
-                Save draft
-              </button>
-              <button
-                type="button"
                 onClick={openAddField}
                 className="erf-toolbar-add"
                 style={addFieldTopBtn}
@@ -372,16 +334,6 @@ export function EventRegistrationFormEditor({
               >
                 <Plus size={18} strokeWidth={2.5} />
                 Add field
-              </button>
-              <button
-                type="button"
-                onClick={() => void publishForm()}
-                disabled={saving}
-                className="erf-toolbar-publish"
-                style={publishBtn}
-              >
-                <Send size={16} />
-                Publish form
               </button>
             </div>
           </header>
@@ -956,21 +908,6 @@ const toolbarGhostBtn: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
   color: assocDash.textSecondary,
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-}
-
-const publishBtn: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-  padding: '8px 14px',
-  borderRadius: 10,
-  border: 'none',
-  background: assocDash.text,
-  color: '#fff',
-  fontSize: 13,
-  fontWeight: 700,
   cursor: 'pointer',
   fontFamily: 'inherit',
 }

@@ -481,7 +481,7 @@ function AssociationOrganizationRecruitmentCampaignDetailsPage() {
                               <span style={aiResultsHeaderText}>AI shortlist</span>
                             </div>
                             <span style={aiResultsSub}>
-                              Ranked for this role · up to {p.neededCount} seat{p.neededCount === 1 ? '' : 's'}
+                              Top 3 candidates ranked for this role
                             </span>
                           </div>
                           <button

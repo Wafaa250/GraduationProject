@@ -101,9 +101,7 @@ namespace GraduationProject.API.Services
             if (string.IsNullOrWhiteSpace(_configuration["OpenAI:ApiKey"]))
                 return null;
 
-            var topK = isRegenerate
-                ? Math.Max(1, Math.Min(remainingSeats, eligible.Count))
-                : Math.Min(position.NeededCount, eligible.Count);
+            var topK = Math.Min(RecruitmentApplicantAnalysisHelper.SuggestedCandidateCount, eligible.Count);
 
             var applicable = RecruitmentApplicationHelper
                 .GetApplicableQuestions(campaign.Questions, position.Id)
@@ -168,6 +166,7 @@ namespace GraduationProject.API.Services
 
             var appPayload = new List<object>();
             var applicationIndex = new Dictionary<int, (int StudentProfileId, int StudentUserId)>();
+            var studentProfileToApplication = new Dictionary<int, int>();
             var displayByProfile = new Dictionary<int, StudentApplicantDisplayInfo>();
             var statusByApplicationId = new Dictionary<int, string>();
 
@@ -188,8 +187,8 @@ namespace GraduationProject.API.Services
                 var prior = priorAppsByStudent.TryGetValue(app.StudentProfileId, out var c) ? c : 0;
                 appPayload.Add(new
                 {
-                    i = app.Id,
-                    p = app.StudentProfileId,
+                    applicationId = app.Id,
+                    studentProfileId = app.StudentProfileId,
                     a = orderedAnswers,
                     pr,
                     part = new
@@ -200,6 +199,7 @@ namespace GraduationProject.API.Services
                 });
 
                 applicationIndex[app.Id] = (app.StudentProfileId, sp.UserId);
+                studentProfileToApplication[app.StudentProfileId] = app.Id;
                 displayByProfile[app.StudentProfileId] = new StudentApplicantDisplayInfo
                 {
                     Name = sp.User?.Name ?? "Student",
@@ -220,6 +220,7 @@ namespace GraduationProject.API.Services
                 TopK = topK,
                 CompactPayloadJson = compactJson,
                 ApplicationIndex = applicationIndex,
+                StudentProfileToApplication = studentProfileToApplication,
                 StudentDisplayByProfileId = displayByProfile,
             };
 
