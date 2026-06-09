@@ -7,6 +7,7 @@ using GraduationProject.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GraduationProject.API.Controllers
 {
@@ -16,8 +17,16 @@ namespace GraduationProject.API.Controllers
     public class NotificationsController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
+        private readonly ILogger<NotificationsController> _logger;
 
-        public NotificationsController(ApplicationDbContext db) => _db = db;
+        public NotificationsController(ApplicationDbContext db, ILogger<NotificationsController> logger)
+        {
+            _db = db;
+            _logger = logger;
+        }
+
+        private static bool IsAllCategories(string category) =>
+            string.Equals(category, "all", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>List current user's graduation-project notifications (newest first).</summary>
         [HttpGet]
@@ -29,9 +38,14 @@ namespace GraduationProject.API.Controllers
                 ? GraduationProjectNotificationService.Category
                 : category.Trim();
 
-            var items = await _db.UserNotifications
+            var query = _db.UserNotifications
                 .AsNoTracking()
-                .Where(n => n.UserId == userId && n.Category == cat)
+                .Where(n => n.UserId == userId);
+
+            if (!IsAllCategories(cat))
+                query = query.Where(n => n.Category == cat);
+
+            var items = await query
                 .OrderByDescending(n => n.CreatedAt)
                 .Take(take)
                 .Select(n => new
@@ -47,6 +61,10 @@ namespace GraduationProject.API.Controllers
                 })
                 .ToListAsync();
 
+            _logger.LogInformation(
+                "[Notifications] GET list userId={UserId} category={Category} returned={Count}",
+                userId, cat, items.Count);
+
             return Ok(items);
         }
 
@@ -57,12 +75,18 @@ namespace GraduationProject.API.Controllers
             var cat = string.IsNullOrWhiteSpace(category)
                 ? GraduationProjectNotificationService.Category
                 : category.Trim();
-            var count = await _db.UserNotifications
+            var query = _db.UserNotifications
                 .AsNoTracking()
-                .CountAsync(n =>
-                    n.UserId == userId &&
-                    n.Category == cat &&
-                    n.ReadAt == null);
+                .Where(n => n.UserId == userId && n.ReadAt == null);
+
+            if (!IsAllCategories(cat))
+                query = query.Where(n => n.Category == cat);
+
+            var count = await query.CountAsync();
+
+            _logger.LogInformation(
+                "[Notifications] GET unread-count userId={UserId} category={Category} count={Count}",
+                userId, cat, count);
 
             return Ok(new { count });
         }
@@ -95,9 +119,13 @@ namespace GraduationProject.API.Controllers
                 ? GraduationProjectNotificationService.Category
                 : category.Trim();
 
-            var rows = await _db.UserNotifications
-                .Where(n => n.UserId == userId && n.Category == cat && n.ReadAt == null)
-                .ToListAsync();
+            var query = _db.UserNotifications
+                .Where(n => n.UserId == userId && n.ReadAt == null);
+
+            if (!IsAllCategories(cat))
+                query = query.Where(n => n.Category == cat);
+
+            var rows = await query.ToListAsync();
 
             var now = DateTime.UtcNow;
             foreach (var r in rows)

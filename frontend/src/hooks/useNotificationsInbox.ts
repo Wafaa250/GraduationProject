@@ -39,8 +39,10 @@ export function useNotificationsInbox({
   const refreshUnread = useCallback(async () => {
     try {
       const count = await getAllNotificationsUnreadCount();
+      console.log("[Notifications] unread count from API:", count);
       setUnreadCount(count);
     } catch {
+      console.log("[Notifications] unread count from API: failed");
       setUnreadCount(0);
     }
   }, []);
@@ -49,8 +51,10 @@ export function useNotificationsInbox({
     setLoading(true);
     try {
       const rows = await getAllNotifications(50);
+      console.log("[Notifications] list count from API:", rows.length);
       setNotifications(rows);
     } catch {
+      console.log("[Notifications] list count from API: failed");
       setNotifications([]);
     } finally {
       setLoading(false);
