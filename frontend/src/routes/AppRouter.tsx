@@ -9,6 +9,7 @@ import StudentProfileEditPage from "@/pages/student/StudentProfileEditPage";
 import CreateGraduationProjectPage from "@/pages/student/CreateGraduationProjectPage";
 import GraduationProjectWorkspacePage from "@/pages/student/GraduationProjectWorkspacePage";
 import StudentBrowseProjectsPage from "@/pages/student/StudentBrowseProjectsPage";
+import BrowseProjectStudentsPage from "@/pages/student/BrowseProjectStudentsPage";
 import StudentMessagesPage from "@/pages/student/StudentMessagesPage";
 import StudentSettingsPage from "@/pages/student/StudentSettingsPage";
 import FollowingPage from "@/pages/student/FollowingPage";
@@ -42,6 +43,7 @@ import StudentAssociationRegisterPage from "@/pages/auth/StudentAssociationRegis
 import { RoleThemeProvider } from "@/context/RoleThemeContext";
 import { CompanyWorkspaceLayout } from "@/layouts/CompanyWorkspaceLayout";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
+import { DoctorRoute } from "@/routes/doctorRoutes";
 import { CompanyRoute } from "@/routes/companyRoutes";
 import { CompanyDashboardPage } from "@/pages/company/CompanyDashboardPage";
 import { CompanyRequestsPage } from "@/pages/company/CompanyRequestsPage";
@@ -161,6 +163,7 @@ export function AppRouter() {
             element={<GraduationProjectWorkspacePage />}
           />
           <Route path={ROUTES.browseProjects} element={<StudentBrowseProjectsPage />} />
+          <Route path={ROUTES.browseProjectStudents} element={<BrowseProjectStudentsPage />} />
           <Route path={ROUTES.studentCourses} element={<StudentManageCoursesPage />} />
           <Route path={ROUTES.studentCourseDetail} element={<StudentManageCoursesPage />} />
           <Route
@@ -176,7 +179,9 @@ export function AppRouter() {
         <Route
           element={
             <ProtectedRoute>
-              <DoctorHubLayout />
+              <DoctorRoute>
+                <DoctorHubLayout />
+              </DoctorRoute>
             </ProtectedRoute>
           }
         >

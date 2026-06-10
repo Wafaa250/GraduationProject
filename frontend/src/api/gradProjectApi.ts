@@ -1,5 +1,9 @@
 import api from "./axiosInstance";
 import {
+  listDoctorsDirectory,
+  type DoctorDirectoryEntry,
+} from "@/api/doctorDirectoryApi";
+import {
   projectTypeToStage as projectTypeToStageFromLib,
   projectTypeLabel as projectTypeLabelFromLib,
 } from "@/lib/graduationProjectTypes";
@@ -45,6 +49,12 @@ export type GradProjectSupervisor = {
   assignedAt?: string | null;
 };
 
+export type GradProjectPendingSupervisor = {
+  doctorId: number;
+  name: string;
+  specialization?: string | null;
+};
+
 export type GradProjectAbstractFile = {
   fileName: string;
   uploadedAt: string;
@@ -75,6 +85,16 @@ export type GradProject = {
   skillPriorities?: string[];
   lookingForTeammates?: boolean;
   supervisor?: GradProjectSupervisor | null;
+  /** Outstanding supervision request status from GET /graduation-projects/my. */
+  supervisorRequestStatus?: "pending" | "accepted" | "rejected" | string | null;
+  /** Doctor targeted when supervisorRequestStatus is pending. */
+  pendingSupervisor?: GradProjectPendingSupervisor | null;
+  supervisorCancellationRequestStatus?:
+    | "pending"
+    | "approved"
+    | "rejected"
+    | string
+    | null;
   members: GradProjectMember[];
   createdAt?: string;
   updatedAt?: string;
@@ -147,6 +167,63 @@ export async function joinGraduationProject(projectId: number): Promise<void> {
   await api.post(`/graduation-projects/${projectId}/join`);
 }
 
+export function normSupervisorRequestStatus(status?: string | null): string {
+  return (status ?? "").trim().toLowerCase();
+}
+
+function normalizePendingSupervisor(
+  raw: GradProjectPendingSupervisor | null | undefined,
+): GradProjectPendingSupervisor | null {
+  if (!raw || typeof raw !== "object") return null;
+  const doctorId = Number(
+    (raw as GradProjectPendingSupervisor & { DoctorId?: number }).doctorId ??
+      (raw as { DoctorId?: number }).DoctorId,
+  );
+  if (!Number.isFinite(doctorId) || doctorId <= 0) return null;
+  const name =
+    (raw as GradProjectPendingSupervisor & { Name?: string }).name ??
+    (raw as { Name?: string }).Name ??
+    "";
+  const specialization =
+    (raw as GradProjectPendingSupervisor & { Specialization?: string | null }).specialization ??
+    (raw as { Specialization?: string | null }).Specialization ??
+    null;
+  return { doctorId, name, specialization };
+}
+
+/** Normalize project payloads from GET /my and GET /{id} (camelCase or PascalCase). */
+export function normalizeGradProject(project: GradProject): GradProject {
+  const raw = project as GradProject & {
+    SupervisorRequestStatus?: string | null;
+    PendingSupervisor?: GradProjectPendingSupervisor | null;
+    SupervisorCancellationRequestStatus?: string | null;
+  };
+
+  return {
+    ...project,
+    supervisorRequestStatus:
+      project.supervisorRequestStatus ?? raw.SupervisorRequestStatus ?? null,
+    pendingSupervisor: normalizePendingSupervisor(
+      project.pendingSupervisor ?? raw.PendingSupervisor,
+    ),
+    supervisorCancellationRequestStatus:
+      project.supervisorCancellationRequestStatus ??
+      raw.SupervisorCancellationRequestStatus ??
+      null,
+  };
+}
+
+export function getPendingSupervisorDoctorId(
+  project: GradProject | null | undefined,
+): number | null {
+  if (!project || project.supervisor) return null;
+  if (normSupervisorRequestStatus(project.supervisorRequestStatus) !== "pending") {
+    return null;
+  }
+  const doctorId = project.pendingSupervisor?.doctorId;
+  return typeof doctorId === "number" && doctorId > 0 ? doctorId : null;
+}
+
 function parseGraduationProjectsMyPayload(raw: unknown): {
   role: "owner" | "member" | null;
   project: GradProject | null;
@@ -170,7 +247,8 @@ function parseGraduationProjectsMyPayload(raw: unknown): {
     Role?: string | null;
   };
 
-  const project = d.project ?? d.Project ?? null;
+  const projectRaw = d.project ?? d.Project ?? null;
+  const project = projectRaw ? normalizeGradProject(projectRaw) : null;
   const roleRaw = d.role ?? d.Role;
   const role = roleRaw === "owner" || roleRaw === "member" ? roleRaw : null;
 
@@ -194,7 +272,11 @@ export type GradProjectRecommendedStudent = {
   university: string;
   skills: string[];
   matchScore: number;
+  /** Not returned by GET recommended-students; omitted unless present elsewhere. */
   reason?: string;
+  hasPendingInvite?: boolean;
+  isMember?: boolean;
+  canInvite?: boolean;
 };
 
 export type GradProjectRecommendedSupervisor = {
@@ -208,7 +290,7 @@ export type GradProjectRecommendedSupervisor = {
 
 export async function getGraduationProjectById(projectId: number): Promise<GradProject> {
   const { data } = await api.get<GradProject>(`/graduation-projects/${projectId}`);
-  return data;
+  return normalizeGradProject(data);
 }
 
 /** GET /api/graduation-projects/{id}/abstract-file — supervisor or project owner. */
@@ -241,7 +323,23 @@ export type GraduationProjectMembersResponse = {
   totalCapacity: number;
   remainingSeats: number;
   isFull: boolean;
+  /** True when the authenticated student is the project owner (StudentProfile.Id). */
+  isOwner?: boolean;
+  /** True when the authenticated student has role "leader" on the team. */
+  isLeader?: boolean;
   members: GraduationProjectMember[];
+};
+
+/** DELETE /api/graduation-projects/{id}/members/{memberId} */
+export type RemoveMemberResponse = {
+  message: string;
+  currentMembers: number;
+};
+
+/** PUT /api/graduation-projects/{projectId}/change-leader/{memberId} */
+export type ChangeLeaderResponse = {
+  message: string;
+  newLeaderId: number;
 };
 
 /** GET /api/graduation-projects/{id}/members */
@@ -254,41 +352,84 @@ export async function getGraduationProjectMembers(
   return data;
 }
 
+/** DELETE /api/graduation-projects/{id}/leave — non-leader members only. */
+export async function leaveGraduationProject(projectId: number): Promise<{ message: string }> {
+  const { data } = await api.delete<{ message: string }>(`/graduation-projects/${projectId}/leave`);
+  return data;
+}
+
+/**
+ * DELETE /api/graduation-projects/{projectId}/members/{memberId}
+ * memberId = StudentProfile.Id (same as member.studentId in GET /members).
+ */
+export async function removeProjectMember(
+  projectId: number,
+  memberStudentId: number,
+): Promise<RemoveMemberResponse> {
+  const { data } = await api.delete<RemoveMemberResponse>(
+    `/graduation-projects/${projectId}/members/${memberStudentId}`,
+  );
+  return data;
+}
+
+/**
+ * PUT /api/graduation-projects/{projectId}/change-leader/{memberId}
+ * memberId = StudentProfile.Id of the new leader.
+ */
+export async function changeProjectLeader(
+  projectId: number,
+  memberStudentId: number,
+): Promise<ChangeLeaderResponse> {
+  const { data } = await api.put<ChangeLeaderResponse>(
+    `/graduation-projects/${projectId}/change-leader/${memberStudentId}`,
+  );
+  return data;
+}
+
 function normalizeMatchScore(score: number): number {
   if (!Number.isFinite(score)) return 0;
   if (score > 0 && score <= 1) return Math.round(score * 100);
   return Math.round(Math.min(100, Math.max(0, score)));
 }
 
-/** POST /api/ai/recommend-students — owner or team leader only. */
+function parseRecommendedStudentRows(data: unknown): GradProjectRecommendedStudent[] {
+  if (!Array.isArray(data)) return [];
+  const rows: GradProjectRecommendedStudent[] = [];
+  for (const raw of data) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Record<string, unknown>;
+    const studentId = Number(r.studentId ?? r.StudentId ?? 0);
+    if (!Number.isFinite(studentId) || studentId <= 0) continue;
+    const skillsRaw = r.skills ?? r.Skills;
+    const hasPendingInviteRaw = r.hasPendingInvite ?? r.HasPendingInvite;
+    const isMemberRaw = r.isMember ?? r.IsMember;
+    const canInviteRaw = r.canInvite ?? r.CanInvite;
+    rows.push({
+      studentId,
+      name: String(r.name ?? r.Name ?? "").trim(),
+      major: String(r.major ?? r.Major ?? "").trim(),
+      university: String(r.university ?? r.University ?? "").trim(),
+      skills: Array.isArray(skillsRaw) ? skillsRaw.map((s) => String(s).trim()).filter(Boolean) : [],
+      matchScore: normalizeMatchScore(Number(r.matchScore ?? r.MatchScore ?? 0)),
+      hasPendingInvite:
+        typeof hasPendingInviteRaw === "boolean" ? hasPendingInviteRaw : undefined,
+      isMember: typeof isMemberRaw === "boolean" ? isMemberRaw : undefined,
+      canInvite: typeof canInviteRaw === "boolean" ? canInviteRaw : undefined,
+    });
+  }
+  return rows;
+}
+
+/**
+ * GET /api/graduation-projects/{projectId}/recommended-students
+ *
+ * Project owner only; students ranked by skill match vs. required skills (OLD parity).
+ */
 export async function getRecommendedStudents(
   projectId: number,
 ): Promise<GradProjectRecommendedStudent[]> {
-  const { data } = await api.post<
-    {
-      studentId: number;
-      matchScore: number;
-      reason?: string | null;
-      name?: string;
-      major?: string;
-      university?: string;
-      skills?: string[];
-    }[]
-  >("/ai/recommend-students", { projectId });
-
-  const rows = Array.isArray(data) ? data : [];
-
-  return rows
-    .map((row) => ({
-      studentId: row.studentId,
-      name: row.name?.trim() || `Student #${row.studentId}`,
-      major: row.major?.trim() ?? "",
-      university: row.university?.trim() ?? "",
-      skills: Array.isArray(row.skills) ? row.skills : [],
-      matchScore: normalizeMatchScore(row.matchScore),
-      reason: row.reason?.trim() || undefined,
-    }))
-    .filter((row) => row.matchScore >= 1);
+  const { data } = await api.get(`/graduation-projects/${projectId}/recommended-students`);
+  return parseRecommendedStudentRows(data);
 }
 
 type ParsedAiSupervisorRow = {
@@ -305,6 +446,20 @@ function supervisorDisplayName(doctorId: number, ...candidates: (string | undefi
     if (trimmed) return trimmed;
   }
   return `Doctor #${doctorId}`;
+}
+
+function firstTrimmedSpecialization(...values: (string | undefined | null)[]): string {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+function directoryByProfileId(
+  directory: DoctorDirectoryEntry[],
+): Map<number, DoctorDirectoryEntry> {
+  return new Map(directory.map((entry) => [entry.profileId, entry]));
 }
 
 function parseAiSupervisorRows(data: unknown): ParsedAiSupervisorRow[] {
@@ -356,15 +511,16 @@ export async function getRecommendedSupervisorsCatalog(
 }
 
 /**
- * POST /api/ai/recommend-supervisors + GET catalog merge
- * (same approach as mobile `enrichAiSupervisorsWithRecommended`).
+ * POST /api/ai/recommend-supervisors + GET catalog merge, enriched by GET /api/doctors
+ * when catalog rows are missing (same approach as mobile `enrichAiSupervisorsWithRecommended`).
  */
 export async function getRecommendedSupervisors(
   projectId: number,
 ): Promise<GradProjectRecommendedSupervisor[]> {
-  const [aiSettled, catalogSettled] = await Promise.allSettled([
+  const [aiSettled, catalogSettled, directorySettled] = await Promise.allSettled([
     api.post("/ai/recommend-supervisors", { projectId }),
     api.get(`/graduation-projects/${projectId}/recommended-supervisors`),
+    listDoctorsDirectory(),
   ]);
 
   const aiRows =
@@ -373,24 +529,32 @@ export async function getRecommendedSupervisors(
     catalogSettled.status === "fulfilled"
       ? parseCatalogSupervisorRows(catalogSettled.value.data)
       : [];
+  const directory =
+    directorySettled.status === "fulfilled" ? directorySettled.value : [];
 
   const catalogById = new Map(catalog.map((d) => [d.doctorId, d]));
+  const doctorsByProfileId = directoryByProfileId(directory);
 
   if (aiRows.length > 0) {
     return [...aiRows]
       .sort((a, b) => normalizeMatchScore(b.matchScore) - normalizeMatchScore(a.matchScore))
       .map((row) => {
         const meta = catalogById.get(row.doctorId);
+        const dir = doctorsByProfileId.get(row.doctorId);
         return {
           doctorId: row.doctorId,
-          userId: meta?.userId,
+          userId: meta?.userId ?? (dir?.userId && dir.userId > 0 ? dir.userId : undefined),
           name: supervisorDisplayName(
             row.doctorId,
             row.doctorName,
             meta?.name,
+            dir?.name,
           ),
-          specialization:
-            row.specialization.trim() || meta?.specialization?.trim() || "",
+          specialization: firstTrimmedSpecialization(
+            row.specialization,
+            meta?.specialization,
+            dir?.specialization,
+          ),
           matchScore: normalizeMatchScore(row.matchScore),
           reason: row.reason?.trim() || undefined,
         };
@@ -398,10 +562,15 @@ export async function getRecommendedSupervisors(
   }
 
   return catalog
-    .map((d) => ({
-      ...d,
-      name: supervisorDisplayName(d.doctorId, d.name),
-    }))
+    .map((d) => {
+      const dir = doctorsByProfileId.get(d.doctorId);
+      return {
+        ...d,
+        userId: d.userId ?? (dir?.userId && dir.userId > 0 ? dir.userId : undefined),
+        name: supervisorDisplayName(d.doctorId, d.name, dir?.name),
+        specialization: firstTrimmedSpecialization(d.specialization, dir?.specialization),
+      };
+    })
     .sort((a, b) => b.matchScore - a.matchScore);
 }
 
@@ -414,6 +583,33 @@ export function deriveProjectStatus(project: GradProject): string {
   if (project.isFull) return "In progress";
   if (project.lookingForTeammates !== false) return "Waiting for members";
   return "In progress";
+}
+
+/** GET /api/graduation-projects/{projectId}/available-students — project owner only. */
+export type ProjectAvailableStudent = {
+  studentId: number;
+  userId: number;
+  name: string;
+  major: string;
+  university: string;
+  academicYear: string;
+  profilePicture?: string | null;
+  skills: string[];
+  matchScore: number;
+  isMember: boolean;
+  hasPendingInvite: boolean;
+  isOwner: boolean;
+  isProjectFull: boolean;
+  canInvite: boolean;
+};
+
+export async function getAvailableStudents(
+  projectId: number,
+): Promise<ProjectAvailableStudent[]> {
+  const { data } = await api.get<ProjectAvailableStudent[]>(
+    `/graduation-projects/${projectId}/available-students`,
+  );
+  return Array.isArray(data) ? data : [];
 }
 
 /** POST /api/graduation-projects/{projectId}/invite/{receiverId} — owner only. */

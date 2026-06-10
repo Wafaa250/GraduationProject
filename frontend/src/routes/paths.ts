@@ -22,6 +22,8 @@ export const ROUTES = {
   graduationProjectWorkspace: "/graduation-projects/workspace",
   /** Discover open graduation projects (students without a team). */
   browseProjects: "/browse-projects",
+  /** Owner browse/invite students for their graduation project. */
+  browseProjectStudents: "/graduation-projects/browse-students",
   /** Student enrolled courses workspace. */
   studentCourses: "/courses",
   studentCourseDetail: "/courses/:courseId",
@@ -112,6 +114,10 @@ export function studentCoursePath(courseId: number) {
 
 export function studentCourseProjectPath(courseId: number, projectId: number) {
   return `/courses/${courseId}/projects/${projectId}`;
+}
+
+export function browseProjectStudentsPath(projectId: number) {
+  return `${ROUTES.browseProjectStudents}?projectId=${projectId}`;
 }
 /** Company workspace (post-login, role === company). */
 export const COMPANY_ROUTES = {

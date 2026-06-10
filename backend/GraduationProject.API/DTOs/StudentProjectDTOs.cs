@@ -77,6 +77,16 @@ namespace GraduationProject.API.DTOs
         public string? Department { get; set; }
     }
 
+    /// <summary>Doctor targeted by a pending supervision request.</summary>
+    public class PendingSupervisorDto
+    {
+        /// <summary>DoctorProfiles.Id</summary>
+        public int DoctorId { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+        public string? Specialization { get; set; }
+    }
+
     /// <summary>Recommended supervisors ranked by skill match.</summary>
     public class RecommendedSupervisorDto
     {
@@ -122,6 +132,12 @@ namespace GraduationProject.API.DTOs
 
         // 🟢 NEW: Supervisor info
         public SupervisorDto? Supervisor { get; set; }
+
+        /// <summary>Outstanding supervision request status: pending | rejected. Null when none or supervisor assigned.</summary>
+        public string? SupervisorRequestStatus { get; set; }
+
+        /// <summary>Doctor targeted when <see cref="SupervisorRequestStatus"/> is pending.</summary>
+        public PendingSupervisorDto? PendingSupervisor { get; set; }
 
         public List<StudentProjectMemberDto> Members { get; set; } = new();
         public DateTime CreatedAt { get; set; }

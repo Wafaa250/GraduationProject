@@ -36,16 +36,20 @@ import { cn } from "@/components/ui/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import "@/styles/project-workspace-hub.css";
-import { ROUTES } from "@/routes/paths";
+import { ROUTES, browseProjectStudentsPath } from "@/routes/paths";
 import { getMe, type StudentMeResponse } from "@/api/meApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
+  changeProjectLeader,
   deleteGraduationProject,
   deriveProjectStatus,
   getGraduationProjectsMyEnvelope,
+  getPendingSupervisorDoctorId,
   getRecommendedStudents,
   getRecommendedSupervisors,
   inviteStudentToProject,
+  leaveGraduationProject,
+  removeProjectMember,
   requestProjectSupervisor,
   projectTypeLabel,
   resolveProjectTypeLabel,
@@ -59,6 +63,7 @@ import {
   getSentProjectInvitations,
   type SentProjectInvitation,
 } from "@/api/invitationsApi";
+import { listDoctorsDirectory, type DoctorDirectoryEntry } from "@/api/doctorDirectoryApi";
 import { toast } from "@/hooks/use-toast";
 import { MySupervisorSection } from "@/components/student/MySupervisorSection";
 
@@ -193,6 +198,16 @@ function splitSpecialization(spec: string): string[] {
     .filter(Boolean);
 }
 
+/** Map recommendation doctorId (DoctorProfile.Id) to /doctors/:userId route param (User.Id). */
+function resolveDoctorProfileUserId(
+  supervisor: GradProjectRecommendedSupervisor,
+  directory: DoctorDirectoryEntry[],
+): number | null {
+  if (supervisor.userId != null && supervisor.userId > 0) return supervisor.userId;
+  const match = directory.find((d) => d.profileId === supervisor.doctorId);
+  return match?.userId ?? null;
+}
+
 export default function GraduationProjectWorkspacePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -205,30 +220,37 @@ export default function GraduationProjectWorkspacePage() {
   const [envelopeRole, setEnvelopeRole] = useState<"owner" | "member" | null>(null);
   const [aiTeammates, setAiTeammates] = useState<GradProjectRecommendedStudent[]>([]);
   const [supervisors, setSupervisors] = useState<GradProjectRecommendedSupervisor[]>([]);
+  const [doctorDirectory, setDoctorDirectory] = useState<DoctorDirectoryEntry[]>([]);
   const [sentInvitations, setSentInvitations] = useState<SentProjectInvitation[]>([]);
   const [refreshingMatches, setRefreshingMatches] = useState(false);
   const [invitingStudentId, setInvitingStudentId] = useState<number | null>(null);
   const [requestingDoctorId, setRequestingDoctorId] = useState<number | null>(null);
-  const [pendingSupervisorDoctorIds, setPendingSupervisorDoctorIds] = useState<Set<number>>(
-    () => new Set(),
-  );
   const [cancellingInvitationId, setCancellingInvitationId] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [heroActionsMenuOpen, setHeroActionsMenuOpen] = useState(false);
   const heroActionsMenuRef = useRef<HTMLDivElement>(null);
   const [deletingProject, setDeletingProject] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
+  const [promotingMemberId, setPromotingMemberId] = useState<number | null>(null);
+  const [leavingProject, setLeavingProject] = useState(false);
+  const myStudentProfileId = me?.profileId ?? 0;
   const isOwner = Boolean(
     project?.isOwner ||
       envelopeRole === "owner" ||
       (me && project && project.ownerId === me.profileId),
   );
   const isLeader = Boolean(
-    me &&
-      project?.members.some((m) => m.role === "leader" && m.studentId === me.profileId),
+    myStudentProfileId > 0 &&
+      project?.members.some(
+        (m) => m.role === "leader" && m.studentId === myStudentProfileId,
+      ),
   );
   const canManageTeam = isOwner || isLeader;
+  /** Backend allows remove/promote for project leader only (not owner alone). */
+  const canManageTeamMembers = isLeader;
   const canInvite = isOwner;
   const canViewSupervisors = isOwner || isLeader;
+  const pendingSupervisorDoctorId = getPendingSupervisorDoctorId(project);
 
   const desiredSize = project?.partnersCount ?? 0;
   const currentMembers = project?.currentMembers ?? 0;
@@ -326,11 +348,15 @@ export default function GraduationProjectWorkspacePage() {
 
       const tasks: Promise<void>[] = [];
 
-      if (owner || leader) {
+      if (owner) {
         tasks.push(
-          getRecommendedStudents(proj.id).then((rows) => {
-            setAiTeammates(rows);
-          }),
+          getRecommendedStudents(proj.id)
+            .then((rows) => {
+              setAiTeammates(rows);
+            })
+            .catch(() => {
+              setAiTeammates([]);
+            }),
         );
       } else {
         setAiTeammates([]);
@@ -346,8 +372,16 @@ export default function GraduationProjectWorkspacePage() {
               setSupervisors([]);
             }),
         );
+        tasks.push(
+          listDoctorsDirectory()
+            .then(setDoctorDirectory)
+            .catch(() => {
+              setDoctorDirectory([]);
+            }),
+        );
       } else {
         setSupervisors([]);
+        setDoctorDirectory([]);
       }
 
       if (owner) {
@@ -423,8 +457,16 @@ export default function GraduationProjectWorkspacePage() {
     [canViewSupervisors, project?.supervisor],
   );
 
+  const refreshProjectAfterSupervisorRequest = async () => {
+    const updated = await refreshProject();
+    if (updated?.id) await refreshSupervisors(updated.id);
+    window.setTimeout(() => {
+      void refreshProject();
+    }, 450);
+  };
+
   const refreshMatches = async () => {
-    if (!project || !canManageTeam) return;
+    if (!project || !canInvite) return;
     setRefreshingMatches(true);
     try {
       const rows = await getRecommendedStudents(project.id);
@@ -452,6 +494,12 @@ export default function GraduationProjectWorkspacePage() {
       const rows = await getSentProjectInvitations(project.id);
       setSentInvitations(rows);
       await refreshProject();
+      try {
+        const recommended = await getRecommendedStudents(project.id);
+        setAiTeammates(recommended);
+      } catch {
+        /* non-critical */
+      }
     } catch (err) {
       toast({
         variant: "destructive",
@@ -508,24 +556,135 @@ export default function GraduationProjectWorkspacePage() {
     }
   };
 
+  const handleLeaveProject = async () => {
+    if (!project || isOwner) return;
+    if (!window.confirm("Are you sure you want to leave this project?")) return;
+    setLeavingProject(true);
+    try {
+      await leaveGraduationProject(project.id);
+      toast({
+        title: "Left project",
+        description: "You have left the graduation project team.",
+      });
+      navigate(ROUTES.dashboard, { replace: true });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Could not leave project",
+        description: parseApiErrorMessage(err),
+      });
+    } finally {
+      setLeavingProject(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberStudentId: number) => {
+    if (!project || !canManageTeamMembers) return;
+    setRemovingMemberId(memberStudentId);
+    try {
+      const result = await removeProjectMember(project.id, memberStudentId);
+      const updatedCount = result.currentMembers;
+      const capacity = project.partnersCount;
+      setProject((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          members: prev.members.filter((m) => m.studentId !== memberStudentId),
+          currentMembers: updatedCount,
+          isFull: updatedCount >= capacity,
+          remainingSeats: Math.max(0, capacity - updatedCount),
+        };
+      });
+      toast({ title: "Member removed", description: result.message });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Could not remove member",
+        description: parseApiErrorMessage(err),
+      });
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
+
+  const handleMakeLeader = async (memberStudentId: number) => {
+    if (!project || !canManageTeamMembers) return;
+    setPromotingMemberId(memberStudentId);
+    try {
+      await changeProjectLeader(project.id, memberStudentId);
+      setProject((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          members: prev.members.map((m) => {
+            if (m.studentId === memberStudentId) return { ...m, role: "leader" as const };
+            if (m.role === "leader") return { ...m, role: "member" as const };
+            return m;
+          }),
+        };
+      });
+      toast({ title: "Leader updated", description: "Team leadership has been transferred." });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Could not change leader",
+        description: parseApiErrorMessage(err),
+      });
+    } finally {
+      setPromotingMemberId(null);
+    }
+  };
+
+  const handleViewDoctorProfile = async (supervisor: GradProjectRecommendedSupervisor) => {
+    let userId = resolveDoctorProfileUserId(supervisor, doctorDirectory);
+    if (!userId) {
+      try {
+        const directory = await listDoctorsDirectory();
+        setDoctorDirectory(directory);
+        userId = resolveDoctorProfileUserId(supervisor, directory);
+      } catch {
+        /* resolved below */
+      }
+    }
+    if (!userId) {
+      toast({
+        variant: "destructive",
+        title: "Profile unavailable",
+        description: "Could not resolve this doctor's profile link.",
+      });
+      return;
+    }
+    navigate(ROUTES.doctorPublicProfile(userId));
+  };
+
   const handleRequestSupervisor = async (doctorId: number) => {
     if (!project || !canViewSupervisors || project.supervisor) return;
+    if (pendingSupervisorDoctorId != null && pendingSupervisorDoctorId !== doctorId) return;
     setRequestingDoctorId(doctorId);
     try {
       await requestProjectSupervisor(project.id, doctorId);
-      setPendingSupervisorDoctorIds((prev) => new Set(prev).add(doctorId));
       toast({
         title: "Supervision requested",
         description: "The faculty member will be notified of your request.",
       });
-      const updated = await refreshProject();
-      if (updated) await refreshSupervisors(updated.id);
+      await refreshProjectAfterSupervisorRequest();
     } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Request failed",
-        description: parseApiErrorMessage(err),
-      });
+      const message = parseApiErrorMessage(err);
+      const lower = message.toLowerCase();
+      const treatAsPending =
+        lower.includes("pending") ||
+        lower.includes("already") ||
+        lower.includes("exist") ||
+        lower.includes("duplicate");
+      if (treatAsPending) {
+        await refreshProjectAfterSupervisorRequest();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Request failed",
+          description: message,
+        });
+      }
     } finally {
       setRequestingDoctorId(null);
     }
@@ -590,7 +749,7 @@ export default function GraduationProjectWorkspacePage() {
                         </Badge>
                       )}
                     </div>
-                    {isOwner && (
+                    {isOwner ? (
                       <div ref={heroActionsMenuRef} className="relative shrink-0">
                         <Button
                           type="button"
@@ -640,6 +799,20 @@ export default function GraduationProjectWorkspacePage() {
                           </Card>
                         )}
                       </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 rounded-lg text-muted-foreground"
+                        disabled={leavingProject}
+                        onClick={() => void handleLeaveProject()}
+                      >
+                        {leavingProject ? (
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : null}
+                        Leave
+                      </Button>
                     )}
                   </div>
 
@@ -860,13 +1033,26 @@ export default function GraduationProjectWorkspacePage() {
             desc="The people currently building this project with you."
             action={
               canInvite ? (
-                <Button
-                  variant="outline"
-                  className="rounded-xl border-border/70"
-                  onClick={scrollToAiMatches}
-                >
-                  <UserPlus className="mr-2 h-4 w-4" /> Invite member
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    className="rounded-xl border-border/70"
+                    onClick={scrollToAiMatches}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" /> Invite member
+                  </Button>
+                  {seatsLeft > 0 && project && (
+                    <Button
+                      variant="outline"
+                      className="rounded-xl border-border/70"
+                      asChild
+                    >
+                      <Link to={browseProjectStudentsPath(project.id)}>
+                        <Users className="mr-2 h-4 w-4" /> Browse students
+                      </Link>
+                    </Button>
+                  )}
+                </div>
               ) : undefined
             }
           />
@@ -905,8 +1091,50 @@ export default function GraduationProjectWorkspacePage() {
                       <MessageCircle className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="mt-4 flex items-center justify-between">
+                  <div className="mt-4 flex items-center justify-between gap-2">
                     <Chip>{memberDisplayRole(m)}</Chip>
+                    {canManageTeamMembers &&
+                      m.role !== "leader" &&
+                      m.studentId !== myStudentProfileId && (
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 rounded-lg"
+                            title="Make leader"
+                            disabled={
+                              removingMemberId === m.studentId ||
+                              promotingMemberId === m.studentId
+                            }
+                            onClick={() => void handleMakeLeader(m.studentId)}
+                          >
+                            {promotingMemberId === m.studentId ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Crown className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
+                            title="Remove member"
+                            disabled={
+                              removingMemberId === m.studentId ||
+                              promotingMemberId === m.studentId
+                            }
+                            onClick={() => void handleRemoveMember(m.studentId)}
+                          >
+                            {removingMemberId === m.studentId ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </div>
+                      )}
                   </div>
                 </CardContent>
               </Card>
@@ -922,14 +1150,21 @@ export default function GraduationProjectWorkspacePage() {
                     Invite teammates or review AI recommendations below.
                   </p>
                   {canInvite && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-3 rounded-lg border-border/70"
-                      onClick={scrollToAiMatches}
-                    >
-                      Invite now
-                    </Button>
+                    <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-lg border-border/70"
+                        onClick={scrollToAiMatches}
+                      >
+                        Invite now
+                      </Button>
+                      <Button size="sm" variant="ghost" className="rounded-lg" asChild>
+                        <Link to={browseProjectStudentsPath(project.id)}>
+                          Browse students
+                        </Link>
+                      </Button>
+                    </div>
                   )}
                 </div>
               </Card>
@@ -938,7 +1173,7 @@ export default function GraduationProjectWorkspacePage() {
         </section>
 
         {/* SECTION 4 — AI TEAMMATE RECOMMENDATIONS */}
-        {canManageTeam && (
+        {isOwner && (
           <section ref={aiSectionRef}>
             <SectionHeader
               icon={Brain}
@@ -974,6 +1209,8 @@ export default function GraduationProjectWorkspacePage() {
                 {aiTeammates.map((s, index) => {
                   const rank = index + 1;
                   const isTop = rank === 1;
+                  const invitePending =
+                    pendingInviteReceiverIds.has(s.studentId) || s.hasPendingInvite === true;
                   return (
                     <Card
                       key={s.studentId}
@@ -1029,7 +1266,9 @@ export default function GraduationProjectWorkspacePage() {
                               disabled={
                                 project.isFull ||
                                 invitingStudentId === s.studentId ||
-                                pendingInviteReceiverIds.has(s.studentId)
+                                invitePending ||
+                                s.isMember === true ||
+                                s.canInvite === false
                               }
                               onClick={() => void handleInviteStudent(s.studentId)}
                             >
@@ -1038,11 +1277,13 @@ export default function GraduationProjectWorkspacePage() {
                               ) : (
                                 <UserPlus className="mr-1.5 h-4 w-4" />
                               )}{" "}
-                              {pendingInviteReceiverIds.has(s.studentId)
+                              {invitePending
                                 ? "Invited"
-                                : project.isFull
-                                  ? "Team full"
-                                  : "Invite"}
+                                : s.isMember
+                                  ? "Member"
+                                  : project.isFull
+                                    ? "Team full"
+                                    : "Invite"}
                             </Button>
                           )}
                           <Button variant="ghost" size="icon" className="rounded-lg" disabled>
@@ -1232,7 +1473,12 @@ export default function GraduationProjectWorkspacePage() {
               <div className="grid gap-4 lg:grid-cols-2">
                 {supervisors.map((s, i) => {
                   const specChips = splitSpecialization(s.specialization);
-                  const requestPending = pendingSupervisorDoctorIds.has(s.doctorId);
+                  const canViewDoctorProfile =
+                    resolveDoctorProfileUserId(s, doctorDirectory) != null || s.doctorId > 0;
+                  const requestPending = pendingSupervisorDoctorId === s.doctorId;
+                  const anotherRequestPending =
+                    pendingSupervisorDoctorId != null &&
+                    pendingSupervisorDoctorId !== s.doctorId;
                   return (
                     <Card
                       key={s.doctorId}
@@ -1289,6 +1535,7 @@ export default function GraduationProjectWorkspacePage() {
                             disabled={
                               Boolean(project.supervisor) ||
                               requestPending ||
+                              anotherRequestPending ||
                               requestingDoctorId === s.doctorId
                             }
                             onClick={() => void handleRequestSupervisor(s.doctorId)}
@@ -1302,9 +1549,16 @@ export default function GraduationProjectWorkspacePage() {
                               ? "Supervisor assigned"
                               : requestPending
                                 ? "Request pending"
-                                : "Request Supervision"}
+                                : anotherRequestPending
+                                  ? "Another request pending"
+                                  : "Request Supervision"}
                           </Button>
-                          <Button variant="ghost" className="rounded-lg" disabled>
+                          <Button
+                            variant="ghost"
+                            className="rounded-lg"
+                            disabled={!canViewDoctorProfile}
+                            onClick={() => void handleViewDoctorProfile(s)}
+                          >
                             View profile
                           </Button>
                         </div>

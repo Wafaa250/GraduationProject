@@ -7,10 +7,10 @@ export function SupervisionRequestsEmptyState() {
         <Inbox className="h-7 w-7" aria-hidden />
       </div>
       <h3 className="font-display font-semibold text-foreground text-lg">
-        No supervision requests available.
+        No requests available.
       </h3>
       <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-        When students submit supervision requests, they will appear here for review.
+        When students submit supervision or cancellation requests, they will appear here for review.
       </p>
     </div>
   );

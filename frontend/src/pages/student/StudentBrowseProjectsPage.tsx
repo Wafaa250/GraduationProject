@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/routes/paths";
 import { toast } from "@/hooks/use-toast";
+import { StudentBrowseFilterPill } from "@/components/student/browse/StudentBrowseFilterPill";
 import { cn } from "@/components/ui/utils";
 import {
   collectBrowseSkillOptions,
@@ -39,29 +40,6 @@ const TEAM_STATUSES: BrowseTeamStatus[] = ["Open", "Forming team", "Almost full"
 type SortKey = "match" | "newest" | "open";
 
 type BrowseRow = GradProject & { matchScore: number; teamStatus: BrowseTeamStatus };
-
-function FilterPill({
-  active,
-  children,
-  onClick,
-}: {
-  active?: boolean;
-  children: React.ReactNode;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "student-ws-pill",
-        active && "student-ws-pill--active",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 function mergeMySkills(me: Awaited<ReturnType<typeof getMe>>): string[] {
   const seen = new Set<string>();
@@ -298,13 +276,13 @@ export default function StudentBrowseProjectsPage() {
               <p className="student-ws-filter-label">Project type</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {projectTypeFilters.map(({ value, label }) => (
-                  <FilterPill
+                  <StudentBrowseFilterPill
                     key={value}
                     active={projectType === value}
                     onClick={() => setProjectType(value)}
                   >
                     {label}
-                  </FilterPill>
+                  </StudentBrowseFilterPill>
                 ))}
               </div>
             </div>
@@ -313,13 +291,13 @@ export default function StudentBrowseProjectsPage() {
                 <p className="student-ws-filter-label">Skills</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {skillOptions.map((s) => (
-                    <FilterPill
+                    <StudentBrowseFilterPill
                       key={s}
                       active={skillFilter === s}
                       onClick={() => setSkillFilter(skillFilter === s ? null : s)}
                     >
                       {s}
-                    </FilterPill>
+                    </StudentBrowseFilterPill>
                   ))}
                 </div>
               </div>
@@ -328,13 +306,13 @@ export default function StudentBrowseProjectsPage() {
               <p className="student-ws-filter-label">Team status</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {TEAM_STATUSES.map((s) => (
-                  <FilterPill
+                  <StudentBrowseFilterPill
                     key={s}
                     active={statusFilter === s}
                     onClick={() => setStatusFilter(statusFilter === s ? null : s)}
                   >
                     {s}
-                  </FilterPill>
+                  </StudentBrowseFilterPill>
                 ))}
               </div>
             </div>

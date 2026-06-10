@@ -136,6 +136,7 @@ namespace GraduationProject.API.Controllers
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
                 .Include(p => p.Supervisor!).ThenInclude(s => s.User)
+                .Include(p => p.SupervisorRequests).ThenInclude(r => r.Doctor).ThenInclude(d => d.User)
                 .FirstOrDefaultAsync(p => p.OwnerId == student.Id);
 
             if (ownedProject != null)
@@ -148,6 +149,8 @@ namespace GraduationProject.API.Controllers
                     .ThenInclude(p => p.Members).ThenInclude(mem => mem.Student).ThenInclude(s => s.User)
                 .Include(m => m.Project)
                     .ThenInclude(p => p.Supervisor!).ThenInclude(s => s.User)
+                .Include(m => m.Project)
+                    .ThenInclude(p => p.SupervisorRequests).ThenInclude(r => r.Doctor).ThenInclude(d => d.User)
                 .FirstOrDefaultAsync(m => m.StudentId == student.Id);
 
             if (membership != null)
@@ -168,6 +171,7 @@ namespace GraduationProject.API.Controllers
                 .Include(p => p.Owner).ThenInclude(o => o.User)
                 .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
                 .Include(p => p.Supervisor!).ThenInclude(s => s.User)
+                .Include(p => p.SupervisorRequests).ThenInclude(r => r.Doctor).ThenInclude(d => d.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
@@ -1356,7 +1360,49 @@ namespace GraduationProject.API.Controllers
 
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt,
+
+                SupervisorRequestStatus = ResolveSupervisorRequestStatus(p, out var pendingDoctor),
+                PendingSupervisor = pendingDoctor,
             };
+        }
+
+        private static string? ResolveSupervisorRequestStatus(
+            StudentProject p,
+            out PendingSupervisorDto? pendingSupervisor)
+        {
+            pendingSupervisor = null;
+
+            if (p.SupervisorId != null)
+                return null;
+
+            var requests = p.SupervisorRequests?.ToList() ?? new List<SupervisorRequest>();
+            var pending = requests
+                .Where(r => string.Equals(r.Status, "pending", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefault();
+
+            if (pending != null)
+            {
+                pendingSupervisor = new PendingSupervisorDto
+                {
+                    DoctorId = pending.DoctorId,
+                    Name = pending.Doctor?.User?.Name ?? "",
+                    Specialization = pending.Doctor?.Specialization,
+                };
+                return "pending";
+            }
+
+            var latest = requests
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefault();
+
+            if (latest != null &&
+                string.Equals(latest.Status, "rejected", StringComparison.OrdinalIgnoreCase))
+            {
+                return "rejected";
+            }
+
+            return null;
         }
     }
 }

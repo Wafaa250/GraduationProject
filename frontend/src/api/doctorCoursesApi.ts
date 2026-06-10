@@ -200,8 +200,69 @@ export async function getDoctorCourseById(courseId: number): Promise<DoctorCours
 }
 
 export async function getCourseWorkspace(courseId: number): Promise<CourseWorkspaceResponse> {
-  const { data } = await api.get<CourseWorkspaceResponse>(`/courses/${courseId}/workspace`);
-  return normalizeCourseWorkspaceResponse(data);
+  const [course, sections, students, projects] = await Promise.all([
+    getDoctorCourseById(courseId),
+    getCourseSections(courseId),
+    getCourseEnrolledStudents(courseId),
+    getCourseProjects(courseId),
+  ]);
+
+  const teamsResponses = await Promise.all(
+    projects.map((project) =>
+      getCourseProjectTeams(courseId, project.id).catch(() => null),
+    ),
+  );
+
+  const teamsByProjectId = new Map<number, CourseProjectTeamsResponse>();
+  projects.forEach((project, index) => {
+    const response = teamsResponses[index];
+    if (response) teamsByProjectId.set(project.id, response);
+  });
+
+  const teams: CourseWorkspaceTeam[] = [];
+  for (const project of projects) {
+    const teamsRes = teamsByProjectId.get(project.id);
+    if (!teamsRes) continue;
+    for (const team of teamsRes.teams) {
+      teams.push({
+        courseProjectId: project.id,
+        courseProjectTitle: project.title,
+        teamId: team.teamId,
+        teamIndex: team.teamIndex,
+        memberCount: team.memberCount,
+        members: team.members ?? [],
+      });
+    }
+  }
+
+  const courseProjects: CourseProjectWithTeams[] = projects.map((project) => ({
+    ...project,
+    teamCount: teamsByProjectId.get(project.id)?.teamCount ?? 0,
+  }));
+
+  const sectionWorkspace: CourseSectionWorkspace[] = sections.map((section) => ({
+    ...section,
+    studentCount: students.filter((s) => s.sectionId === section.id).length,
+    courseProjectCount: projects.filter((p) => projectAppliesToSection(p, section.id)).length,
+  }));
+
+  return normalizeCourseWorkspaceResponse({
+    course,
+    stats: {
+      sections: sections.length,
+      students: students.length,
+      courseProjectCount: projects.length,
+    },
+    sections: sectionWorkspace,
+    students,
+    courseProjects,
+    teams,
+  });
+}
+
+function projectAppliesToSection(project: CourseProject, sectionId: number): boolean {
+  if (project.applyToAllSections) return true;
+  return project.sections.some((s) => s.sectionId === sectionId);
 }
 
 function isValidCourseProject(p: CourseProjectWithTeams): boolean {

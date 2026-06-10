@@ -1,17 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock, Inbox, Loader2, XCircle } from "lucide-react";
 import {
+  acceptSupervisorCancelRequest,
   acceptSupervisorRequest,
+  getDoctorSupervisorCancelRequests,
   getDoctorSupervisorRequests,
-  getDoctorSupervisorRequestsSummary,
+  rejectSupervisorCancelRequest,
   rejectSupervisorRequest,
+  type DoctorSupervisorCancelRequest,
   type DoctorSupervisorRequest,
-  type DoctorSupervisorRequestsSummary,
   parseApiErrorMessage,
 } from "@/api/doctorDashboardApi";
+import { CancellationRequestCard } from "@/components/doctor/supervision/CancellationRequestCard";
 import { SupervisionRequestCard } from "@/components/doctor/supervision/SupervisionRequestCard";
 import { SupervisionRequestStatCard } from "@/components/doctor/supervision/SupervisionRequestStatCard";
 import { SupervisionRequestsEmptyState } from "@/components/doctor/supervision/SupervisionRequestsEmptyState";
+import {
+  cancelRequestTabCounts,
+  filterCancelRequestsByTab,
+  inboxActionKey,
+  mergeDoctorRequestRows,
+  type DoctorRequestInboxKind,
+} from "@/lib/doctorRequestInbox";
 import {
   filterSupervisionRequestsByTab,
   supervisionTabCounts,
@@ -27,37 +37,65 @@ const STATUS_TABS = [
   { id: "rejected" as const, label: "Rejected" },
 ];
 
-const EMPTY_SUMMARY: DoctorSupervisorRequestsSummary = {
-  pendingCount: 0,
-  acceptedCount: 0,
-  rejectedCount: 0,
-  totalCount: 0,
-};
+type RequestListEntry =
+  | { kind: "supervision"; request: DoctorSupervisorRequest }
+  | { kind: "cancellation"; request: DoctorSupervisorCancelRequest };
+
+function listEntryKey(entry: RequestListEntry): string {
+  return entry.kind === "supervision"
+    ? `supervision-${entry.request.requestId}`
+    : `cancellation-${entry.request.requestId}`;
+}
 
 export default function DoctorSupervisionRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<DoctorSupervisorRequest[]>([]);
-  const [summary, setSummary] = useState<DoctorSupervisorRequestsSummary>(EMPTY_SUMMARY);
+  const [cancelRequests, setCancelRequests] = useState<DoctorSupervisorCancelRequest[]>([]);
   const [activeTab, setActiveTab] = useState<(typeof STATUS_TABS)[number]["id"]>("all");
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [list, counts] = await Promise.all([
+      const [supervisionResult, cancelResult] = await Promise.allSettled([
         getDoctorSupervisorRequests(),
-        getDoctorSupervisorRequestsSummary(),
+        getDoctorSupervisorCancelRequests(),
       ]);
-      setRequests(list);
-      setSummary(counts);
+
+      const supervisionList =
+        supervisionResult.status === "fulfilled" ? supervisionResult.value : [];
+      const cancelList = cancelResult.status === "fulfilled" ? cancelResult.value : [];
+
+      if (supervisionResult.status === "rejected" && cancelResult.status === "rejected") {
+        throw supervisionResult.reason;
+      }
+
+      if (supervisionResult.status === "rejected") {
+        toast({
+          variant: "destructive",
+          title: "Could not load supervision requests",
+          description: parseApiErrorMessage(supervisionResult.reason),
+        });
+      }
+
+      if (cancelResult.status === "rejected") {
+        toast({
+          variant: "destructive",
+          title: "Could not load cancellation requests",
+          description: parseApiErrorMessage(cancelResult.reason),
+        });
+      }
+
+      setRequests(supervisionList);
+      setCancelRequests(cancelList);
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "Could not load supervision requests",
+        title: "Could not load requests",
         description: parseApiErrorMessage(err),
       });
       setRequests([]);
-      setSummary(EMPTY_SUMMARY);
+      setCancelRequests([]);
     } finally {
       setLoading(false);
     }
@@ -67,43 +105,104 @@ export default function DoctorSupervisionRequestsPage() {
     void load();
   }, [load]);
 
-  const tabCounts = useMemo(() => supervisionTabCounts(requests), [requests]);
+  const supervisionCounts = useMemo(() => supervisionTabCounts(requests), [requests]);
+  const cancelCounts = useMemo(() => cancelRequestTabCounts(cancelRequests), [cancelRequests]);
 
-  const filtered = useMemo(
-    () => filterSupervisionRequestsByTab(requests, activeTab),
-    [requests, activeTab],
+  const summary = useMemo(
+    () => ({
+      pendingCount: supervisionCounts.pending + cancelCounts.pending,
+      acceptedCount: supervisionCounts.accepted + cancelCounts.accepted,
+      rejectedCount: supervisionCounts.rejected + cancelCounts.rejected,
+      totalCount: supervisionCounts.all + cancelCounts.all,
+    }),
+    [supervisionCounts, cancelCounts],
   );
+
+  const tabCounts = useMemo(
+    () => ({
+      all: supervisionCounts.all + cancelCounts.all,
+      pending: mergeDoctorRequestRows(requests, cancelRequests).length,
+      accepted: supervisionCounts.accepted + cancelCounts.accepted,
+      rejected: supervisionCounts.rejected + cancelCounts.rejected,
+    }),
+    [requests, cancelRequests, supervisionCounts, cancelCounts],
+  );
+
+  const filteredEntries = useMemo((): RequestListEntry[] => {
+    if (activeTab === "pending") {
+      const merged = mergeDoctorRequestRows(requests, cancelRequests);
+      const supervisionById = new Map(requests.map((r) => [r.requestId, r]));
+      const cancelById = new Map(cancelRequests.map((r) => [r.requestId, r]));
+
+      return merged.flatMap((row): RequestListEntry[] => {
+        if (row.kind === "supervision") {
+          const request = supervisionById.get(row.requestId);
+          return request ? [{ kind: "supervision", request }] : [];
+        }
+        const request = cancelById.get(row.requestId);
+        return request ? [{ kind: "cancellation", request }] : [];
+      });
+    }
+
+    const supervisionFiltered = filterSupervisionRequestsByTab(requests, activeTab);
+    const cancelFiltered = filterCancelRequestsByTab(cancelRequests, activeTab);
+
+    return [
+      ...supervisionFiltered.map(
+        (request): RequestListEntry => ({ kind: "supervision", request }),
+      ),
+      ...cancelFiltered.map(
+        (request): RequestListEntry => ({ kind: "cancellation", request }),
+      ),
+    ].sort((a, b) => b.request.requestId - a.request.requestId);
+  }, [requests, cancelRequests, activeTab]);
+
+  const totalVisibleCount = requests.length + cancelRequests.length;
 
   const tabBadge = (tabId: typeof activeTab) => {
     if (tabId === "all") return tabCounts.all;
     return tabCounts[tabId as SupervisionRequestStatus];
   };
 
-  const handleAccept = async (id: number, feedback: string) => {
-    setBusyId(id);
+  const runAction = async (
+    kind: DoctorRequestInboxKind,
+    requestId: number,
+    action: "accept" | "reject",
+  ) => {
+    const key = inboxActionKey(kind, requestId, action);
+    setBusyKey(key);
     try {
-      await acceptSupervisorRequest(id, feedback);
-      toast({ title: "Request accepted", description: "The project is now in Active Projects." });
+      if (kind === "supervision") {
+        if (action === "accept") {
+          await acceptSupervisorRequest(requestId);
+          toast({
+            title: "Request accepted",
+            description: "The project is now in Active Projects.",
+          });
+        } else {
+          await rejectSupervisorRequest(requestId);
+          toast({ title: "Request rejected" });
+        }
+      } else if (action === "accept") {
+        await acceptSupervisorCancelRequest(requestId);
+        toast({
+          title: "Cancellation request accepted",
+          description: "Supervision has been removed for this project.",
+        });
+      } else {
+        await rejectSupervisorCancelRequest(requestId);
+        toast({ title: "Cancellation request rejected" });
+      }
       await load();
     } catch (err) {
       toast({ variant: "destructive", title: "Failed", description: parseApiErrorMessage(err) });
     } finally {
-      setBusyId(null);
+      setBusyKey(null);
     }
   };
 
-  const handleReject = async (id: number, feedback: string) => {
-    setBusyId(id);
-    try {
-      await rejectSupervisorRequest(id, feedback);
-      toast({ title: "Request rejected" });
-      await load();
-    } catch (err) {
-      toast({ variant: "destructive", title: "Failed", description: parseApiErrorMessage(err) });
-    } finally {
-      setBusyId(null);
-    }
-  };
+  const isEntryBusy = (entry: RequestListEntry, action: "accept" | "reject") =>
+    busyKey === inboxActionKey(entry.kind, entry.request.requestId, action);
 
   return (
     <main className="flex-1 bg-gradient-mesh min-h-full">
@@ -113,7 +212,8 @@ export default function DoctorSupervisionRequestsPage() {
             Supervision Requests
           </h1>
           <p className="text-muted-foreground mt-1.5 text-sm lg:text-[15px] max-w-2xl">
-            Review and manage graduation project supervision requests submitted by students.
+            Review supervision and cancellation requests submitted by students for your
+            graduation projects.
           </p>
         </header>
 
@@ -167,11 +267,13 @@ export default function DoctorSupervisionRequestsPage() {
         <section className="space-y-4 pt-1">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <p className="text-sm text-muted-foreground">
-              Showing <span className="text-foreground font-semibold">{filtered.length}</span> of{" "}
-              <span className="text-foreground font-semibold">{requests.length}</span> requests
+              Showing <span className="text-foreground font-semibold">{filteredEntries.length}</span>{" "}
+              of <span className="text-foreground font-semibold">{totalVisibleCount}</span> requests
             </p>
             <p className="text-xs text-muted-foreground">
-              Sorted by submission date · newest first
+              {activeTab === "pending"
+                ? "Pending inbox · supervision before cancellation"
+                : "Sorted by request id · newest first"}
             </p>
           </div>
 
@@ -179,30 +281,46 @@ export default function DoctorSupervisionRequestsPage() {
             <div className="flex justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-primary" aria-label="Loading requests" />
             </div>
-          ) : filtered.length === 0 ? (
-            requests.length === 0 ? (
+          ) : filteredEntries.length === 0 ? (
+            totalVisibleCount === 0 ? (
               <SupervisionRequestsEmptyState />
             ) : (
               <div className="rounded-2xl border border-dashed border-border bg-card py-12 text-center shadow-card">
-                <p className="font-display font-semibold text-foreground">
-                  No requests in this tab
-                </p>
+                <p className="font-display font-semibold text-foreground">No requests in this tab</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Try another status filter to see more supervision requests.
+                  Try another status filter to see more supervision or cancellation requests.
                 </p>
               </div>
             )
           ) : (
             <div className="space-y-4">
-              {filtered.map((r) => (
-                <SupervisionRequestCard
-                  key={r.requestId}
-                  request={r}
-                  busyRequestId={busyId}
-                  onAccept={(id) => void handleAccept(id, "")}
-                  onReject={(id) => void handleReject(id, "")}
-                />
-              ))}
+              {filteredEntries.map((entry) =>
+                entry.kind === "supervision" ? (
+                  <SupervisionRequestCard
+                    key={listEntryKey(entry)}
+                    request={entry.request}
+                    busyRequestId={
+                      isEntryBusy(entry, "accept") || isEntryBusy(entry, "reject")
+                        ? entry.request.requestId
+                        : null
+                    }
+                    onAccept={(id) => void runAction("supervision", id, "accept")}
+                    onReject={(id) => void runAction("supervision", id, "reject")}
+                  />
+                ) : (
+                  <CancellationRequestCard
+                    key={listEntryKey(entry)}
+                    request={entry.request}
+                    busyRequestId={
+                      isEntryBusy(entry, "accept") || isEntryBusy(entry, "reject")
+                        ? entry.request.requestId
+                        : null
+                    }
+                    onAccept={(id) => void runAction("cancellation", id, "accept")}
+                    onReject={(id) => void runAction("cancellation", id, "reject")}
+                  />
+                ),
+              )}
             </div>
           )}
         </section>

@@ -28,3 +28,19 @@ export async function getOrganizationMemberships(): Promise<OrganizationMembersh
   const { data } = await api.get<OrganizationMembership[]>("/student/organization-memberships");
   return Array.isArray(data) ? data : [];
 }
+
+export type StudentBrowseFilterOptions = {
+  universities: string[];
+  majors: string[];
+  skills: string[];
+};
+
+/** GET /api/students/filters — dropdown/pill options for student directory browse. */
+export async function getStudentBrowseFilterOptions(): Promise<StudentBrowseFilterOptions> {
+  const { data } = await api.get<StudentBrowseFilterOptions>("/students/filters");
+  return {
+    universities: Array.isArray(data?.universities) ? data.universities : [],
+    majors: Array.isArray(data?.majors) ? data.majors : [],
+    skills: Array.isArray(data?.skills) ? data.skills : [],
+  };
+}
