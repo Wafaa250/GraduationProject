@@ -282,33 +282,6 @@ export type CompanyProjectRequestDetail = CompanyProjectRequestSummary & {
   updatedAt: string;
 };
 
-export type CompanyRequestInvitationStatus = "pending" | "accepted" | "rejected" | "cancelled";
-
-export type CompanyRequestInvitation = {
-  id: number;
-  companyRequestId: number;
-  companyProfileId: number;
-  studentProfileId: number;
-  invitedByUserId: number;
-  companyRequestRoleId?: number | null;
-  companyRequestRoleName?: string | null;
-  message?: string | null;
-  status: CompanyRequestInvitationStatus;
-  matchScore?: number | null;
-  source?: string | null;
-  createdAt: string;
-  respondedAt?: string | null;
-  cancelledAt?: string | null;
-};
-
-export type CreateCompanyRequestInvitationPayload = {
-  studentProfileId: number;
-  message?: string | null;
-  companyRequestRoleId?: number | null;
-  matchScore?: number | null;
-  source?: string | null;
-};
-
 export type CompanyRequestRecommendationScoreBreakdown = {
   skillOverlap: number;
   roleDisciplineAlignment: number;
@@ -341,8 +314,6 @@ export type CompanyRequestRecommendationItem = {
   highlights: string[];
   source: string;
   scoreBreakdown: CompanyRequestRecommendationScoreBreakdown;
-  invitationAlreadySent: boolean;
-  invitationStatus?: CompanyRequestInvitationStatus | null;
   student: CompanyRequestRecommendationStudent;
 };
 
@@ -505,41 +476,6 @@ export async function unpublishCompanyProjectRequest(
 ): Promise<CompanyProjectRequestDetail> {
   const { data } = await api.post<CompanyProjectRequestDetail>(
     `/company/requests/${id}/unpublish`,
-  );
-  return data;
-}
-
-export async function createCompanyRequestInvitation(
-  requestId: number,
-  payload: CreateCompanyRequestInvitationPayload,
-): Promise<CompanyRequestInvitation> {
-  const { data } = await api.post<CompanyRequestInvitation>(
-    `/company/requests/${requestId}/invitations`,
-    payload,
-  );
-  return data;
-}
-
-export async function listCompanyRequestInvitations(
-  requestId: number,
-): Promise<CompanyRequestInvitation[]> {
-  const { data } = await api.get<CompanyRequestInvitation[]>(
-    `/company/requests/${requestId}/invitations`,
-  );
-  return data;
-}
-
-export async function listCompanyInvitations(): Promise<CompanyRequestInvitation[]> {
-  const { data } = await api.get<CompanyRequestInvitation[]>("/company/invitations");
-  return data;
-}
-
-export async function cancelCompanyRequestInvitation(
-  requestId: number,
-  invitationId: number,
-): Promise<CompanyRequestInvitation> {
-  const { data } = await api.post<CompanyRequestInvitation>(
-    `/company/requests/${requestId}/invitations/${invitationId}/cancel`,
   );
   return data;
 }

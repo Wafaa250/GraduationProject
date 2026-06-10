@@ -343,33 +343,6 @@ WHERE cr.title = 'Customer Analytics Platform'
   AND cp.normalized_company_name = 'helix martin systems';
 
 -- =============================================================================
--- Applications (company_request_invitations)
--- =============================================================================
-INSERT INTO company_request_invitations (
-  company_request_id, company_profile_id, student_profile_id, invited_by_user_id,
-  company_request_role_id, message, status, match_score, source,
-  created_at, responded_at, cancelled_at
-)
-SELECT cr.id, cp.id, sp.id, owner.id, crr.id, v.message, v.status, v.match_score, v.source,
-  v.created_at, v.responded_at, v.cancelled_at
-FROM company_requests cr
-JOIN company_profiles cp ON cp.id = cr.company_profile_id
-JOIN users owner ON owner.email = 'marcus.chen+e2e@helixmartin.com'
-JOIN (VALUES
-  ('Predictive Maintenance MVP', 'omar.hassan+e2e@gmail.com',   'IoT Software Engineer', 'pending',  91.00, 'recommendation', 'We would like you to lead the Azure IoT ingestion spike.', TIMESTAMPTZ '2026-05-22 10:00:00+00', NULL, NULL),
-  ('Predictive Maintenance MVP', 'aisha.kamal+e2e@gmail.com',   'IoT Software Engineer', 'pending',  84.00, 'recommendation', 'Interested in your Flutter experience for supervisor mobile alerts.', TIMESTAMPTZ '2026-05-23 09:30:00+00', NULL, NULL),
-  ('Predictive Maintenance MVP', 'youssef.ali+e2e@gmail.com',   'IoT Software Engineer', 'accepted', 76.00, 'manual', 'Welcome aboard — starting with API scaffolding.', TIMESTAMPTZ '2026-05-10 14:00:00+00', TIMESTAMPTZ '2026-05-12 08:00:00+00', NULL),
-  ('Predictive Maintenance MVP', 'layla.nasser+e2e@gmail.com',  'IoT Software Engineer', 'rejected', 68.00, 'manual', 'Thank you; role filled for analytics sub-stream.', TIMESTAMPTZ '2026-05-08 11:00:00+00', TIMESTAMPTZ '2026-05-09 16:00:00+00', NULL),
-  ('Mobile Field Service App',   'aisha.kamal+e2e@gmail.com',   'Flutter Developer',     'cancelled', 88.00, 'manual', 'Invitation withdrawn after project pause.', TIMESTAMPTZ '2026-04-01 10:00:00+00', NULL, TIMESTAMPTZ '2026-04-02 09:00:00+00')
-) AS v(req_title, email, role_name, status, match_score, source, message, created_at, responded_at, cancelled_at)
-  ON v.req_title = cr.title
-JOIN users u ON u.email = v.email
-JOIN student_profiles sp ON sp.user_id = u.id
-LEFT JOIN company_request_roles crr
-  ON crr.company_request_id = cr.id AND crr.role_name = v.role_name
-WHERE cp.normalized_company_name = 'helix martin systems';
-
--- =============================================================================
 -- Saved recommendations (dashboard counts & saved lists)
 -- =============================================================================
 INSERT INTO company_saved_student_recommendations (

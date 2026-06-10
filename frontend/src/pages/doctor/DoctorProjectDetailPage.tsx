@@ -10,6 +10,7 @@ import {
   type GradProjectAbstractFile,
   type GraduationProjectMembersResponse,
 } from "@/api/gradProjectApi";
+import { getAbstractDisplayText } from "@/lib/graduationProjectAbstractDocument";
 import { resignDoctorSupervision, parseApiErrorMessage } from "@/api/doctorDashboardApi";
 import { DoctorHubPageHeader } from "@/components/doctor/hub/DoctorHubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -31,14 +32,13 @@ export default function DoctorProjectDetailPage() {
     if (!Number.isFinite(projectId)) return;
     setLoading(true);
     try {
-      const [projectData, team, file] = await Promise.all([
+      const [projectData, team] = await Promise.all([
         getGraduationProjectById(projectId),
         getGraduationProjectMembers(projectId),
-        getGraduationProjectAbstractFile(projectId),
       ]);
       setProject(projectData);
       setMembers(team);
-      setAbstractFile(file);
+      setAbstractFile(await getGraduationProjectAbstractFile(projectId, projectData));
     } catch (err) {
       toast({
         variant: "destructive",
@@ -90,9 +90,18 @@ export default function DoctorProjectDetailPage() {
     );
   }
 
-  const description = project.abstract?.trim() || project.description?.trim() || null;
+  const description =
+    getAbstractDisplayText(project.abstract) || project.description?.trim() || null;
   const technologies = project.technologies ?? [];
   const skills = project.requiredSkills ?? [];
+  const supervisorSpec = project.supervisor?.specialization?.trim();
+  const supervisorDept = project.supervisor?.department?.trim();
+  const supervisorSubtitle = supervisorSpec || supervisorDept || null;
+  const showSupervisorDepartment = Boolean(
+    supervisorDept &&
+      supervisorSpec &&
+      supervisorDept.toLowerCase() !== supervisorSpec.toLowerCase(),
+  );
 
   return (
     <main className="flex-1 bg-gradient-mesh">
@@ -178,11 +187,11 @@ export default function DoctorProjectDetailPage() {
                     Supervisor
                   </h2>
                   <p className="mt-2 font-medium text-foreground">{project.supervisor.name}</p>
-                  {project.supervisor.specialization ? (
-                    <p className="text-sm text-muted-foreground">{project.supervisor.specialization}</p>
+                  {supervisorSubtitle ? (
+                    <p className="text-sm text-muted-foreground">{supervisorSubtitle}</p>
                   ) : null}
-                  {project.supervisor.department ? (
-                    <p className="text-sm text-muted-foreground">{project.supervisor.department}</p>
+                  {showSupervisorDepartment ? (
+                    <p className="text-sm text-muted-foreground">{supervisorDept}</p>
                   ) : null}
                 </div>
               ) : null}

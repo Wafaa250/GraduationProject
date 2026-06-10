@@ -13,7 +13,6 @@ TRUNCATE TABLE
   company_member_notification_preferences,
   company_members,
   company_profiles,
-  company_request_invitations,
   company_request_recommendation_runs,
   company_request_recommendations,
   company_request_roles,

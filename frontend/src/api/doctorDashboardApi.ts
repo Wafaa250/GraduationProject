@@ -1,3 +1,8 @@
+import {
+  computeDoctorSupervisorAiCompatibility,
+  doctorExpertiseFromMe,
+} from "@/lib/doctorSupervisorCompatibility";
+import { getDoctorMe } from "@/api/meApi";
 import api, { parseApiErrorMessage } from "./axiosInstance";
 
 export type DoctorDashboardSummary = {
@@ -105,8 +110,31 @@ export async function getDoctorDashboardSummary(): Promise<DoctorDashboardSummar
 }
 
 export async function getDoctorSupervisorRequests(): Promise<DoctorSupervisorRequest[]> {
-  const { data } = await api.get<DoctorSupervisorRequest[]>("/doctors/me/requests");
-  return Array.isArray(data) ? data : [];
+  const [requestsResult, meResult] = await Promise.allSettled([
+    api.get<DoctorSupervisorRequest[]>("/doctors/me/requests"),
+    getDoctorMe(),
+  ]);
+
+  if (requestsResult.status === "rejected") {
+    throw requestsResult.reason;
+  }
+
+  const requests = Array.isArray(requestsResult.value.data)
+    ? requestsResult.value.data
+    : [];
+
+  const expertise =
+    meResult.status === "fulfilled"
+      ? doctorExpertiseFromMe(meResult.value)
+      : { specialization: "", technicalSkills: [], researchSkills: [] };
+
+  return requests.map((request) => ({
+    ...request,
+    aiCompatibility: computeDoctorSupervisorAiCompatibility(
+      request.project?.requiredSkills,
+      expertise,
+    ),
+  }));
 }
 
 export async function getDoctorSupervisorRequestsSummary(): Promise<DoctorSupervisorRequestsSummary> {

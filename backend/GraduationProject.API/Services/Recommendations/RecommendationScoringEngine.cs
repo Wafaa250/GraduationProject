@@ -56,9 +56,6 @@ namespace GraduationProject.API.Services.Recommendations
 
             total = CalibrateScore(total, skillOverlap, roleFit, disciplineRelevance, toolFamiliarity, interestOverlap);
 
-            if (candidate.InvitationStatus is CompanyRequestInvitationStatus.Pending or CompanyRequestInvitationStatus.Accepted)
-                total = Math.Max(total - 5, 0);
-
             var hasStrongCrossDisciplineEvidence = skillOverlap >= 60 || roleFit >= 65 || toolFamiliarity >= 65;
             var passesThreshold = total >= 40 && (
                 disciplineRelevance >= 35 ||

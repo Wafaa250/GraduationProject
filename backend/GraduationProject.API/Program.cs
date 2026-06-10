@@ -66,7 +66,6 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICompanyTalentMatchService, CompanyTalentMatchService>();
 builder.Services.AddScoped<ICompanyRequestService, CompanyRequestService>();
-builder.Services.AddScoped<ICompanyRequestInvitationService, CompanyRequestInvitationService>();
 builder.Services.AddScoped<ICompanyRequestRecommendationService, CompanyRequestRecommendationService>();
 builder.Services.AddScoped<ICompanyRequestTeamRecommendationService, CompanyRequestTeamRecommendationService>();
 builder.Services.AddScoped<ICompanyStudentDiscoveryService, CompanyStudentDiscoveryService>();

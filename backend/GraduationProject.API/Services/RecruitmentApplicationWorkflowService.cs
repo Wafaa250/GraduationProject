@@ -16,6 +16,9 @@ namespace GraduationProject.API.Services
 {
     public class RecruitmentApplicationWorkflowService : IRecruitmentApplicationWorkflowService
     {
+        /// <summary>Number of ranked AI suggestions returned per position (independent of seat count).</summary>
+        private const int AiShortlistSize = 3;
+
         private readonly ApplicationDbContext _db;
         private readonly IRecruitmentApplicantAnalysisService _applicantAnalysis;
         private readonly IGraduationProjectNotificationService _notifications;
@@ -101,9 +104,7 @@ namespace GraduationProject.API.Services
             if (string.IsNullOrWhiteSpace(_configuration["OpenAI:ApiKey"]))
                 return null;
 
-            var topK = isRegenerate
-                ? Math.Max(1, Math.Min(remainingSeats, eligible.Count))
-                : Math.Min(position.NeededCount, eligible.Count);
+            var topK = Math.Min(AiShortlistSize, eligible.Count);
 
             var applicable = RecruitmentApplicationHelper
                 .GetApplicableQuestions(campaign.Questions, position.Id)
@@ -240,6 +241,18 @@ namespace GraduationProject.API.Services
                 .Where(r => minMatch <= 0 || r.MatchScore >= minMatch)
                 .Take(topK)
                 .ToList();
+
+            await FillShortlistGapsAsync(
+                filtered,
+                eligible,
+                topK,
+                position,
+                preferSkills,
+                preferMajors,
+                applicationIndex,
+                displayByProfile,
+                statusByApplicationId,
+                cancellationToken);
 
             foreach (var row in filtered)
             {
@@ -409,6 +422,87 @@ namespace GraduationProject.API.Services
                 AddedToOrganization = false,
                 MemberAcceptedAt = null,
             };
+        }
+
+        private async Task FillShortlistGapsAsync(
+            List<RecruitmentApplicantAnalysisResultDto> results,
+            List<StudentOrganizationRecruitmentApplication> eligible,
+            int targetCount,
+            StudentOrganizationRecruitmentPosition position,
+            List<string> preferSkills,
+            List<string> preferMajors,
+            Dictionary<int, (int StudentProfileId, int StudentUserId)> applicationIndex,
+            Dictionary<int, StudentApplicantDisplayInfo> displayByProfile,
+            Dictionary<int, string> statusByApplicationId,
+            CancellationToken cancellationToken)
+        {
+            if (results.Count >= targetCount)
+                return;
+
+            var requiredSkills = RecruitmentApplicantAnalysisHelper.ParseCommaSkills(position.RequiredSkills)
+                .Concat(preferSkills)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var seenApplicationIds = results.Select(r => r.ApplicationId).ToHashSet();
+            var minAiScore = results.Count > 0 ? results.Min(r => r.MatchScore) : (int?)null;
+
+            var fallbackCandidates = new List<(StudentOrganizationRecruitmentApplication App, int Score, List<string> Skills)>();
+            foreach (var app in eligible.Where(a => !seenApplicationIds.Contains(a.Id)))
+            {
+                var studentSkills = await RecruitmentApplicantAnalysisHelper.CollectStudentSkillNamesAsync(
+                    _db,
+                    app.StudentProfile);
+                var score = RecruitmentApplicantAnalysisHelper.ComputeFallbackMatchScore(
+                    studentSkills,
+                    requiredSkills,
+                    preferMajors,
+                    app.StudentProfile.Major,
+                    position.Requirements,
+                    position.Description);
+                fallbackCandidates.Add((app, score, studentSkills));
+            }
+
+            foreach (var (app, rawScore, studentSkills) in fallbackCandidates
+                .OrderByDescending(c => c.Score)
+                .ThenByDescending(c => c.App.SubmittedAt)
+                .ThenBy(c => c.App.Id))
+            {
+                if (results.Count >= targetCount)
+                    break;
+
+                if (!applicationIndex.TryGetValue(app.Id, out var ids))
+                    continue;
+
+                var score = rawScore;
+                if (minAiScore.HasValue)
+                    score = Math.Min(score, Math.Max(1, minAiScore.Value - 1));
+
+                displayByProfile.TryGetValue(ids.StudentProfileId, out var disp);
+                var strengths = RecruitmentApplicantAnalysisHelper.BuildMatchedSkillStrengths(
+                    studentSkills,
+                    requiredSkills);
+
+                results.Add(new RecruitmentApplicantAnalysisResultDto
+                {
+                    ApplicationId = app.Id,
+                    StudentProfileId = ids.StudentProfileId,
+                    StudentUserId = ids.StudentUserId,
+                    MatchScore = score,
+                    Strengths = strengths,
+                    Concerns = new List<string>(),
+                    Reason = minAiScore.HasValue
+                        ? "Added from remaining applicants using skills overlap and profile alignment."
+                        : "Ranked using skills overlap and application profile.",
+                    StudentName = disp?.Name ?? "Student",
+                    Faculty = disp?.Faculty,
+                    Major = disp?.Major,
+                    Status = statusByApplicationId.TryGetValue(app.Id, out var st)
+                        ? st
+                        : RecruitmentApplicationStatuses.Pending,
+                });
+                seenApplicationIds.Add(app.Id);
+            }
         }
 
         private static RecruitmentApplicationDetailDto MapDetail(StudentOrganizationRecruitmentApplication a) =>

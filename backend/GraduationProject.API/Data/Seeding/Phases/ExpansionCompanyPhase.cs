@@ -201,25 +201,6 @@ namespace GraduationProject.API.Data.Seeding.Phases
                 });
                 ctx.Increment("company_request_recommendations");
 
-                if (rank < 4)
-                {
-                    db.CompanyRequestInvitations.Add(new CompanyRequestInvitation
-                    {
-                        CompanyRequestId = request.Id,
-                        CompanyProfileId = company.Id,
-                        StudentProfileId = student.Id,
-                        InvitedByUserId = owner.Id,
-                        CompanyRequestRoleId = roles[rank % roles.Count].Id,
-                        Message = $"We would like to discuss the {roles[rank % roles.Count].RoleName} role on {request.Title}.",
-                        Status = rank switch { 0 => CompanyRequestInvitationStatus.Accepted, 1 => CompanyRequestInvitationStatus.Pending, 2 => CompanyRequestInvitationStatus.Rejected, _ => CompanyRequestInvitationStatus.Cancelled },
-                        MatchScore = score,
-                        Source = "recommendation",
-                        CreatedAt = runAt.AddDays(rank + 1),
-                        RespondedAt = rank == 1 ? null : runAt.AddDays(rank + 2),
-                    });
-                    ctx.Increment("company_request_invitations");
-                }
-
                 if (rank == 0)
                 {
                     db.CompanySavedStudentRecommendations.Add(new CompanySavedStudentRecommendation

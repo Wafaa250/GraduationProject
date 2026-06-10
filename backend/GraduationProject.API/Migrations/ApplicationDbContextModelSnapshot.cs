@@ -393,92 +393,6 @@ namespace GraduationProject.API.Migrations
                     b.ToTable("company_requests", (string)null);
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestInvitation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("cancelled_at");
-
-                    b.Property<int>("CompanyProfileId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_profile_id");
-
-                    b.Property<int>("CompanyRequestId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_request_id");
-
-                    b.Property<int?>("CompanyRequestRoleId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_request_role_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("InvitedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("invited_by_user_id");
-
-                    b.Property<decimal?>("MatchScore")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)")
-                        .HasColumnName("match_score");
-
-                    b.Property<string>("Message")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("message");
-
-                    b.Property<DateTime?>("RespondedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("responded_at");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("source");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(24)
-                        .HasColumnType("character varying(24)")
-                        .HasDefaultValue("pending")
-                        .HasColumnName("status");
-
-                    b.Property<int>("StudentProfileId")
-                        .HasColumnType("integer")
-                        .HasColumnName("student_profile_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyProfileId");
-
-                    b.HasIndex("CompanyRequestId");
-
-                    b.HasIndex("CompanyRequestRoleId");
-
-                    b.HasIndex("InvitedByUserId");
-
-                    b.HasIndex("StudentProfileId");
-
-                    b.HasIndex("CompanyRequestId", "StudentProfileId")
-                        .IsUnique()
-                        .HasFilter("status = 'pending'");
-
-                    b.HasIndex("CompanyRequestId", "StudentProfileId", "Status")
-                        .HasDatabaseName("IX_company_request_invitations_company_request_id_student_pro~1");
-
-                    b.ToTable("company_request_invitations", (string)null);
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendation", b =>
                 {
                     b.Property<int>("Id")
@@ -1308,6 +1222,49 @@ namespace GraduationProject.API.Migrations
                     b.HasIndex("SenderUserId");
 
                     b.ToTable("course_team_messages", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.DoctorPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentType")
+                        .HasColumnType("text")
+                        .HasColumnName("attachment_type");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("attachment_url");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("doctor_posts", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.DoctorProfile", b =>
@@ -2490,6 +2447,10 @@ namespace GraduationProject.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("text")
@@ -2541,6 +2502,49 @@ namespace GraduationProject.API.Migrations
                         .HasFilter("student_profile_id IS NOT NULL");
 
                     b.ToTable("student_organization_team_members", (string)null);
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.StudentPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentType")
+                        .HasColumnType("text")
+                        .HasColumnName("attachment_type");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("attachment_url");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("student_posts", (string)null);
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>
@@ -3073,48 +3077,6 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("CompanyProfile");
                 });
 
-            modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestInvitation", b =>
-                {
-                    b.HasOne("GraduationProject.API.Models.CompanyProfile", "CompanyProfile")
-                        .WithMany()
-                        .HasForeignKey("CompanyProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
-                        .WithMany("Invitations")
-                        .HasForeignKey("CompanyRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.CompanyRequestRole", "CompanyRequestRole")
-                        .WithMany("Invitations")
-                        .HasForeignKey("CompanyRequestRoleId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("GraduationProject.API.Models.User", "InvitedByUser")
-                        .WithMany()
-                        .HasForeignKey("InvitedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("GraduationProject.API.Models.StudentProfile", "StudentProfile")
-                        .WithMany()
-                        .HasForeignKey("StudentProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CompanyProfile");
-
-                    b.Navigation("CompanyRequest");
-
-                    b.Navigation("CompanyRequestRole");
-
-                    b.Navigation("InvitedByUser");
-
-                    b.Navigation("StudentProfile");
-                });
-
             modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRecommendation", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.CompanyRequest", "CompanyRequest")
@@ -3464,6 +3426,17 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("Sender");
 
                     b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("GraduationProject.API.Models.DoctorPost", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GraduationProject.API.Models.DoctorProfile", b =>
@@ -3881,6 +3854,17 @@ namespace GraduationProject.API.Migrations
                     b.Navigation("StudentProfile");
                 });
 
+            modelBuilder.Entity("GraduationProject.API.Models.StudentPost", b =>
+                {
+                    b.HasOne("GraduationProject.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GraduationProject.API.Models.StudentProfile", b =>
                 {
                     b.HasOne("GraduationProject.API.Models.User", "User")
@@ -4020,8 +4004,6 @@ namespace GraduationProject.API.Migrations
 
             modelBuilder.Entity("GraduationProject.API.Models.CompanyRequest", b =>
                 {
-                    b.Navigation("Invitations");
-
                     b.Navigation("RecommendationRuns");
 
                     b.Navigation("Recommendations");
@@ -4040,8 +4022,6 @@ namespace GraduationProject.API.Migrations
 
             modelBuilder.Entity("GraduationProject.API.Models.CompanyRequestRole", b =>
                 {
-                    b.Navigation("Invitations");
-
                     b.Navigation("Skills");
 
                     b.Navigation("TeamAssignments");

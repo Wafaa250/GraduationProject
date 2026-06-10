@@ -111,21 +111,11 @@ namespace GraduationProject.API.Services
                 .AsNoTracking()
                 .ToDictionaryAsync(s => s.Id, s => s.Name);
 
-            var invitationRows = await _db.CompanyRequestInvitations
-                .AsNoTracking()
-                .Where(i => i.CompanyRequestId == requestId)
-                .OrderByDescending(i => i.CreatedAt)
-                .ToListAsync();
-            var invitationByStudent = invitationRows
-                .GroupBy(i => i.StudentProfileId)
-                .ToDictionary(g => g.Key, g => g.First().Status);
-
             var dtoItems = items.Select(i =>
             {
                 var breakdown = DeserializeBreakdown(i.ScoreBreakdownJson);
                 var highlights = SkillHelper.ParseStringList(i.HighlightsJson);
-                invitationByStudent.TryGetValue(i.StudentProfileId, out var status);
-                return MapItem(i, i.StudentProfile, breakdown, highlights, status, skillIdMap);
+                return MapItem(i, i.StudentProfile, breakdown, highlights, skillIdMap);
             }).ToList();
 
             return new CompanyRequestRecommendationResultDto
@@ -231,16 +221,6 @@ namespace GraduationProject.API.Services
                 .AsNoTracking()
                 .ToListAsync();
 
-            var invitationRows = await _db.CompanyRequestInvitations
-                .AsNoTracking()
-                .Where(i => i.CompanyRequestId == requestId)
-                .OrderByDescending(i => i.CreatedAt)
-                .ToListAsync();
-
-            var invitationByStudent = invitationRows
-                .GroupBy(i => i.StudentProfileId)
-                .ToDictionary(g => g.Key, g => g.First().Status);
-
             var skillIdMap = await _db.Skills
                 .AsNoTracking()
                 .ToDictionaryAsync(s => s.Id, s => s.Name);
@@ -254,7 +234,6 @@ namespace GraduationProject.API.Services
                     requestToolSignals,
                     requestTextSignals,
                     CompanyRequestEnumConverters.ToWireValue(request.CollaborationFormat),
-                    invitationByStudent.TryGetValue(s.Id, out var status) ? status : null,
                     skillIdMap))
                 .Where(r => r.Score.PassesThreshold)
                 .OrderByDescending(r => r.TotalScore)
@@ -294,7 +273,6 @@ namespace GraduationProject.API.Services
                             }.Concat(SkillHelper.ParseStringList(r.Student.Roles))),
                             Bio = r.Student.Bio,
                             Availability = r.Student.Availability,
-                            InvitationStatus = r.InvitationStatus,
                         },
                         r.Student.Id),
                 })
@@ -369,7 +347,6 @@ namespace GraduationProject.API.Services
             List<string> requestToolSignals,
             List<string> requestTextSignals,
             string? requestCollaboration,
-            string? invitationStatus,
             Dictionary<int, string> skillIdMap)
         {
             var studentSkills = ResolveStudentSkills(student, skillIdMap);
@@ -404,14 +381,12 @@ namespace GraduationProject.API.Services
                     DisciplineSignals = roleSignals,
                     Bio = student.Bio,
                     Availability = student.Availability,
-                    InvitationStatus = invitationStatus,
                 });
 
             return new CandidateScoreRow
             {
                 Student = student,
                 TotalScore = score.TotalScore,
-                InvitationStatus = invitationStatus,
                 StudentSkills = studentSkills,
                 Score = score,
             };
@@ -480,8 +455,6 @@ namespace GraduationProject.API.Services
                     Highlights = s.Score.Highlights,
                     Source = e.Source,
                     ScoreBreakdown = s.Score.Breakdown,
-                    InvitationAlreadySent = s.InvitationStatus is CompanyRequestInvitationStatus.Pending or CompanyRequestInvitationStatus.Accepted,
-                    InvitationStatus = s.InvitationStatus,
                     Student = MapStudentDto(s.Student, s.StudentSkills),
                 };
             }).ToList();
@@ -570,7 +543,6 @@ namespace GraduationProject.API.Services
             StudentProfile student,
             CompanyRequestRecommendationScoreBreakdownDto breakdown,
             List<string> highlights,
-            string? invitationStatus,
             Dictionary<int, string> skillIdMap)
         {
             return new CompanyRequestRecommendationItemDto
@@ -582,8 +554,6 @@ namespace GraduationProject.API.Services
                 Highlights = highlights,
                 Source = recommendation.Source,
                 ScoreBreakdown = breakdown,
-                InvitationAlreadySent = invitationStatus is CompanyRequestInvitationStatus.Pending or CompanyRequestInvitationStatus.Accepted,
-                InvitationStatus = invitationStatus,
                 Student = MapStudentDto(student, ResolveStudentSkills(student, skillIdMap)),
             };
         }
@@ -615,7 +585,6 @@ namespace GraduationProject.API.Services
         {
             public StudentProfile Student { get; set; } = null!;
             public int TotalScore { get; set; }
-            public string? InvitationStatus { get; set; }
             public List<string> StudentSkills { get; set; } = new();
             public RecommendationScoreResult Score { get; set; } = new();
             public double SemanticSimilarity { get; set; }

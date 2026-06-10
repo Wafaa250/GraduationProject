@@ -391,6 +391,7 @@ export function CompanyRequestDetailPage() {
                 : "This request has been closed."
             }
           />
+
         </>
       ) : null}
 

@@ -59,8 +59,6 @@ namespace GraduationProject.API.DTOs
         public List<string> Highlights { get; set; } = new();
         public string Source { get; set; } = "deterministic";
         public CompanyRequestRecommendationScoreBreakdownDto ScoreBreakdown { get; set; } = new();
-        public bool InvitationAlreadySent { get; set; }
-        public string? InvitationStatus { get; set; }
         public CompanyRequestRecommendationStudentDto Student { get; set; } = new();
     }
 

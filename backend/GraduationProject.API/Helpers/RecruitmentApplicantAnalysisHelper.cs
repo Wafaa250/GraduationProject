@@ -112,5 +112,77 @@ namespace GraduationProject.API.Helpers
             var dto = RecruitmentApplicationHelper.MapAnswerResponse(a);
             return Truncate(dto.AnswerValue, 480);
         }
+
+        public static async Task<List<string>> CollectStudentSkillNamesAsync(
+            ApplicationDbContext db,
+            StudentProfile student)
+        {
+            var roles = await SkillHelper.IdsJsonToNames(db, student.Roles);
+            var technical = await SkillHelper.IdsJsonToNames(db, student.TechnicalSkills);
+            var tools = await SkillHelper.IdsJsonToNames(db, student.Tools);
+            var explicitNames = student.StudentSkills
+                .Select(ss => ss.Skill.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n));
+
+            return SkillHelper.NormalizeUniqueStrings(
+                roles.Concat(technical).Concat(tools).Concat(explicitNames));
+        }
+
+        /// <summary>Deterministic score when AI returns fewer ranked rows than requested.</summary>
+        public static int ComputeFallbackMatchScore(
+            IReadOnlyList<string> studentSkills,
+            IReadOnlyList<string> requiredSkills,
+            IReadOnlyList<string> preferMajors,
+            string? studentMajor,
+            string? positionRequirements,
+            string? positionDescription)
+        {
+            var skillScore = 35;
+            if (requiredSkills.Count > 0)
+            {
+                var matched = requiredSkills.Count(skill =>
+                    studentSkills.Any(s => SkillsOverlap(s, skill)));
+                skillScore = (int)Math.Round((double)matched / requiredSkills.Count * 85);
+            }
+            else if (studentSkills.Count > 0)
+            {
+                skillScore = 45;
+            }
+
+            var majorBonus = 0;
+            var major = studentMajor?.Trim();
+            if (!string.IsNullOrWhiteSpace(major))
+            {
+                if (preferMajors.Any(p => MajorsOverlap(major, p)))
+                    majorBonus = 10;
+                else
+                {
+                    var reqHaystack = $"{positionRequirements} {positionDescription}";
+                    if (!string.IsNullOrWhiteSpace(reqHaystack) &&
+                        reqHaystack.Contains(major, StringComparison.OrdinalIgnoreCase))
+                        majorBonus = 5;
+                }
+            }
+
+            return Math.Clamp(skillScore + majorBonus, 1, 99);
+        }
+
+        public static List<string> BuildMatchedSkillStrengths(
+            IReadOnlyList<string> studentSkills,
+            IReadOnlyList<string> requiredSkills)
+        {
+            return requiredSkills
+                .Where(skill => studentSkills.Any(s => SkillsOverlap(s, skill)))
+                .Take(4)
+                .ToList();
+        }
+
+        private static bool SkillsOverlap(string left, string right) =>
+            left.Contains(right, StringComparison.OrdinalIgnoreCase) ||
+            right.Contains(left, StringComparison.OrdinalIgnoreCase);
+
+        private static bool MajorsOverlap(string left, string right) =>
+            left.Contains(right, StringComparison.OrdinalIgnoreCase) ||
+            right.Contains(left, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -18,7 +18,6 @@ namespace GraduationProject.API.Models
 
         public CompanyRequest CompanyRequest { get; set; } = null!;
         public ICollection<CompanyRequestSkill> Skills { get; set; } = new List<CompanyRequestSkill>();
-        public ICollection<CompanyRequestInvitation> Invitations { get; set; } = new List<CompanyRequestInvitation>();
         public ICollection<CompanyRequestTeamRecommendationMember> TeamAssignments { get; set; } =
             new List<CompanyRequestTeamRecommendationMember>();
     }

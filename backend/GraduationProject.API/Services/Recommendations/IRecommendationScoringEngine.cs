@@ -25,7 +25,6 @@ namespace GraduationProject.API.Services.Recommendations
         public List<string> DisciplineSignals { get; set; } = new();
         public string? Bio { get; set; }
         public string? Availability { get; set; }
-        public string? InvitationStatus { get; set; }
     }
 
     public class RecommendationScoreResult

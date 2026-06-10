@@ -16,6 +16,7 @@ import {
   type GradProject,
 } from "@/api/gradProjectApi";
 import { getMe } from "@/api/meApi";
+import { buildAbstractFieldForSave } from "@/lib/graduationProjectAbstractDocument";
 import {
   getGraduationProjectTypeOptions,
   stageToProjectType,
@@ -384,7 +385,8 @@ export default function CreateGraduationProjectPage() {
     if (!isEditMode && hasExistingProject) return;
     setSubmitting(true);
     try {
-      const payload = buildProjectPayload(data);
+      const abstract = await buildAbstractFieldForSave(data.summary, abstractFile);
+      const payload = { ...buildProjectPayload(data), abstract };
       if (isEditMode && editingProjectId != null) {
         await updateGraduationProject(editingProjectId, payload);
         toast({
@@ -393,7 +395,6 @@ export default function CreateGraduationProjectPage() {
         });
         navigate(ROUTES.graduationProjectWorkspace, { replace: true });
       } else {
-        // TODO: backend — upload abstractFile when provided and attach reference on create payload
         await createGraduationProject(payload);
         sessionStorage.removeItem(WIZARD_DRAFT_KEY);
         toast({
@@ -716,7 +717,6 @@ function Step2({
       });
       return;
     }
-    // TODO: backend — persist uploaded abstract file via API when creating the project
     onAbstractFileChange(file, file.name);
   };
 

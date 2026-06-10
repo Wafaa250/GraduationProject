@@ -1,4 +1,5 @@
-import api from "./axiosInstance";
+import { resolveGraduationProjectAbstractFile } from "@/lib/graduationProjectAbstractDocument";
+import api, { resolveApiFileUrl } from "./axiosInstance";
 import {
   listDoctorsDirectory,
   type DoctorDirectoryEntry,
@@ -67,6 +68,10 @@ export type GradProject = {
   ownerName?: string;
   name: string;
   abstract?: string | null;
+  /** When backend exposes stored abstract file metadata (optional). */
+  abstractFileName?: string | null;
+  abstractFilePath?: string | null;
+  abstractFileUploadedAt?: string | null;
   description?: string | null;
   technologies?: string[];
   projectType?: "GP1" | "GP2" | "GP";
@@ -171,6 +176,17 @@ export function normSupervisorRequestStatus(status?: string | null): string {
   return (status ?? "").trim().toLowerCase();
 }
 
+function pickOptionalString(
+  raw: Record<string, unknown>,
+  ...keys: string[]
+): string | null {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
 function normalizePendingSupervisor(
   raw: GradProjectPendingSupervisor | null | undefined,
 ): GradProjectPendingSupervisor | null {
@@ -197,10 +213,22 @@ export function normalizeGradProject(project: GradProject): GradProject {
     SupervisorRequestStatus?: string | null;
     PendingSupervisor?: GradProjectPendingSupervisor | null;
     SupervisorCancellationRequestStatus?: string | null;
+    AbstractFileName?: string | null;
+    AbstractFilePath?: string | null;
+    AbstractFileUploadedAt?: string | null;
   };
+
+  const rawRecord = raw as unknown as Record<string, unknown>;
 
   return {
     ...project,
+    abstractFileName:
+      project.abstractFileName ?? pickOptionalString(rawRecord, "abstractFileName", "AbstractFileName"),
+    abstractFilePath:
+      project.abstractFilePath ?? pickOptionalString(rawRecord, "abstractFilePath", "AbstractFilePath"),
+    abstractFileUploadedAt:
+      project.abstractFileUploadedAt ??
+      pickOptionalString(rawRecord, "abstractFileUploadedAt", "AbstractFileUploadedAt"),
     supervisorRequestStatus:
       project.supervisorRequestStatus ?? raw.SupervisorRequestStatus ?? null,
     pendingSupervisor: normalizePendingSupervisor(
@@ -293,17 +321,39 @@ export async function getGraduationProjectById(projectId: number): Promise<GradP
   return normalizeGradProject(data);
 }
 
-/** GET /api/graduation-projects/{id}/abstract-file — supervisor or project owner. */
+function parseAbstractFileApiResponse(data: unknown): GradProjectAbstractFile | null {
+  if (!data || typeof data !== "object") return null;
+  const raw = data as Record<string, unknown>;
+  const downloadUrl = resolveApiFileUrl(
+    (raw.downloadUrl ?? raw.DownloadUrl ?? raw.url ?? raw.Url) as string | undefined,
+  );
+  if (!downloadUrl) return null;
+  const fileName =
+    (typeof raw.fileName === "string" && raw.fileName) ||
+    (typeof raw.FileName === "string" && raw.FileName) ||
+    "Document";
+  const uploadedAt =
+    (typeof raw.uploadedAt === "string" && raw.uploadedAt) ||
+    (typeof raw.UploadedAt === "string" && raw.UploadedAt) ||
+    new Date().toISOString();
+  return { fileName, uploadedAt, downloadUrl };
+}
+
+/** GET /api/graduation-projects/{id}/abstract-file — falls back to project.abstract metadata. */
 export async function getGraduationProjectAbstractFile(
   projectId: number,
+  project?: GradProject | null,
 ): Promise<GradProjectAbstractFile | null> {
+  if (project) {
+    const fromProject = resolveGraduationProjectAbstractFile(project);
+    if (fromProject) return fromProject;
+  }
+
   try {
-    const { data } = await api.get<GradProjectAbstractFile>(
-      `/graduation-projects/${projectId}/abstract-file`,
-    );
-    return data?.downloadUrl ? data : null;
+    const { data } = await api.get(`/graduation-projects/${projectId}/abstract-file`);
+    return parseAbstractFileApiResponse(data);
   } catch {
-    return null;
+    return project ? resolveGraduationProjectAbstractFile(project) : null;
   }
 }
 

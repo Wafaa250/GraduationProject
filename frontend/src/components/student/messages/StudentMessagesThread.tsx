@@ -5,6 +5,8 @@ import type { ConversationDetails } from "@/api/conversationsApi";
 import {
   formatStudentMessageTime,
   getStudentConversationDisplayName,
+  getStudentMessageSenderName,
+  isStudentGroupConversation,
 } from "@/lib/studentMessagesNavigation";
 import { ConversationDeleteButton } from "@/components/messaging/ConversationDeleteButton";
 import { StudentMessagesEmptyState } from "./StudentMessagesEmptyState";
@@ -78,6 +80,7 @@ export function StudentMessagesThread({
   const title = getStudentConversationDisplayName(thread, currentUserId);
   const other = thread.users.find((u) => u.id !== currentUserId);
   const isTeam = thread.courseTeamId != null || thread.type === "Team";
+  const isGroupConversation = isStudentGroupConversation(thread);
   const subtitle =
     isTeam
       ? "Project team"
@@ -115,6 +118,9 @@ export function StudentMessagesThread({
         ) : (
           thread.messages.map((m) => {
             const mine = m.senderId === currentUserId;
+            const senderName = isGroupConversation
+              ? getStudentMessageSenderName(thread.users, m.senderId, currentUserId)
+              : null;
             return (
               <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
                 <div
@@ -123,6 +129,9 @@ export function StudentMessagesThread({
                     mine ? "student-messages-bubble--mine" : "student-messages-bubble--theirs",
                   )}
                 >
+                  {senderName ? (
+                    <p className="text-[10px] font-semibold text-primary mb-0.5">{senderName}</p>
+                  ) : null}
                   <p>{m.text}</p>
                   <p
                     className={cn(

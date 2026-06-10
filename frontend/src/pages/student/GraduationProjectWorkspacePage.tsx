@@ -66,6 +66,10 @@ import {
 import { listDoctorsDirectory, type DoctorDirectoryEntry } from "@/api/doctorDirectoryApi";
 import { toast } from "@/hooks/use-toast";
 import { MySupervisorSection } from "@/components/student/MySupervisorSection";
+import {
+  getAbstractDisplayText,
+  resolveGraduationProjectAbstractFile,
+} from "@/lib/graduationProjectAbstractDocument";
 
 /* ---------- small components ---------- */
 const Chip = ({
@@ -251,6 +255,15 @@ export default function GraduationProjectWorkspacePage() {
   const canInvite = isOwner;
   const canViewSupervisors = isOwner || isLeader;
   const pendingSupervisorDoctorId = getPendingSupervisorDoctorId(project);
+  const pendingSupervisorNotice = useMemo(() => {
+    if (!project || project.supervisor || pendingSupervisorDoctorId == null) return null;
+    const pending = project.pendingSupervisor;
+    if (!pending) return null;
+    return {
+      name: pending.name?.trim() || null,
+      specialization: pending.specialization?.trim() || null,
+    };
+  }, [project, pendingSupervisorDoctorId]);
 
   const desiredSize = project?.partnersCount ?? 0;
   const currentMembers = project?.currentMembers ?? 0;
@@ -703,6 +716,8 @@ export default function GraduationProjectWorkspacePage() {
     : resolveProjectTypeLabel(project);
   const statusLabel = deriveProjectStatus(project);
   const requiredSkills = project.requiredSkills ?? [];
+  const abstractDisplayText = getAbstractDisplayText(project.abstract);
+  const abstractDocument = resolveGraduationProjectAbstractFile(project);
 
   return (
     <div className="project-workspace-hub min-h-full bg-gradient-subtle">
@@ -820,9 +835,25 @@ export default function GraduationProjectWorkspacePage() {
                     {project.name}
                   </h1>
                   <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground text-balance">
-                    {(project.abstract ?? project.description ?? "").trim() ||
+                    {abstractDisplayText ||
+                      (project.description ?? "").trim() ||
                       "No project abstract provided yet."}
                   </p>
+                  {abstractDocument ? (
+                    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+                      <FileText className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                        {abstractDocument.fileName}
+                      </p>
+                      <a
+                        href={abstractDocument.downloadUrl}
+                        download={abstractDocument.fileName}
+                        className="text-xs font-semibold text-primary hover:underline shrink-0"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  ) : null}
 
                   <div className="mt-6 space-y-4">
                     <div>
@@ -964,6 +995,24 @@ export default function GraduationProjectWorkspacePage() {
                       </div>
                     </div>
                   )}
+                  {!project.supervisor && pendingSupervisorNotice ? (
+                    <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-warning/15 text-warning">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">Supervision request pending</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {pendingSupervisorNotice.name
+                            ? `Awaiting response from ${pendingSupervisorNotice.name}`
+                            : "Awaiting supervisor response"}
+                          {pendingSupervisorNotice.specialization
+                            ? ` · ${pendingSupervisorNotice.specialization}`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </CardContent>
@@ -1459,6 +1508,26 @@ export default function GraduationProjectWorkspacePage() {
               title="Recommended supervisors"
               desc="Faculty matched to your project's domain and methodology."
             />
+            {pendingSupervisorNotice ? (
+              <Card className="mb-4 border-border/60 bg-background/60 shadow-none">
+                <CardContent className="flex items-start gap-3 p-4">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
+                    <Clock className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">Supervision request pending</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {pendingSupervisorNotice.name
+                        ? `Awaiting response from ${pendingSupervisorNotice.name}`
+                        : "Awaiting supervisor response"}
+                      {pendingSupervisorNotice.specialization
+                        ? ` · ${pendingSupervisorNotice.specialization}`
+                        : ""}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
             {supervisors.length === 0 ? (
               <Card className="border-2 border-dashed border-border bg-secondary/30 shadow-none">
                 <CardContent className="p-8 text-center">

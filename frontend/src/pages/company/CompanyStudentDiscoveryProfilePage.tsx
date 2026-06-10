@@ -202,7 +202,6 @@ export function CompanyStudentDiscoveryProfilePage() {
   const hasContact = Boolean(
     contact.email || contact.linkedin || contact.github || contact.portfolio,
   );
-
   return (
     <CompanyPageShell className="space-y-6">
       <CompanyDiscoveryProfileHero
