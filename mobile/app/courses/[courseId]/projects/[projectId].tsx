@@ -8,6 +8,7 @@ import {
   getCourseProjectMyTeam,
   getEligibleStudentCourseProjects,
   getStudentCourseDetail,
+  type CourseMyTeamResponse,
 } from "@/api/studentCoursesApi";
 import { ChipList } from "@/components/student/ChipList";
 import { HubSectionCard } from "@/components/student/HubSectionCard";
@@ -15,7 +16,12 @@ import { StudentWorkspaceScreen } from "@/components/student/StudentWorkspaceScr
 import { HUB_COLORS } from "@/constants/studentHubTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { parseCourseProjectDescription } from "@/lib/courseProjectDescription";
-import { studentCoursePath, studentDirectoryProfilePath } from "@/lib/studentRoutes";
+import { openCourseTeamChat } from "@/lib/openCourseTeamChat";
+import {
+  studentCoursePath,
+  studentDirectoryProfilePath,
+  studentMessageThreadPath,
+} from "@/lib/studentRoutes";
 
 export default function StudentCourseProjectScreen() {
   const layout = useResponsiveLayout();
@@ -29,11 +35,12 @@ export default function StudentCourseProjectScreen() {
     Number.isFinite(courseId) && courseId > 0 && Number.isFinite(projectId) && projectId > 0;
 
   const [loading, setLoading] = useState(true);
+  const [openingChat, setOpeningChat] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [teamSize, setTeamSize] = useState(0);
-  const [teamMembers, setTeamMembers] = useState<{ name: string; userId: number }[]>([]);
+  const [myTeam, setMyTeam] = useState<CourseMyTeamResponse | null>(null);
 
   const loadProject = useCallback(async () => {
     if (!validIds) return;
@@ -54,13 +61,8 @@ export default function StudentCourseProjectScreen() {
       setSkills(parsed.requiredSkills);
       setTeamSize(project.teamSize);
 
-      const myTeam = await getCourseProjectMyTeam(projectId);
-      setTeamMembers(
-        (myTeam?.members ?? []).map((m) => ({
-          name: m.name,
-          userId: m.userId,
-        })),
-      );
+      const team = await getCourseProjectMyTeam(projectId);
+      setMyTeam(team);
     } catch (err) {
       Alert.alert("Could not load project", parseApiErrorMessage(err));
       router.replace(studentCoursePath(courseId) as never);
@@ -72,6 +74,21 @@ export default function StudentCourseProjectScreen() {
   useEffect(() => {
     void loadProject();
   }, [loadProject]);
+
+  const handleOpenTeamChat = async () => {
+    if (!myTeam?.teamId) return;
+    setOpeningChat(true);
+    try {
+      await openCourseTeamChat(myTeam.teamId, (href) => router.push(href as never), studentMessageThreadPath);
+    } catch (err) {
+      Alert.alert(
+        "Could not open team chat",
+        err instanceof Error ? err.message : "Please try again.",
+      );
+    } finally {
+      setOpeningChat(false);
+    }
+  };
 
   if (!validIds || loading) {
     return (
@@ -86,6 +103,9 @@ export default function StudentCourseProjectScreen() {
       </StudentWorkspaceScreen>
     );
   }
+
+  const teamMembers = myTeam?.members ?? [];
+  const teamName = myTeam ? `Team ${myTeam.teamIndex + 1}` : null;
 
   return (
     <StudentWorkspaceScreen
@@ -105,6 +125,34 @@ export default function StudentCourseProjectScreen() {
           <Text style={styles.emptyText}>You are not assigned to a team for this project yet.</Text>
         ) : (
           <View style={{ gap: layout.space("sm") }}>
+            <View style={styles.teamHeader}>
+              <View style={{ flex: 1 }}>
+                {teamName ? <Text style={styles.teamLabel}>{teamName}</Text> : null}
+                <Text style={styles.meta}>
+                  {teamMembers.length} / {teamSize} members
+                </Text>
+              </View>
+              {myTeam?.teamId ? (
+                <Pressable
+                  onPress={() => void handleOpenTeamChat()}
+                  disabled={openingChat}
+                  style={({ pressed }) => [
+                    styles.chatBtn,
+                    { borderRadius: layout.radius.input, opacity: pressed || openingChat ? 0.85 : 1 },
+                  ]}
+                >
+                  {openingChat ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />
+                      <Text style={styles.chatBtnText}>Open team chat</Text>
+                    </>
+                  )}
+                </Pressable>
+              ) : null}
+            </View>
+
             {teamMembers.map((member) => (
               <Pressable
                 key={member.userId}
@@ -122,20 +170,33 @@ export default function StudentCourseProjectScreen() {
 }
 
 const styles = StyleSheet.create({
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: -8,
-  },
-  backText: {
-    color: HUB_COLORS.muted,
-    fontWeight: "600",
-    fontSize: 14,
-  },
   meta: {
     color: HUB_COLORS.muted,
     fontSize: 14,
+  },
+  teamHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 4,
+  },
+  teamLabel: {
+    fontWeight: "800",
+    color: HUB_COLORS.foreground,
+    fontSize: 15,
+  },
+  chatBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: HUB_COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  chatBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 13,
   },
   memberRow: {
     borderWidth: 1,

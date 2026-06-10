@@ -18,20 +18,30 @@ import {
   getDoctorConversationKind,
   getDoctorConversationPreview,
   getDoctorConversationRoleLabel,
+  getDoctorConversationSubtitle,
 } from "@/lib/doctorMessagesNavigation";
 
 type Props = {
   item: ConversationListItem;
   currentUserId: number | null;
+  selected?: boolean;
+  embedded?: boolean;
   onPress: () => void;
 };
 
-export function DoctorConversationCard({ item, currentUserId, onPress }: Props) {
+export function DoctorConversationCard({
+  item,
+  currentUserId,
+  selected = false,
+  embedded = false,
+  onPress,
+}: Props) {
   const layout = useResponsiveLayout();
   const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const name = getDoctorConversationDisplayName(item, currentUserId);
+  const subtitle = getDoctorConversationSubtitle(item, currentUserId);
   const preview = getDoctorConversationPreview(item);
   const time = item.lastMessage?.createdAt ? formatDoctorHubRelativeTime(item.lastMessage.createdAt) : "";
   const unread = item.unseenCount > 0;
@@ -45,8 +55,10 @@ export function DoctorConversationCard({ item, currentUserId, onPress }: Props) 
       style={({ pressed }) => [
         styles.card,
         unread && styles.cardUnread,
+        selected && styles.cardSelected,
         {
           padding: DOCTOR_SPACE.md,
+          marginHorizontal: embedded ? 0 : undefined,
           opacity: pressed ? 0.94 : 1,
           transform: [{ scale: pressed ? 0.995 : 1 }],
         },
@@ -72,6 +84,10 @@ export function DoctorConversationCard({ item, currentUserId, onPress }: Props) 
             </Text>
           ) : null}
         </View>
+
+        <Text style={[styles.subtitle, { fontSize: layout.fontSize.footer - 2 }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
 
         <View style={styles.metaRow}>
           <View style={[styles.rolePill, kind === "student" ? styles.roleStudent : styles.roleTeam]}>
@@ -110,6 +126,10 @@ function createStyles(colors: HubColorScheme) {
       borderColor: colors.primaryBorder,
       backgroundColor: colors.primarySoft,
     },
+    cardSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primarySoft,
+    },
     teamAvatar: {
       alignItems: "center",
       justifyContent: "center",
@@ -137,6 +157,10 @@ function createStyles(colors: HubColorScheme) {
     },
     nameUnread: {
       fontWeight: "800",
+    },
+    subtitle: {
+      color: colors.muted,
+      fontWeight: "500",
     },
     time: {
       color: colors.muted,

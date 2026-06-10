@@ -33,6 +33,7 @@ import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDoctorHubDate } from "@/lib/doctorHubMappers";
 import { doctorProjectChatPath, DOCTOR_ROUTES } from "@/lib/doctorRoutes";
+import { getAbstractDisplayText } from "@/lib/graduationProjectAbstractDocument";
 
 type DetailTab = "overview" | "files" | "team";
 
@@ -55,10 +56,10 @@ export default function DoctorProjectDetailScreen() {
     if (!Number.isFinite(projectId)) return;
     if (!silent) setLoading(true);
     try {
-      const [projectData, team, file] = await Promise.all([
-        getGraduationProjectById(projectId),
+      const projectData = await getGraduationProjectById(projectId);
+      const [team, file] = await Promise.all([
         getGraduationProjectMembers(projectId),
-        getGraduationProjectAbstractFile(projectId),
+        getGraduationProjectAbstractFile(projectId, projectData),
       ]);
       setProject(projectData);
       setMembers(team);
@@ -148,7 +149,8 @@ export default function DoctorProjectDetailScreen() {
     );
   }
 
-  const description = project.abstract?.trim() || project.description?.trim() || null;
+  const description =
+    getAbstractDisplayText(project.abstract) || project.description?.trim() || null;
   const technologies = project.technologies ?? [];
   const skills = project.requiredSkills ?? [];
   const preferredRoles = project.preferredRoles ?? [];
@@ -267,12 +269,26 @@ export default function DoctorProjectDetailScreen() {
             {project.supervisor ? (
               <Section title="Supervisor" styles={styles}>
                 <Text style={styles.boldText}>{project.supervisor.name}</Text>
-                {project.supervisor.specialization ? (
-                  <Text style={styles.mutedText}>{project.supervisor.specialization}</Text>
-                ) : null}
-                {project.supervisor.department ? (
-                  <Text style={styles.mutedText}>{project.supervisor.department}</Text>
-                ) : null}
+                {(() => {
+                  const supervisorSpec = project.supervisor.specialization?.trim();
+                  const supervisorDept = project.supervisor.department?.trim();
+                  const supervisorSubtitle = supervisorSpec || supervisorDept || null;
+                  const showDepartment = Boolean(
+                    supervisorDept &&
+                      supervisorSpec &&
+                      supervisorDept.toLowerCase() !== supervisorSpec.toLowerCase(),
+                  );
+                  return (
+                    <>
+                      {supervisorSubtitle ? (
+                        <Text style={styles.mutedText}>{supervisorSubtitle}</Text>
+                      ) : null}
+                      {showDepartment ? (
+                        <Text style={styles.mutedText}>{supervisorDept}</Text>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </Section>
             ) : null}
 

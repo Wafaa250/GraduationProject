@@ -97,10 +97,7 @@ export async function mapSupervisedToActiveProject(
   ].filter((role, index, arr) => arr.indexOf(role) === index);
 
   const description =
-    project.description?.trim() ||
-    details?.abstract?.trim() ||
-    details?.description?.trim() ||
-    "No project description provided.";
+    project.description?.trim() || "No project description provided.";
 
   return {
     id: project.projectId,

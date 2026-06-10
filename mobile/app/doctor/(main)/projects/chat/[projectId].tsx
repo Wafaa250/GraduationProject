@@ -261,7 +261,6 @@ export default function DoctorProjectTeamChatScreen() {
                     isFirstInGroup={!sameSenderAsPrev}
                     isLastInGroup={!sameSenderAsNext}
                     isNewGroup={!sameSenderAsPrev && index > 0}
-                    isTeamChat
                   />
                 );
               }}

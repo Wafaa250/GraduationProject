@@ -21,7 +21,6 @@ type Props = {
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
   isNewGroup: boolean;
-  isTeamChat: boolean;
 };
 
 export function DoctorChatBubble({
@@ -31,13 +30,13 @@ export function DoctorChatBubble({
   isFirstInGroup,
   isLastInGroup,
   isNewGroup,
-  isTeamChat,
 }: Props) {
   const layout = useResponsiveLayout();
   const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
 
-  const showSenderLabel = !isMine && isFirstInGroup && isTeamChat;
+  // WEB parity: every bubble shows sender name, role badge (doctor), and time.
+  const showSenderHeader = true;
 
   if (message.deleted) {
     return (
@@ -97,22 +96,6 @@ export function DoctorChatBubble({
         },
       ]}
     >
-      {showSenderLabel ? (
-        <Text
-          style={[
-            styles.senderLabel,
-            {
-              fontSize: layout.fontSize.footer - 1,
-              marginBottom: 4,
-              marginLeft: 4,
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {senderName}
-        </Text>
-      ) : null}
-
       <View
         style={[
           styles.bubble,
@@ -125,12 +108,40 @@ export function DoctorChatBubble({
           isMine ? styles.bubbleMine : styles.bubbleOther,
         ]}
       >
+        {showSenderHeader ? (
+          <View style={styles.bubbleHead}>
+            <Text
+              style={[
+                styles.senderLabel,
+                { fontSize: layout.fontSize.footer - 1 },
+                isMine && styles.senderLabelMine,
+              ]}
+              numberOfLines={1}
+            >
+              {senderName}
+            </Text>
+            {isMine ? (
+              <Text style={[styles.roleBadge, { fontSize: layout.fontSize.footer - 2 }]}>Supervisor</Text>
+            ) : null}
+            <Text
+              style={[
+                styles.headTime,
+                { fontSize: 10 },
+                isMine ? styles.timeMine : { color: colors.muted },
+              ]}
+            >
+              {time}
+            </Text>
+          </View>
+        ) : null}
+
         <Text
           style={[
             styles.body,
             { fontSize: layout.fontSize.body, lineHeight: layout.scale(22) },
             isMine && styles.bodyMine,
             textStyle,
+            showSenderHeader && { marginTop: 4 },
           ]}
         >
           {bodyText}
@@ -151,16 +162,15 @@ export function DoctorChatBubble({
           </Pressable>
         ) : null}
 
-        {isLastInGroup ? (
+        {message.edited ? (
           <Text
             style={[
-              styles.time,
+              styles.editedLabel,
               { fontSize: 10, marginTop: 4 },
               isMine ? styles.timeMine : { color: colors.muted },
             ]}
           >
-            {time}
-            {message.edited ? " · Edited" : ""}
+            Edited
           </Text>
         ) : null}
       </View>
@@ -179,9 +189,30 @@ function createStyles(colors: HubColorScheme) {
     wrapOther: {
       alignItems: "flex-start",
     },
+    bubbleHead: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      flexWrap: "wrap",
+      marginBottom: 2,
+    },
     senderLabel: {
       color: colors.muted,
       fontWeight: "700",
+      flexShrink: 1,
+    },
+    senderLabelMine: {
+      color: "rgba(255,255,255,0.88)",
+    },
+    roleBadge: {
+      color: "rgba(255,255,255,0.78)",
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    headTime: {
+      marginLeft: "auto",
+      fontWeight: "500",
     },
     bubble: {
       minWidth: 48,
@@ -220,8 +251,7 @@ function createStyles(colors: HubColorScheme) {
     bodyMine: {
       color: "#FFFFFF",
     },
-    time: {
-      alignSelf: "flex-end",
+    editedLabel: {
       fontWeight: "500",
     },
     timeMine: {

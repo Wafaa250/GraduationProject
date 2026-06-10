@@ -38,12 +38,9 @@ const RECRUITMENT_APPLICATION_PREFIX = "association-recruitment-application:";
 
 /** Resolve association workspace notification targets — not student hub routes. */
 export function getAssociationNotificationTarget(n: GraduationNotification): string | null {
+  // WEB has no association messages inbox — do not route chat notifications to student hub.
   if (n.category === "chat") {
-    const conversationId = conversationIdFromChatDedupKey(n.dedupKey);
-    if (conversationId != null && Number.isFinite(conversationId)) {
-      return `/messages/${conversationId}`;
-    }
-    return "/messages";
+    return null;
   }
 
   if (n.category === "organization_event") {

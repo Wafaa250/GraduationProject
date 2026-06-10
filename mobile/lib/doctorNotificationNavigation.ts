@@ -21,7 +21,12 @@ export function getDoctorNotificationTarget(n: GraduationNotification): string |
   const event = n.eventType?.toLowerCase() ?? "";
 
   if (n.category === "graduation_project") {
-    if (event.includes("supervision") || event.includes("supervisor")) {
+    if (
+      event.includes("supervision") ||
+      event.includes("supervisor") ||
+      event.includes("cancellation") ||
+      event.includes("cancel")
+    ) {
       return DOCTOR_ROUTES.requests;
     }
     if (n.projectId != null) return doctorProjectPath(n.projectId);
@@ -37,13 +42,14 @@ export function getDoctorNotificationTarget(n: GraduationNotification): string |
   }
 
   if (n.category === "course") {
-    if (event.includes("invite") || event.includes("supervision")) {
+    if (
+      event.includes("invite") ||
+      event.includes("supervision") ||
+      event.includes("cancellation") ||
+      event.includes("cancel")
+    ) {
       return DOCTOR_ROUTES.requests;
     }
-    return DOCTOR_ROUTES.courses;
-  }
-
-  if (n.category === "ai") {
     return DOCTOR_ROUTES.courses;
   }
 

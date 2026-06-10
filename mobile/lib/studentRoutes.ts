@@ -8,7 +8,12 @@ export const STUDENT_ROUTES = {
   graduationProjectWorkspace: "/graduation-projects/workspace",
   createGraduationProject: "/graduation-projects/create",
   browseProjects: "/browse-projects",
+  browseProjectStudents: "/browse-project-students",
 } as const;
+
+export function browseProjectStudentsPath(projectId: number): string {
+  return `${STUDENT_ROUTES.browseProjectStudents}?projectId=${projectId}`;
+}
 
 export function studentCoursePath(courseId: number): string {
   return `/courses/${courseId}`;
@@ -20,6 +25,10 @@ export function studentCourseProjectPath(courseId: number, projectId: number): s
 
 export function studentDirectoryProfilePath(userId: number): string {
   return `/students/${userId}`;
+}
+
+export function studentMessageThreadPath(conversationId: number): string {
+  return `/messages/${conversationId}`;
 }
 
 export function companyOpportunityDetailPath(companyProfileId: number, requestId: number): string {

@@ -48,18 +48,11 @@ export function ActiveProjectListCard({ project, onOpen, onChat }: Props) {
         {project.description}
       </Text>
 
-      <View style={styles.metaLines}>
-        {project.supervisorName ? (
-          <Text style={[styles.metaLine, { fontSize: layout.scale(11) }]} numberOfLines={1}>
-            Supervisor: <Text style={styles.metaStrong}>{project.supervisorName}</Text>
-          </Text>
-        ) : null}
-        {project.ownerName ? (
-          <Text style={[styles.metaLine, { fontSize: layout.scale(11) }]} numberOfLines={1}>
-            Team lead: <Text style={styles.metaStrong}>{project.ownerName}</Text>
-          </Text>
-        ) : null}
-      </View>
+      {project.supervisorName ? (
+        <Text style={[styles.metaLine, { fontSize: layout.scale(11) }]} numberOfLines={1}>
+          Supervisor: <Text style={styles.metaStrong}>{project.supervisorName}</Text>
+        </Text>
+      ) : null}
 
       {visibleSkills.length > 0 ? (
         <View style={styles.skillsRow}>

@@ -1,4 +1,6 @@
 import api, { resolveApiFileUrl } from "@/api/axiosInstance";
+import { listDoctorsDirectory, type DoctorDirectoryEntry } from "@/api/doctorDirectoryApi";
+import { resolveGraduationProjectAbstractFile } from "@/lib/graduationProjectAbstractDocument";
 import { projectTypeLabel as projectTypeLabelFromLib } from "@/lib/graduationProjectTypes";
 
 function asRecord(raw: unknown): Record<string, unknown> | null {
@@ -101,6 +103,72 @@ function parseGraduationProjectMember(raw: unknown): GraduationProjectMember | n
   };
 }
 
+export type GradProjectPendingSupervisor = {
+  doctorId: number;
+  name: string;
+  specialization?: string | null;
+};
+
+function normalizePendingSupervisor(raw: unknown): GradProjectPendingSupervisor | null {
+  const record = asRecord(raw);
+  if (!record) return null;
+  const doctorId = pickNumber(record, "doctorId", "DoctorId");
+  if (!doctorId) return null;
+  return {
+    doctorId,
+    name: pickString(record, "name", "Name"),
+    specialization: pickNullableString(record, "specialization", "Specialization"),
+  };
+}
+
+export function normSupervisorRequestStatus(status?: string | null): string {
+  return (status ?? "").trim().toLowerCase();
+}
+
+export function normalizeGradProject(project: GradProject): GradProject {
+  const raw = project as GradProject & {
+    SupervisorRequestStatus?: string | null;
+    PendingSupervisor?: GradProjectPendingSupervisor | null;
+    SupervisorCancellationRequestStatus?: string | null;
+    AbstractFileName?: string | null;
+    AbstractFilePath?: string | null;
+    AbstractFileUploadedAt?: string | null;
+  };
+  const rawRecord = raw as unknown as Record<string, unknown>;
+  return {
+    ...project,
+    abstractFileName:
+      project.abstractFileName ??
+      pickNullableString(rawRecord, "abstractFileName", "AbstractFileName"),
+    abstractFilePath:
+      project.abstractFilePath ??
+      pickNullableString(rawRecord, "abstractFilePath", "AbstractFilePath"),
+    abstractFileUploadedAt:
+      project.abstractFileUploadedAt ??
+      pickNullableString(rawRecord, "abstractFileUploadedAt", "AbstractFileUploadedAt"),
+    supervisorRequestStatus:
+      project.supervisorRequestStatus ?? raw.SupervisorRequestStatus ?? null,
+    pendingSupervisor: normalizePendingSupervisor(
+      project.pendingSupervisor ?? raw.PendingSupervisor,
+    ),
+    supervisorCancellationRequestStatus:
+      project.supervisorCancellationRequestStatus ??
+      raw.SupervisorCancellationRequestStatus ??
+      null,
+  };
+}
+
+export function getPendingSupervisorDoctorId(
+  project: GradProject | null | undefined,
+): number | null {
+  if (!project || project.supervisor) return null;
+  if (normSupervisorRequestStatus(project.supervisorRequestStatus) !== "pending") {
+    return null;
+  }
+  const doctorId = project.pendingSupervisor?.doctorId;
+  return typeof doctorId === "number" && doctorId > 0 ? doctorId : null;
+}
+
 export function parseGradProject(raw: unknown): GradProject {
   const record = asRecord(raw) ?? {};
   const membersRaw = record.members ?? record.Members;
@@ -114,7 +182,7 @@ export function parseGradProject(raw: unknown): GradProject {
       ? projectTypeRaw
       : "GP";
 
-  return {
+  const parsed: GradProject = {
     id: pickNumber(record, "id", "Id"),
     ownerId: pickNumber(record, "ownerId", "OwnerId"),
     ownerName: pickString(record, "ownerName", "OwnerName") || undefined,
@@ -137,10 +205,28 @@ export function parseGradProject(raw: unknown): GradProject {
     skillPriorities: pickStringList(record, "skillPriorities", "SkillPriorities"),
     lookingForTeammates: pickBool(record, "lookingForTeammates", "LookingForTeammates") || undefined,
     supervisor: parseGradProjectSupervisor(record.supervisor ?? record.Supervisor),
+    supervisorRequestStatus:
+      pickNullableString(record, "supervisorRequestStatus", "SupervisorRequestStatus") ?? null,
+    pendingSupervisor: normalizePendingSupervisor(
+      record.pendingSupervisor ?? record.PendingSupervisor,
+    ),
+    supervisorCancellationRequestStatus:
+      pickNullableString(
+        record,
+        "supervisorCancellationRequestStatus",
+        "SupervisorCancellationRequestStatus",
+      ) ?? null,
+    abstractFileName:
+      pickNullableString(record, "abstractFileName", "AbstractFileName") ?? null,
+    abstractFilePath:
+      pickNullableString(record, "abstractFilePath", "AbstractFilePath") ?? null,
+    abstractFileUploadedAt:
+      pickNullableString(record, "abstractFileUploadedAt", "AbstractFileUploadedAt") ?? null,
     members,
     createdAt: pickString(record, "createdAt", "CreatedAt") || undefined,
     updatedAt: pickString(record, "updatedAt", "UpdatedAt") || undefined,
   };
+  return normalizeGradProject(parsed);
 }
 
 function parseGraduationProjectMembersResponse(raw: unknown): GraduationProjectMembersResponse {
@@ -224,6 +310,12 @@ export type GradProject = {
   skillPriorities?: string[];
   lookingForTeammates?: boolean;
   supervisor?: GradProjectSupervisor | null;
+  supervisorRequestStatus?: "pending" | "accepted" | "rejected" | string | null;
+  pendingSupervisor?: GradProjectPendingSupervisor | null;
+  supervisorCancellationRequestStatus?: "pending" | "approved" | "rejected" | string | null;
+  abstractFileName?: string | null;
+  abstractFilePath?: string | null;
+  abstractFileUploadedAt?: string | null;
   members: GradProjectMember[];
   createdAt?: string;
   updatedAt?: string;
@@ -261,6 +353,35 @@ export type GradProjectRecommendedStudent = {
   skills: string[];
   matchScore: number;
   reason?: string;
+  hasPendingInvite?: boolean;
+  isMember?: boolean;
+  canInvite?: boolean;
+};
+
+export type GradProjectRecommendedSupervisor = {
+  doctorId: number;
+  userId?: number;
+  name: string;
+  specialization: string;
+  matchScore: number;
+  reason?: string;
+};
+
+export type ProjectAvailableStudent = {
+  studentId: number;
+  userId: number;
+  name: string;
+  major: string;
+  university: string;
+  academicYear: string;
+  profilePicture?: string | null;
+  skills: string[];
+  matchScore: number;
+  isMember: boolean;
+  hasPendingInvite: boolean;
+  isOwner: boolean;
+  isProjectFull: boolean;
+  canInvite: boolean;
 };
 
 function parseGraduationProjectsMyPayload(raw: unknown): {
@@ -286,7 +407,8 @@ function parseGraduationProjectsMyPayload(raw: unknown): {
     Role?: string | null;
   };
 
-  const project = d.project ?? d.Project ?? null;
+  const projectRaw = d.project ?? d.Project ?? null;
+  const project = projectRaw ? parseGradProject(projectRaw) : null;
   const roleRaw = d.role ?? d.Role;
   const role = roleRaw === "owner" || roleRaw === "member" ? roleRaw : null;
 
@@ -367,15 +489,20 @@ export async function joinGraduationProject(projectId: number): Promise<void> {
   await api.post(`/graduation-projects/${projectId}/join`);
 }
 
-/** GET /api/graduation-projects/{id}/abstract-file — supervisor or project owner. */
+/** GET /api/graduation-projects/{id}/abstract-file — with embedded-abstract fallback. */
 export async function getGraduationProjectAbstractFile(
   projectId: number,
+  project?: GradProject | null,
 ): Promise<GradProjectAbstractFile | null> {
+  if (project) {
+    const fromProject = resolveGraduationProjectAbstractFile(project);
+    if (fromProject) return fromProject;
+  }
   try {
     const { data } = await api.get(`/graduation-projects/${projectId}/abstract-file`);
     return parseGradProjectAbstractFile(data);
   } catch {
-    return null;
+    return project ? resolveGraduationProjectAbstractFile(project) : null;
   }
 }
 
@@ -387,33 +514,195 @@ export async function getGraduationProjectMembers(
   return parseGraduationProjectMembersResponse(data);
 }
 
+function parseRecommendedStudentRows(data: unknown): GradProjectRecommendedStudent[] {
+  if (!Array.isArray(data)) return [];
+  const rows: GradProjectRecommendedStudent[] = [];
+  for (const raw of data) {
+    const record = asRecord(raw);
+    if (!record) continue;
+    const studentId = pickNumber(record, "studentId", "StudentId");
+    if (!studentId) continue;
+    const skillsRaw = record.skills ?? record.Skills;
+    rows.push({
+      studentId,
+      name: pickString(record, "name", "Name") || `Student #${studentId}`,
+      major: pickString(record, "major", "Major"),
+      university: pickString(record, "university", "University"),
+      skills: Array.isArray(skillsRaw)
+        ? skillsRaw.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        : [],
+      matchScore: normalizeMatchScore(pickNumber(record, "matchScore", "MatchScore")),
+      hasPendingInvite: pickBool(record, "hasPendingInvite", "HasPendingInvite") || undefined,
+      isMember: pickBool(record, "isMember", "IsMember") || undefined,
+      canInvite: pickBool(record, "canInvite", "CanInvite") || undefined,
+    });
+  }
+  return rows;
+}
+
+/** GET /api/graduation-projects/{projectId}/recommended-students */
 export async function getRecommendedStudents(
   projectId: number,
 ): Promise<GradProjectRecommendedStudent[]> {
-  const { data } = await api.post<
-    {
-      studentId: number;
-      matchScore: number;
-      reason?: string | null;
-      name?: string;
-      major?: string;
-      university?: string;
-      skills?: string[];
-    }[]
-  >("/ai/recommend-students", { projectId });
+  const { data } = await api.get(`/graduation-projects/${projectId}/recommended-students`);
+  return parseRecommendedStudentRows(data);
+}
 
-  const rows = Array.isArray(data) ? data : [];
-  return rows
-    .map((row) => ({
-      studentId: row.studentId,
-      name: row.name?.trim() || `Student #${row.studentId}`,
-      major: row.major?.trim() ?? "",
-      university: row.university?.trim() ?? "",
-      skills: Array.isArray(row.skills) ? row.skills : [],
-      matchScore: normalizeMatchScore(row.matchScore),
-      reason: row.reason?.trim() || undefined,
-    }))
-    .filter((row) => row.matchScore > 0);
+function supervisorDisplayName(doctorId: number, ...candidates: (string | undefined)[]): string {
+  for (const value of candidates) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed;
+  }
+  return `Doctor #${doctorId}`;
+}
+
+function parseCatalogSupervisorRows(data: unknown): GradProjectRecommendedSupervisor[] {
+  if (!Array.isArray(data)) return [];
+  const rows: GradProjectRecommendedSupervisor[] = [];
+  for (const raw of data) {
+    const record = asRecord(raw);
+    if (!record) continue;
+    const doctorId = pickNumber(record, "doctorId", "DoctorId");
+    if (!doctorId) continue;
+    const userId = pickNumber(record, "userId", "UserId");
+    rows.push({
+      doctorId,
+      userId: userId > 0 ? userId : undefined,
+      name: pickString(record, "name", "Name"),
+      specialization: pickString(record, "specialization", "Specialization"),
+      matchScore: normalizeMatchScore(pickNumber(record, "matchScore", "MatchScore")),
+    });
+  }
+  return rows;
+}
+
+function parseAiSupervisorRows(data: unknown): {
+  doctorId: number;
+  matchScore: number;
+  reason?: string | null;
+  doctorName: string;
+  specialization: string;
+}[] {
+  if (!Array.isArray(data)) return [];
+  const rows: {
+    doctorId: number;
+    matchScore: number;
+    reason?: string | null;
+    doctorName: string;
+    specialization: string;
+  }[] = [];
+  for (const raw of data) {
+    const record = asRecord(raw);
+    if (!record) continue;
+    const doctorId = pickNumber(record, "doctorId", "DoctorId");
+    if (!doctorId) continue;
+    const reasonRaw = record.reason ?? record.Reason;
+    rows.push({
+      doctorId,
+      matchScore: pickNumber(record, "matchScore", "MatchScore"),
+      reason: typeof reasonRaw === "string" ? reasonRaw : null,
+      doctorName: pickString(record, "doctorName", "DoctorName", "name", "Name"),
+      specialization: pickString(record, "specialization", "Specialization"),
+    });
+  }
+  return rows;
+}
+
+/** POST /ai/recommend-supervisors + GET catalog merge (web parity). */
+export async function getRecommendedSupervisors(
+  projectId: number,
+): Promise<GradProjectRecommendedSupervisor[]> {
+  const [aiSettled, catalogSettled, directorySettled] = await Promise.allSettled([
+    api.post("/ai/recommend-supervisors", { projectId }),
+    api.get(`/graduation-projects/${projectId}/recommended-supervisors`),
+    listDoctorsDirectory(),
+  ]);
+
+  const aiRows =
+    aiSettled.status === "fulfilled" ? parseAiSupervisorRows(aiSettled.value.data) : [];
+  const catalog =
+    catalogSettled.status === "fulfilled"
+      ? parseCatalogSupervisorRows(catalogSettled.value.data)
+      : [];
+  const directory: DoctorDirectoryEntry[] =
+    directorySettled.status === "fulfilled" ? directorySettled.value : [];
+
+  const catalogById = new Map(catalog.map((d) => [d.doctorId, d]));
+  const doctorsByProfileId = new Map(directory.map((d) => [d.profileId, d]));
+
+  if (aiRows.length > 0) {
+    return [...aiRows]
+      .sort((a, b) => normalizeMatchScore(b.matchScore) - normalizeMatchScore(a.matchScore))
+      .map((row) => {
+        const meta = catalogById.get(row.doctorId);
+        const dir = doctorsByProfileId.get(row.doctorId);
+        return {
+          doctorId: row.doctorId,
+          userId: meta?.userId ?? (dir?.userId && dir.userId > 0 ? dir.userId : undefined),
+          name: supervisorDisplayName(row.doctorId, row.doctorName, meta?.name, dir?.name),
+          specialization:
+            row.specialization.trim() ||
+            meta?.specialization?.trim() ||
+            dir?.specialization?.trim() ||
+            "",
+          matchScore: normalizeMatchScore(row.matchScore),
+          reason: row.reason?.trim() || undefined,
+        };
+      });
+  }
+
+  return catalog
+    .map((d) => {
+      const dir = doctorsByProfileId.get(d.doctorId);
+      return {
+        ...d,
+        userId: d.userId ?? (dir?.userId && dir.userId > 0 ? dir.userId : undefined),
+        name: supervisorDisplayName(d.doctorId, d.name, dir?.name),
+        specialization: d.specialization?.trim() || dir?.specialization?.trim() || "",
+      };
+    })
+    .sort((a, b) => b.matchScore - a.matchScore);
+}
+
+export async function getAvailableStudents(
+  projectId: number,
+): Promise<ProjectAvailableStudent[]> {
+  const { data } = await api.get<ProjectAvailableStudent[]>(
+    `/graduation-projects/${projectId}/available-students`,
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+export async function leaveGraduationProject(projectId: number): Promise<{ message: string }> {
+  const { data } = await api.delete<{ message: string }>(`/graduation-projects/${projectId}/leave`);
+  return data;
+}
+
+export async function removeProjectMember(
+  projectId: number,
+  memberStudentId: number,
+): Promise<{ message: string; currentMembers: number }> {
+  const { data } = await api.delete<{ message: string; currentMembers: number }>(
+    `/graduation-projects/${projectId}/members/${memberStudentId}`,
+  );
+  return data;
+}
+
+export async function changeProjectLeader(
+  projectId: number,
+  memberStudentId: number,
+): Promise<{ message: string; newLeaderId: number }> {
+  const { data } = await api.put<{ message: string; newLeaderId: number }>(
+    `/graduation-projects/${projectId}/change-leader/${memberStudentId}`,
+  );
+  return data;
+}
+
+export async function requestProjectSupervisor(
+  projectId: number,
+  doctorId: number,
+): Promise<void> {
+  await api.post(`/graduation-projects/${projectId}/request-supervisor/${doctorId}`);
 }
 
 export async function inviteStudentToProject(

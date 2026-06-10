@@ -108,7 +108,7 @@ export async function loadOrganizationProfileExtrasForOwner(
   ]);
   return {
     followersCount: publicProfile?.followersCount,
-    members: [],
+    members: publicProfile?.members ?? [],
     events,
     leadership: teamRows.map((member) => ({
       id: member.id,

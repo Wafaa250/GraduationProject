@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
+import { User } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 
@@ -19,10 +20,9 @@ import { AssociationPageHeader } from "@/components/association/AssociationPageH
 import { AssociationWorkspaceScreen } from "@/components/association/AssociationWorkspaceScreen";
 import { ASSOC_COLORS } from "@/constants/associationTheme";
 import {
-  ASSOCIATION_ROUTES,
-  associationRecruitmentApplicationPath,
   associationRecruitmentCampaignPath,
 } from "@/lib/associationRoutes";
+import { studentDirectoryProfilePath } from "@/lib/studentRoutes";
 import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import { fieldTypeLabel, normalizeFieldType } from "@/lib/recruitmentFormFields";
 import { formatEventDate } from "@/lib/eventFormUtils";
@@ -44,12 +44,15 @@ const STATUS_LABELS: Record<RecruitmentApplicationStatus, string> = {
 
 export default function AssociationRecruitmentApplicationDetailScreen() {
   const layout = useResponsiveLayout();
-  const { campaignId, applicationId } = useLocalSearchParams<{
+  const { campaignId, applicationId, studentUserId: studentUserIdParam } = useLocalSearchParams<{
     campaignId: string;
     applicationId: string;
+    studentUserId?: string;
   }>();
   const campId = Number(campaignId);
   const appId = Number(applicationId);
+  const studentUserId = Number(studentUserIdParam);
+  const canViewStudentProfile = Number.isFinite(studentUserId) && studentUserId > 0;
   const [detail, setDetail] = useState<RecruitmentApplicationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -179,6 +182,18 @@ export default function AssociationRecruitmentApplicationDetailScreen() {
           {detail.studentMajor ? ` · ${detail.studentMajor}` : ""}
         </Text>
         <Text style={styles.currentStatus}>Current: {STATUS_LABELS[detail.status]}</Text>
+
+        {canViewStudentProfile ? (
+          <View style={{ marginTop: layout.space("sm") }}>
+            <AssociationActionButton
+              label="View profile"
+              variant="outline"
+              compact
+              icon={<User size={14} color={ASSOC_COLORS.accentDark} strokeWidth={2.25} />}
+              onPress={() => router.push(studentDirectoryProfilePath(studentUserId) as Href)}
+            />
+          </View>
+        ) : null}
 
         <View style={[styles.statusRow, { marginTop: layout.space("md"), gap: 8 }]}>
           {STATUSES.map((status) => (

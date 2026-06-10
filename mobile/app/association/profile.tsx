@@ -19,6 +19,7 @@ import { AssociationWorkspaceScreen } from "@/components/association/Association
 import { OrganizationProfileEventsSection } from "@/components/association/OrganizationProfileEventsSection";
 import { OrganizationProfileHeader } from "@/components/association/OrganizationProfileHeader";
 import { OrganizationProfileLeadershipSection } from "@/components/association/OrganizationProfileLeadershipSection";
+import { OrganizationProfileMembersSection } from "@/components/association/OrganizationProfileMembersSection";
 import { OrganizationProfileReadOnlyView } from "@/components/association/OrganizationProfileReadOnlyView";
 import { ASSOC_COLORS } from "@/constants/associationTheme";
 import { useAssociationWorkspace } from "@/contexts/AssociationWorkspaceContext";
@@ -259,6 +260,11 @@ export default function AssociationProfileScreen() {
         <OrganizationProfileLeadershipSection
           organizationName={profile.associationName}
           members={extras?.leadership ?? []}
+          loading={extras == null}
+        />
+
+        <OrganizationProfileMembersSection
+          members={extras?.members ?? []}
           loading={extras == null}
         />
       </View>

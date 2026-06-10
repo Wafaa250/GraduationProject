@@ -12,6 +12,7 @@ import {
   formatStudentMessageTime,
   getStudentConversationDisplayName,
   getStudentConversationPreview,
+  getStudentConversationSubtitle,
 } from "@/lib/studentMessagesNavigation";
 
 type Props = {
@@ -19,6 +20,8 @@ type Props = {
   currentUserId: number | null;
   pinned: boolean;
   muted: boolean;
+  selected?: boolean;
+  embedded?: boolean;
   onPress: () => void;
   onTogglePin: () => void;
   onToggleMute: () => void;
@@ -29,6 +32,8 @@ export function ConversationCard({
   currentUserId,
   pinned,
   muted,
+  selected = false,
+  embedded = false,
   onPress,
   onTogglePin,
   onToggleMute,
@@ -39,6 +44,7 @@ export function ConversationCard({
   const swipeRef = useRef<Swipeable>(null);
 
   const name = getStudentConversationDisplayName(item, currentUserId);
+  const subtitle = getStudentConversationSubtitle(item, currentUserId);
   const preview = getStudentConversationPreview(item);
   const time = formatStudentMessageTime(item.lastMessage?.createdAt);
   const unread = item.unseenCount > 0;
@@ -113,12 +119,13 @@ export function ConversationCard({
         style={[
           styles.card,
           {
-            marginHorizontal: layout.horizontalPadding,
+            marginHorizontal: embedded ? layout.space("sm") : layout.horizontalPadding,
             borderRadius: layout.radius.input,
             padding: layout.space("md"),
             marginBottom: layout.space("sm"),
           },
           unread && styles.cardUnread,
+          selected && styles.cardSelected,
         ]}
         accessibilityRole="button"
       >
@@ -153,6 +160,10 @@ export function ConversationCard({
             </View>
             {time ? <Text style={styles.time}>{time}</Text> : null}
           </View>
+
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
 
           <View style={styles.previewRow}>
             <Text
@@ -194,6 +205,10 @@ const createStyles = (colors: HubColorScheme) =>
       borderColor: colors.primaryBorder,
       backgroundColor: colors.primarySoft,
     },
+    cardSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primarySoft,
+    },
     teamAvatar: {
       alignItems: "center",
       justifyContent: "center",
@@ -232,6 +247,11 @@ const createStyles = (colors: HubColorScheme) =>
       color: colors.muted,
       fontSize: 12,
       fontWeight: "600",
+    },
+    subtitle: {
+      color: colors.muted,
+      fontSize: 12,
+      fontWeight: "500",
     },
     previewRow: {
       flexDirection: "row",

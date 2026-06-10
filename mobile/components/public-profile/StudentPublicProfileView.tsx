@@ -49,6 +49,8 @@ type Props = {
   projects: GradProject[];
   memberships?: OrganizationMembership[];
   showShare?: boolean;
+  onMessage?: () => void;
+  messaging?: boolean;
 };
 
 export function StudentPublicProfileView({
@@ -56,6 +58,8 @@ export function StudentPublicProfileView({
   projects,
   memberships = [],
   showShare = true,
+  onMessage,
+  messaging = false,
 }: Props) {
   const layout = useResponsiveLayout();
   const { colors } = useHubTheme();
@@ -209,15 +213,30 @@ export function StudentPublicProfileView({
           </View>
         ) : null}
 
-        {showShare ? (
-          <Pressable
-            style={[styles.shareBtn, { borderRadius: layout.radius.input }]}
-            onPress={() => void handleShare()}
-            accessibilityRole="button"
-          >
-            <Ionicons name="share-outline" size={16} color={colors.foreground} />
-            <Text style={styles.shareBtnText}>Share Profile</Text>
-          </Pressable>
+        {onMessage || showShare ? (
+          <View style={styles.heroActions}>
+            {onMessage ? (
+              <Pressable
+                style={[styles.messageBtn, { borderRadius: layout.radius.input }]}
+                onPress={onMessage}
+                disabled={messaging}
+                accessibilityRole="button"
+              >
+                <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.messageBtnText}>{messaging ? "Opening…" : "Message"}</Text>
+              </Pressable>
+            ) : null}
+            {showShare ? (
+              <Pressable
+                style={[styles.shareBtn, { borderRadius: layout.radius.input }]}
+                onPress={() => void handleShare()}
+                accessibilityRole="button"
+              >
+                <Ionicons name="share-outline" size={16} color={colors.foreground} />
+                <Text style={styles.shareBtnText}>Share Profile</Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
       </View>
 
@@ -534,6 +553,26 @@ const createStyles = (colors: HubColorScheme) =>
     previewChips: {
       marginTop: 2,
     },
+    heroActions: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+    messageBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      backgroundColor: colors.primary,
+      minWidth: 120,
+    },
+    messageBtnText: {
+      fontWeight: "700",
+      fontSize: 14,
+      color: "#FFFFFF",
+    },
     shareBtn: {
       flexDirection: "row",
       alignItems: "center",
@@ -542,6 +581,7 @@ const createStyles = (colors: HubColorScheme) =>
       borderWidth: 1,
       borderColor: colors.border,
       paddingVertical: 10,
+      paddingHorizontal: 16,
       backgroundColor: colors.inputBg,
     },
     shareBtnText: {

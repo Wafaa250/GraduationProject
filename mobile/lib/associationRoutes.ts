@@ -48,6 +48,11 @@ export function associationRecruitmentPositionFormPath(
 export function associationRecruitmentApplicationPath(
   campaignId: number,
   applicationId: number,
+  studentUserId?: number,
 ): string {
-  return `/association/recruitment/${campaignId}/applications/${applicationId}`;
+  const base = `/association/recruitment/${campaignId}/applications/${applicationId}`;
+  if (studentUserId != null && studentUserId > 0) {
+    return `${base}?studentUserId=${studentUserId}`;
+  }
+  return base;
 }

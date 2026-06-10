@@ -1,5 +1,7 @@
 import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
+import { router } from 'expo-router'
 
+import { setMustChangePassword } from '@/lib/authSession'
 import { getItem } from '@/utils/authStorage'
 import { getApiBaseUrl } from '@/utils/apiBaseUrl'
 
@@ -33,10 +35,28 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   return config
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (axios.isAxiosError(error)) {
+      const data = error.response?.data as { code?: string } | undefined
+      if (error.response?.status === 403 && data?.code === 'PASSWORD_CHANGE_REQUIRED') {
+        await setMustChangePassword(true)
+        router.replace('/change-password' as never)
+      }
+    }
+    return Promise.reject(error)
+  },
+)
+
 /** Human-readable message from failed API calls (for UI + console) */
 export function parseApiErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
-    const data = err.response?.data as { message?: string; errors?: string[] } | undefined
+    const data = err.response?.data as { message?: string; errors?: string[]; code?: string } | undefined
+
+    if (data?.code === 'PASSWORD_CHANGE_REQUIRED') {
+      return data.message ?? 'You must set a new password before continuing.'
+    }
 
     if (data && typeof data.message === 'string' && data.message.trim() !== '') {
       return data.message

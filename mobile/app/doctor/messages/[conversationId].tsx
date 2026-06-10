@@ -25,12 +25,17 @@ import { getDoctorMe } from "@/api/meApi";
 import { DoctorChatBubble } from "@/components/doctor/messages/DoctorChatBubble";
 import { DoctorChatComposer } from "@/components/doctor/messages/DoctorChatComposer";
 import { DoctorChatSkeleton } from "@/components/doctor/messages/DoctorChatSkeleton";
+import { ConversationsListSheet } from "@/components/messages/ConversationsListSheet";
+import { DoctorConversationsPanel } from "@/components/doctor/messages/DoctorConversationsPanel";
 import { DoctorChatThreadHeader } from "@/components/doctor/messages/DoctorChatThreadHeader";
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
 import { MessagesEmptyState } from "@/components/messages/MessagesEmptyState";
+import { useMessagesSplitLayout } from "@/hooks/use-messages-split-layout";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useDoctorConversationsListState } from "@/contexts/DoctorConversationsListContext";
 import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import {
   getDoctorConversationDisplayName,
   getDoctorConversationKind,
@@ -44,6 +49,7 @@ type LoadError = "invalid" | "failed";
 
 export default function DoctorMessageThreadScreen() {
   const layout = useResponsiveLayout();
+  const isSplit = useMessagesSplitLayout();
   const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
@@ -58,6 +64,8 @@ export default function DoctorMessageThreadScreen() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [conversationsOpen, setConversationsOpen] = useState(false);
+  const conversationsList = useDoctorConversationsListState();
 
   const isValidId = Number.isFinite(conversationNumericId) && conversationNumericId > 0;
 
@@ -173,30 +181,28 @@ export default function DoctorMessageThreadScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      "Delete conversation?",
-      "This permanently removes the conversation and all messages for everyone in this chat. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              setDeleting(true);
-              try {
-                await deleteConversation(conversationNumericId);
-                router.replace(DOCTOR_ROUTES.messages as never);
-              } catch (err) {
-                Alert.alert("Could not delete conversation", parseApiErrorMessage(err));
-              } finally {
-                setDeleting(false);
-              }
-            })();
-          },
-        },
-      ],
-    );
+    if (!isValidId) return;
+
+    confirmAlert({
+      title: "Delete conversation?",
+      message:
+        "This permanently removes the conversation and all messages for everyone in this chat. This cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          await deleteConversation(conversationNumericId);
+          conversationsList.removeConversation(conversationNumericId);
+          setThread(null);
+          router.replace(DOCTOR_ROUTES.messages as never);
+        } catch (err) {
+          showAlert("Could not delete conversation", parseApiErrorMessage(err));
+        } finally {
+          setDeleting(false);
+        }
+      },
+    });
   };
 
   const handleViewStudent = () => {
@@ -211,8 +217,6 @@ export default function DoctorMessageThreadScreen() {
     thread != null &&
     kind === "student" &&
     getDoctorStudentProfilePath(thread, currentUserId) != null;
-
-  const isTeamChat = kind === "team";
 
   const renderMessage = ({ item, index }: { item: ConversationMessage; index: number }) => {
     const messages = thread?.messages ?? [];
@@ -237,7 +241,6 @@ export default function DoctorMessageThreadScreen() {
         isFirstInGroup={isFirstInGroup}
         isLastInGroup={isLastInGroup}
         isNewGroup={isNewGroup}
-        isTeamChat={isTeamChat}
       />
     );
   };
@@ -318,8 +321,11 @@ export default function DoctorMessageThreadScreen() {
           kind={kind}
           participantCount={thread.participantCount}
           participants={thread.users}
+          currentUserId={currentUserId}
           showViewStudent={showViewStudent}
           deleting={deleting}
+          showBack={!isSplit}
+          onOpenConversations={isSplit ? undefined : () => setConversationsOpen(true)}
           onViewStudent={handleViewStudent}
           onDelete={handleDelete}
         />
@@ -329,12 +335,33 @@ export default function DoctorMessageThreadScreen() {
           kind={null}
           participantCount={0}
           participants={[]}
+          currentUserId={currentUserId}
           showViewStudent={false}
           deleting={deleting}
+          showBack={!isSplit}
+          onOpenConversations={isSplit ? undefined : () => setConversationsOpen(true)}
           onViewStudent={() => undefined}
           onDelete={handleDelete}
         />
       )}
+
+      <ConversationsListSheet
+        visible={conversationsOpen}
+        onClose={() => setConversationsOpen(false)}
+        colors={colors}
+      >
+        <DoctorConversationsPanel
+          variant="sheet"
+          showPageHeader={false}
+          selectedId={conversationNumericId}
+          onSelectConversation={(id) => {
+            setConversationsOpen(false);
+            if (id !== conversationNumericId) {
+              router.replace(`/doctor/messages/${id}` as never);
+            }
+          }}
+        />
+      </ConversationsListSheet>
 
       <KeyboardAvoidingView
         style={styles.flex}

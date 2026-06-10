@@ -1,12 +1,43 @@
 import api from "@/api/axiosInstance";
 
+export type InvitationStatus =
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "cancelled"
+  | "expired";
+
+export type ReceivedProjectInvitation = {
+  invitationId: number;
+  projectId: number;
+  projectName: string;
+  senderName: string;
+  status: InvitationStatus | string;
+  createdAt: string;
+};
+
 export type SentProjectInvitation = {
   invitationId: number;
   receiverId: number;
   receiverName: string;
-  status: "pending" | "accepted" | "rejected" | "cancelled" | "expired" | string;
+  status: InvitationStatus | string;
   createdAt: string;
 };
+
+export async function getReceivedInvitations(): Promise<ReceivedProjectInvitation[]> {
+  const { data } = await api.get<ReceivedProjectInvitation[]>("/invitations/received");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function acceptInvitation(id: number): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>(`/invitations/${id}/accept`);
+  return data;
+}
+
+export async function rejectInvitation(id: number): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>(`/invitations/${id}/reject`);
+  return data;
+}
 
 export async function getSentProjectInvitations(
   projectId: number,

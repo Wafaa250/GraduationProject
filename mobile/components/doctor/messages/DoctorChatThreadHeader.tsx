@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { ConversationUser } from "@/api/conversationsApi";
-import { DoctorChatParticipantsSheet } from "@/components/doctor/messages/DoctorChatParticipantsSheet";
+import { ChatParticipantsSheet } from "@/components/messages/ChatParticipantsSheet";
 import {
   DOCTOR_RADIUS,
   doctorElevatedShadow,
@@ -21,8 +21,11 @@ type Props = {
   kind: DoctorConversationKind | null;
   participantCount: number;
   participants: ConversationUser[];
+  currentUserId: number | null;
   showViewStudent: boolean;
   deleting: boolean;
+  showBack?: boolean;
+  onOpenConversations?: () => void;
   onViewStudent: () => void;
   onDelete: () => void;
 };
@@ -32,8 +35,11 @@ export function DoctorChatThreadHeader({
   kind,
   participantCount,
   participants,
+  currentUserId,
   showViewStudent,
   deleting,
+  showBack = true,
+  onOpenConversations,
   onViewStudent,
   onDelete,
 }: Props) {
@@ -44,15 +50,11 @@ export function DoctorChatThreadHeader({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isTeam = kind === "team";
+  const showParticipants = isTeam && participants.length > 0;
   const subtitle =
     participantCount > 0
       ? `${isTeam ? "Team" : "Direct"} · ${participantCount} member${participantCount === 1 ? "" : "s"}`
       : "Loading conversation…";
-
-  const openParticipants = () => {
-    if (participants.length === 0) return;
-    setParticipantsOpen(true);
-  };
 
   const handleMenuAction = (action: "student" | "delete") => {
     setMenuOpen(false);
@@ -72,30 +74,42 @@ export function DoctorChatThreadHeader({
         ]}
       >
         <View style={styles.row}>
-          <MobileBackButton fallbackHref={DOCTOR_ROUTES.messages} color={colors.foreground} />
+          {showBack ? <MobileBackButton fallbackHref={DOCTOR_ROUTES.messages} color={colors.foreground} /> : null}
+          {onOpenConversations ? (
+            <Pressable
+              onPress={onOpenConversations}
+              hitSlop={8}
+              style={[styles.actionBtn, { backgroundColor: colors.inputBg, borderRadius: DOCTOR_RADIUS.pill }]}
+              accessibilityRole="button"
+              accessibilityLabel="Open conversations"
+            >
+              <Ionicons name="chatbubbles-outline" size={18} color={colors.foreground} />
+            </Pressable>
+          ) : null}
 
-          <Pressable
-            style={styles.identity}
-            onPress={openParticipants}
-            disabled={participants.length === 0}
-            accessibilityRole="button"
-            accessibilityLabel="Conversation details"
-          >
+          <View style={styles.identity}>
             <MessageConversationAvatar name={title} size={layout.scale(40)} />
             <View style={styles.titleBlock}>
               <Text style={[styles.title, { fontSize: layout.fontSize.label }]} numberOfLines={1}>
                 {title}
               </Text>
-              <View style={styles.subtitleRow}>
-                <Text style={[styles.subtitle, { fontSize: layout.fontSize.footer }]} numberOfLines={1}>
-                  {subtitle}
-                </Text>
-                {participants.length > 0 ? (
-                  <Ionicons name="chevron-down" size={14} color={colors.muted} />
-                ) : null}
-              </View>
+              <Text style={[styles.subtitle, { fontSize: layout.fontSize.footer }]} numberOfLines={1}>
+                {subtitle}
+              </Text>
             </View>
-          </Pressable>
+          </View>
+
+          {showParticipants ? (
+            <Pressable
+              onPress={() => setParticipantsOpen(true)}
+              hitSlop={8}
+              style={[styles.actionBtn, { backgroundColor: colors.inputBg, borderRadius: DOCTOR_RADIUS.pill }]}
+              accessibilityRole="button"
+              accessibilityLabel="View participants"
+            >
+              <Ionicons name="people-outline" size={18} color={colors.foreground} />
+            </Pressable>
+          ) : null}
 
           <Pressable
             onPress={() => setMenuOpen((v) => !v)}
@@ -143,9 +157,11 @@ export function DoctorChatThreadHeader({
         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)} accessibilityLabel="Close menu" />
       ) : null}
 
-      <DoctorChatParticipantsSheet
+      <ChatParticipantsSheet
         visible={participantsOpen}
         participants={participants}
+        currentUserId={currentUserId}
+        colors={colors}
         onClose={() => setParticipantsOpen(false)}
       />
     </>
@@ -182,15 +198,16 @@ function createStyles(colors: HubColorScheme) {
       fontWeight: "800",
       letterSpacing: -0.3,
     },
-    subtitleRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
     subtitle: {
       color: colors.muted,
       fontWeight: "600",
       flexShrink: 1,
+    },
+    actionBtn: {
+      width: 36,
+      height: 36,
+      alignItems: "center",
+      justifyContent: "center",
     },
     menuBtn: {
       width: 36,

@@ -18,13 +18,17 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
+  acceptSupervisorCancelRequest,
   acceptSupervisorRequest,
+  getDoctorSupervisorCancelRequests,
   getDoctorSupervisorRequests,
-  getDoctorSupervisorRequestsSummary,
+  rejectSupervisorCancelRequest,
   rejectSupervisorRequest,
+  type DoctorSupervisorCancelRequest,
   type DoctorSupervisorRequest,
   type DoctorSupervisorRequestsSummary,
 } from "@/api/doctorDashboardApi";
+import { CancellationRequestListCard } from "@/components/doctor/supervision/CancellationRequestListCard";
 import { SupervisionRequestDetailSheet } from "@/components/doctor/supervision/SupervisionRequestDetailSheet";
 import { SupervisionRequestListCard } from "@/components/doctor/supervision/SupervisionRequestListCard";
 import { SupervisionRequestsEmptyState } from "@/components/doctor/supervision/SupervisionRequestsEmptyState";
@@ -38,6 +42,13 @@ import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import {
+  cancelRequestTabCounts,
+  filterCancelRequestsByTab,
+  inboxActionKey,
+  mergeDoctorRequestRows,
+  type DoctorRequestInboxKind,
+} from "@/lib/doctorRequestInbox";
+import {
   filterSupervisionRequestsByTab,
   searchSupervisionRequests,
   sortSupervisionRequests,
@@ -47,12 +58,25 @@ import {
   type SupervisionRequestTab,
 } from "@/lib/supervisionRequestUi";
 
-const EMPTY_SUMMARY: DoctorSupervisorRequestsSummary = {
-  pendingCount: 0,
-  acceptedCount: 0,
-  rejectedCount: 0,
-  totalCount: 0,
-};
+type RequestListEntry =
+  | { kind: "supervision"; request: DoctorSupervisorRequest }
+  | { kind: "cancellation"; request: DoctorSupervisorCancelRequest };
+
+function listEntryKey(entry: RequestListEntry): string {
+  return entry.kind === "supervision"
+    ? `supervision-${entry.request.requestId}`
+    : `cancellation-${entry.request.requestId}`;
+}
+
+function entryMatchesSearch(entry: RequestListEntry, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (entry.kind === "supervision") {
+    return searchSupervisionRequests([entry.request], query).length > 0;
+  }
+  const hay = [entry.request.studentName, entry.request.projectName].join(" ").toLowerCase();
+  return hay.includes(q);
+}
 
 export default function DoctorSupervisionRequestsScreen() {
   const layout = useResponsiveLayout();
@@ -62,28 +86,51 @@ export default function DoctorSupervisionRequestsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [requests, setRequests] = useState<DoctorSupervisorRequest[]>([]);
-  const [summary, setSummary] = useState<DoctorSupervisorRequestsSummary>(EMPTY_SUMMARY);
+  const [cancelRequests, setCancelRequests] = useState<DoctorSupervisorCancelRequest[]>([]);
   const [activeTab, setActiveTab] = useState<SupervisionRequestTab>("all");
   const [sort, setSort] = useState<SupervisionRequestSort>("newest");
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<DoctorSupervisorRequest | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [list, counts] = await Promise.all([
+      const [supervisionResult, cancelResult] = await Promise.allSettled([
         getDoctorSupervisorRequests(),
-        getDoctorSupervisorRequestsSummary(),
+        getDoctorSupervisorCancelRequests(),
       ]);
-      setRequests(list);
-      setSummary(counts);
+
+      const supervisionList =
+        supervisionResult.status === "fulfilled" ? supervisionResult.value : [];
+      const cancelList = cancelResult.status === "fulfilled" ? cancelResult.value : [];
+
+      if (supervisionResult.status === "rejected" && cancelResult.status === "rejected") {
+        throw supervisionResult.reason;
+      }
+
+      if (supervisionResult.status === "rejected") {
+        Alert.alert(
+          "Could not load supervision requests",
+          parseApiErrorMessage(supervisionResult.reason),
+        );
+      }
+
+      if (cancelResult.status === "rejected") {
+        Alert.alert(
+          "Could not load cancellation requests",
+          parseApiErrorMessage(cancelResult.reason),
+        );
+      }
+
+      setRequests(supervisionList);
+      setCancelRequests(cancelList);
     } catch (err) {
-      Alert.alert("Could not load supervision requests", parseApiErrorMessage(err));
+      Alert.alert("Could not load requests", parseApiErrorMessage(err));
       setRequests([]);
-      setSummary(EMPTY_SUMMARY);
+      setCancelRequests([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -96,14 +143,82 @@ export default function DoctorSupervisionRequestsScreen() {
     }, [load]),
   );
 
-  const tabCounts = useMemo(() => supervisionTabCounts(requests), [requests]);
+  const supervisionCounts = useMemo(() => supervisionTabCounts(requests), [requests]);
+  const cancelCounts = useMemo(() => cancelRequestTabCounts(cancelRequests), [cancelRequests]);
 
-  const filteredRequests = useMemo(() => {
-    let items = filterSupervisionRequestsByTab(requests, activeTab);
-    items = searchSupervisionRequests(items, searchQuery);
-    return sortSupervisionRequests(items, sort);
-  }, [requests, activeTab, searchQuery, sort]);
+  const summary = useMemo<DoctorSupervisorRequestsSummary>(
+    () => ({
+      pendingCount: supervisionCounts.pending + cancelCounts.pending,
+      acceptedCount: supervisionCounts.accepted + cancelCounts.accepted,
+      rejectedCount: supervisionCounts.rejected + cancelCounts.rejected,
+      totalCount: supervisionCounts.all + cancelCounts.all,
+    }),
+    [supervisionCounts, cancelCounts],
+  );
 
+  const tabCounts = useMemo(
+    () => ({
+      all: supervisionCounts.all + cancelCounts.all,
+      pending: mergeDoctorRequestRows(requests, cancelRequests).length,
+      accepted: supervisionCounts.accepted + cancelCounts.accepted,
+      rejected: supervisionCounts.rejected + cancelCounts.rejected,
+    }),
+    [requests, cancelRequests, supervisionCounts, cancelCounts],
+  );
+
+  const filteredEntries = useMemo((): RequestListEntry[] => {
+    let entries: RequestListEntry[];
+
+    if (activeTab === "pending") {
+      const merged = mergeDoctorRequestRows(requests, cancelRequests);
+      const supervisionById = new Map(requests.map((r) => [r.requestId, r]));
+      const cancelById = new Map(cancelRequests.map((r) => [r.requestId, r]));
+
+      entries = merged.flatMap((row): RequestListEntry[] => {
+        if (row.kind === "supervision") {
+          const request = supervisionById.get(row.requestId);
+          return request ? [{ kind: "supervision", request }] : [];
+        }
+        const request = cancelById.get(row.requestId);
+        return request ? [{ kind: "cancellation", request }] : [];
+      });
+    } else {
+      const supervisionFiltered = filterSupervisionRequestsByTab(requests, activeTab);
+      const cancelFiltered = filterCancelRequestsByTab(cancelRequests, activeTab);
+
+      entries = [
+        ...supervisionFiltered.map(
+          (request): RequestListEntry => ({ kind: "supervision", request }),
+        ),
+        ...cancelFiltered.map(
+          (request): RequestListEntry => ({ kind: "cancellation", request }),
+        ),
+      ].sort((a, b) => b.request.requestId - a.request.requestId);
+    }
+
+    if (searchQuery.trim()) {
+      entries = entries.filter((entry) => entryMatchesSearch(entry, searchQuery));
+    }
+
+    if (activeTab !== "pending" && sort !== "newest") {
+      const supervisionOnly = entries.filter(
+        (e): e is { kind: "supervision"; request: DoctorSupervisorRequest } =>
+          e.kind === "supervision",
+      );
+      const cancellations = entries.filter((e) => e.kind === "cancellation");
+      const sortedSupervision = sortSupervisionRequests(
+        supervisionOnly.map((e) => e.request),
+        sort,
+      ).map((request): RequestListEntry => ({ kind: "supervision", request }));
+      return [...sortedSupervision, ...cancellations].sort(
+        (a, b) => b.request.requestId - a.request.requestId,
+      );
+    }
+
+    return entries;
+  }, [requests, cancelRequests, activeTab, searchQuery, sort]);
+
+  const totalVisibleCount = requests.length + cancelRequests.length;
   const sortLabel = SORT_OPTIONS.find((o) => o.id === sort)?.label ?? "Newest first";
 
   const openSortPicker = () => {
@@ -137,35 +252,42 @@ export default function DoctorSupervisionRequestsScreen() {
     );
   };
 
-  const handleAccept = async (requestId: number) => {
-    setBusyId(requestId);
+  const runAction = async (
+    kind: DoctorRequestInboxKind,
+    requestId: number,
+    action: "accept" | "reject",
+  ) => {
+    const key = inboxActionKey(kind, requestId, action);
+    setBusyKey(key);
     try {
-      await acceptSupervisorRequest(requestId);
-      Alert.alert("Request accepted", "The project is now in Active Projects.");
-      setDetailVisible(false);
-      setSelectedRequest(null);
+      if (kind === "supervision") {
+        if (action === "accept") {
+          await acceptSupervisorRequest(requestId);
+          Alert.alert("Request accepted", "The project is now in Active Projects.");
+        } else {
+          await rejectSupervisorRequest(requestId);
+          Alert.alert("Request rejected");
+        }
+        setDetailVisible(false);
+        setSelectedRequest(null);
+      } else if (action === "accept") {
+        await acceptSupervisorCancelRequest(requestId);
+        Alert.alert("Cancellation accepted", "Supervision has been removed for this project.");
+      } else {
+        await rejectSupervisorCancelRequest(requestId);
+        Alert.alert("Cancellation rejected");
+      }
       await load(true);
     } catch (err) {
-      Alert.alert("Accept failed", parseApiErrorMessage(err));
+      Alert.alert("Action failed", parseApiErrorMessage(err));
     } finally {
-      setBusyId(null);
+      setBusyKey(null);
     }
   };
 
-  const handleReject = async (requestId: number) => {
-    setBusyId(requestId);
-    try {
-      await rejectSupervisorRequest(requestId);
-      Alert.alert("Request rejected");
-      setDetailVisible(false);
-      setSelectedRequest(null);
-      await load(true);
-    } catch (err) {
-      Alert.alert("Reject failed", parseApiErrorMessage(err));
-    } finally {
-      setBusyId(null);
-    }
-  };
+  const isEntryBusy = (entry: RequestListEntry) =>
+    busyKey === inboxActionKey(entry.kind, entry.request.requestId, "accept") ||
+    busyKey === inboxActionKey(entry.kind, entry.request.requestId, "reject");
 
   const openDetails = (request: DoctorSupervisorRequest) => {
     setSelectedRequest(request);
@@ -174,36 +296,42 @@ export default function DoctorSupervisionRequestsScreen() {
 
   const listHeader = (
     <View style={styles.listHeader}>
-      <SupervisionRequestsStatsStrip summary={summary} loading={loading && requests.length === 0} />
+      <SupervisionRequestsStatsStrip summary={summary} loading={loading && totalVisibleCount === 0} />
 
       <SupervisionRequestsFilterBar
         value={activeTab}
         counts={tabCounts}
-        loading={loading && requests.length === 0}
+        loading={loading && totalVisibleCount === 0}
         onChange={setActiveTab}
       />
 
       <View style={styles.metaBar}>
         <Text style={[styles.metaText, { fontSize: layout.scale(12) }]}>
-          {filteredRequests.length} of {requests.length} requests
+          {filteredEntries.length} of {totalVisibleCount} requests
         </Text>
-        <Pressable
-          onPress={openSortPicker}
-          style={styles.sortBtn}
-          accessibilityRole="button"
-          accessibilityLabel={`Sort: ${sortLabel}`}
-        >
-          <ArrowDownUp size={13} color={colors.muted} strokeWidth={2.2} />
-          <Text style={[styles.sortText, { color: colors.muted, fontSize: layout.scale(12) }]}>
-            {sortLabel}
+        {activeTab !== "pending" ? (
+          <Pressable
+            onPress={openSortPicker}
+            style={styles.sortBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Sort: ${sortLabel}`}
+          >
+            <ArrowDownUp size={13} color={colors.muted} strokeWidth={2.2} />
+            <Text style={[styles.sortText, { color: colors.muted, fontSize: layout.scale(12) }]}>
+              {sortLabel}
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={[styles.sortText, { color: colors.muted, fontSize: layout.scale(11) }]}>
+            Supervision before cancellation
           </Text>
-        </Pressable>
+        )}
       </View>
     </View>
   );
 
   const renderEmpty = () => {
-    if (loading && requests.length === 0) {
+    if (loading && totalVisibleCount === 0) {
       return <SupervisionRequestsListSkeleton />;
     }
 
@@ -212,15 +340,15 @@ export default function DoctorSupervisionRequestsScreen() {
         title={
           searchQuery.trim()
             ? "No matches found"
-            : requests.length === 0
+            : totalVisibleCount === 0
               ? "No supervision requests available"
               : "No requests in this filter"
         }
         description={
           searchQuery.trim()
             ? "Try a different student name, project title, or skill keyword."
-            : requests.length === 0
-              ? "When students submit supervision requests, they will appear here for review."
+            : totalVisibleCount === 0
+              ? "When students submit supervision or cancellation requests, they will appear here."
               : "Try another status filter or adjust your search."
         }
         compact
@@ -233,7 +361,7 @@ export default function DoctorSupervisionRequestsScreen() {
       <DoctorScreen edges={["top"]}>
         <DoctorStackHeader
           title="Requests"
-          subtitle="Review student supervision requests"
+          subtitle="Review supervision and cancellation requests"
           variant="compact"
           rightSlot={
             <Pressable
@@ -289,11 +417,23 @@ export default function DoctorSupervisionRequestsScreen() {
         ) : null}
 
         <FlatList
-          data={filteredRequests}
-          keyExtractor={(item) => String(item.requestId)}
-          renderItem={({ item }) => (
-            <SupervisionRequestListCard request={item} onPress={() => openDetails(item)} />
-          )}
+          data={filteredEntries}
+          keyExtractor={listEntryKey}
+          renderItem={({ item }) =>
+            item.kind === "supervision" ? (
+              <SupervisionRequestListCard
+                request={item.request}
+                onPress={() => openDetails(item.request)}
+              />
+            ) : (
+              <CancellationRequestListCard
+                request={item.request}
+                busy={isEntryBusy(item)}
+                onAccept={(id) => void runAction("cancellation", id, "accept")}
+                onReject={(id) => void runAction("cancellation", id, "reject")}
+              />
+            )
+          }
           ListHeaderComponent={listHeader}
           ListEmptyComponent={renderEmpty}
           contentContainerStyle={{
@@ -301,7 +441,7 @@ export default function DoctorSupervisionRequestsScreen() {
             paddingTop: DOCTOR_SPACE.sm,
             paddingBottom: layout.space("xxl") + layout.insets.bottom,
             gap: DOCTOR_SPACE.sm,
-            flexGrow: filteredRequests.length === 0 ? 1 : undefined,
+            flexGrow: filteredEntries.length === 0 ? 1 : undefined,
           }}
           refreshControl={
             <RefreshControl
@@ -321,13 +461,17 @@ export default function DoctorSupervisionRequestsScreen() {
         <SupervisionRequestDetailSheet
           visible={detailVisible}
           request={selectedRequest}
-          busy={busyId === selectedRequest?.requestId}
+          busy={
+            selectedRequest != null &&
+            (busyKey === inboxActionKey("supervision", selectedRequest.requestId, "accept") ||
+              busyKey === inboxActionKey("supervision", selectedRequest.requestId, "reject"))
+          }
           onClose={() => {
             setDetailVisible(false);
             setSelectedRequest(null);
           }}
-          onAccept={(id) => void handleAccept(id)}
-          onReject={(id) => void handleReject(id)}
+          onAccept={(id) => void runAction("supervision", id, "accept")}
+          onReject={(id) => void runAction("supervision", id, "reject")}
         />
       </DoctorScreen>
     </GestureHandlerRootView>

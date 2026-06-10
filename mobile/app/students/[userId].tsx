@@ -1,23 +1,33 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text } from "react-native";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import type { GradProject } from "@/api/gradProjectApi";
 import { getStudentDirectoryProfile } from "@/api/studentDirectoryApi";
+import { getMe } from "@/api/meApi";
 import { getGraduationProjectsForStudent } from "@/api/studentProfileApi";
 import { StudentPublicProfileView } from "@/components/public-profile/StudentPublicProfileView";
 import { PublicProfileShell } from "@/components/student/PublicProfileShell";
 import { HUB_COLORS } from "@/constants/studentHubTheme";
 import { mapDirectoryProfileToMe } from "@/lib/mapStudentDirectoryProfile";
+import { openStudentDirectMessage } from "@/lib/openStudentDirectMessage";
 
 export default function PublicStudentProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [messaging, setMessaging] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [projects, setProjects] = useState<GradProject[]>([]);
   const [profile, setProfile] = useState<ReturnType<typeof mapDirectoryProfileToMe> | null>(null);
   const numericUserId = Number(userId);
+
+  useEffect(() => {
+    void getMe()
+      .then((me) => setCurrentUserId(me.userId))
+      .catch(() => setCurrentUserId(null));
+  }, []);
 
   useEffect(() => {
     if (!Number.isFinite(numericUserId) || numericUserId <= 0) {
@@ -46,6 +56,24 @@ export default function PublicStudentProfileScreen() {
     })();
   }, [numericUserId]);
 
+  const canMessage =
+    currentUserId != null &&
+    currentUserId > 0 &&
+    profile != null &&
+    profile.userId !== currentUserId;
+
+  const handleMessage = async () => {
+    if (!profile || !canMessage) return;
+    setMessaging(true);
+    try {
+      await openStudentDirectMessage(profile.userId);
+    } catch (err) {
+      Alert.alert("Could not start conversation", parseApiErrorMessage(err));
+    } finally {
+      setMessaging(false);
+    }
+  };
+
   if (loading) {
     return (
       <PublicProfileShell title="Student Profile" fallbackHref="/feed">
@@ -70,7 +98,12 @@ export default function PublicStudentProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <StudentPublicProfileView profile={profile} projects={projects} />
+        <StudentPublicProfileView
+          profile={profile}
+          projects={projects}
+          onMessage={canMessage ? () => void handleMessage() : undefined}
+          messaging={messaging}
+        />
       </ScrollView>
     </PublicProfileShell>
   );
@@ -84,7 +117,9 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   error: {
-    color: "#DC2626",
-    fontSize: 15,
+    color: HUB_COLORS.muted,
+    textAlign: "center",
+    marginTop: 24,
+    paddingHorizontal: 20,
   },
 });

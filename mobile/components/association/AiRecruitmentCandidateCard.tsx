@@ -1,12 +1,13 @@
 import { router, type Href } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import { FileText } from "lucide-react-native";
+import { FileText, User } from "lucide-react-native";
 
 import type { RecruitmentApplicantAnalysisResult } from "@/api/recruitmentApplicationsApi";
 import { AssociationActionButton } from "@/components/association/AssociationActionButton";
 import { AssociationCard } from "@/components/association/AssociationCard";
 import { ASSOC_COLORS } from "@/constants/associationTheme";
 import { associationRecruitmentApplicationPath } from "@/lib/associationRoutes";
+import { studentDirectoryProfilePath } from "@/lib/studentRoutes";
 
 export type AiRecruitmentCardVariant = "suggested" | "accepted" | "rejected";
 
@@ -98,13 +99,24 @@ export function AiRecruitmentCandidateCard({
       ) : null}
 
       <View style={styles.actions}>
+        {r.studentUserId > 0 ? (
+          <AssociationActionButton
+            label="View profile"
+            variant="outline"
+            compact
+            icon={<User size={14} color={ASSOC_COLORS.accentDark} strokeWidth={2.25} />}
+            onPress={() => router.push(studentDirectoryProfilePath(r.studentUserId) as Href)}
+          />
+        ) : null}
         <AssociationActionButton
           label="View application"
           variant="outline"
           compact
           icon={<FileText size={14} color={ASSOC_COLORS.accentDark} strokeWidth={2.25} />}
           onPress={() =>
-            router.push(associationRecruitmentApplicationPath(campaignId, r.applicationId) as Href)
+            router.push(
+              associationRecruitmentApplicationPath(campaignId, r.applicationId, r.studentUserId) as Href,
+            )
           }
         />
         {variant === "suggested" && onAccept ? (

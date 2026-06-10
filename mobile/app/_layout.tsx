@@ -57,6 +57,7 @@ function RootNavigation() {
           <Stack.Screen name="companies/[id]" />
           <Stack.Screen name="organizations/[id]" />
           <Stack.Screen name="browse-projects" />
+          <Stack.Screen name="browse-project-students" />
           <Stack.Screen name="events/[eventId]" />
           <Stack.Screen name="recruitment/[campaignId]" />
           <Stack.Screen name="projects/[projectId]" />

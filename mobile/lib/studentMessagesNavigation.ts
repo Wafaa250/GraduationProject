@@ -1,4 +1,47 @@
-import type { ConversationDetails, ConversationListItem } from "@/api/conversationsApi";
+import type {
+  ConversationDetails,
+  ConversationListItem,
+  ConversationUser,
+} from "@/api/conversationsApi";
+
+export type StudentConversationKind = "direct" | "team" | "group";
+
+export function getStudentConversationKind(
+  conversation: Pick<
+    ConversationDetails,
+    "courseTeamId" | "type" | "participantCount" | "users"
+  >,
+): StudentConversationKind {
+  if (conversation.courseTeamId != null || conversation.type === "Team") {
+    return "team";
+  }
+  if (conversation.participantCount > 2 || conversation.users.length > 2) {
+    return "group";
+  }
+  return "direct";
+}
+
+/** Mirrors WEB: course team or more than two participants. */
+export function isStudentGroupConversation(
+  conversation: Pick<
+    ConversationDetails,
+    "courseTeamId" | "type" | "participantCount" | "users"
+  >,
+): boolean {
+  return getStudentConversationKind(conversation) !== "direct";
+}
+
+/** Resolve display name from conversation.users; "You" for the logged-in sender (WEB parity). */
+export function getStudentMessageSenderName(
+  users: ConversationUser[],
+  senderId: number,
+  currentUserId: number | null,
+): string {
+  if (currentUserId != null && senderId === currentUserId) return "You";
+  const name = users.find((u) => u.id === senderId)?.name?.trim();
+  if (name) return name;
+  return `User ${senderId}`;
+}
 
 export function getStudentConversationDisplayName(
   conversation: ConversationListItem | ConversationDetails,

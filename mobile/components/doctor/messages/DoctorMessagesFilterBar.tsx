@@ -19,9 +19,10 @@ const FILTERS: { id: DoctorMessagesFilter; label: string }[] = [
 type Props = {
   value: DoctorMessagesFilter;
   onChange: (value: DoctorMessagesFilter) => void;
+  embedded?: boolean;
 };
 
-export function DoctorMessagesFilterBar({ value, onChange }: Props) {
+export function DoctorMessagesFilterBar({ value, onChange, embedded = false }: Props) {
   const layout = useResponsiveLayout();
   const { colors } = useDoctorTheme();
   const styles = createStyles(colors);
@@ -31,7 +32,7 @@ export function DoctorMessagesFilterBar({ value, onChange }: Props) {
       style={[
         styles.wrap,
         {
-          marginHorizontal: layout.horizontalPadding,
+          marginHorizontal: embedded ? DOCTOR_SPACE.sm : layout.horizontalPadding,
           marginBottom: DOCTOR_SPACE.sm,
         },
       ]}

@@ -1,4 +1,5 @@
 import type { GraduationNotification } from "@/api/notificationsApi";
+import { studentMessageThreadPath } from "@/lib/studentRoutes";
 
 function conversationIdFromChatDedupKey(dedupKey: string | null | undefined): number | null {
   if (!dedupKey) return null;
@@ -15,7 +16,7 @@ export function getStudentNotificationTarget(n: GraduationNotification): string 
   if (n.category === "chat") {
     const conversationId = conversationIdFromChatDedupKey(n.dedupKey);
     if (conversationId != null && Number.isFinite(conversationId)) {
-      return `/messages/${conversationId}`;
+      return studentMessageThreadPath(conversationId);
     }
     return "/messages";
   }

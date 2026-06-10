@@ -1,6 +1,11 @@
 import api from "./axiosInstance";
 import { appendMobileUploadFile, type MobileUploadFile } from "./mobileUpload";
 
+function projectAppliesToSection(project: CourseProject, sectionId: number): boolean {
+  if (project.applyToAllSections) return true;
+  return project.sections.some((s) => s.sectionId === sectionId);
+}
+
 export type DoctorCourse = {
   courseId: number;
   name: string;
@@ -303,9 +308,102 @@ export async function getDoctorCourses(): Promise<DoctorCourse[]> {
   return Array.isArray(data) ? data.map((row) => normalizeDoctorCourse(row as Record<string, unknown>)) : [];
 }
 
+function finalizeCourseWorkspaceResponse(raw: CourseWorkspaceResponse): CourseWorkspaceResponse {
+  const courseProjects = (raw.courseProjects ?? [])
+    .map((p) => ({
+      ...p,
+      teamCount: typeof p.teamCount === "number" ? p.teamCount : 0,
+      sections: p.sections ?? [],
+    }))
+    .filter(isValidCourseProject);
+
+  return {
+    course: raw.course,
+    stats: {
+      sections: raw.stats?.sections ?? 0,
+      students: raw.stats?.students ?? 0,
+      courseProjectCount: courseProjects.length,
+    },
+    sections: (raw.sections ?? []).map((s) => ({
+      ...s,
+      studentCount: s.studentCount ?? 0,
+      courseProjectCount: s.courseProjectCount ?? 0,
+    })),
+    students: (raw.students ?? []).map((s) => ({
+      ...s,
+      userId: s.userId ?? null,
+      skills: Array.isArray(s.skills) ? s.skills.filter(Boolean) : [],
+    })),
+    courseProjects,
+    teams: (raw.teams ?? []).map((t) => ({
+      courseProjectId: t.courseProjectId,
+      courseProjectTitle: t.courseProjectTitle,
+      teamId: t.teamId,
+      teamIndex: t.teamIndex,
+      memberCount: t.memberCount,
+      members: t.members ?? [],
+    })),
+  };
+}
+
+/** Client-side aggregation — same pipeline as WEB (no GET /courses/{id}/workspace). */
 export async function getCourseWorkspace(courseId: number): Promise<CourseWorkspaceResponse> {
-  const { data } = await api.get<Record<string, unknown>>(`/courses/${courseId}/workspace`);
-  return normalizeCourseWorkspaceResponse(data ?? {});
+  const [course, sections, students, projects] = await Promise.all([
+    getDoctorCourseById(courseId),
+    getCourseSections(courseId),
+    getCourseEnrolledStudents(courseId),
+    getCourseProjects(courseId),
+  ]);
+
+  const teamsResponses = await Promise.all(
+    projects.map((project) => getCourseProjectTeams(courseId, project.id).catch(() => null)),
+  );
+
+  const teamsByProjectId = new Map<number, CourseProjectTeamsResponse>();
+  projects.forEach((project, index) => {
+    const response = teamsResponses[index];
+    if (response) teamsByProjectId.set(project.id, response);
+  });
+
+  const teams: CourseWorkspaceTeam[] = [];
+  for (const project of projects) {
+    const teamsRes = teamsByProjectId.get(project.id);
+    if (!teamsRes) continue;
+    for (const team of teamsRes.teams) {
+      teams.push({
+        courseProjectId: project.id,
+        courseProjectTitle: project.title,
+        teamId: team.teamId,
+        teamIndex: team.teamIndex,
+        memberCount: team.memberCount,
+        members: team.members ?? [],
+      });
+    }
+  }
+
+  const courseProjects: CourseProjectWithTeams[] = projects.map((project) => ({
+    ...project,
+    teamCount: teamsByProjectId.get(project.id)?.teamCount ?? 0,
+  }));
+
+  const sectionWorkspace: CourseSectionWorkspace[] = sections.map((section) => ({
+    ...section,
+    studentCount: students.filter((s) => s.sectionId === section.id).length,
+    courseProjectCount: projects.filter((p) => projectAppliesToSection(p, section.id)).length,
+  }));
+
+  return finalizeCourseWorkspaceResponse({
+    course,
+    stats: {
+      sections: sections.length,
+      students: students.length,
+      courseProjectCount: projects.length,
+    },
+    sections: sectionWorkspace,
+    students,
+    courseProjects,
+    teams,
+  });
 }
 
 export async function getCourseSections(courseId: number): Promise<CourseSection[]> {

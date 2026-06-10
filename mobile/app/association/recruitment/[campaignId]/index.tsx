@@ -388,7 +388,7 @@ export default function AssociationRecruitmentDetailScreen() {
                   campaignId={campaign.id}
                   result={result}
                   variant="suggested"
-                  showBestPick={index === 0}
+                  showBestPick={index === 0 && (acceptedByPosition[position.id]?.length ?? 0) === 0}
                   busy={decisionBusyApplicationId === result.applicationId}
                   onAccept={() => void handleAcceptCandidate(result, position.id)}
                   onReject={() => void handleRejectCandidate(result, position.id)}

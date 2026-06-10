@@ -23,11 +23,17 @@ export function DoctorRouteGuard({ children }: Props) {
     void (async () => {
       const token = await getItem("token");
       const role = await getItem("role");
+      const mustChangePassword = await getItem("mustChangePassword");
 
       if (cancelled) return;
 
       if (!token) {
         router.replace("/login" as Href);
+        return;
+      }
+
+      if (mustChangePassword === "true") {
+        router.replace("/change-password" as Href);
         return;
       }
 

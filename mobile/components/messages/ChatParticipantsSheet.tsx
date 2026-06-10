@@ -1,23 +1,31 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ConversationUser } from "@/api/conversationsApi";
 import { MessageConversationAvatar } from "@/components/messages/MessageConversationAvatar";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
-import { useDoctorTheme } from "@/hooks/useDoctorTheme";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 type Props = {
   visible: boolean;
   participants: ConversationUser[];
+  currentUserId: number | null;
   onClose: () => void;
+  colors?: HubColorScheme;
 };
 
-export function DoctorChatParticipantsSheet({ visible, participants, onClose }: Props) {
+export function ChatParticipantsSheet({
+  visible,
+  participants,
+  currentUserId,
+  onClose,
+  colors: colorsOverride,
+}: Props) {
   const layout = useResponsiveLayout();
   const insets = useSafeAreaInsets();
-  const { colors } = useDoctorTheme();
+  const { colors: themeColors } = useHubTheme();
+  const colors = colorsOverride ?? themeColors;
   const styles = createStyles(colors);
 
   return (
@@ -41,30 +49,38 @@ export function DoctorChatParticipantsSheet({ visible, participants, onClose }: 
           </Text>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: layout.scale(320) }}>
-            {participants.map((user) => (
-              <View
-                key={user.id}
-                style={[
-                  styles.row,
-                  {
-                    paddingVertical: layout.space("sm"),
-                    gap: layout.space("sm"),
-                  },
-                ]}
-              >
-                <MessageConversationAvatar name={user.name} size={layout.scale(40)} />
-                <View style={styles.rowText}>
-                  <Text style={[styles.name, { fontSize: layout.fontSize.body }]} numberOfLines={1}>
-                    {user.name}
-                  </Text>
-                  {user.email ? (
-                    <Text style={[styles.email, { fontSize: layout.fontSize.footer }]} numberOfLines={1}>
-                      {user.email}
-                    </Text>
-                  ) : null}
+            {participants.map((user) => {
+              const isYou = currentUserId != null && user.id === currentUserId;
+              return (
+                <View
+                  key={user.id}
+                  style={[
+                    styles.row,
+                    {
+                      paddingVertical: layout.space("sm"),
+                      gap: layout.space("sm"),
+                    },
+                  ]}
+                >
+                  <MessageConversationAvatar name={user.name} size={layout.scale(40)} />
+                  <View style={styles.rowText}>
+                    <View style={styles.nameRow}>
+                      <Text style={[styles.name, { fontSize: layout.fontSize.body }]} numberOfLines={1}>
+                        {user.name}
+                      </Text>
+                      {isYou ? (
+                        <Text style={[styles.youBadge, { fontSize: layout.fontSize.footer - 2 }]}>You</Text>
+                      ) : null}
+                    </View>
+                    {user.email ? (
+                      <Text style={[styles.secondary, { fontSize: layout.fontSize.footer }]} numberOfLines={1}>
+                        {user.email}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -112,11 +128,22 @@ function createStyles(colors: HubColorScheme) {
       minWidth: 0,
       gap: 2,
     },
+    nameRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      minWidth: 0,
+    },
     name: {
       color: colors.foreground,
       fontWeight: "700",
+      flexShrink: 1,
     },
-    email: {
+    youBadge: {
+      color: colors.primary,
+      fontWeight: "700",
+    },
+    secondary: {
       color: colors.muted,
       fontWeight: "500",
     },
