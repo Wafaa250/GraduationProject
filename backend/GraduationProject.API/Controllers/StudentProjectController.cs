@@ -140,7 +140,12 @@ namespace GraduationProject.API.Controllers
                 .FirstOrDefaultAsync(p => p.OwnerId == student.Id);
 
             if (ownedProject != null)
+            {
+                await EnsureOwnerMembershipAsync(ownedProject);
+                if (!ownedProject.Members.Any(m => m.StudentId == ownedProject.OwnerId))
+                    ownedProject = await LoadProjectForResponseAsync(ownedProject.Id) ?? ownedProject;
                 return Ok(new { role = "owner", project = MapToDto(ownedProject, student.Id) });
+            }
 
             var membership = await _db.StudentProjectMembers
                 .Include(m => m.Project)
@@ -154,7 +159,13 @@ namespace GraduationProject.API.Controllers
                 .FirstOrDefaultAsync(m => m.StudentId == student.Id);
 
             if (membership != null)
-                return Ok(new { role = "member", project = MapToDto(membership.Project, student.Id) });
+            {
+                var memberProject = membership.Project;
+                await EnsureOwnerMembershipAsync(memberProject);
+                if (!memberProject.Members.Any(m => m.StudentId == memberProject.OwnerId))
+                    memberProject = await LoadProjectForResponseAsync(memberProject.Id) ?? memberProject;
+                return Ok(new { role = "member", project = MapToDto(memberProject, student.Id) });
+            }
 
             return Ok(new { role = (string?)null, project = (object?)null });
         }
@@ -177,6 +188,10 @@ namespace GraduationProject.API.Controllers
             if (project == null)
                 return NotFound(new { message = "Project not found." });
 
+            await EnsureOwnerMembershipAsync(project);
+            if (!project.Members.Any(m => m.StudentId == project.OwnerId))
+                project = await LoadProjectForResponseAsync(project.Id) ?? project;
+
             return Ok(MapToDto(project, callerProfileId));
         }
 
@@ -196,6 +211,10 @@ namespace GraduationProject.API.Controllers
 
             if (project == null)
                 return NotFound(new { message = "Project not found." });
+
+            await EnsureOwnerMembershipAsync(project);
+            if (!project.Members.Any(m => m.StudentId == project.OwnerId))
+                project = await LoadProjectForResponseAsync(project.Id) ?? project;
 
             var isOwner = callerProfile != null && project.OwnerId == callerProfile.Id;
             var isLeader = callerProfile != null && project.Members
@@ -496,33 +515,15 @@ namespace GraduationProject.API.Controllers
             _db.StudentProjects.Add(project);
             await _db.SaveChangesAsync();
 
-            var leaderExists = await _db.StudentProjectMembers
-                .AnyAsync(m => m.ProjectId == project.Id && m.StudentId == project.OwnerId);
+            await EnsureOwnerMembershipAsync(project);
 
-            if (!leaderExists)
-            {
-                _db.StudentProjectMembers.Add(new StudentProjectMember
-                {
-                    ProjectId = project.Id,
-                    StudentId = project.OwnerId,
-                    Role = "leader",
-                    JoinedAt = DateTime.UtcNow,
-                });
-                await _db.SaveChangesAsync();
-            }
+            var createdProject = await LoadProjectForResponseAsync(project.Id);
+            if (createdProject == null)
+                return StatusCode(500, new { message = "Project was created but could not be loaded." });
 
-            await _db.Entry(project).Reference(p => p.Owner).LoadAsync();
-            var ownerNav = project.Owner;
-            if (ownerNav != null)
-                await _db.Entry(ownerNav).Reference(o => o.User).LoadAsync();
-            await _db.Entry(project).Collection(p => p.Members).Query()
-                .Include(m => m.Student).ThenInclude(s => s.User)
-                .LoadAsync();
-            await _db.Entry(project).Reference(p => p.Supervisor).LoadAsync();
+            await _gpNotifications.NotifyProjectCreatedAsync(createdProject.Id, createdProject.Name, student.Id);
 
-            await _gpNotifications.NotifyProjectCreatedAsync(project.Id, project.Name, student.Id);
-
-            return StatusCode(201, MapToDto(project, student.Id));
+            return StatusCode(201, MapToDto(createdProject, student.Id));
         }
 
         // =====================================================================
@@ -646,10 +647,12 @@ namespace GraduationProject.API.Controllers
 
             await _gpNotifications.NotifyMemberJoinedAsync(project.Id, project.Name, student.Id);
 
+            var currentMembers = await _db.StudentProjectMembers.CountAsync(m => m.ProjectId == project.Id);
+
             return Ok(new
             {
                 message = "Successfully joined the project team.",
-                currentMembers = project.Members.Count + 1
+                currentMembers
             });
         }
 
@@ -1305,6 +1308,46 @@ namespace GraduationProject.API.Controllers
         }
 
         /// <summary>
+        /// Ensures the project owner has a leader row in graduation_project_members.
+        /// Repairs legacy projects and refreshes stale tracked navigation collections.
+        /// </summary>
+        private async Task EnsureOwnerMembershipAsync(StudentProject project)
+        {
+            if (project.Id <= 0 || project.OwnerId <= 0)
+                return;
+
+            var ownerInNavigation = project.Members?.Any(m => m.StudentId == project.OwnerId) == true;
+            if (ownerInNavigation)
+                return;
+
+            var ownerInDatabase = await _db.StudentProjectMembers
+                .AnyAsync(m => m.ProjectId == project.Id && m.StudentId == project.OwnerId);
+
+            if (!ownerInDatabase)
+            {
+                var leader = new StudentProjectMember
+                {
+                    ProjectId = project.Id,
+                    StudentId = project.OwnerId,
+                    Role = "leader",
+                    JoinedAt = DateTime.UtcNow,
+                };
+                _db.StudentProjectMembers.Add(leader);
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        private async Task<StudentProject?> LoadProjectForResponseAsync(int projectId)
+        {
+            return await _db.StudentProjects
+                .Include(p => p.Owner).ThenInclude(o => o.User)
+                .Include(p => p.Members).ThenInclude(m => m.Student).ThenInclude(s => s.User)
+                .Include(p => p.Supervisor!).ThenInclude(s => s.User)
+                .Include(p => p.SupervisorRequests).ThenInclude(r => r.Doctor).ThenInclude(d => d.User)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+        }
+
+        /// <summary>
         /// Maps a StudentProject entity to its response DTO.
         ///
         /// Capacity logic:
@@ -1317,6 +1360,8 @@ namespace GraduationProject.API.Controllers
             var members = p.Members?.ToList() ?? new();
             var totalCapacity = p.PartnersCount;
             var currentCount = members.Count;
+            if (p.OwnerId > 0 && members.All(m => m.StudentId != p.OwnerId))
+                currentCount = Math.Max(currentCount, 1);
 
             return new StudentProjectResponseDto
             {

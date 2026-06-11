@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" role="img" aria-label="SkillSwap">
+  <g transform="scale(10.6666667)">
+    <defs>
+      <radialGradient id="ss-512-core" cx="42%" cy="38%" r="62%" fx="38%" fy="32%">
+        <stop offset="0%" stop-color="#818CF8"/>
+        <stop offset="38%" stop-color="#6366F1"/>
+        <stop offset="72%" stop-color="#7B61B8"/>
+        <stop offset="100%" stop-color="#5B4D8A"/>
+      </radialGradient>
+      <radialGradient id="ss-512-spec" cx="32%" cy="28%" r="45%">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+      </radialGradient>
+      <clipPath id="ss-512-clip">
+        <circle cx="24" cy="24" r="21"/>
+      </clipPath>
+    </defs>
+    <circle cx="24" cy="24" r="20.5" fill="url(#ss-512-core)"/>
+    <circle cx="24" cy="24" r="20.5" fill="url(#ss-512-spec)"/>
+    <circle cx="24" cy="24" r="19.82" fill="none" stroke="#FDE68A" stroke-width="1.2" stroke-opacity="0.92"/>
+    <circle cx="24" cy="24" r="18.73" fill="none" stroke="#FBBF24" stroke-width="0.58" stroke-opacity="0.58"/>
+    <g clip-path="url(#ss-512-clip)">
+      <g transform="translate(24 24) scale(1.553) translate(-24 -24)">
+        <path d="M15.5 19.5 19.2 22.8 24 21.2 28.4 24.2 32.5 20.8" stroke="#FFFFFF" stroke-width="0.95" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+        <path d="M17.2 28.5 21 26.2 24 27.8 27.5 25.5 31 29" stroke="#FFFFFF" stroke-width="0.85" stroke-linecap="round" opacity="0.4"/>
+        <path d="M19.2 22.8 21 26.2M24 21.2 24 27.8M28.4 24.2 27.5 25.5" stroke="#C4B5FD" stroke-width="0.7" stroke-linecap="round" opacity="0.5"/>
+        <circle cx="15.5" cy="19.5" r="1.15" fill="#FFFFFF" fill-opacity="0.85"/>
+        <circle cx="32.5" cy="20.8" r="1.1" fill="#FFFFFF" fill-opacity="0.75"/>
+        <circle cx="17.2" cy="28.5" r="1.05" fill="#FFFFFF" fill-opacity="0.7"/>
+        <circle cx="31" cy="29" r="1.1" fill="#FFFFFF" fill-opacity="0.75"/>
+        <g transform="translate(20.04 26.91)">
+          <path d="M0 -4.6 L1.22 -1.35 L4.6 0 L1.22 1.35 L0 4.6 L-1.22 1.35 L-4.6 0 L-1.22 -1.35Z" fill="#F59E0B" fill-opacity="0.22"/>
+          <path d="M0 -2.85 L0.76 -0.86 L2.85 0 L0.76 0.86 L0 2.85 L-0.76 0.86 L-2.85 0 L-0.76 -0.86Z" fill="#F59E0B"/>
+        </g>
+        <g transform="translate(29.81 24.26)">
+          <path d="M0 -4.1 L1.1 -1.24 L4.1 0 L1.1 1.24 L0 4.1 L-1.1 1.24 L-4.1 0 L-1.1 -1.24Z" fill="#F59E0B" fill-opacity="0.18"/>
+          <path d="M0 -2.65 L0.69 -0.8 L2.65 0 L0.69 0.8 L0 2.65 L-0.69 0.8 L-2.65 0 L-0.69 -0.8Z" fill="#F59E0B"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

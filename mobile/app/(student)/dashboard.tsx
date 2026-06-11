@@ -190,7 +190,8 @@ export default function StudentDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       void fetchGraduationInvitations();
-    }, [fetchGraduationInvitations]),
+      void refreshGradProjectState();
+    }, [fetchGraduationInvitations, refreshGradProjectState]),
   );
 
   useEffect(() => {

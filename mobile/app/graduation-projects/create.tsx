@@ -1,6 +1,7 @@
+import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -62,6 +63,7 @@ export default function CreateGraduationProjectScreen() {
   const [preferredRolesText, setPreferredRolesText] = useState("");
   const [teamSize, setTeamSize] = useState("3");
   const [lookingForTeammates, setLookingForTeammates] = useState(true);
+  const submitInFlightRef = useRef(false);
 
   const loadForm = useCallback(async () => {
     setLoading(true);
@@ -92,9 +94,27 @@ export default function CreateGraduationProjectScreen() {
     }
   }, [editingProjectId, isEditMode, stage]);
 
-  useEffect(() => {
-    void loadForm();
-  }, [loadForm]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadForm();
+    }, [loadForm]),
+  );
+
+  const openProjectWorkspace = useCallback(async (alertTitle: string, alertMessage: string) => {
+    const envelope = await getGraduationProjectsMyEnvelope();
+    if (!envelope.project) return false;
+
+    setHasExistingProject(true);
+    router.replace(STUDENT_ROUTES.graduationProjectWorkspace as never);
+    Alert.alert(alertTitle, alertMessage);
+    return true;
+  }, []);
+
+  const isAlreadyOwnProjectError = (err: unknown) => {
+    if (!axios.isAxiosError(err) || err.response?.status !== 409) return false;
+    const message = parseApiErrorMessage(err).toLowerCase();
+    return message.includes("already own");
+  };
 
   const canSubmit = useMemo(() => {
     if (!isEditMode && hasExistingProject) return false;
@@ -106,7 +126,9 @@ export default function CreateGraduationProjectScreen() {
   }, [hasExistingProject, isEditMode, skillsText, stage, summary, title]);
 
   const handleSubmit = async () => {
-    if (!canSubmit || submitting) return;
+    if (!canSubmit || submitting || submitInFlightRef.current) return;
+
+    submitInFlightRef.current = true;
     setSubmitting(true);
     try {
       const payload = {
@@ -126,19 +148,37 @@ export default function CreateGraduationProjectScreen() {
 
       if (isEditMode && editingProjectId != null) {
         await updateGraduationProject(editingProjectId, payload);
-        Alert.alert("Project updated", "Your graduation project changes were saved.");
-        router.replace(STUDENT_ROUTES.graduationProjectWorkspace as never);
-      } else {
-        await createGraduationProject(payload);
-        Alert.alert("Graduation project created!", "Your project is live on SkillSwap.");
+        await openProjectWorkspace("Project updated", "Your graduation project changes were saved.");
+        return;
+      }
+
+      await createGraduationProject(payload);
+      const opened = await openProjectWorkspace(
+        "Graduation project created!",
+        "Your project is live on SkillSwap.",
+      );
+      if (!opened) {
+        Alert.alert(
+          "Project created",
+          "Your project was created, but it could not be loaded yet. Pull to refresh on your dashboard.",
+        );
         router.replace(STUDENT_ROUTES.dashboard as never);
       }
     } catch (err) {
+      if (!isEditMode && isAlreadyOwnProjectError(err)) {
+        const opened = await openProjectWorkspace(
+          "Project already exists",
+          "You already have a graduation project. Opening your workspace.",
+        );
+        if (opened) return;
+      }
+
       Alert.alert(
         isEditMode ? "Could not update project" : "Could not create project",
         parseApiErrorMessage(err),
       );
     } finally {
+      submitInFlightRef.current = false;
       setSubmitting(false);
     }
   };

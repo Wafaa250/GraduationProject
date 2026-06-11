@@ -26,6 +26,7 @@ import {
 } from "@/constants/studentSkillPools";
 import { AUTH_COLORS } from "@/constants/authTheme";
 import { persistAuthSession } from "@/lib/authSession";
+import { getRegistrationGraduationCourses } from "@/lib/graduationProjectTypes";
 import { navigateHome } from "@/utils/homeNavigation";
 
 const STEP_TITLES = [

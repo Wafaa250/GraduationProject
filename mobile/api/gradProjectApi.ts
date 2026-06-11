@@ -125,6 +125,38 @@ export function normSupervisorRequestStatus(status?: string | null): string {
   return (status ?? "").trim().toLowerCase();
 }
 
+/** Owner always occupies one team slot; ensure count and member list reflect that. */
+export function resolveGradProjectTeamState(project: GradProject): GradProject {
+  const members = [...(project.members ?? [])];
+  const ownerId = project.ownerId;
+  const ownerInList = ownerId > 0 && members.some((member) => member.studentId === ownerId);
+
+  if (ownerId > 0 && !ownerInList) {
+    members.unshift({
+      studentId: ownerId,
+      userId: project.ownerUserId ?? 0,
+      name: project.ownerName?.trim() || "Project owner",
+      role: "leader",
+    });
+  }
+
+  const currentMembers = Math.max(
+    project.currentMembers ?? 0,
+    members.length,
+    ownerId > 0 ? 1 : 0,
+  );
+  const partnersCount = project.partnersCount ?? 0;
+
+  return {
+    ...project,
+    members,
+    currentMembers,
+    remainingSeats:
+      project.remainingSeats ?? Math.max(0, partnersCount - currentMembers),
+    isFull: partnersCount > 0 ? currentMembers >= partnersCount : project.isFull,
+  };
+}
+
 export function normalizeGradProject(project: GradProject): GradProject {
   const raw = project as GradProject & {
     SupervisorRequestStatus?: string | null;
@@ -135,7 +167,7 @@ export function normalizeGradProject(project: GradProject): GradProject {
     AbstractFileUploadedAt?: string | null;
   };
   const rawRecord = raw as unknown as Record<string, unknown>;
-  return {
+  return resolveGradProjectTeamState({
     ...project,
     abstractFileName:
       project.abstractFileName ??
@@ -155,7 +187,7 @@ export function normalizeGradProject(project: GradProject): GradProject {
       project.supervisorCancellationRequestStatus ??
       raw.SupervisorCancellationRequestStatus ??
       null,
-  };
+  });
 }
 
 export function getPendingSupervisorDoctorId(
@@ -185,6 +217,7 @@ export function parseGradProject(raw: unknown): GradProject {
   const parsed: GradProject = {
     id: pickNumber(record, "id", "Id"),
     ownerId: pickNumber(record, "ownerId", "OwnerId"),
+    ownerUserId: pickNumber(record, "ownerUserId", "OwnerUserId") || undefined,
     ownerName: pickString(record, "ownerName", "OwnerName") || undefined,
     name: pickString(record, "name", "Name"),
     abstract,
@@ -290,6 +323,7 @@ export type GradProjectSupervisor = {
 export type GradProject = {
   id: number;
   ownerId: number;
+  ownerUserId?: number;
   ownerName?: string;
   name: string;
   abstract?: string | null;
@@ -439,8 +473,8 @@ export async function listGraduationProjects(): Promise<GradProject[]> {
 export async function createGraduationProject(
   payload: CreateGraduationProjectPayload,
 ): Promise<GradProject> {
-  const { data } = await api.post<GradProject>("/graduation-projects", payload);
-  return data;
+  const { data } = await api.post<unknown>("/graduation-projects", payload);
+  return parseGradProject(data);
 }
 
 export async function updateGraduationProject(

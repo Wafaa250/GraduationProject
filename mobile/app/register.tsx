@@ -100,7 +100,6 @@ export default function RegisterScreen() {
   return (
     <AuthScreenLayout>
       <View style={[styles.stepBadge, dynamic.stepBadge]}>
-        <Ionicons name="sparkles" size={layout.scale(14)} color={AUTH_COLORS.primary} />
         <Text style={[styles.stepText, dynamic.stepText]} maxFontSizeMultiplier={1.2}>
           Step 1 of 2 · Choose account type
         </Text>

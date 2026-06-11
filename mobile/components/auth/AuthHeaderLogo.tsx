@@ -1,31 +1,48 @@
-import { StyleSheet, Text, View } from "react-native";
+import { PixelRatio, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 import SkillSwapMarkSvg from "@/assets/branding/skillswap-mark.svg";
 import { AUTH_BRANDING } from "@/constants/authBranding";
 import { AUTH_COLORS } from "@/constants/authTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
+type SkillSwapBrandLockupProps = {
+  /** `full` = orb + SkillSwap wordmark; `mark` = orb only */
+  variant?: "full" | "mark";
+  /** Optional override for mark size in px (before density rounding). */
+  markSize?: number;
+  style?: StyleProp<ViewStyle>;
+};
+
+function crispSize(value: number) {
+  return PixelRatio.roundToNearestPixel(value);
+}
+
 /**
- * Unified SkillSwap header for all authentication screens.
- * Mark orb + "SkillSwap" wordmark — one size, one spacing, one alignment.
+ * Official SkillSwap lockup — single source of truth for in-app branding.
+ * Uses `skillswap-mark.svg` and auth wordmark tokens.
  */
-export function AuthHeaderLogo() {
+export function SkillSwapBrandLockup({
+  variant = "full",
+  markSize: markSizeProp,
+  style,
+}: SkillSwapBrandLockupProps) {
   const layout = useResponsiveLayout();
-  const markSize = layout.scale(AUTH_BRANDING.logoMarkSize);
-  const gap = layout.scale(AUTH_BRANDING.logoGap);
+  const markSize = crispSize(layout.scale(markSizeProp ?? AUTH_BRANDING.logoMarkSize));
+  const gap = crispSize(layout.scale(AUTH_BRANDING.logoGap));
   const fontSize = layout.scale(AUTH_BRANDING.logoWordmarkSize);
 
   return (
     <View
-      style={[
-        styles.wrapper,
-        { marginBottom: layout.space(AUTH_BRANDING.logoMarginBottom) },
-      ]}
+      style={[styles.lockup, variant === "full" ? { gap } : null, style]}
       accessibilityRole="image"
       accessibilityLabel="SkillSwap"
     >
-      <View style={[styles.lockup, { gap }]}>
-        <SkillSwapMarkSvg width={markSize} height={markSize} />
+      <SkillSwapMarkSvg
+        width={markSize}
+        height={markSize}
+        preserveAspectRatio="xMidYMid meet"
+      />
+      {variant === "full" ? (
         <Text
           style={[
             styles.wordmark,
@@ -40,7 +57,25 @@ export function AuthHeaderLogo() {
           <Text style={styles.skill}>Skill</Text>
           <Text style={styles.swap}>Swap</Text>
         </Text>
-      </View>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * Centered auth header lockup for login, register, and password flows.
+ */
+export function AuthHeaderLogo() {
+  const layout = useResponsiveLayout();
+
+  return (
+    <View
+      style={[
+        styles.wrapper,
+        { marginBottom: layout.space(AUTH_BRANDING.logoMarginBottom) },
+      ]}
+    >
+      <SkillSwapBrandLockup variant="full" />
     </View>
   );
 }
@@ -54,6 +89,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   wordmark: {
     fontWeight: "700",
