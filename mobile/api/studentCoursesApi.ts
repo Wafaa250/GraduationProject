@@ -90,6 +90,23 @@ export type ManualTeamStudentsResponse = {
   students: ManualTeamStudent[];
 };
 
+export type AiTeamRecommendation = {
+  studentId: number;
+  name: string;
+  email: string;
+  avatar?: string | null;
+  sectionName: string;
+  skills: string[];
+  bio?: string | null;
+  major?: string;
+  matchScore: number;
+  matchReason: string;
+  hasPendingRequest: boolean;
+  isAlreadyInTeam: boolean;
+  availabilityStatus?: string;
+  availabilityReason?: string;
+};
+
 export type StudentCourseProjectSection = {
   sectionId: number;
   sectionName?: string;
@@ -163,6 +180,27 @@ export async function getManualTeamStudents(
     `/courses/${courseId}/projects/${projectId}/manual-team/students`,
   );
   return data;
+}
+
+export async function sendManualTeamRequest(
+  courseId: number,
+  projectId: number,
+  receiverId: number,
+): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>(
+    `/courses/${courseId}/projects/${projectId}/manual-team/requests/${receiverId}`,
+  );
+  return data;
+}
+
+export async function getAiTeamRecommendations(
+  courseId: number,
+  projectId: number,
+): Promise<AiTeamRecommendation[]> {
+  const { data } = await api.get<AiTeamRecommendation[]>(
+    `/courses/${courseId}/projects/${projectId}/ai-team-recommendations`,
+  );
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getStudentCourseProjects(

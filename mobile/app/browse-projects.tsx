@@ -22,6 +22,7 @@ import {
   type GradProject,
 } from "@/api/gradProjectApi";
 import { getMe } from "@/api/meApi";
+import { StudentRouteGuard } from "@/components/student/StudentRouteGuard";
 import { PublicProfileShell } from "@/components/student/PublicProfileShell";
 import { HUB_COLORS } from "@/constants/studentHubTheme";
 import {
@@ -64,7 +65,7 @@ function FilterPill({
   );
 }
 
-export default function BrowseProjectsScreen() {
+function BrowseProjectsScreen() {
   const router = useRouter();
   const { projectId } = useLocalSearchParams<{ projectId?: string }>();
   const deepLinkProjectId = Number(projectId ?? 0);
@@ -592,3 +593,11 @@ const styles = StyleSheet.create({
   ownerName: { fontWeight: "700", color: HUB_COLORS.foreground },
   modalActions: { gap: 8, marginTop: 8 },
 });
+
+export default function BrowseProjectsRoute() {
+  return (
+    <StudentRouteGuard>
+      <BrowseProjectsScreen />
+    </StudentRouteGuard>
+  );
+}

@@ -12,6 +12,7 @@ import {
 
 import { getMe } from "@/api/meApi";
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
+import { useNotificationUnreadCount } from "@/hooks/useNotificationUnreadCount";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { FeedSearchModal } from "@/components/communication/FeedSearchModal";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
@@ -36,22 +37,19 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const { unreadCount: unreadNotifications } = useNotificationUnreadCount({
+    fetchCount: getAllNotificationsUnreadCount,
+  });
 
   const loadProfile = useCallback(async () => {
     setLoadingProfile(true);
     try {
-      const [me, unread] = await Promise.all([
-        getMe(),
-        getAllNotificationsUnreadCount().catch(() => 0),
-      ]);
+      const me = await getMe();
       setDisplayName(me.name?.trim() || "Student");
       setAvatarBase64(me.profilePictureBase64 ?? null);
-      setUnreadNotifications(unread);
     } catch {
       const storedName = await getItem("name");
       if (storedName) setDisplayName(storedName);
-      setUnreadNotifications(0);
     } finally {
       setLoadingProfile(false);
     }
@@ -128,7 +126,6 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
 
           <Pressable
             onPress={() => {
-              setUnreadNotifications(0);
               router.push("/notifications");
             }}
             accessibilityRole="button"

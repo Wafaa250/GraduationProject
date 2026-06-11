@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -58,9 +58,11 @@ export default function NotificationsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const handlePress = async (notification: GraduationNotification) => {
     if (!notification.readAt) {

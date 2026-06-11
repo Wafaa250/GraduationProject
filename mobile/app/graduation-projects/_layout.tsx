@@ -1,5 +1,11 @@
 import { Stack } from "expo-router";
 
+import { StudentRouteGuard } from "@/components/student/StudentRouteGuard";
+
 export default function GraduationProjectsLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <StudentRouteGuard>
+      <Stack screenOptions={{ headerShown: false }} />
+    </StudentRouteGuard>
+  );
 }

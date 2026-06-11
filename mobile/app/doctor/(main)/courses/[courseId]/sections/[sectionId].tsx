@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Upload, UserPlus, Users, Plus } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -19,6 +19,7 @@ import {
   type CourseProjectWithTeams,
 } from "@/api/doctorCoursesApi";
 import { AddStudentsSheet } from "@/components/doctor/courses/AddStudentsSheet";
+import { MoveStudentSheet } from "@/components/doctor/courses/MoveStudentSheet";
 import { CoursesEmptyState } from "@/components/doctor/courses/CoursesEmptyState";
 import { ImportStudentsSheet } from "@/components/doctor/courses/ImportStudentsSheet";
 import { CourseProjectFormSheet } from "@/components/doctor/courses/CourseProjectFormSheet";
@@ -39,11 +40,13 @@ import {
   formatSectionSchedule,
   getStudentAssignmentContext,
 } from "@/lib/courseWorkspaceUtils";
-import { DOCTOR_ROUTES } from "@/lib/doctorRoutes";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
+import { DOCTOR_ROUTES, doctorStudentProfilePath } from "@/lib/doctorRoutes";
 
 type SectionTab = "students" | "projects";
 
 export default function DoctorSectionDetailScreen() {
+  const router = useRouter();
   const { courseId: courseIdParam, sectionId: sectionIdParam } = useLocalSearchParams<{
     courseId: string;
     sectionId: string;
@@ -61,6 +64,7 @@ export default function DoctorSectionDetailScreen() {
   const [importOpen, setImportOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [editProject, setEditProject] = useState<CourseProjectWithTeams | null>(null);
+  const [moveStudent, setMoveStudent] = useState<CourseEnrolledStudent | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -108,34 +112,34 @@ export default function DoctorSectionDetailScreen() {
 
   const handleRemove = (student: CourseEnrolledStudent) => {
     if (!student.sectionId) return;
-    Alert.alert(
-      "Remove student?",
-      `Remove ${student.name ?? "this student"} from this section?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              try {
-                await removeStudentFromSection(student.sectionId!, student.studentId);
-                Alert.alert("Student removed");
-                await reload();
-              } catch (err) {
-                Alert.alert("Could not remove student", parseApiErrorMessage(err));
-              }
-            })();
-          },
-        },
-      ],
-    );
+    confirmAlert({
+      title: "Remove student?",
+      message: `Remove ${student.name ?? "this student"} from this section?`,
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await removeStudentFromSection(student.sectionId!, student.studentId);
+          showAlert("Student removed");
+          await reload();
+        } catch (err) {
+          showAlert("Could not remove student", parseApiErrorMessage(err));
+        }
+      },
+    });
   };
 
   const handleEnrollmentSaved = (summary: string) => {
     Alert.alert("Enrollment updated", summary);
     void reload();
   };
+
+  const handleOpenProfile = (student: CourseEnrolledStudent) => {
+    if (student.userId == null || student.userId <= 0) return;
+    router.push(doctorStudentProfilePath(student.userId) as never);
+  };
+
+  const canMoveStudents = (sectionBundle?.allSections.length ?? 0) > 1;
 
   if (!Number.isFinite(courseId) || !Number.isFinite(sectionId)) {
     return (
@@ -297,6 +301,13 @@ export default function DoctorSectionDetailScreen() {
                 key={student.studentId}
                 student={student}
                 assignment={getStudentAssignmentContext(student, assignmentBundle)}
+                canMove={canMoveStudents}
+                onProfile={
+                  student.userId != null && student.userId > 0
+                    ? () => handleOpenProfile(student)
+                    : undefined
+                }
+                onMove={canMoveStudents ? () => setMoveStudent(student) : undefined}
                 onRemove={() => handleRemove(student)}
               />
             ))
@@ -353,6 +364,16 @@ export default function DoctorSectionDetailScreen() {
         onSaved={(msg) => {
           Alert.alert("Project saved", msg ?? "Project updated");
           setEditProject(null);
+          void reload();
+        }}
+      />
+      <MoveStudentSheet
+        visible={moveStudent != null}
+        student={moveStudent}
+        sections={sectionBundle.allSections}
+        onClose={() => setMoveStudent(null)}
+        onSaved={() => {
+          Alert.alert("Student moved", "Student moved to new section.");
           void reload();
         }}
       />

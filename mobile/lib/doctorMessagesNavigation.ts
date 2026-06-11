@@ -1,4 +1,5 @@
 import type { ConversationDetails, ConversationListItem } from "@/api/conversationsApi";
+import { doctorStudentProfilePath } from "@/lib/doctorRoutes";
 
 export type DoctorConversationKind = "team" | "student";
 
@@ -64,10 +65,10 @@ export function getDoctorStudentProfilePath(
 ): string | null {
   if (getDoctorConversationKind(conversation) !== "student") return null;
   if ("otherUser" in conversation && conversation.otherUser?.id) {
-    return `/students/${conversation.otherUser.id}`;
+    return doctorStudentProfilePath(conversation.otherUser.id);
   }
   const other = conversation.users.find((u) => u.id !== currentUserId);
-  return other?.id ? `/students/${other.id}` : null;
+  return other?.id ? doctorStudentProfilePath(other.id) : null;
 }
 
 export function formatDoctorMessageTime(iso?: string | null): string {

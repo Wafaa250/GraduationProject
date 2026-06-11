@@ -20,6 +20,7 @@ import { CompanyStackHeader } from "@/components/company/ui/CompanyStackHeader";
 import { useCompanyProfilePage } from "@/hooks/useCompanyProfilePage";
 import { useCompanyTheme } from "@/hooks/useCompanyTheme";
 import { COMPANY_ROUTES } from "@/lib/companyRoutes";
+import { confirmAlert } from "@/lib/confirmAlert";
 import { COMPANY_PROFILE_SUBTITLE } from "@/lib/companyWorkspaceCopy";
 
 export default function CompanyEditProfileScreen() {
@@ -43,10 +44,14 @@ export default function CompanyEditProfileScreen() {
 
   const handleBack = useCallback(() => {
     if (hasUnsavedChanges) {
-      Alert.alert("Discard changes?", "You have unsaved profile changes.", [
-        { text: "Keep editing", style: "cancel" },
-        { text: "Discard", style: "destructive", onPress: () => router.back() },
-      ]);
+      confirmAlert({
+        title: "Discard changes?",
+        message: "You have unsaved profile changes.",
+        cancelLabel: "Keep editing",
+        confirmLabel: "Discard",
+        destructive: true,
+        onConfirm: () => router.back(),
+      });
       return;
     }
     router.back();

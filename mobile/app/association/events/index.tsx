@@ -87,18 +87,13 @@ export default function AssociationEventsListScreen() {
     try {
       const form = await getEventRegistrationForm(event.id);
       if (!form || form.fields.length === 0) {
-        Alert.alert(
-          "Registration form required",
-          "Add at least one field to the registration form before publishing.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Complete form",
-              onPress: () =>
-                router.push(associationEventRegistrationFormPath(event.id) as Href),
-            },
-          ],
-        );
+        confirmAlert({
+          title: "Registration form required",
+          message: "Add at least one field to the registration form before publishing.",
+          confirmLabel: "Complete form",
+          onConfirm: () =>
+            router.push(associationEventRegistrationFormPath(event.id) as Href),
+        });
         return;
       }
       await publishOrganizationEvent(event.id);

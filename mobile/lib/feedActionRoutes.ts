@@ -1,4 +1,6 @@
 import { FEED_SOURCE_TYPES, type FeedItem } from "@/lib/feedTypes";
+import { COMPANY_ROUTES } from "@/lib/companyRoutes";
+import { DOCTOR_ROUTES } from "@/lib/doctorRoutes";
 import { STUDENT_ROUTES, studentCourseProjectPath } from "@/lib/studentRoutes";
 
 /** Resolve CTA path — prefers API actionUrl (built from real entity routes on the server). */
@@ -103,6 +105,88 @@ export function convertWebPathToMobile(path: string): string | null {
   const talentMatch = pathname.match(/^\/company\/talent-requests\/(\d+)$/);
   if (talentMatch) {
     return `/company/talent-requests/${talentMatch[1]}${qs}`;
+  }
+
+  const companyStudentMatch = pathname.match(
+    /^\/company\/requests\/(\d+)\/students\/(\d+)$/,
+  );
+  if (companyStudentMatch) {
+    return COMPANY_ROUTES.studentDiscoveryProfile(
+      Number(companyStudentMatch[1]),
+      Number(companyStudentMatch[2]),
+    );
+  }
+
+  const companyTeamMatch = pathname.match(/^\/company\/requests\/(\d+)\/teams\/(\d+)$/);
+  if (companyTeamMatch) {
+    return COMPANY_ROUTES.teamDiscoveryProfile(
+      Number(companyTeamMatch[1]),
+      Number(companyTeamMatch[2]),
+    );
+  }
+
+  const companyRequestMatch = pathname.match(/^\/company\/requests\/(\d+)$/);
+  if (companyRequestMatch) {
+    return COMPANY_ROUTES.requestDetail(Number(companyRequestMatch[1]));
+  }
+
+  const doctorStudentMatch = pathname.match(/^\/doctor\/students\/(\d+)$/);
+  if (doctorStudentMatch) {
+    return `/doctor/students/${doctorStudentMatch[1]}${qs}`;
+  }
+
+  const studentProfileMatch = pathname.match(/^\/students\/profile\/(\d+)$/);
+  if (studentProfileMatch) {
+    return `/students/${studentProfileMatch[1]}${qs}`;
+  }
+
+  const organizationMatch = pathname.match(/^\/organizations\/(\d+)$/);
+  if (organizationMatch) {
+    return `/organizations/${organizationMatch[1]}${qs}`;
+  }
+
+  const companyProfileMatch = pathname.match(/^\/company\/profile\/(\d+)$/);
+  if (companyProfileMatch) {
+    return `/companies/${companyProfileMatch[1]}${qs}`;
+  }
+
+  const doctorProfileMatch = pathname.match(/^\/doctor\/profile\/(\d+)$/);
+  if (doctorProfileMatch) {
+    return `/doctors/${doctorProfileMatch[1]}${qs}`;
+  }
+
+  const doctorOwnProfile = pathname === "/doctor/profile";
+  if (doctorOwnProfile) {
+    return DOCTOR_ROUTES.profile;
+  }
+
+  const gradProjectMatch = pathname.match(/^\/graduation-projects\/(\d+)$/);
+  if (gradProjectMatch) {
+    return `${STUDENT_ROUTES.graduationProjectWorkspace}?projectId=${gradProjectMatch[1]}${qs ? `&${query}` : ""}`;
+  }
+
+  const gradBrowseStudentsMatch = pathname.match(/^\/graduation-projects\/browse-students$/);
+  if (gradBrowseStudentsMatch) {
+    const params = new URLSearchParams(query);
+    const projectId = params.get("projectId");
+    if (projectId && /^\d+$/.test(projectId)) {
+      return `${STUDENT_ROUTES.browseProjectStudents}?projectId=${projectId}`;
+    }
+    return STUDENT_ROUTES.browseProjectStudents;
+  }
+
+  const doctorProjectChatMatch = pathname.match(/^\/doctor\/projects\/(\d+)\/chat$/);
+  if (doctorProjectChatMatch) {
+    return `/doctor/projects/chat/${doctorProjectChatMatch[1]}${qs}`;
+  }
+
+  if (pathname === "/doctor/courses/create") {
+    return `${DOCTOR_ROUTES.courses}/create`;
+  }
+
+  const courseOnlyMatch = pathname.match(/^\/courses\/(\d+)$/);
+  if (courseOnlyMatch) {
+    return `/courses/${courseOnlyMatch[1]}${qs}`;
   }
 
   const courseProjectMatch = pathname.match(/^\/courses\/(\d+)\/projects\/(\d+)$/);

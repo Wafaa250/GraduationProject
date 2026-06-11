@@ -1,4 +1,4 @@
-import { UserMinus } from "lucide-react-native";
+import { ArrowRightLeft, User, UserMinus } from "lucide-react-native";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -15,14 +15,25 @@ const DESTRUCTIVE = "#DC2626";
 type Props = {
   student: CourseEnrolledStudent;
   assignment: StudentAssignmentContext | null;
+  canMove?: boolean;
+  onProfile?: () => void;
+  onMove?: () => void;
   onRemove: () => void;
 };
 
-export function SectionStudentRow({ student, assignment, onRemove }: Props) {
+export function SectionStudentRow({
+  student,
+  assignment,
+  canMove = false,
+  onProfile,
+  onMove,
+  onRemove,
+}: Props) {
   const layout = useResponsiveLayout();
   const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const displayName = student.name?.trim() || "Student";
+  const showProfile = onProfile != null;
 
   return (
     <View style={styles.row}>
@@ -43,16 +54,42 @@ export function SectionStudentRow({ student, assignment, onRemove }: Props) {
           <Text style={[styles.unassigned, { fontSize: layout.scale(11) }]}>Not on a project team</Text>
         )}
       </View>
-      <Pressable
-        onPress={onRemove}
-        hitSlop={8}
-        style={({ pressed }) => [styles.removeBtn, { opacity: pressed ? 0.7 : 1 }]}
-        accessibilityRole="button"
-        accessibilityLabel="Remove student"
-      >
-        <UserMinus size={16} color={DESTRUCTIVE} strokeWidth={2} />
-        <Text style={[styles.removeText, { fontSize: layout.scale(11) }]}>Remove</Text>
-      </Pressable>
+      <View style={styles.actions}>
+        {showProfile ? (
+          <Pressable
+            onPress={onProfile}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel="View profile"
+          >
+            <User size={14} color={colors.foreground} strokeWidth={2} />
+            <Text style={[styles.actionText, { fontSize: layout.scale(10) }]}>Profile</Text>
+          </Pressable>
+        ) : null}
+        {canMove && onMove ? (
+          <Pressable
+            onPress={onMove}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Move section"
+          >
+            <ArrowRightLeft size={14} color={colors.foreground} strokeWidth={2} />
+            <Text style={[styles.actionText, { fontSize: layout.scale(10) }]}>Move</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          onPress={onRemove}
+          hitSlop={8}
+          style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Remove student"
+        >
+          <UserMinus size={14} color={DESTRUCTIVE} strokeWidth={2} />
+          <Text style={[styles.removeText, { fontSize: layout.scale(10) }]}>Remove</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -90,12 +127,22 @@ function createStyles(colors: HubColorScheme) {
       fontWeight: "500",
       color: colors.muted,
     },
-    removeBtn: {
+    actions: {
+      alignItems: "flex-end",
+      gap: DOCTOR_SPACE.xs,
+    },
+    actionBtn: {
       alignItems: "center",
       justifyContent: "center",
+      minWidth: 52,
       paddingHorizontal: DOCTOR_SPACE.xs,
-      paddingVertical: DOCTOR_SPACE.xs,
+      paddingVertical: 2,
       borderRadius: DOCTOR_RADIUS.sm,
+    },
+    actionText: {
+      marginTop: 2,
+      fontWeight: "700",
+      color: colors.foreground,
     },
     removeText: {
       marginTop: 2,

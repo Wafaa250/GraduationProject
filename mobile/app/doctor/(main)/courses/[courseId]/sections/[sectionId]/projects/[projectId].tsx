@@ -20,6 +20,7 @@ import {
 } from "react-native";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import {
   deleteCourseProject,
   generateCourseProjectTeams,
@@ -49,7 +50,7 @@ import {
 } from "@/lib/courseProjectAiConfig";
 import { getProjectStudentTeamStatus } from "@/lib/courseProjectStudentStatus";
 import { formatAiMode, formatProjectSections } from "@/lib/courseWorkspaceUtils";
-import { doctorSectionPath, DOCTOR_ROUTES } from "@/lib/doctorRoutes";
+import { doctorSectionPath, doctorStudentProfilePath, DOCTOR_ROUTES } from "@/lib/doctorRoutes";
 
 type ProjectTab = "overview" | "teams" | "students" | "ai";
 
@@ -111,26 +112,23 @@ export default function DoctorCourseProjectDetailScreen() {
 
   const handleDelete = () => {
     if (!bundle) return;
-    Alert.alert("Delete project?", `Delete "${bundle.project.title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          void (async () => {
-            setDeleting(true);
-            try {
-              await deleteCourseProject(bundle.project.id);
-              router.replace(doctorSectionPath(courseId, sectionId) as never);
-            } catch (err) {
-              Alert.alert("Could not delete project", parseApiErrorMessage(err));
-            } finally {
-              setDeleting(false);
-            }
-          })();
-        },
+    confirmAlert({
+      title: "Delete project?",
+      message: `Delete "${bundle.project.title}"?`,
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          await deleteCourseProject(bundle.project.id);
+          router.replace(doctorSectionPath(courseId, sectionId) as never);
+        } catch (err) {
+          showAlert("Could not delete project", parseApiErrorMessage(err));
+        } finally {
+          setDeleting(false);
+        }
       },
-    ]);
+    });
   };
 
   if (!Number.isFinite(courseId) || !Number.isFinite(sectionId) || !Number.isFinite(projectId)) {
@@ -358,6 +356,7 @@ function StudentsPanel({
   styles: ReturnType<typeof createStyles>;
   layout: ReturnType<typeof useResponsiveLayout>;
 }) {
+  const router = useRouter();
   const students = bundle?.eligibleStudents ?? [];
   const teams = bundle?.teams?.teams ?? [];
 
@@ -396,12 +395,18 @@ function StudentsPanel({
             teamCount: workspace.teamCount,
             hasOpenTeamSlot,
           });
+          const profilePath =
+            student.userId != null && student.userId > 0
+              ? doctorStudentProfilePath(student.userId)
+              : null;
+
           return (
             <ProjectStudentRow
               key={student.studentId}
               student={student}
               status={status}
               teamLabel={assignment?.teamLabel}
+              onProfile={profilePath ? () => router.push(profilePath as never) : undefined}
             />
           );
         })}
@@ -527,14 +532,13 @@ function AiFormationPanel({
       return;
     }
     if (regenerate && hasSavedTeams) {
-      Alert.alert("Regenerate teams?", "Replace existing teams for this project?", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Regenerate",
-          style: "destructive",
-          onPress: () => void runGenerate(true),
-        },
-      ]);
+      confirmAlert({
+        title: "Regenerate teams?",
+        message: "Replace existing teams for this project?",
+        confirmLabel: "Regenerate",
+        destructive: true,
+        onConfirm: () => void runGenerate(true),
+      });
       return;
     }
     await runGenerate(regenerate);

@@ -1,5 +1,5 @@
 import { ChevronDown, MoreHorizontal, Pencil } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,11 @@ import {
 } from "react-native";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
+import {
+  DoctorAnnouncementActionsDropdown,
+  type AnnouncementActionsAnchor,
+} from "@/components/doctor/home/DoctorAnnouncementActionsDropdown";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import {
   deleteDoctorPost,
   getDoctorPostsFeed,
@@ -159,6 +164,9 @@ function AnnouncementCard({
   const layout = useResponsiveLayout();
   const { colors } = useDoctorTheme();
   const styles = useMemo(() => createCardStyles(colors), [colors]);
+  const menuAnchorRef = useRef<View>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<AnnouncementActionsAnchor | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(post.content);
   const [saving, setSaving] = useState(false);
@@ -166,30 +174,27 @@ function AnnouncementCard({
   const published = formatAnnouncementDateTime(item.createdAt);
 
   const openMenu = () => {
-    Alert.alert("Announcement", undefined, [
-      {
-        text: "Edit",
-        onPress: () => {
-          setEditText(post.content);
-          setEditOpen(true);
-        },
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          Alert.alert("Delete announcement?", "This action cannot be undone.", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: () => void handleDelete(),
-            },
-          ]);
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    requestAnimationFrame(() => {
+      menuAnchorRef.current?.measureInWindow((x, y, width, height) => {
+        setMenuAnchor({ x, y, width, height });
+        setMenuOpen(true);
+      });
+    });
+  };
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setMenuAnchor(null);
+  };
+
+  const confirmDelete = () => {
+    confirmAlert({
+      title: "Delete announcement?",
+      message: "This action cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: () => void handleDelete(),
+    });
   };
 
   const handleSave = async () => {
@@ -216,7 +221,7 @@ function AnnouncementCard({
       await deleteDoctorPost(post.id);
       onDeleted(post.id);
     } catch (err) {
-      Alert.alert("Could not delete announcement", parseApiErrorMessage(err));
+      showAlert("Could not delete announcement", parseApiErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -231,11 +236,14 @@ function AnnouncementCard({
         <View style={styles.footer}>
           <Text style={[styles.date, { fontSize: layout.scale(11) }]}>{published}</Text>
           <Pressable
+            ref={menuAnchorRef}
+            collapsable={false}
             onPress={openMenu}
             hitSlop={8}
             disabled={deleting}
             style={styles.menuBtn}
             accessibilityLabel="Announcement options"
+            accessibilityState={{ expanded: menuOpen }}
           >
             {deleting ? (
               <ActivityIndicator size="small" color={colors.muted} />
@@ -245,6 +253,18 @@ function AnnouncementCard({
           </Pressable>
         </View>
       </View>
+
+      <DoctorAnnouncementActionsDropdown
+        visible={menuOpen}
+        onClose={closeMenu}
+        anchor={menuAnchor}
+        deleting={deleting}
+        onEdit={() => {
+          setEditText(post.content);
+          setEditOpen(true);
+        }}
+        onDelete={confirmDelete}
+      />
 
       <Modal visible={editOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
         <View style={styles.modalBackdrop}>

@@ -1,5 +1,5 @@
 import type { GraduationNotification } from "@/api/notificationsApi";
-import { studentMessageThreadPath } from "@/lib/studentRoutes";
+import { STUDENT_ROUTES, studentMessageThreadPath } from "@/lib/studentRoutes";
 
 function conversationIdFromChatDedupKey(dedupKey: string | null | undefined): number | null {
   if (!dedupKey) return null;
@@ -22,11 +22,11 @@ export function getStudentNotificationTarget(n: GraduationNotification): string 
   }
 
   if (n.category === "graduation_project") {
-    return "/dashboard";
+    return STUDENT_ROUTES.graduationProjectWorkspace;
   }
 
   if (n.category === "course" || n.category === "ai") {
-    return "/courses";
+    return STUDENT_ROUTES.studentCourses;
   }
 
   return null;

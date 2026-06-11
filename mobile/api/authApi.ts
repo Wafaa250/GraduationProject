@@ -59,3 +59,51 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<Au
   const { data } = await api.post<AuthLoginResponse>("/auth/change-password", payload);
   return data;
 }
+
+export type ForgotPasswordPayload = {
+  email: string;
+};
+
+export type VerifyResetCodePayload = {
+  email: string;
+  code: string;
+};
+
+export type ResetPasswordWithCodePayload = {
+  email: string;
+  code: string;
+  newPassword: string;
+};
+
+export async function forgotPassword(payload: ForgotPasswordPayload): Promise<string> {
+  const { data } = await api.post<{ message?: string; Message?: string }>(
+    "/auth/forgot-password",
+    payload,
+  );
+  return (
+    data.message ??
+    data.Message ??
+    "If an account exists for that email, you will receive password reset instructions shortly."
+  );
+}
+
+export async function verifyResetCode(payload: VerifyResetCodePayload): Promise<void> {
+  await api.post("/auth/verify-reset-code", {
+    email: payload.email.trim(),
+    code: payload.code.trim(),
+  });
+}
+
+export async function resetPasswordWithCode(
+  payload: ResetPasswordWithCodePayload,
+): Promise<string> {
+  const { data } = await api.post<{ message?: string; Message?: string }>(
+    "/auth/reset-password",
+    {
+      email: payload.email.trim(),
+      code: payload.code.trim(),
+      newPassword: payload.newPassword,
+    },
+  );
+  return data.message ?? data.Message ?? "Password updated successfully.";
+}

@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useMemo } from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import { deleteStudentPost, type StudentPost } from "@/api/studentPostsApi";
 import { FeedSocialPostEditSheet } from "@/components/communication/FeedSocialPostEditSheet";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
@@ -26,17 +27,6 @@ export function FeedSocialPostOwnerMenu({ item, onUpdated, onDeleted }: Props) {
     return null;
   }
 
-  const confirmDelete = () => {
-    Alert.alert("Delete post?", "This action cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => void handleDelete(),
-      },
-    ]);
-  };
-
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -44,10 +34,20 @@ export function FeedSocialPostOwnerMenu({ item, onUpdated, onDeleted }: Props) {
       onDeleted(item.relatedEntityId);
       setMenuOpen(false);
     } catch (err) {
-      Alert.alert("Could not delete post", parseApiErrorMessage(err));
+      showAlert("Could not delete post", parseApiErrorMessage(err));
     } finally {
       setDeleting(false);
     }
+  };
+
+  const confirmDelete = () => {
+    confirmAlert({
+      title: "Delete post?",
+      message: "This action cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: () => void handleDelete(),
+    });
   };
 
   return (

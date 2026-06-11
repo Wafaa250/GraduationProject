@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect, type Href } from "expo-router";
+import { router, type Href } from "expo-router";
 
 import { AssociationAvatar } from "@/components/association/AssociationAvatar";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/association/AssociationProfileMenuSheet";
 import { MobileNavHeader } from "@/components/navigation/MobileNavHeader";
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
+import { useNotificationUnreadCount } from "@/hooks/useNotificationUnreadCount";
 import { ASSOC_COLORS } from "@/constants/associationTheme";
 import { useAssociationWorkspace } from "@/contexts/AssociationWorkspaceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -41,25 +42,11 @@ export function AssociationWorkspaceScreen({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<ProfileMenuAnchor | null>(null);
   const avatarRef = useRef<View>(null);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-
-  const loadUnreadCount = useCallback(async () => {
-    try {
-      const count = await getAllNotificationsUnreadCount();
-      setUnreadNotifications(count);
-    } catch {
-      setUnreadNotifications(0);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadUnreadCount();
-    }, [loadUnreadCount]),
-  );
+  const { unreadCount: unreadNotifications } = useNotificationUnreadCount({
+    fetchCount: getAllNotificationsUnreadCount,
+  });
 
   const openNotifications = () => {
-    setUnreadNotifications(0);
     router.push(ASSOCIATION_ROUTES.notifications as Href);
   };
 

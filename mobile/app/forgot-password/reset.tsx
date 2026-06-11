@@ -2,6 +2,8 @@ import { useState } from "react";
 import { StyleSheet, Text } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { resetPasswordWithCode } from "@/api/authApi";
+import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { AuthScreenLayout } from "@/components/auth/AuthScreenLayout";
 import { GradientAuthButton } from "@/components/auth/GradientAuthButton";
 import { AuthErrorBanner } from "@/components/auth/AuthErrorBanner";
@@ -11,12 +13,26 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 export default function ForgotPasswordResetScreen() {
   const layout = useResponsiveLayout();
-  const { email } = useLocalSearchParams<{ email?: string; code?: string }>();
+  const { email: emailParam, code: codeParam } = useLocalSearchParams<{
+    email?: string;
+    code?: string;
+  }>();
+  const email = String(emailParam ?? "").trim();
+  const code = String(codeParam ?? "").trim();
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    if (!email || code.length !== 6) {
+      router.replace({
+        pathname: "/forgot-password/verify",
+        params: { email },
+      });
+      return;
+    }
     if (newPassword.length < 8) {
       setApiError("Password must be at least 8 characters.");
       return;
@@ -25,7 +41,18 @@ export default function ForgotPasswordResetScreen() {
       setApiError("Passwords do not match.");
       return;
     }
-    router.replace("/login");
+
+    setLoading(true);
+    setApiError(null);
+
+    try {
+      await resetPasswordWithCode({ email, code, newPassword });
+      router.replace("/login");
+    } catch (error) {
+      setApiError(parseApiErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -52,7 +79,7 @@ export default function ForgotPasswordResetScreen() {
         secureTextEntry
       />
 
-      <GradientAuthButton label="Update password" onPress={handleContinue} />
+      <GradientAuthButton label="Update password" onPress={() => void handleContinue()} loading={loading} />
 
       <Text
         style={[styles.backLink, { fontSize: layout.fontSize.footer, marginTop: layout.space("xl") }]}

@@ -3,6 +3,7 @@ import { router, Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HubProfileMenuSheet } from "@/components/communication/HubProfileMenuSheet";
+import { StudentRouteGuard } from "@/components/student/StudentRouteGuard";
 import { HubAccountMenuProvider, useHubAccountMenu } from "@/contexts/HubAccountMenuContext";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -102,8 +103,10 @@ function StudentTabs() {
 
 export default function StudentTabLayout() {
   return (
-    <HubAccountMenuProvider>
-      <StudentTabs />
-    </HubAccountMenuProvider>
+    <StudentRouteGuard>
+      <HubAccountMenuProvider>
+        <StudentTabs />
+      </HubAccountMenuProvider>
+    </StudentRouteGuard>
   );
 }

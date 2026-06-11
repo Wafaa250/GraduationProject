@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -21,7 +22,7 @@ import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { mapCourseToListCard, type CourseListCardModel } from "@/lib/doctorCourseUi";
-import { doctorCoursePath } from "@/lib/doctorRoutes";
+import { doctorCoursePath, doctorCreateCoursePath } from "@/lib/doctorRoutes";
 
 export default function DoctorCoursesScreen() {
   const layout = useResponsiveLayout();
@@ -54,6 +55,12 @@ export default function DoctorCoursesScreen() {
 
   const listHeader = (
     <View style={styles.listHeader}>
+      <Pressable
+        onPress={() => router.push(doctorCreateCoursePath() as Href)}
+        style={[styles.createBtn, { borderRadius: layout.radius.input }]}
+      >
+        <Text style={styles.createBtnText}>Create course</Text>
+      </Pressable>
       <Text style={[styles.subtitle, { fontSize: layout.scale(13) }]}>
         Your teaching load and course workspaces
       </Text>
@@ -119,6 +126,18 @@ function createStyles(colors: HubColorScheme) {
       paddingTop: DOCTOR_SPACE.sm,
       paddingBottom: DOCTOR_SPACE.md,
       gap: DOCTOR_SPACE.xs,
+    },
+    createBtn: {
+      alignSelf: "flex-start",
+      backgroundColor: colors.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginBottom: DOCTOR_SPACE.xs,
+    },
+    createBtnText: {
+      color: "#FFFFFF",
+      fontWeight: "700",
+      fontSize: 14,
     },
     subtitle: {
       fontWeight: "500",

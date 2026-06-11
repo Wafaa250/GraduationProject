@@ -20,6 +20,7 @@ import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { listDoctorsDirectory, type DoctorDirectoryEntry } from "@/api/doctorDirectoryApi";
 import {
   changeProjectLeader,
+  deleteGraduationProject,
   deriveProjectStatus,
   getGraduationProjectAbstractFile,
   getGraduationProjectsMyEnvelope,
@@ -42,6 +43,7 @@ import {
   type SentProjectInvitation,
 } from "@/api/invitationsApi";
 import { getMe } from "@/api/meApi";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import { getAbstractDisplayText } from "@/lib/graduationProjectAbstractDocument";
 import { ChipList } from "@/components/student/ChipList";
 import { MySupervisorSection } from "@/components/student/MySupervisorSection";
@@ -97,6 +99,7 @@ export default function GraduationProjectWorkspaceScreen() {
   const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
   const [promotingMemberId, setPromotingMemberId] = useState<number | null>(null);
   const [leavingProject, setLeavingProject] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
   const [sentInvitations, setSentInvitations] = useState<SentProjectInvitation[]>([]);
   const [cancellingInvitationId, setCancellingInvitationId] = useState<number | null>(null);
   const [invitationTab, setInvitationTab] = useState<SentInvitationTab>("pending");
@@ -255,82 +258,85 @@ export default function GraduationProjectWorkspaceScreen() {
 
   const handleLeaveProject = () => {
     if (!project || isOwner) return;
-    Alert.alert("Leave project?", "You will be removed from this graduation project team.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Leave",
-        style: "destructive",
-        onPress: () => {
-          setLeavingProject(true);
-          void leaveGraduationProject(project.id)
-            .then(() => {
-              Alert.alert("Left project", "You have left the graduation project team.");
-              router.replace(STUDENT_ROUTES.dashboard as never);
-            })
-            .catch((err) => Alert.alert("Could not leave project", parseApiErrorMessage(err)))
-            .finally(() => setLeavingProject(false));
-        },
+    confirmAlert({
+      title: "Leave project?",
+      message: "You will be removed from this graduation project team.",
+      confirmLabel: "Leave",
+      destructive: true,
+      onConfirm: async () => {
+        setLeavingProject(true);
+        try {
+          await leaveGraduationProject(project.id);
+          showAlert("Left project", "You have left the graduation project team.");
+          router.replace(STUDENT_ROUTES.dashboard as never);
+        } catch (err) {
+          showAlert("Could not leave project", parseApiErrorMessage(err));
+        } finally {
+          setLeavingProject(false);
+        }
       },
-    ]);
+    });
   };
 
   const handleRemoveMember = (memberStudentId: number, memberName: string) => {
     if (!project || !canManageTeamMembers) return;
-    Alert.alert("Remove member?", `Remove ${memberName} from the team?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => {
-          setRemovingMemberId(memberStudentId);
-          void removeProjectMember(project.id, memberStudentId)
-            .then((result) => {
-              setProject((prev) => {
-                if (!prev) return prev;
-                return {
-                  ...prev,
-                  members: prev.members.filter((m) => m.studentId !== memberStudentId),
-                  currentMembers: result.currentMembers,
-                  isFull: result.currentMembers >= prev.partnersCount,
-                };
-              });
-              Alert.alert("Member removed", result.message);
-            })
-            .catch((err) => Alert.alert("Could not remove member", parseApiErrorMessage(err)))
-            .finally(() => setRemovingMemberId(null));
-        },
+    confirmAlert({
+      title: "Remove member?",
+      message: `Remove ${memberName} from the team?`,
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: async () => {
+        setRemovingMemberId(memberStudentId);
+        try {
+          const result = await removeProjectMember(project.id, memberStudentId);
+          setProject((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              members: prev.members.filter((m) => m.studentId !== memberStudentId),
+              currentMembers: result.currentMembers,
+              isFull: result.currentMembers >= prev.partnersCount,
+            };
+          });
+          showAlert("Member removed", result.message);
+        } catch (err) {
+          showAlert("Could not remove member", parseApiErrorMessage(err));
+        } finally {
+          setRemovingMemberId(null);
+        }
       },
-    ]);
+    });
   };
 
   const handleMakeLeader = (memberStudentId: number, memberName: string) => {
     if (!project || !canManageTeamMembers) return;
-    Alert.alert("Change leader?", `Make ${memberName} the team leader?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Confirm",
-        onPress: () => {
-          setPromotingMemberId(memberStudentId);
-          void changeProjectLeader(project.id, memberStudentId)
-            .then(() => {
-              setProject((prev) => {
-                if (!prev) return prev;
-                return {
-                  ...prev,
-                  members: prev.members.map((m) => {
-                    if (m.studentId === memberStudentId) return { ...m, role: "leader" as const };
-                    if (m.role === "leader") return { ...m, role: "member" as const };
-                    return m;
-                  }),
-                };
-              });
-              Alert.alert("Leader updated", "Team leadership has been transferred.");
-            })
-            .catch((err) => Alert.alert("Could not change leader", parseApiErrorMessage(err)))
-            .finally(() => setPromotingMemberId(null));
-        },
+    confirmAlert({
+      title: "Change leader?",
+      message: `Make ${memberName} the team leader?`,
+      confirmLabel: "Confirm",
+      onConfirm: async () => {
+        setPromotingMemberId(memberStudentId);
+        try {
+          await changeProjectLeader(project.id, memberStudentId);
+          setProject((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              members: prev.members.map((m) => {
+                if (m.studentId === memberStudentId) return { ...m, role: "leader" as const };
+                if (m.role === "leader") return { ...m, role: "member" as const };
+                return m;
+              }),
+            };
+          });
+          showAlert("Leader updated", "Team leadership has been transferred.");
+        } catch (err) {
+          showAlert("Could not change leader", parseApiErrorMessage(err));
+        } finally {
+          setPromotingMemberId(null);
+        }
       },
-    ]);
+    });
   };
 
   const handleViewDoctorProfile = async (supervisor: GradProjectRecommendedSupervisor) => {
@@ -373,6 +379,28 @@ export default function GraduationProjectWorkspaceScreen() {
     } catch {
       Alert.alert("Could not open file", "Try again from a device with a compatible viewer.");
     }
+  };
+
+  const handleDeleteProject = () => {
+    if (!project || !isOwner || deletingProject) return;
+    confirmAlert({
+      title: "Delete graduation project?",
+      message: `This will permanently delete "${project.name}" and its team data. This action cannot be undone.`,
+      confirmLabel: "Delete project",
+      destructive: true,
+      onConfirm: async () => {
+        setDeletingProject(true);
+        try {
+          await deleteGraduationProject(project.id);
+          showAlert("Project deleted", "Your graduation project has been removed.");
+          router.replace(STUDENT_ROUTES.dashboard as never);
+        } catch (err) {
+          showAlert("Could not delete project", parseApiErrorMessage(err));
+        } finally {
+          setDeletingProject(false);
+        }
+      },
+    });
   };
 
   if (loading || !project) {
@@ -540,7 +568,7 @@ export default function GraduationProjectWorkspaceScreen() {
           </Pressable>
         ) : null}
 
-        {canManageTeam ? (
+        {isOwner ? (
           <HubSectionCard
             title="Suggested teammates"
             description="Ranked by skill complement, availability, and project relevance."
@@ -734,6 +762,20 @@ export default function GraduationProjectWorkspaceScreen() {
           >
             <Ionicons name="create-outline" size={18} color={colors.primary} />
             <Text style={styles.editBtnText}>Edit Project</Text>
+          </Pressable>
+        ) : null}
+
+        {isOwner ? (
+          <Pressable
+            style={[styles.leaveBtn, { borderRadius: layout.radius.button }]}
+            disabled={deletingProject}
+            onPress={handleDeleteProject}
+          >
+            {deletingProject ? (
+              <ActivityIndicator color="#DC2626" size="small" />
+            ) : (
+              <Text style={styles.leaveBtnText}>Delete project</Text>
+            )}
           </Pressable>
         ) : null}
 

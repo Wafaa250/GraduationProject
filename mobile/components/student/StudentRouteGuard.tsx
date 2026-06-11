@@ -2,19 +2,20 @@ import { router, type Href } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, View } from "react-native";
 
-import { useCompanyTheme } from "@/hooks/useCompanyTheme";
+import type { HubColorScheme } from "@/constants/hubColorSchemes";
+import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { getItem } from "@/utils/authStorage";
-import { isCompanyWorkspaceAccountRole } from "@/utils/companyAccountRole";
 import { getHomePath } from "@/utils/homeNavigation";
 
 type Props = {
   children: ReactNode;
 };
 
-export function CompanyRouteGuard({ children }: Props) {
-  const colors = useCompanyTheme();
+export function StudentRouteGuard({ children }: Props) {
+  const { colors } = useHubTheme();
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
+  const styles = createStyles(colors);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,6 +23,7 @@ export function CompanyRouteGuard({ children }: Props) {
     void (async () => {
       const token = await getItem("token");
       const role = await getItem("role");
+      const mustChangePassword = await getItem("mustChangePassword");
 
       if (cancelled) return;
 
@@ -30,13 +32,12 @@ export function CompanyRouteGuard({ children }: Props) {
         return;
       }
 
-      const mustChangePassword = await getItem("mustChangePassword");
       if (mustChangePassword === "true") {
         router.replace("/change-password" as Href);
         return;
       }
 
-      if (!isCompanyWorkspaceAccountRole(role)) {
+      if ((role ?? "").toLowerCase() !== "student") {
         router.replace((await getHomePath()) as Href);
         return;
       }
@@ -52,18 +53,20 @@ export function CompanyRouteGuard({ children }: Props) {
 
   if (checking || !allowed) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.background,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return <>{children}</>;
 }
+
+const createStyles = (colors: HubColorScheme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+});

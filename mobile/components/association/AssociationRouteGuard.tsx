@@ -30,6 +30,12 @@ export function AssociationRouteGuard({ children }: Props) {
         return;
       }
 
+      const mustChangePassword = await getItem("mustChangePassword");
+      if (mustChangePassword === "true") {
+        router.replace("/change-password" as Href);
+        return;
+      }
+
       if (!isAssociationRole(role)) {
         router.replace((await getHomePath()) as Href);
         return;

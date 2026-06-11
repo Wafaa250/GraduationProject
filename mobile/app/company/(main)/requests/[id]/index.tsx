@@ -28,6 +28,7 @@ import {
 } from "@/components/company/requests/CompanyRequestActionsDropdown";
 import { CompanyRequestVisibilitySection } from "@/components/company/requests/CompanyRequestVisibilitySection";
 import { createRequestStyles } from "@/components/company/requests/requestStyles";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import { COMPANY_RADIUS } from "@/components/company/ui/companyDesignSystem";
 import { CompanyAccordionSection } from "@/components/company/ui/CompanyAccordionSection";
 import { CompanyScreen } from "@/components/company/ui/CompanyScreen";
@@ -123,23 +124,20 @@ export default function CompanyRequestDetailScreen() {
 
   const handleDelete = () => {
     if (!request) return;
-    Alert.alert("Delete request?", "This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteCompanyProjectRequest(request.id);
-              router.replace(COMPANY_ROUTES.requests as Href);
-            } catch (err) {
-              Alert.alert("Could not delete request", parseApiErrorMessage(err));
-            }
-          })();
-        },
+    confirmAlert({
+      title: "Delete request?",
+      message: "This cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteCompanyProjectRequest(request.id);
+          router.replace(COMPANY_ROUTES.requests as Href);
+        } catch (err) {
+          showAlert("Could not delete request", parseApiErrorMessage(err));
+        }
       },
-    ]);
+    });
   };
 
   const openActionsMenu = () => {
@@ -394,13 +392,12 @@ export default function CompanyRequestDetailScreen() {
               void setLifecycleStatus("Active", "Request reactivated.");
             }}
             onCloseRequest={() => {
-              Alert.alert("Close request?", "Recommendations remain visible but saving is disabled.", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Close request",
-                  onPress: () => void setLifecycleStatus("Closed", "Request closed."),
-                },
-              ]);
+              confirmAlert({
+                title: "Close request?",
+                message: "Recommendations remain visible but saving is disabled.",
+                confirmLabel: "Close request",
+                onConfirm: () => void setLifecycleStatus("Closed", "Request closed."),
+              });
             }}
             onDelete={handleDelete}
           />

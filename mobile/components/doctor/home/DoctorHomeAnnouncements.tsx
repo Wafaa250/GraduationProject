@@ -9,6 +9,7 @@ import {
 } from "react-native";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import {
   deleteDoctorPost,
   getDoctorPostsFeed,
@@ -171,21 +172,20 @@ function AnnouncementRow({
       await deleteDoctorPost(post.id);
       onDeleted(post.id);
     } catch (err) {
-      Alert.alert("Delete failed", parseApiErrorMessage(err));
+      showAlert("Delete failed", parseApiErrorMessage(err));
     } finally {
       setDeleting(false);
     }
   };
 
   const confirmDelete = () => {
-    Alert.alert("Delete announcement?", "This action cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => void handleDelete(),
-      },
-    ]);
+    confirmAlert({
+      title: "Delete announcement?",
+      message: "This action cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: () => void handleDelete(),
+    });
   };
 
   return (

@@ -23,6 +23,7 @@ import {
   type AddCompanyMemberResponse,
 } from "@/api/companyApi";
 import { HOME_SPACE } from "@/components/company/home/companyHomeStyles";
+import { confirmAlert } from "@/lib/confirmAlert";
 import { COMPANY_RADIUS, companyElevatedShadow } from "@/components/company/ui/companyDesignSystem";
 import type { CompanyColorScheme } from "@/constants/companyTheme";
 import { useCompanyTheme } from "@/hooks/useCompanyTheme";
@@ -108,10 +109,14 @@ export function CompanyInviteMemberSheet({ visible, onClose, onAdded }: Props) {
       return;
     }
     if (isDirty) {
-      Alert.alert("Discard invite?", "Your changes will be lost.", [
-        { text: "Keep editing", style: "cancel" },
-        { text: "Discard", style: "destructive", onPress: closeImmediately },
-      ]);
+      confirmAlert({
+        title: "Discard invite?",
+        message: "Your changes will be lost.",
+        cancelLabel: "Keep editing",
+        confirmLabel: "Discard",
+        destructive: true,
+        onConfirm: closeImmediately,
+      });
       return;
     }
     closeImmediately();

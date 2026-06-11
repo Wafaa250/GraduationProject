@@ -1,9 +1,10 @@
-import { router, useFocusEffect, type Href } from "expo-router";
+import { router, type Href } from "expo-router";
 import { Bell } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { getCompanyNotificationsUnreadCount } from "@/api/notificationsApi";
+import { getCompanyNotificationsUnreadCount, NOTIFICATION_CATEGORY } from "@/api/notificationsApi";
+import { useNotificationUnreadCount } from "@/hooks/useNotificationUnreadCount";
 import { CompanyAccountAvatarButton } from "@/components/company/CompanyAccountAvatarButton";
 import { createCompanyHomeStyles } from "@/components/company/home/companyHomeStyles";
 import { CompanyBackButton } from "@/components/company/ui/CompanyBackButton";
@@ -19,19 +20,11 @@ type Props = {
 export function CompanyHomeHeader({ companyName }: Props) {
   const colors = useCompanyTheme();
   const styles = useMemo(() => createCompanyHomeStyles(colors), [colors]);
-  const [unread, setUnread] = useState(0);
+  const { unreadCount: unread } = useNotificationUnreadCount({
+    fetchCount: getCompanyNotificationsUnreadCount,
+    matchesCreated: (payload) => payload.category === NOTIFICATION_CATEGORY.company,
+  });
   const canGoBack = useCompanyCanGoBack();
-
-  const loadUnread = useCallback(async () => {
-    try {
-      setUnread(await getCompanyNotificationsUnreadCount());
-    } catch {
-      setUnread(0);
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => { void loadUnread(); }, [loadUnread]));
-  useEffect(() => { void loadUnread(); }, [loadUnread]);
 
   return (
     <View

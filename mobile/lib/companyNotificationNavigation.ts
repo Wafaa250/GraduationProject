@@ -12,14 +12,14 @@ export function getCompanyNotificationTarget(
     eventType === "company_ai_recommendations_ready" ||
     eventType === "company_team_recommendations_ready"
   ) {
-    return requestId ? COMPANY_ROUTES.requestDetail(requestId) : COMPANY_ROUTES.requests;
+    return requestId ? COMPANY_ROUTES.requestRecommendations(requestId) : COMPANY_ROUTES.requests;
   }
 
   if (
     eventType === "company_student_recommendation_saved" ||
     eventType === "company_team_recommendation_saved"
   ) {
-    return requestId ? COMPANY_ROUTES.requestDetail(requestId) : COMPANY_ROUTES.saved;
+    return requestId ? COMPANY_ROUTES.requestRecommendations(requestId) : COMPANY_ROUTES.saved;
   }
 
   if (
@@ -45,6 +45,7 @@ export function getCompanyNotificationTargetLabel(
 
   if (target.includes("/saved")) return "View saved";
   if (target.includes("/members")) return "View members";
+  if (target.includes("/recommendations")) return "View recommendations";
   if (target.match(/\/requests\/\d+/)) return "View request";
   if (target.includes("/requests")) return "View requests";
   if (target.includes("/dashboard")) return "Dashboard";

@@ -31,6 +31,7 @@ import {
   getCompanyNotificationTarget,
 } from "@/lib/companyNotificationNavigation";
 import { COMPANY_ROUTES } from "@/lib/companyRoutes";
+import { isCompanyOwner } from "@/lib/companyWorkspace";
 import {
   COMPANY_NOTIFICATIONS_EMPTY,
   COMPANY_NOTIFICATIONS_SUBTITLE,
@@ -145,6 +146,22 @@ export default function CompanyNotificationsScreen() {
         setUnreadCount((c) => Math.max(0, c - 1));
       } catch {
         /* non-blocking */
+      }
+    }
+
+    const eventType = notification.eventType;
+    if (
+      eventType === "company_member_added" ||
+      eventType === "company_member_removed"
+    ) {
+      const owner = await isCompanyOwner();
+      if (!owner) {
+        Alert.alert(
+          "Members",
+          "Only workspace owners can open the members page. You were returned to the dashboard.",
+        );
+        router.push(COMPANY_ROUTES.dashboard as Href);
+        return;
       }
     }
 

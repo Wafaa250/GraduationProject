@@ -26,6 +26,7 @@ import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useCourseWorkspace } from "@/hooks/useCourseWorkspace";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { courseSubtitle } from "@/lib/doctorCourseUi";
+import { confirmAlert, showAlert } from "@/lib/confirmAlert";
 import { DOCTOR_ROUTES, doctorSectionPath } from "@/lib/doctorRoutes";
 
 export default function DoctorCourseDetailScreen() {
@@ -65,24 +66,21 @@ export default function DoctorCourseDetailScreen() {
   };
 
   const handleDeleteSection = (section: CourseSection) => {
-    Alert.alert(`Delete "${section.name}"?`, "Students and section data will be removed.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteCourseSection(section.id);
-              Alert.alert("Section deleted");
-              await reload();
-            } catch (err) {
-              Alert.alert("Could not delete section", parseApiErrorMessage(err));
-            }
-          })();
-        },
+    confirmAlert({
+      title: `Delete "${section.name}"?`,
+      message: "Students and section data will be removed.",
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteCourseSection(section.id);
+          showAlert("Section deleted");
+          await reload();
+        } catch (err) {
+          showAlert("Could not delete section", parseApiErrorMessage(err));
+        }
       },
-    ]);
+    });
   };
 
   if (!Number.isFinite(courseId)) {

@@ -67,10 +67,6 @@ export default function StudentRegisterScreen() {
   const faculties = form.university ? UNIVERSITY_FACULTIES[form.university] ?? [] : [];
   const majors = form.faculty ? MAJORS[form.faculty] ?? [] : [];
   const skillsData = useMemo(() => getSkillsPack(form.faculty, form.major), [form.faculty, form.major]);
-  const graduationCourses = useMemo(
-    () => getRegistrationGraduationCourses(form.faculty || null, form.major || null),
-    [form.faculty, form.major],
-  );
 
   const setField = (field: keyof typeof form, value: string | string[]) => {
     setForm((prev) => ({ ...prev, [field]: value }));

@@ -1,10 +1,11 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useFocusEffect, type Href } from "expo-router";
+import { router, type Href } from "expo-router";
 import { Bell, MessageCircle } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
+import { useNotificationUnreadCount } from "@/hooks/useNotificationUnreadCount";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useDoctorTheme } from "@/hooks/useDoctorTheme";
@@ -22,27 +23,10 @@ export function DoctorDashboardHeader({ displayName, greetingName, profilePhoto 
   const layout = useResponsiveLayout();
   const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const { unreadCount: unreadNotifications } = useNotificationUnreadCount({
+    fetchCount: getAllNotificationsUnreadCount,
+  });
   const avatarSize = layout.scale(52);
-
-  const loadUnreadCount = useCallback(async () => {
-    try {
-      const count = await getAllNotificationsUnreadCount();
-      setUnreadNotifications(count);
-    } catch {
-      setUnreadNotifications(0);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadUnreadCount();
-    }, [loadUnreadCount]),
-  );
-
-  useEffect(() => {
-    void loadUnreadCount();
-  }, [loadUnreadCount]);
 
   return (
     <LinearGradient

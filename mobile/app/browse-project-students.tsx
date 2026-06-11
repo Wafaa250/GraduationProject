@@ -22,6 +22,7 @@ import {
   type ProjectAvailableStudent,
 } from "@/api/gradProjectApi";
 import { MobileNavHeader } from "@/components/navigation/MobileNavHeader";
+import { StudentRouteGuard } from "@/components/student/StudentRouteGuard";
 import { ChipList } from "@/components/student/ChipList";
 import { HubSectionCard } from "@/components/student/HubSectionCard";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
@@ -41,7 +42,7 @@ function inviteDisabledReason(
   return null;
 }
 
-export default function BrowseProjectStudentsScreen() {
+function BrowseProjectStudentsScreen() {
   const layout = useResponsiveLayout();
   const { colors } = useHubTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -346,3 +347,11 @@ const createStyles = (colors: HubColorScheme) =>
     },
     backLinkText: { color: colors.primary, fontWeight: "700" },
   });
+
+export default function BrowseProjectStudentsRoute() {
+  return (
+    <StudentRouteGuard>
+      <BrowseProjectStudentsScreen />
+    </StudentRouteGuard>
+  );
+}

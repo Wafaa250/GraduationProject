@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Animated, Pressable, Text, View } from "react-native";
 
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
+import { useNotificationUnreadCount } from "@/hooks/useNotificationUnreadCount";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { useDoctorAccountMenu } from "@/components/doctor/DoctorAccountMenuProvider";
 import { createDoctorHomeStyles, HOME_SPACE } from "@/components/doctor/home/doctorHomeStyles";
@@ -39,26 +40,16 @@ export function DoctorHomeHeader({
   const { toggleAccountMenu, closeAccountMenu, isMenuOpen } = useDoctorAccountMenu();
   const profileAnchorRef = useRef<View>(null);
   const chevronAnim = useRef(new Animated.Value(0)).current;
-  const [unread, setUnread] = useState(0);
+  const { unreadCount: unread } = useNotificationUnreadCount({
+    fetchCount: getAllNotificationsUnreadCount,
+  });
   const avatarSize = layout.scale(50);
-
-  const loadUnread = useCallback(async () => {
-    try {
-      setUnread(await getAllNotificationsUnreadCount());
-    } catch {
-      setUnread(0);
-    }
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void loadUnread();
       return () => closeAccountMenu();
-    }, [loadUnread, closeAccountMenu]),
+    }, [closeAccountMenu]),
   );
-  useEffect(() => {
-    void loadUnread();
-  }, [loadUnread]);
 
   useEffect(() => {
     Animated.timing(chevronAnim, {

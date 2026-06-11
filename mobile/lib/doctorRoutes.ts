@@ -4,6 +4,7 @@ export const DOCTOR_ROUTES = {
   requests: "/doctor/requests",
   projects: "/doctor/projects",
   courses: "/doctor/courses",
+  createCourse: "/doctor/courses/create",
   messages: "/doctor/messages",
   notifications: "/doctor/notifications",
   profile: "/doctor/profile",
@@ -23,6 +24,10 @@ export function doctorCoursePath(courseId: number): string {
   return `/doctor/courses/${courseId}`;
 }
 
+export function doctorCreateCoursePath(): string {
+  return DOCTOR_ROUTES.createCourse;
+}
+
 export function doctorSectionPath(courseId: number, sectionId: number): string {
   return `/doctor/courses/${courseId}/sections/${sectionId}`;
 }
@@ -37,6 +42,10 @@ export function doctorCourseProjectPath(
 
 export function doctorMessageThreadPath(conversationId: number): string {
   return `/doctor/messages/${conversationId}`;
+}
+
+export function doctorStudentProfilePath(userId: number): string {
+  return `/doctor/students/${userId}`;
 }
 
 export type DoctorMetricKey = "pending" | "active" | "courses" | "students" | "messages";

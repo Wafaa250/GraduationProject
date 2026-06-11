@@ -1,5 +1,6 @@
+import { User } from "lucide-react-native";
 import { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { CourseEnrolledStudent } from "@/api/doctorCoursesApi";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
@@ -13,9 +14,10 @@ type Props = {
   student: CourseEnrolledStudent;
   status: ProjectStudentStatusMeta;
   teamLabel?: string;
+  onProfile?: () => void;
 };
 
-export function ProjectStudentRow({ student, status, teamLabel }: Props) {
+export function ProjectStudentRow({ student, status, teamLabel, onProfile }: Props) {
   const layout = useResponsiveLayout();
   const { colors } = useDoctorTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -44,6 +46,18 @@ export function ProjectStudentRow({ student, status, teamLabel }: Props) {
           <Text style={[styles.teamLabel, { fontSize: layout.scale(11) }]}>{teamLabel}</Text>
         ) : null}
       </View>
+      {onProfile ? (
+        <Pressable
+          onPress={onProfile}
+          hitSlop={8}
+          style={({ pressed }) => [styles.profileBtn, { opacity: pressed ? 0.7 : 1 }]}
+          accessibilityRole="button"
+          accessibilityLabel="View profile"
+        >
+          <User size={14} color={colors.foreground} strokeWidth={2} />
+          <Text style={[styles.profileText, { fontSize: layout.scale(10) }]}>Profile</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -108,6 +122,19 @@ function createStyles(colors: HubColorScheme) {
       marginTop: 2,
       fontWeight: "700",
       color: colors.primary,
+    },
+    profileBtn: {
+      alignItems: "center",
+      justifyContent: "center",
+      minWidth: 52,
+      paddingHorizontal: DOCTOR_SPACE.xs,
+      paddingVertical: 2,
+      borderRadius: DOCTOR_RADIUS.sm,
+    },
+    profileText: {
+      marginTop: 2,
+      fontWeight: "700",
+      color: colors.foreground,
     },
   });
 }

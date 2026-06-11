@@ -12,6 +12,7 @@ export default function DoctorLayout() {
           <Stack.Screen name="edit-profile" options={{ animation: "slide_from_right" }} />
           <Stack.Screen name="messages" options={{ animation: "slide_from_right" }} />
           <Stack.Screen name="notifications" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="students/[userId]" options={{ animation: "slide_from_right" }} />
         </Stack>
       </DoctorAccountMenuProvider>
     </DoctorRouteGuard>
