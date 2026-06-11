@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import { StudentWorkspaceScreen } from "@/components/student/StudentWorkspaceScr
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useNotificationsHubSync } from "@/hooks/useNotificationsHubSync";
 import { getStudentNotificationTarget } from "@/lib/studentNotificationNavigation";
 
 function formatNotificationTime(iso: string): string {
@@ -61,6 +62,18 @@ export default function NotificationsScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleRealtimeCreated = useCallback((notification: GraduationNotification) => {
+    setItems((prev) => {
+      if (prev.some((n) => n.id === notification.id)) return prev;
+      return [notification, ...prev].slice(0, 50);
+    });
+  }, []);
+
+  useNotificationsHubSync({
+    onCreated: handleRealtimeCreated,
+    onReconnect: () => void load(),
+  });
 
   const handlePress = async (notification: GraduationNotification) => {
     if (!notification.readAt) {

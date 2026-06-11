@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
+import { useNotificationsHubSync } from "@/hooks/useNotificationsHubSync";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useDoctorTheme } from "@/hooks/useDoctorTheme";
@@ -43,6 +44,15 @@ export function DoctorDashboardHeader({ displayName, greetingName, profilePhoto 
   useEffect(() => {
     void loadUnreadCount();
   }, [loadUnreadCount]);
+
+  useNotificationsHubSync({
+    onCreated: (notification) => {
+      if (!notification.readAt) {
+        setUnreadNotifications((count) => count + 1);
+      }
+    },
+    onReconnect: () => void loadUnreadCount(),
+  });
 
   return (
     <LinearGradient

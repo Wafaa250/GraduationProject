@@ -16,12 +16,21 @@ export type AbstractFileProjectSource = {
 
 const EMBEDDED_FILE_PATTERN = /\[\[SKILLSWAP_GP_FILE:([\s\S]*?)\]\]/;
 
+const MAX_ABSTRACT_FILE_BYTES = 5 * 1024 * 1024;
+
 type EmbeddedAbstractFilePayload = {
   v: number;
   fileName: string;
   mimeType: string;
   base64: string;
   uploadedAt: string;
+};
+
+export type AbstractFilePick = {
+  uri: string;
+  name: string;
+  mimeType?: string | null;
+  size?: number | null;
 };
 
 function guessMimeType(fileName: string): string {
@@ -66,6 +75,39 @@ function parseAbstractDocument(abstract?: string | null): {
   }
 
   return { displayText: raw.replace(EMBEDDED_FILE_PATTERN, "").trim(), attachment };
+}
+
+export function isAbstractFileAllowed(fileName: string): boolean {
+  const lower = fileName.toLowerCase();
+  return lower.endsWith(".pdf") || lower.endsWith(".docx");
+}
+
+/** Build abstract field for POST/PUT — embeds file in abstract when no backend file API exists. */
+export async function buildAbstractFieldForSave(
+  summary: string,
+  file: AbstractFilePick | null,
+  readBase64: (uri: string) => Promise<string>,
+): Promise<string | null> {
+  const text = summary.trim();
+
+  if (!file) {
+    return text || null;
+  }
+
+  if (file.size != null && file.size > MAX_ABSTRACT_FILE_BYTES) {
+    throw new Error("Abstract file must be 5 MB or smaller.");
+  }
+
+  const base64 = await readBase64(file.uri);
+  const marker = `[[SKILLSWAP_GP_FILE:${JSON.stringify({
+    v: 1,
+    fileName: file.name,
+    mimeType: file.mimeType || guessMimeType(file.name),
+    base64,
+    uploadedAt: new Date().toISOString(),
+  } satisfies EmbeddedAbstractFilePayload)}]]`;
+
+  return text ? `${text}\n\n${marker}` : marker;
 }
 
 export function resolveGraduationProjectAbstractFile(

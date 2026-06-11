@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Animated, Pressable, Text, View } from "react-native";
 
 import { getAllNotificationsUnreadCount } from "@/api/notificationsApi";
+import { useNotificationsHubSync } from "@/hooks/useNotificationsHubSync";
 import { FeedAvatar } from "@/components/communication/FeedAvatar";
 import { useDoctorAccountMenu } from "@/components/doctor/DoctorAccountMenuProvider";
 import { createDoctorHomeStyles, HOME_SPACE } from "@/components/doctor/home/doctorHomeStyles";
@@ -59,6 +60,13 @@ export function DoctorHomeHeader({
   useEffect(() => {
     void loadUnread();
   }, [loadUnread]);
+
+  useNotificationsHubSync({
+    onCreated: (notification) => {
+      if (!notification.readAt) setUnread((count) => count + 1);
+    },
+    onReconnect: () => void loadUnread(),
+  });
 
   useEffect(() => {
     Animated.timing(chevronAnim, {

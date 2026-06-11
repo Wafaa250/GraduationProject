@@ -113,6 +113,19 @@ export type CourseWorkspaceResponse = {
   teams: CourseWorkspaceTeam[];
 };
 
+export type CreateCoursePayload = {
+  name: string;
+  code: string;
+  semester: string;
+  academicYear: string;
+  description?: string;
+  allowCourseProjects: boolean;
+  allowTeamFormation: boolean;
+  allowAiTeamSuggestions: boolean;
+  allowStudentCollaboration: boolean;
+  defaultTeamFormationStrategy: "doctor" | "student";
+};
+
 export type CreateCourseSectionPayload = {
   name: string;
   days: string[];
@@ -306,6 +319,23 @@ function normalizeCourseWorkspaceResponse(raw: Record<string, unknown>): CourseW
 export async function getDoctorCourses(): Promise<DoctorCourse[]> {
   const { data } = await api.get<unknown[]>("/courses/my");
   return Array.isArray(data) ? data.map((row) => normalizeDoctorCourse(row as Record<string, unknown>)) : [];
+}
+
+/** POST /api/courses */
+export async function createCourse(payload: CreateCoursePayload): Promise<DoctorCourse> {
+  const { data } = await api.post<unknown>("/courses", {
+    name: payload.name.trim(),
+    code: payload.code.trim(),
+    semester: payload.semester.trim(),
+    academicYear: payload.academicYear.trim(),
+    description: payload.description?.trim() || undefined,
+    allowCourseProjects: payload.allowCourseProjects,
+    allowTeamFormation: payload.allowTeamFormation,
+    allowAiTeamSuggestions: payload.allowAiTeamSuggestions,
+    allowStudentCollaboration: payload.allowStudentCollaboration,
+    defaultTeamFormationStrategy: payload.defaultTeamFormationStrategy,
+  });
+  return normalizeDoctorCourse(data as Record<string, unknown>);
 }
 
 function finalizeCourseWorkspaceResponse(raw: CourseWorkspaceResponse): CourseWorkspaceResponse {

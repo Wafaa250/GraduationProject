@@ -39,6 +39,14 @@ function pickBool(raw: Record<string, unknown>, ...keys: string[]): boolean {
   return false;
 }
 
+function pickOptionalBool(raw: Record<string, unknown>, ...keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "boolean") return value;
+  }
+  return undefined;
+}
+
 function pickStringList(raw: Record<string, unknown>, ...keys: string[]): string[] {
   for (const key of keys) {
     const value = raw[key];
@@ -125,36 +133,14 @@ export function normSupervisorRequestStatus(status?: string | null): string {
   return (status ?? "").trim().toLowerCase();
 }
 
-/** Owner always occupies one team slot; ensure count and member list reflect that. */
-export function resolveGradProjectTeamState(project: GradProject): GradProject {
-  const members = [...(project.members ?? [])];
-  const ownerId = project.ownerId;
-  const ownerInList = ownerId > 0 && members.some((member) => member.studentId === ownerId);
+/** Stored total team capacity (including owner) → wizard desired team size. */
+export function partnersCountToTeamSize(partnersCount: number): number {
+  return Math.min(5, Math.max(1, partnersCount));
+}
 
-  if (ownerId > 0 && !ownerInList) {
-    members.unshift({
-      studentId: ownerId,
-      userId: project.ownerUserId ?? 0,
-      name: project.ownerName?.trim() || "Project owner",
-      role: "leader",
-    });
-  }
-
-  const currentMembers = Math.max(
-    project.currentMembers ?? 0,
-    members.length,
-    ownerId > 0 ? 1 : 0,
-  );
-  const partnersCount = project.partnersCount ?? 0;
-
-  return {
-    ...project,
-    members,
-    currentMembers,
-    remainingSeats:
-      project.remainingSeats ?? Math.max(0, partnersCount - currentMembers),
-    isFull: partnersCount > 0 ? currentMembers >= partnersCount : project.isFull,
-  };
+/** Wizard desired team size → stored total team capacity (including owner). */
+export function teamSizeToPartnersCount(teamSize: number): number {
+  return Math.min(10, Math.max(1, teamSize));
 }
 
 export function normalizeGradProject(project: GradProject): GradProject {
@@ -167,7 +153,7 @@ export function normalizeGradProject(project: GradProject): GradProject {
     AbstractFileUploadedAt?: string | null;
   };
   const rawRecord = raw as unknown as Record<string, unknown>;
-  return resolveGradProjectTeamState({
+  return {
     ...project,
     abstractFileName:
       project.abstractFileName ??
@@ -187,7 +173,7 @@ export function normalizeGradProject(project: GradProject): GradProject {
       project.supervisorCancellationRequestStatus ??
       raw.SupervisorCancellationRequestStatus ??
       null,
-  });
+  };
 }
 
 export function getPendingSupervisorDoctorId(
@@ -236,7 +222,8 @@ export function parseGradProject(raw: unknown): GradProject {
     preferredRoles: pickStringList(record, "preferredRoles", "PreferredRoles"),
     requiredRoles: pickStringList(record, "requiredRoles", "RequiredRoles"),
     skillPriorities: pickStringList(record, "skillPriorities", "SkillPriorities"),
-    lookingForTeammates: pickBool(record, "lookingForTeammates", "LookingForTeammates") || undefined,
+    lookingForTeammates:
+      pickOptionalBool(record, "lookingForTeammates", "LookingForTeammates"),
     supervisor: parseGradProjectSupervisor(record.supervisor ?? record.Supervisor),
     supervisorRequestStatus:
       pickNullableString(record, "supervisorRequestStatus", "SupervisorRequestStatus") ?? null,
@@ -389,6 +376,8 @@ export type GradProjectRecommendedStudent = {
   reason?: string;
   hasPendingInvite?: boolean;
   isMember?: boolean;
+  isOwner?: boolean;
+  ownsGraduationProject?: boolean;
   canInvite?: boolean;
 };
 
@@ -414,6 +403,7 @@ export type ProjectAvailableStudent = {
   isMember: boolean;
   hasPendingInvite: boolean;
   isOwner: boolean;
+  ownsGraduationProject: boolean;
   isProjectFull: boolean;
   canInvite: boolean;
 };
@@ -481,8 +471,8 @@ export async function updateGraduationProject(
   id: number,
   payload: UpdateGraduationProjectPayload,
 ): Promise<GradProject> {
-  const { data } = await api.put<GradProject>(`/graduation-projects/${id}`, payload);
-  return data;
+  const { data } = await api.put<unknown>(`/graduation-projects/${id}`, payload);
+  return parseGradProject(data);
 }
 
 export async function deleteGraduationProject(id: number): Promise<void> {
@@ -566,9 +556,51 @@ function parseRecommendedStudentRows(data: unknown): GradProjectRecommendedStude
         ? skillsRaw.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
         : [],
       matchScore: normalizeMatchScore(pickNumber(record, "matchScore", "MatchScore")),
-      hasPendingInvite: pickBool(record, "hasPendingInvite", "HasPendingInvite") || undefined,
-      isMember: pickBool(record, "isMember", "IsMember") || undefined,
-      canInvite: pickBool(record, "canInvite", "CanInvite") || undefined,
+      hasPendingInvite: pickOptionalBool(record, "hasPendingInvite", "HasPendingInvite"),
+      isMember: pickOptionalBool(record, "isMember", "IsMember"),
+      isOwner: pickOptionalBool(record, "isOwner", "IsOwner"),
+      ownsGraduationProject: pickOptionalBool(
+        record,
+        "ownsGraduationProject",
+        "OwnsGraduationProject",
+      ),
+      canInvite: pickOptionalBool(record, "canInvite", "CanInvite"),
+    });
+  }
+  return rows;
+}
+
+function parseAvailableStudentRows(data: unknown): ProjectAvailableStudent[] {
+  if (!Array.isArray(data)) return [];
+  const rows: ProjectAvailableStudent[] = [];
+  for (const raw of data) {
+    const record = asRecord(raw);
+    if (!record) continue;
+    const studentId = pickNumber(record, "studentId", "StudentId");
+    if (!studentId) continue;
+    const skillsRaw = record.skills ?? record.Skills;
+    rows.push({
+      studentId,
+      userId: pickNumber(record, "userId", "UserId"),
+      name: pickString(record, "name", "Name") || `Student #${studentId}`,
+      major: pickString(record, "major", "Major"),
+      university: pickString(record, "university", "University"),
+      academicYear: pickString(record, "academicYear", "AcademicYear"),
+      profilePicture: pickNullableString(record, "profilePicture", "ProfilePicture"),
+      skills: Array.isArray(skillsRaw)
+        ? skillsRaw.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        : [],
+      matchScore: normalizeMatchScore(pickNumber(record, "matchScore", "MatchScore")),
+      isMember: pickBool(record, "isMember", "IsMember"),
+      hasPendingInvite: pickBool(record, "hasPendingInvite", "HasPendingInvite"),
+      isOwner: pickBool(record, "isOwner", "IsOwner"),
+      ownsGraduationProject: pickBool(
+        record,
+        "ownsGraduationProject",
+        "OwnsGraduationProject",
+      ),
+      isProjectFull: pickBool(record, "isProjectFull", "IsProjectFull"),
+      canInvite: pickBool(record, "canInvite", "CanInvite"),
     });
   }
   return rows;
@@ -701,10 +733,10 @@ export async function getRecommendedSupervisors(
 export async function getAvailableStudents(
   projectId: number,
 ): Promise<ProjectAvailableStudent[]> {
-  const { data } = await api.get<ProjectAvailableStudent[]>(
+  const { data } = await api.get<unknown>(
     `/graduation-projects/${projectId}/available-students`,
   );
-  return Array.isArray(data) ? data : [];
+  return parseAvailableStudentRows(data);
 }
 
 export async function leaveGraduationProject(projectId: number): Promise<{ message: string }> {

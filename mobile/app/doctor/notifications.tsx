@@ -1,6 +1,8 @@
 import { router, useFocusEffect, type Href } from "expo-router";
 import { BellOff } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
+
+import { useNotificationsHubSync } from "@/hooks/useNotificationsHubSync";
 import {
   ActivityIndicator,
   Alert,
@@ -99,6 +101,21 @@ export default function DoctorNotificationsScreen() {
       void refresh(true);
     }, [refresh]),
   );
+
+  const handleRealtimeCreated = useCallback((notification: GraduationNotification) => {
+    setItems((prev) => {
+      if (prev.some((n) => n.id === notification.id)) return prev;
+      return [notification, ...prev].slice(0, 50);
+    });
+    if (!notification.readAt) {
+      setUnreadCount((count) => count + 1);
+    }
+  }, []);
+
+  useNotificationsHubSync({
+    onCreated: handleRealtimeCreated,
+    onReconnect: () => void refresh(true),
+  });
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

@@ -42,7 +42,6 @@
   min-width: 0;
   min-height: 0;
   padding: 0.5rem var(--hub-content-pad-x) 0.75rem;
-  overflow-x: hidden;
   background: hsl(var(--hub-feed-surface));
 }
 
@@ -54,7 +53,6 @@
   );
   min-width: 0;
   margin-inline: auto;
-  overflow-x: hidden;
 }
 
 .communication-hub__page-header {
@@ -136,7 +134,6 @@
   max-width: 100%;
   min-width: 0;
   margin-inline: auto;
-  overflow-x: hidden;
 }
 
 .communication-hub__main {
@@ -144,7 +141,6 @@
   width: 100%;
   max-width: min(var(--hub-feed-column-max), 100%);
   margin-inline: auto;
-  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -250,22 +246,28 @@
 
 @media (min-width: 1181px) {
   .communication-hub__layout {
-    grid-template-columns: min(var(--hub-feed-column-max), 100%) var(--hub-right-width);
-    width: fit-content;
-    max-width: 100%;
+    /* Shrink columns to fit main area (viewport minus app sidebar), not a fixed 944px track */
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--hub-right-width));
+    width: 100%;
+    max-width: min(
+      calc(var(--hub-feed-column-max) + var(--hub-right-width) + var(--hub-layout-gap)),
+      100%
+    );
     margin-inline: auto;
   }
 
   .communication-hub__main {
     margin-inline: 0;
-    max-width: none;
+    max-width: var(--hub-feed-column-max);
     width: 100%;
+    min-width: 0;
   }
 
   .communication-hub__aside-right {
     margin-inline: 0;
-    width: var(--hub-right-width);
+    width: 100%;
     max-width: var(--hub-right-width);
+    min-width: 0;
   }
 }
 

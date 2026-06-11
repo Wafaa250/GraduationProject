@@ -4,6 +4,7 @@ export const DOCTOR_ROUTES = {
   requests: "/doctor/requests",
   projects: "/doctor/projects",
   courses: "/doctor/courses",
+  createCourse: "/doctor/courses/create",
   messages: "/doctor/messages",
   notifications: "/doctor/notifications",
   profile: "/doctor/profile",

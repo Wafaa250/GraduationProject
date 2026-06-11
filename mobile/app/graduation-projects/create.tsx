@@ -1,7 +1,9 @@
 import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,13 +17,29 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  fetchProjectMatchingPreview,
+  hasSufficientProjectPreviewInput,
+  type ProjectPreviewResponse,
+} from "@/api/aiApi";
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
   createGraduationProject,
   getGraduationProjectsMyEnvelope,
+  partnersCountToTeamSize,
+  teamSizeToPartnersCount,
   updateGraduationProject,
 } from "@/api/gradProjectApi";
 import { getMe } from "@/api/meApi";
+import {
+  buildAbstractFieldForSave,
+  isAbstractFileAllowed,
+  type AbstractFilePick,
+} from "@/lib/graduationProjectAbstractDocument";
+import {
+  PRIORITY_SUGGESTIONS,
+  PROJECT_INTERESTS,
+} from "@/lib/graduationProjectCreateConstants";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -61,9 +79,26 @@ export default function CreateGraduationProjectScreen() {
   const [technologiesText, setTechnologiesText] = useState("");
   const [requiredRolesText, setRequiredRolesText] = useState("");
   const [preferredRolesText, setPreferredRolesText] = useState("");
-  const [teamSize, setTeamSize] = useState("3");
+  const [teamSize, setTeamSize] = useState("4");
   const [lookingForTeammates, setLookingForTeammates] = useState(true);
+  const [skillPriorities, setSkillPriorities] = useState<string[]>([]);
+  const [interests, setInterests] = useState<string[]>([]);
+  const [abstractFile, setAbstractFile] = useState<AbstractFilePick | null>(null);
+  const [abstractFileName, setAbstractFileName] = useState("");
+  const [preview, setPreview] = useState<ProjectPreviewResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const submitInFlightRef = useRef(false);
+
+  const skills = useMemo(() => parseCommaList(skillsText), [skillsText]);
+  const technologies = useMemo(() => parseCommaList(technologiesText), [technologiesText]);
+  const interestLabels = useMemo(
+    () =>
+      interests
+        .map((id) => PROJECT_INTERESTS.find((x) => x.id === id)?.label ?? "")
+        .filter((label) => label.length > 0),
+    [interests],
+  );
 
   const loadForm = useCallback(async () => {
     setLoading(true);
@@ -82,7 +117,8 @@ export default function CreateGraduationProjectScreen() {
         setTechnologiesText((project.technologies ?? []).join(", "));
         setRequiredRolesText((project.requiredRoles ?? []).join(", "));
         setPreferredRolesText((project.preferredRoles ?? []).join(", "));
-        setTeamSize(String(Math.min(5, Math.max(1, project.partnersCount))));
+        setSkillPriorities(project.skillPriorities ?? []);
+        setTeamSize(String(partnersCountToTeamSize(project.partnersCount)));
         setLookingForTeammates(project.lookingForTeammates !== false);
       } else if (!stage && options[0]) {
         setStage(options[0].stageId);
@@ -116,14 +152,118 @@ export default function CreateGraduationProjectScreen() {
     return message.includes("already own");
   };
 
+  const abstractComplete = summary.trim().length > 5 || abstractFileName.trim().length > 0;
+
   const canSubmit = useMemo(() => {
     if (!isEditMode && hasExistingProject) return false;
     return (
       stage.trim().length > 0 &&
-      title.trim().length > 0 &&
-      (summary.trim().length > 5 || skillsText.trim().length > 0)
+      title.trim().length > 2 &&
+      abstractComplete &&
+      skills.length > 0 &&
+      technologies.length > 0 &&
+      parseCommaList(requiredRolesText).length > 0 &&
+      (isEditMode || interests.length > 0)
     );
-  }, [hasExistingProject, isEditMode, skillsText, stage, summary, title]);
+  }, [
+    abstractComplete,
+    hasExistingProject,
+    interests.length,
+    isEditMode,
+    requiredRolesText,
+    skills.length,
+    stage,
+    technologies.length,
+    title,
+  ]);
+
+  const previewInputReady = useMemo(
+    () => hasSufficientProjectPreviewInput({ title, skills, technologies }),
+    [skills, technologies, title],
+  );
+
+  useEffect(() => {
+    if (!previewInputReady) {
+      setPreview(null);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setPreviewLoading(true);
+    setPreviewError(null);
+
+    void (async () => {
+      try {
+        const result = await fetchProjectMatchingPreview({
+          projectType: stage ? stageToProjectType(stage) : "GP",
+          title: title.trim(),
+          abstract: summary.trim() || null,
+          requiredSkills: skills,
+          technologies,
+          preferredRoles: parseCommaList(preferredRolesText),
+          requiredRoles: parseCommaList(requiredRolesText),
+          skillPriorities: uniqueStrings(skillPriorities),
+          interests: interestLabels,
+          teamSize: Number(teamSize) || 4,
+        });
+        if (!cancelled) setPreview(result);
+      } catch (err) {
+        if (!cancelled) {
+          setPreview(null);
+          setPreviewError(parseApiErrorMessage(err));
+        }
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    interestLabels,
+    preferredRolesText,
+    previewInputReady,
+    requiredRolesText,
+    skillPriorities,
+    skills,
+    stage,
+    summary,
+    teamSize,
+    technologies,
+    title,
+  ]);
+
+  const toggleChip = (list: string[], value: string, setter: (next: string[]) => void) => {
+    setter(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+  };
+
+  const pickAbstractFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    const name = asset.name ?? "abstract";
+    if (!isAbstractFileAllowed(name)) {
+      Alert.alert("Unsupported file type", "Please upload a PDF or DOCX file only.");
+      return;
+    }
+    setAbstractFile({
+      uri: asset.uri,
+      name,
+      mimeType: asset.mimeType,
+      size: asset.size,
+    });
+    setAbstractFileName(name);
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit || submitting || submitInFlightRef.current) return;
@@ -131,19 +271,19 @@ export default function CreateGraduationProjectScreen() {
     submitInFlightRef.current = true;
     setSubmitting(true);
     try {
+      const abstract = await buildAbstractFieldForSave(summary, abstractFile, (uri) =>
+        FileSystem.readAsStringAsync(uri, { encoding: "base64" }),
+      );
       const payload = {
         name: title.trim(),
-        abstract: summary.trim() || null,
+        abstract,
         projectType: stageToProjectType(stage),
-        requiredSkills: uniqueStrings([
-          ...parseCommaList(skillsText),
-          ...parseCommaList(technologiesText),
-        ]),
+        requiredSkills: uniqueStrings([...skills, ...technologies]),
         preferredRoles: parseCommaList(preferredRolesText),
         requiredRoles: parseCommaList(requiredRolesText),
-        skillPriorities: [],
+        skillPriorities: uniqueStrings(skillPriorities),
         lookingForTeammates,
-        partnersCount: Math.min(10, Math.max(1, Number(teamSize) || 1)),
+        partnersCount: teamSizeToPartnersCount(Number(teamSize) || 1),
       };
 
       if (isEditMode && editingProjectId != null) {
@@ -153,17 +293,8 @@ export default function CreateGraduationProjectScreen() {
       }
 
       await createGraduationProject(payload);
-      const opened = await openProjectWorkspace(
-        "Graduation project created!",
-        "Your project is live on SkillSwap.",
-      );
-      if (!opened) {
-        Alert.alert(
-          "Project created",
-          "Your project was created, but it could not be loaded yet. Pull to refresh on your dashboard.",
-        );
-        router.replace(STUDENT_ROUTES.dashboard as never);
-      }
+      Alert.alert("Graduation project created!", "Your project is live on SkillSwap.");
+      router.replace(STUDENT_ROUTES.dashboard as never);
     } catch (err) {
       if (!isEditMode && isAlreadyOwnProjectError(err)) {
         const opened = await openProjectWorkspace(
@@ -263,6 +394,33 @@ export default function CreateGraduationProjectScreen() {
             placeholderTextColor={colors.muted}
             multiline
           />
+          <Text style={styles.hint}>
+            {summary.length > 0
+              ? `${summary.length} characters`
+              : "Write your abstract here, or upload a file below (at least one is required)."}
+          </Text>
+          <View style={styles.uploadBox}>
+            <Text style={styles.hint}>Optional: upload a PDF or DOCX abstract document.</Text>
+            <Pressable style={styles.uploadBtn} onPress={() => void pickAbstractFile()}>
+              <Ionicons name="cloud-upload-outline" size={16} color={colors.primary} />
+              <Text style={styles.uploadBtnText}>Choose file</Text>
+            </Pressable>
+            {abstractFileName ? (
+              <View style={styles.fileRow}>
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {abstractFileName}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setAbstractFile(null);
+                    setAbstractFileName("");
+                  }}
+                >
+                  <Ionicons name="close-circle" size={20} color={colors.muted} />
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.field}>
@@ -328,6 +486,81 @@ export default function CreateGraduationProjectScreen() {
             onValueChange={setLookingForTeammates}
             trackColor={{ true: colors.primary, false: colors.border }}
           />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Skill priorities</Text>
+          <View style={styles.chipWrap}>
+            {PRIORITY_SUGGESTIONS.map((item) => {
+              const selected = skillPriorities.includes(item);
+              return (
+                <Pressable
+                  key={item}
+                  style={[styles.chip, selected && styles.chipActive]}
+                  onPress={() => toggleChip(skillPriorities, item, setSkillPriorities)}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>{item}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {!isEditMode ? (
+          <View style={styles.field}>
+            <Text style={styles.label}>Project interests & domains</Text>
+            <View style={styles.chipWrap}>
+              {PROJECT_INTERESTS.map((item) => {
+                const selected = interests.includes(item.id);
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={[styles.chip, selected && styles.chipActive]}
+                    onPress={() => toggleChip(interests, item.id, setInterests)}
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.previewCard}>
+          <Text style={styles.label}>AI matching preview</Text>
+          {previewLoading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : previewError ? (
+            <Text style={styles.hint}>{previewError}</Text>
+          ) : preview?.isAvailable ? (
+            <View style={{ gap: 8 }}>
+              <Text style={styles.previewMetric}>
+                Match confidence: {preview.compatibilityScore}%
+              </Text>
+              <Text style={styles.previewMetric}>
+                Potential matches: {preview.estimatedCompatibleStudentsCount}
+              </Text>
+              <Text style={styles.previewMetric}>
+                Domain overlap: {preview.domainOverlapLabel ?? "—"}
+              </Text>
+              <Text style={styles.previewMetric}>
+                Role coverage: {preview.roleCoverageLabel ?? "—"}
+              </Text>
+              {preview.topRecommendedStudents.slice(0, 3).map((student) => (
+                <Text key={student.studentId} style={styles.hint}>
+                  {student.name} · {student.matchScore}% · {student.major}
+                </Text>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.hint}>
+              {previewInputReady
+                ? preview?.message?.trim() || "No preview available yet."
+                : "Add a title and skills or technologies to see AI matching preview."}
+            </Text>
+          )}
         </View>
 
         <Pressable
@@ -447,5 +680,91 @@ const createStyles = (colors: HubColorScheme) =>
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
+  },
+  hint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  uploadBox: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    backgroundColor: colors.cardBg,
+  },
+  uploadBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.background,
+  },
+  uploadBtnText: {
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  fileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: colors.background,
+  },
+  fileName: {
+    flex: 1,
+    fontWeight: "600",
+    color: colors.foreground,
+    fontSize: 13,
+  },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.cardBg,
+  },
+  chipActive: {
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.muted,
+  },
+  chipTextActive: {
+    color: colors.primary,
+  },
+  previewCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+    backgroundColor: colors.cardBg,
+  },
+  previewMetric: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.foreground,
   },
 });

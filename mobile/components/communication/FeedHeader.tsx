@@ -19,6 +19,7 @@ import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useHubAccountMenu } from "@/contexts/HubAccountMenuContext";
 import { useHubDesign } from "@/hooks/use-hub-design";
 import { profilePhotoUrl } from "@/lib/profilePhotoUrl";
+import { useNotificationsHubSync } from "@/hooks/useNotificationsHubSync";
 import { getItem } from "@/utils/authStorage";
 
 type Props = {
@@ -60,6 +61,24 @@ export function FeedHeader({ onSearchActiveChange }: Props) {
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  const refreshUnreadCount = useCallback(async () => {
+    try {
+      const unread = await getAllNotificationsUnreadCount();
+      setUnreadNotifications(unread);
+    } catch {
+      setUnreadNotifications(0);
+    }
+  }, []);
+
+  useNotificationsHubSync({
+    onCreated: (notification) => {
+      if (!notification.readAt) {
+        setUnreadNotifications((count) => count + 1);
+      }
+    },
+    onReconnect: () => void refreshUnreadCount(),
+  });
 
   const openAccountMenu = () => {
     avatarRef.current?.measureInWindow((x, y, width, height) => {

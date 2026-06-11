@@ -20,6 +20,7 @@ import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { listDoctorsDirectory, type DoctorDirectoryEntry } from "@/api/doctorDirectoryApi";
 import {
   changeProjectLeader,
+  deleteGraduationProject,
   deriveProjectStatus,
   getGraduationProjectAbstractFile,
   getGraduationProjectsMyEnvelope,
@@ -51,6 +52,11 @@ import { useHubTheme } from "@/contexts/ThemePreferenceContext";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { projectTypeLabel } from "@/lib/graduationProjectTypes";
 import { profileInitialsFromName } from "@/lib/profileAvatar";
+import {
+  buildGradProjectInviteContext,
+  filterGradProjectInviteCandidates,
+} from "@/lib/gradProjectInviteUtils";
+import { getGradProjectTeamMetrics } from "@/lib/gradProjectTeamMetrics";
 import {
   browseProjectStudentsPath,
   studentDirectoryProfilePath,
@@ -97,6 +103,7 @@ export default function GraduationProjectWorkspaceScreen() {
   const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
   const [promotingMemberId, setPromotingMemberId] = useState<number | null>(null);
   const [leavingProject, setLeavingProject] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
   const [sentInvitations, setSentInvitations] = useState<SentProjectInvitation[]>([]);
   const [cancellingInvitationId, setCancellingInvitationId] = useState<number | null>(null);
   const [invitationTab, setInvitationTab] = useState<SentInvitationTab>("pending");
@@ -134,27 +141,33 @@ export default function GraduationProjectWorkspaceScreen() {
       setAbstractFile(abstract);
       setSentInvitations(owner ? sent : []);
 
-      if (owner || leader) {
-        const [matches, supervisorRows, directory] = await Promise.all([
-          getRecommendedStudents(proj.id),
-          !proj.supervisor ? getRecommendedSupervisors(proj.id).catch(() => []) : Promise.resolve([]),
-          listDoctorsDirectory().catch(() => [] as DoctorDirectoryEntry[]),
-        ]);
-        setAiTeammates(matches);
-        setSupervisors(supervisorRows);
-        setDoctorDirectory(directory);
+      if (owner) {
+        const matches = await getRecommendedStudents(proj.id).catch(() => []);
         const pendingFromSent = new Set(
           sent.filter((inv) => inv.status.toLowerCase() === "pending").map((inv) => inv.receiverId),
         );
         for (const m of matches) {
           if (m.hasPendingInvite) pendingFromSent.add(m.studentId);
         }
+        const inviteContext = buildGradProjectInviteContext(proj, pendingFromSent);
+        setAiTeammates(filterGradProjectInviteCandidates(matches, inviteContext));
         setPendingInviteIds(pendingFromSent);
       } else {
         setAiTeammates([]);
-        setSupervisors([]);
         setPendingInviteIds(new Set());
-        if (!owner) setSentInvitations([]);
+        setSentInvitations([]);
+      }
+
+      if ((owner || leader) && !proj.supervisor) {
+        const [supervisorRows, directory] = await Promise.all([
+          getRecommendedSupervisors(proj.id).catch(() => []),
+          listDoctorsDirectory().catch(() => [] as DoctorDirectoryEntry[]),
+        ]);
+        setSupervisors(supervisorRows);
+        setDoctorDirectory(directory);
+      } else {
+        setSupervisors([]);
+        setDoctorDirectory([]);
       }
     } catch (err) {
       Alert.alert("Could not load workspace", parseApiErrorMessage(err));
@@ -253,6 +266,33 @@ export default function GraduationProjectWorkspaceScreen() {
     }
   };
 
+  const handleDeleteProject = () => {
+    if (!project || !isOwner) return;
+    Alert.alert(
+      "Delete graduation project?",
+      `This will permanently delete "${project.name}" and its team data. This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete project",
+          style: "destructive",
+          onPress: () => {
+            setDeletingProject(true);
+            void deleteGraduationProject(project.id)
+              .then(() => {
+                Alert.alert("Project deleted", "Your graduation project has been removed.");
+                router.replace(STUDENT_ROUTES.dashboard as never);
+              })
+              .catch((err) =>
+                Alert.alert("Could not delete project", parseApiErrorMessage(err)),
+              )
+              .finally(() => setDeletingProject(false));
+          },
+        },
+      ],
+    );
+  };
+
   const handleLeaveProject = () => {
     if (!project || isOwner) return;
     Alert.alert("Leave project?", "You will be removed from this graduation project team.", [
@@ -287,11 +327,14 @@ export default function GraduationProjectWorkspaceScreen() {
             .then((result) => {
               setProject((prev) => {
                 if (!prev) return prev;
+                const capacity = prev.partnersCount;
+                const updatedCount = result.currentMembers;
                 return {
                   ...prev,
                   members: prev.members.filter((m) => m.studentId !== memberStudentId),
-                  currentMembers: result.currentMembers,
-                  isFull: result.currentMembers >= prev.partnersCount,
+                  currentMembers: updatedCount,
+                  isFull: updatedCount >= capacity,
+                  remainingSeats: Math.max(0, capacity - updatedCount),
                 };
               });
               Alert.alert("Member removed", result.message);
@@ -388,7 +431,7 @@ export default function GraduationProjectWorkspaceScreen() {
 
   const stageLabel = projectTypeLabel(project.projectType, faculty, major);
   const statusLabel = deriveProjectStatus(project);
-  const seatsLeft = Math.max(0, project.partnersCount - project.currentMembers);
+  const { desiredSize, currentMembers, seatsLeft } = getGradProjectTeamMetrics(project);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -466,7 +509,7 @@ export default function GraduationProjectWorkspaceScreen() {
           )}
         </HubSectionCard>
 
-        <HubSectionCard title="Team" description={`${project.currentMembers} / ${project.partnersCount} members`}>
+        <HubSectionCard title="Team" description={`${currentMembers} / ${desiredSize} members`}>
           <View style={{ gap: layout.space("sm") }}>
             {(project.members ?? []).map((member) => {
               const isSelf = profileId != null && member.studentId === profileId;
@@ -530,7 +573,7 @@ export default function GraduationProjectWorkspaceScreen() {
           </View>
         </HubSectionCard>
 
-        {isOwner && !project.isFull ? (
+        {canInvite && seatsLeft > 0 ? (
           <Pressable
             style={[styles.editBtn, { borderRadius: layout.radius.button }]}
             onPress={() => router.push(browseProjectStudentsPath(project.id) as never)}
@@ -540,7 +583,7 @@ export default function GraduationProjectWorkspaceScreen() {
           </Pressable>
         ) : null}
 
-        {canManageTeam ? (
+        {isOwner ? (
           <HubSectionCard
             title="Suggested teammates"
             description="Ranked by skill complement, availability, and project relevance."
@@ -550,11 +593,9 @@ export default function GraduationProjectWorkspaceScreen() {
             ) : (
               <View style={{ gap: layout.space("md") }}>
                 {aiTeammates.map((student, index) => {
-                  const invited =
+                  const invitePending =
                     pendingInviteIds.has(student.studentId) || student.hasPendingInvite === true;
                   const busy = invitingStudentId === student.studentId;
-                  const cannotInvite =
-                    student.isMember === true || student.canInvite === false;
                   return (
                     <View
                       key={student.studentId}
@@ -572,17 +613,23 @@ export default function GraduationProjectWorkspaceScreen() {
                       {canInvite ? (
                         <Pressable
                           style={[styles.inviteBtn, { borderRadius: layout.radius.input }]}
-                          disabled={project.isFull || invited || busy || cannotInvite}
+                          disabled={
+                            project.isFull ||
+                            busy ||
+                            invitePending ||
+                            student.isMember === true ||
+                            student.canInvite === false
+                          }
                           onPress={() => void handleInvite(student.studentId)}
                         >
                           {busy ? (
                             <ActivityIndicator color="#FFFFFF" size="small" />
                           ) : (
                             <Text style={styles.inviteBtnText}>
-                              {invited
+                              {invitePending
                                 ? "Invited"
-                                : cannotInvite
-                                  ? "Unavailable"
+                                : student.isMember
+                                  ? "Member"
                                   : project.isFull
                                     ? "Team full"
                                     : "Invite"}
@@ -723,18 +770,34 @@ export default function GraduationProjectWorkspaceScreen() {
         ) : null}
 
         {isOwner ? (
-          <Pressable
-            style={[styles.editBtn, { borderRadius: layout.radius.button }]}
-            onPress={() =>
-              router.push({
-                pathname: STUDENT_ROUTES.createGraduationProject,
-                params: { editProjectId: String(project.id) },
-              } as never)
-            }
-          >
-            <Ionicons name="create-outline" size={18} color={colors.primary} />
-            <Text style={styles.editBtnText}>Edit Project</Text>
-          </Pressable>
+          <View style={{ gap: layout.space("sm") }}>
+            <Pressable
+              style={[styles.editBtn, { borderRadius: layout.radius.button }]}
+              onPress={() =>
+                router.push({
+                  pathname: STUDENT_ROUTES.createGraduationProject,
+                  params: { editProjectId: String(project.id) },
+                } as never)
+              }
+            >
+              <Ionicons name="create-outline" size={18} color={colors.primary} />
+              <Text style={styles.editBtnText}>Edit Project</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.deleteBtn, { borderRadius: layout.radius.button }]}
+              disabled={deletingProject}
+              onPress={handleDeleteProject}
+            >
+              {deletingProject ? (
+                <ActivityIndicator color="#DC2626" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                  <Text style={styles.deleteBtnText}>Delete Project</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
         ) : null}
 
         {!isOwner ? (
@@ -1017,6 +1080,22 @@ const createStyles = (colors: HubColorScheme) =>
   },
   editBtnText: {
     color: colors.primary,
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "rgba(254, 226, 226, 0.35)",
+    paddingVertical: 12,
+    minHeight: 44,
+  },
+  deleteBtnText: {
+    color: "#DC2626",
     fontWeight: "700",
     fontSize: 15,
   },

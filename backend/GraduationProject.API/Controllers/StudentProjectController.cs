@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using GraduationProject.API.Data;
 using GraduationProject.API.DTOs;
 using GraduationProject.API.Helpers;
@@ -37,13 +38,16 @@ namespace GraduationProject.API.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly IGraduationProjectNotificationService _gpNotifications;
+        private readonly ILogger<StudentProjectController> _logger;
 
         public StudentProjectController(
             ApplicationDbContext db,
-            IGraduationProjectNotificationService gpNotifications)
+            IGraduationProjectNotificationService gpNotifications,
+            ILogger<StudentProjectController> logger)
         {
             _db = db;
             _gpNotifications = gpNotifications;
+            _logger = logger;
         }
 
         // =====================================================================
@@ -142,8 +146,6 @@ namespace GraduationProject.API.Controllers
             if (ownedProject != null)
             {
                 await EnsureOwnerMembershipAsync(ownedProject);
-                if (!ownedProject.Members.Any(m => m.StudentId == ownedProject.OwnerId))
-                    ownedProject = await LoadProjectForResponseAsync(ownedProject.Id) ?? ownedProject;
                 return Ok(new { role = "owner", project = MapToDto(ownedProject, student.Id) });
             }
 
@@ -162,8 +164,6 @@ namespace GraduationProject.API.Controllers
             {
                 var memberProject = membership.Project;
                 await EnsureOwnerMembershipAsync(memberProject);
-                if (!memberProject.Members.Any(m => m.StudentId == memberProject.OwnerId))
-                    memberProject = await LoadProjectForResponseAsync(memberProject.Id) ?? memberProject;
                 return Ok(new { role = "member", project = MapToDto(memberProject, student.Id) });
             }
 
@@ -189,8 +189,6 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Project not found." });
 
             await EnsureOwnerMembershipAsync(project);
-            if (!project.Members.Any(m => m.StudentId == project.OwnerId))
-                project = await LoadProjectForResponseAsync(project.Id) ?? project;
 
             return Ok(MapToDto(project, callerProfileId));
         }
@@ -213,8 +211,6 @@ namespace GraduationProject.API.Controllers
                 return NotFound(new { message = "Project not found." });
 
             await EnsureOwnerMembershipAsync(project);
-            if (!project.Members.Any(m => m.StudentId == project.OwnerId))
-                project = await LoadProjectForResponseAsync(project.Id) ?? project;
 
             var isOwner = callerProfile != null && project.OwnerId == callerProfile.Id;
             var isLeader = callerProfile != null && project.Members
@@ -1316,25 +1312,83 @@ namespace GraduationProject.API.Controllers
             if (project.Id <= 0 || project.OwnerId <= 0)
                 return;
 
-            var ownerInNavigation = project.Members?.Any(m => m.StudentId == project.OwnerId) == true;
-            if (ownerInNavigation)
+            var projectId = project.Id;
+            var ownerId = project.OwnerId;
+
+            if (project.Members?.Any(m => m.StudentId == ownerId) == true)
                 return;
 
-            var ownerInDatabase = await _db.StudentProjectMembers
-                .AnyAsync(m => m.ProjectId == project.Id && m.StudentId == project.OwnerId);
-
-            if (!ownerInDatabase)
+            if (_db.StudentProjectMembers.Local.Any(m =>
+                    m.ProjectId == projectId && m.StudentId == ownerId))
             {
-                var leader = new StudentProjectMember
-                {
-                    ProjectId = project.Id,
-                    StudentId = project.OwnerId,
-                    Role = "leader",
-                    JoinedAt = DateTime.UtcNow,
-                };
-                _db.StudentProjectMembers.Add(leader);
-                await _db.SaveChangesAsync();
+                await ReloadProjectMembersNavigationAsync(project);
+                return;
             }
+
+            var ownerInDatabase = await _db.StudentProjectMembers
+                .AsNoTracking()
+                .AnyAsync(m => m.ProjectId == projectId && m.StudentId == ownerId);
+
+            if (ownerInDatabase)
+            {
+                await ReloadProjectMembersNavigationAsync(project);
+                return;
+            }
+
+            var leader = new StudentProjectMember
+            {
+                Id = 0,
+                ProjectId = projectId,
+                StudentId = ownerId,
+                Role = "leader",
+                JoinedAt = DateTime.UtcNow,
+            };
+
+            _logger.LogDebug(
+                "EnsureOwnerMembership inserting leader: MemberId={MemberId} ProjectId={ProjectId} StudentId={StudentId} Role={Role} OwnerId={OwnerId} ProjectEntityId={ProjectEntityId}",
+                leader.Id,
+                leader.ProjectId,
+                leader.StudentId,
+                leader.Role,
+                ownerId,
+                projectId);
+
+            // Use a database-side idempotent insert so PostgreSQL assigns identity and
+            // EF does not persist a duplicate tracked StudentProjectMember graph.
+            var joinedAt = leader.JoinedAt;
+            var rowsInserted = await _db.Database.ExecuteSqlInterpolatedAsync($@"
+                INSERT INTO graduation_project_members (project_id, student_id, role, joined_at)
+                SELECT {projectId}, {ownerId}, 'leader', {joinedAt}
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM graduation_project_members
+                    WHERE project_id = {projectId} AND student_id = {ownerId}
+                )");
+
+            _logger.LogDebug(
+                "EnsureOwnerMembership insert completed: ProjectId={ProjectId} OwnerId={OwnerId} RowsInserted={RowsInserted}",
+                projectId,
+                ownerId,
+                rowsInserted);
+
+            await ReloadProjectMembersNavigationAsync(project);
+        }
+
+        /// <summary>
+        /// Replaces a stale Members navigation collection with current database rows.
+        /// </summary>
+        private async Task ReloadProjectMembersNavigationAsync(StudentProject project)
+        {
+            var entry = _db.Entry(project);
+            if (entry.State == EntityState.Detached)
+                return;
+
+            var membersEntry = entry.Collection(p => p.Members);
+            membersEntry.CurrentValue = new List<StudentProjectMember>();
+
+            await membersEntry.Query()
+                .Include(m => m.Student).ThenInclude(s => s.User)
+                .LoadAsync();
         }
 
         private async Task<StudentProject?> LoadProjectForResponseAsync(int projectId)

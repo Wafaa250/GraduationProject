@@ -1,8 +1,10 @@
 import { router, useFocusEffect, type Href } from "expo-router";
+import { Plus } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -14,14 +16,14 @@ import { getDoctorCoursesWithStats } from "@/api/doctorCoursesApi";
 import { CourseListCard } from "@/components/doctor/courses/CourseListCard";
 import { CoursesEmptyState } from "@/components/doctor/courses/CoursesEmptyState";
 import { CoursesListSkeleton } from "@/components/doctor/courses/CoursesListSkeleton";
-import { DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
+import { DOCTOR_RADIUS, DOCTOR_SPACE } from "@/components/doctor/ui/doctorDesignSystem";
 import { DoctorScreen } from "@/components/doctor/ui/DoctorScreen";
 import { DoctorStackHeader } from "@/components/doctor/ui/DoctorStackHeader";
 import type { HubColorScheme } from "@/constants/hubColorSchemes";
 import { useDoctorTheme } from "@/hooks/useDoctorTheme";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { mapCourseToListCard, type CourseListCardModel } from "@/lib/doctorCourseUi";
-import { doctorCoursePath } from "@/lib/doctorRoutes";
+import { DOCTOR_ROUTES, doctorCoursePath } from "@/lib/doctorRoutes";
 
 export default function DoctorCoursesScreen() {
   const layout = useResponsiveLayout();
@@ -72,9 +74,26 @@ export default function DoctorCoursesScreen() {
       </Text>
     ) : null;
 
+  const createCourseButton = (
+    <Pressable
+      style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.9 }]}
+      onPress={() => router.push(DOCTOR_ROUTES.createCourse as Href)}
+      accessibilityRole="button"
+      accessibilityLabel="Create course"
+    >
+      <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
+      <Text style={[styles.createBtnText, { fontSize: layout.scale(13) }]}>Create Course</Text>
+    </Pressable>
+  );
+
   return (
     <DoctorScreen edges={["top"]}>
-      <DoctorStackHeader title="Courses" subtitle="Manage your teaching courses" variant="compact" />
+      <DoctorStackHeader
+        title="Courses"
+        subtitle="Manage your teaching courses"
+        variant="compact"
+        rightSlot={createCourseButton}
+      />
       <FlatList
         data={courses}
         keyExtractor={(item) => String(item.courseId)}
@@ -105,7 +124,9 @@ export default function DoctorCoursesScreen() {
           loading ? (
             <CoursesListSkeleton />
           ) : (
-            <CoursesEmptyState />
+            <CoursesEmptyState
+              description="Your teaching courses will appear here once created."
+            />
           )
         }
       />
@@ -134,6 +155,19 @@ function createStyles(colors: HubColorScheme) {
       fontWeight: "500",
       color: colors.muted,
       lineHeight: 18,
+    },
+    createBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: DOCTOR_RADIUS.md,
+    },
+    createBtnText: {
+      color: "#FFFFFF",
+      fontWeight: "800",
     },
   });
 }

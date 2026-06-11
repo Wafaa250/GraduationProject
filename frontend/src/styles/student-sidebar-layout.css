@@ -857,14 +857,12 @@
 
 .student-sidebar-layout--communication-hub {
   --hub-header-actions-reserve: 9.5rem;
-  overflow-x: hidden;
 }
 
 .student-sidebar-layout--communication-hub .student-sidebar-layout__main {
   min-width: 0;
   max-width: 100%;
   min-height: 0;
-  overflow-x: hidden;
 }
 
 .student-sidebar-layout--communication-hub .communication-hub {
