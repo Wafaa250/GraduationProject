@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { router, type Href } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
@@ -45,9 +46,11 @@ export default function AssociationRecruitmentListScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const handleDelete = (campaign: RecruitmentCampaign) => {
     confirmAlert({
@@ -60,7 +63,10 @@ export default function AssociationRecruitmentListScreen() {
         try {
           await deleteOrganizationRecruitmentCampaign(campaign.id);
           setCampaigns((prev) => prev.filter((c) => c.id !== campaign.id));
-          showAlert("Campaign deleted", "The selection application cycle was removed.");
+          showAlert(
+            "Campaign deleted",
+            "The selection application cycle was removed.",
+          );
         } catch (err) {
           showAlert("Delete failed", parseApiErrorMessage(err));
         } finally {
@@ -83,14 +89,19 @@ export default function AssociationRecruitmentListScreen() {
   };
 
   return (
-    <AssociationWorkspaceScreen refreshing={refreshing} onRefresh={() => void load(true)}>
+    <AssociationWorkspaceScreen
+      refreshing={refreshing}
+      onRefresh={() => void load(true)}
+    >
       <AssociationPageHeader
         title="Executive Board Selection Applications"
         subtitle="Selection applications are open for executive board, committee, and volunteer positions within your organization."
         action={
           <AssociationActionButton
             label="Open Selection Applications"
-            onPress={() => router.push(ASSOCIATION_ROUTES.recruitmentCreate as Href)}
+            onPress={() =>
+              router.push(ASSOCIATION_ROUTES.recruitmentCreate as Href)
+            }
             compact
           />
         }
@@ -103,27 +114,81 @@ export default function AssociationRecruitmentListScreen() {
           title="No selection applications yet"
           description="Open your first executive board, committee, or volunteer selection cycle."
           actionLabel="Open Selection Applications"
-          onAction={() => router.push(ASSOCIATION_ROUTES.recruitmentCreate as Href)}
+          onAction={() =>
+            router.push(ASSOCIATION_ROUTES.recruitmentCreate as Href)
+          }
         />
       ) : (
         <View style={{ gap: layout.space("md"), width: "100%" }}>
           {campaigns.map((campaign) => (
             <Pressable
               key={campaign.id}
-              onPress={() => router.push(associationRecruitmentCampaignPath(campaign.id) as Href)}
-              style={[styles.card, { borderRadius: layout.radius.input, padding: layout.space("md") }]}
+              onPress={() =>
+                router.push(
+                  associationRecruitmentCampaignPath(campaign.id) as Href,
+                )
+              }
+              style={[
+                styles.card,
+                {
+                  borderRadius: layout.radius.input,
+                  padding: layout.space("md"),
+                },
+              ]}
             >
               <Text style={styles.title}>{campaign.title}</Text>
-              <Text style={styles.meta}>{formatEventDate(campaign.applicationDeadline)}</Text>
-              <Text style={styles.preview} numberOfLines={2}>{campaign.description}</Text>
-              <Text style={styles.meta}>{campaign.positions.length} position(s)</Text>
-              <View style={[styles.actions, { marginTop: layout.space("md"), gap: layout.space("sm") }]}>
-                <AssociationActionButton label="View" variant="outline" compact onPress={() => router.push(associationRecruitmentCampaignPath(campaign.id) as Href)} />
-                <AssociationActionButton label="Edit" variant="outline" compact onPress={() => router.push(associationRecruitmentCampaignEditPath(campaign.id) as Href)} />
+              <Text style={styles.meta}>
+                {formatEventDate(campaign.applicationDeadline)}
+              </Text>
+              <Text style={styles.preview} numberOfLines={2}>
+                {campaign.description}
+              </Text>
+              <Text style={styles.meta}>
+                {campaign.positions.length} position(s)
+              </Text>
+              <View
+                style={[
+                  styles.actions,
+                  { marginTop: layout.space("md"), gap: layout.space("sm") },
+                ]}
+              >
+                <AssociationActionButton
+                  label="View"
+                  variant="outline"
+                  compact
+                  onPress={() =>
+                    router.push(
+                      associationRecruitmentCampaignPath(campaign.id) as Href,
+                    )
+                  }
+                />
+                <AssociationActionButton
+                  label="Edit"
+                  variant="outline"
+                  compact
+                  onPress={() =>
+                    router.push(
+                      associationRecruitmentCampaignEditPath(
+                        campaign.id,
+                      ) as Href,
+                    )
+                  }
+                />
                 {!campaign.isPublished ? (
-                  <AssociationActionButton label="Publish" compact loading={busyId === campaign.id} onPress={() => void handlePublish(campaign)} />
+                  <AssociationActionButton
+                    label="Publish"
+                    compact
+                    loading={busyId === campaign.id}
+                    onPress={() => void handlePublish(campaign)}
+                  />
                 ) : null}
-                <AssociationActionButton label="Delete" variant="danger" compact loading={busyId === campaign.id} onPress={() => handleDelete(campaign)} />
+                <AssociationActionButton
+                  label="Delete"
+                  variant="danger"
+                  compact
+                  loading={busyId === campaign.id}
+                  onPress={() => handleDelete(campaign)}
+                />
               </View>
             </Pressable>
           ))}
@@ -134,7 +199,12 @@ export default function AssociationRecruitmentListScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: ASSOC_COLORS.cardBg, borderWidth: 1, borderColor: ASSOC_COLORS.border, width: "100%" },
+  card: {
+    backgroundColor: ASSOC_COLORS.cardBg,
+    borderWidth: 1,
+    borderColor: ASSOC_COLORS.border,
+    width: "100%",
+  },
   title: { fontWeight: "800", color: ASSOC_COLORS.foreground, fontSize: 16 },
   meta: { marginTop: 4, color: ASSOC_COLORS.muted, fontSize: 13 },
   preview: { marginTop: 6, color: ASSOC_COLORS.muted, lineHeight: 20 },

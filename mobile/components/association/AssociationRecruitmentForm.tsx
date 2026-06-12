@@ -1,7 +1,6 @@
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import {
@@ -10,27 +9,34 @@ import {
   type RecruitmentPositionInput,
 } from "@/api/recruitmentCampaignsApi";
 import { AssociationActionButton } from "@/components/association/AssociationActionButton";
+import { AssociationDateTimeField } from "@/components/association/AssociationDateTimeField";
 import { AssociationTextField } from "@/components/association/AssociationTextField";
 import { ASSOC_COLORS } from "@/constants/associationTheme";
+import { showAlert } from "@/lib/confirmAlert";
 
 export type RecruitmentFormState = {
   title: string;
   description: string;
-  applicationDeadline: Date;
+  applicationDeadline: Date | null;
   coverImageUrl: string | null;
   positions: RecruitmentPositionInput[];
 };
 
 export function emptyRecruitmentFormState(): RecruitmentFormState {
-  const nextWeek = new Date();
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  nextWeek.setHours(23, 59, 0, 0);
   return {
     title: "",
     description: "",
-    applicationDeadline: nextWeek,
+    applicationDeadline: null,
     coverImageUrl: null,
-    positions: [{ roleTitle: "", neededCount: 1, description: "", requirements: "", requiredSkills: "" }],
+    positions: [
+      {
+        roleTitle: "",
+        neededCount: 1,
+        description: "",
+        requirements: "",
+        requiredSkills: "",
+      },
+    ],
   };
 }
 
@@ -42,10 +48,77 @@ type Props = {
   onCancel: () => void;
 };
 
-export function AssociationRecruitmentForm({ initial, submitLabel, saving, onSubmit, onCancel }: Props) {
+function positionsToPayload(
+  positions: RecruitmentPositionInput[],
+): RecruitmentPositionInput[] {
+  return positions.map((position, index) => ({
+    id: position.id ?? undefined,
+    roleTitle: position.roleTitle.trim(),
+    neededCount:
+      Number.isFinite(position.neededCount) && position.neededCount >= 1
+        ? position.neededCount
+        : 1,
+    description: position.description?.trim() || null,
+    requirements: position.requirements?.trim() || null,
+    requiredSkills: position.requiredSkills?.trim() || null,
+    displayOrder: index,
+  }));
+}
+
+function buildValidationErrors(
+  form: RecruitmentFormState,
+): Record<string, string> {
+  const next: Record<string, string> = {};
+
+  if (!form.title.trim()) next.title = "Title is required.";
+  if (!form.description.trim()) next.description = "Description is required.";
+
+  if (!form.applicationDeadline) {
+    next.applicationDeadline = "Selection applications deadline is required.";
+  } else if (form.applicationDeadline.getTime() <= Date.now()) {
+    next.applicationDeadline =
+      "Selection applications deadline must be in the future.";
+  }
+
+  if (form.positions.length === 0) {
+    next.positions = "Add at least one open position.";
+  }
+
+  form.positions.forEach((position, index) => {
+    if (!position.roleTitle.trim()) {
+      next[`positions.${index}.roleTitle`] = "Position title is required.";
+    }
+  });
+
+  return next;
+}
+
+function serializeFormForLog(form: RecruitmentFormState) {
+  return {
+    title: form.title,
+    description: form.description,
+    applicationDeadline: form.applicationDeadline?.toISOString() ?? null,
+    coverImageUrl: form.coverImageUrl,
+    positions: form.positions,
+  };
+}
+
+export function AssociationRecruitmentForm({
+  initial,
+  submitLabel,
+  saving,
+  onSubmit,
+  onCancel,
+}: Props) {
   const [form, setForm] = useState<RecruitmentFormState>(initial);
-  const [showPicker, setShowPicker] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  const visibleErrors = useMemo(
+    () => (submitAttempted ? Object.values(errors).filter(Boolean) : []),
+    [submitAttempted, errors],
+  );
 
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -63,16 +136,21 @@ export function AssociationRecruitmentForm({ initial, submitLabel, saving, onSub
       });
       setForm((prev) => ({ ...prev, coverImageUrl: url }));
     } catch (err) {
-      Alert.alert("Upload failed", parseApiErrorMessage(err));
+      showAlert("Upload failed", parseApiErrorMessage(err));
     } finally {
       setUploadingCover(false);
     }
   };
 
-  const updatePosition = (index: number, patch: Partial<RecruitmentPositionInput>) => {
+  const updatePosition = (
+    index: number,
+    patch: Partial<RecruitmentPositionInput>,
+  ) => {
     setForm((prev) => ({
       ...prev,
-      positions: prev.positions.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+      positions: prev.positions.map((position, i) =>
+        i === index ? { ...position, ...patch } : position,
+      ),
     }));
   };
 
@@ -81,60 +159,114 @@ export function AssociationRecruitmentForm({ initial, submitLabel, saving, onSub
       ...prev,
       positions: [
         ...prev.positions,
-        { roleTitle: "", neededCount: 1, description: "", requirements: "", requiredSkills: "" },
+        {
+          roleTitle: "",
+          neededCount: 1,
+          description: "",
+          requirements: "",
+          requiredSkills: "",
+        },
       ],
     }));
   };
 
-  const validate = (): string | null => {
-    if (!form.title.trim()) return "Title is required";
-    if (!form.description.trim()) return "Description is required";
-    const validPositions = form.positions.filter((p) => p.roleTitle.trim());
-    if (validPositions.length === 0) return "Add at least one position with a role title";
-    if (form.applicationDeadline.getTime() <= Date.now()) return "Application deadline must be in the future";
-    return null;
-  };
-
   const handleSubmit = async () => {
-    const err = validate();
-    if (err) {
-      Alert.alert("Check form", err);
+    console.log("[AssociationRecruitmentForm] handleSubmit called");
+    setSubmitAttempted(true);
+    console.log(
+      "[AssociationRecruitmentForm] form values before submit:",
+      serializeFormForLog(form),
+    );
+
+    const validationErrors = buildValidationErrors(form);
+    const valid = Object.keys(validationErrors).length === 0;
+    setErrors(validationErrors);
+    console.log(
+      "[AssociationRecruitmentForm] validation result:",
+      valid,
+      validationErrors,
+    );
+
+    if (!valid) return;
+
+    if (!form.applicationDeadline) {
+      setErrors({
+        applicationDeadline: "Selection applications deadline is required.",
+      });
       return;
     }
-    await onSubmit({
+
+    const payload: CreateRecruitmentCampaignPayload = {
       title: form.title.trim(),
       description: form.description.trim(),
       applicationDeadline: form.applicationDeadline.toISOString(),
       coverImageUrl: form.coverImageUrl,
       isPublished: false,
-      positions: form.positions
-        .filter((p) => p.roleTitle.trim())
-        .map((p, index) => ({
-          ...p,
-          roleTitle: p.roleTitle.trim(),
-          neededCount: Math.max(1, Number(p.neededCount) || 1),
-          displayOrder: index,
-        })),
-    });
+      positions: positionsToPayload(form.positions),
+    };
+
+    console.log("[AssociationRecruitmentForm] request payload:", payload);
+
+    try {
+      await onSubmit(payload);
+      console.log(
+        "[AssociationRecruitmentForm] onSubmit completed successfully",
+      );
+    } catch (err) {
+      console.error("[AssociationRecruitmentForm] onSubmit error:", err);
+      throw err;
+    }
   };
 
   return (
     <View style={{ width: "100%" }}>
-      <AssociationTextField label="Campaign title" value={form.title} onChangeText={(title) => setForm((p) => ({ ...p, title }))} />
-      <AssociationTextField label="Description" value={form.description} onChangeText={(description) => setForm((p) => ({ ...p, description }))} multiline />
+      <AssociationTextField
+        label="Title"
+        value={form.title}
+        onChangeText={(title) => setForm((prev) => ({ ...prev, title }))}
+        placeholder="e.g. Fall 2026 Executive Board Selection Applications"
+        error={errors.title}
+      />
+      <AssociationTextField
+        label="Description"
+        value={form.description}
+        onChangeText={(description) =>
+          setForm((prev) => ({ ...prev, description }))
+        }
+        multiline
+        placeholder="Selection applications are now open for executive board positions — describe who should apply, what teams are forming, and what students will gain."
+        error={errors.description}
+      />
 
       <AssociationActionButton
-        label={uploadingCover ? "Uploading…" : form.coverImageUrl ? "Change cover image" : "Upload cover image"}
+        label={
+          uploadingCover
+            ? "Uploading…"
+            : form.coverImageUrl
+              ? "Change cover image"
+              : "Upload cover image"
+        }
         variant="outline"
         loading={uploadingCover}
         onPress={() => void pickCover()}
       />
-      {form.coverImageUrl ? <Text style={styles.hint}>Cover image uploaded</Text> : null}
+      {form.coverImageUrl ? (
+        <Text style={styles.hint}>Cover image uploaded</Text>
+      ) : null}
 
-      <Pressable onPress={() => setShowPicker(true)} style={styles.dateBtn}>
-        <Text style={styles.label}>Application deadline</Text>
-        <Text style={styles.dateValue}>{form.applicationDeadline.toLocaleString()}</Text>
-      </Pressable>
+      <AssociationDateTimeField
+        label="Selection applications deadline"
+        value={form.applicationDeadline}
+        onChange={(applicationDeadline) =>
+          setForm((prev) => ({ ...prev, applicationDeadline }))
+        }
+        error={errors.applicationDeadline}
+        placeholder="Select date and time"
+      />
+
+      {errors.positions ? (
+        <Text style={styles.positionsError}>{errors.positions}</Text>
+      ) : null}
 
       {form.positions.map((position, index) => (
         <View key={index} style={styles.positionCard}>
@@ -143,68 +275,96 @@ export function AssociationRecruitmentForm({ initial, submitLabel, saving, onSub
             label="Role title"
             value={position.roleTitle}
             onChangeText={(roleTitle) => updatePosition(index, { roleTitle })}
+            error={errors[`positions.${index}.roleTitle`]}
           />
           <AssociationTextField
             label="Needed count"
             value={String(position.neededCount)}
-            onChangeText={(v) => updatePosition(index, { neededCount: Number(v) || 1 })}
+            onChangeText={(value) =>
+              updatePosition(index, { neededCount: Number(value) || 1 })
+            }
             keyboardType="numeric"
           />
           <AssociationTextField
             label="Description"
             value={position.description ?? ""}
-            onChangeText={(description) => updatePosition(index, { description })}
+            onChangeText={(description) =>
+              updatePosition(index, { description })
+            }
             multiline
           />
           <AssociationTextField
             label="Requirements"
             value={position.requirements ?? ""}
-            onChangeText={(requirements) => updatePosition(index, { requirements })}
+            onChangeText={(requirements) =>
+              updatePosition(index, { requirements })
+            }
             multiline
             placeholder="Describe experience, availability, or other requirements"
           />
           <AssociationTextField
             label="Required skills (comma-separated)"
             value={position.requiredSkills ?? ""}
-            onChangeText={(requiredSkills) => updatePosition(index, { requiredSkills })}
+            onChangeText={(requiredSkills) =>
+              updatePosition(index, { requiredSkills })
+            }
             placeholder="e.g. React, Public speaking, Design"
           />
         </View>
       ))}
 
-      <AssociationActionButton label="Add position" variant="outline" onPress={addPosition} />
+      <AssociationActionButton
+        label="Add position"
+        variant="outline"
+        onPress={addPosition}
+      />
 
-      <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-        <AssociationActionButton label={submitLabel} loading={saving} onPress={() => void handleSubmit()} />
-        <AssociationActionButton label="Cancel" variant="outline" onPress={onCancel} disabled={saving} />
-      </View>
+      {visibleErrors.length > 0 ? (
+        <View style={styles.validationSummary}>
+          {visibleErrors.map((message) => (
+            <Text key={message} style={styles.validationSummaryText}>
+              {message}
+            </Text>
+          ))}
+        </View>
+      ) : null}
 
-      {showPicker ? (
-        <DateTimePicker
-          value={form.applicationDeadline}
-          mode="datetime"
-          onChange={(event: DateTimePickerEvent, date?: Date) => {
-            if (Platform.OS === "android") setShowPicker(false);
-            if (event.type !== "dismissed" && date) setForm((p) => ({ ...p, applicationDeadline: date }));
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 8,
+          flexWrap: "wrap",
+          marginTop: 16,
+        }}
+      >
+        <AssociationActionButton
+          label={saving ? "Saving…" : submitLabel}
+          loading={saving}
+          disabled={saving}
+          onPress={() => {
+            console.log("[AssociationRecruitmentForm] Create button pressed");
+            void handleSubmit();
           }}
         />
-      ) : null}
+        <AssociationActionButton
+          label="Cancel"
+          variant="outline"
+          onPress={onCancel}
+          disabled={saving}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  label: { fontWeight: "700", color: ASSOC_COLORS.foreground },
-  dateBtn: {
-    marginBottom: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: ASSOC_COLORS.border,
-    borderRadius: 12,
-    backgroundColor: ASSOC_COLORS.inputBg,
-  },
-  dateValue: { color: ASSOC_COLORS.muted, marginTop: 4 },
   hint: { color: ASSOC_COLORS.muted, fontSize: 12, marginBottom: 12 },
+  positionsError: {
+    color: "#DC2626",
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 12,
+  },
   positionCard: {
     borderWidth: 1,
     borderColor: ASSOC_COLORS.border,
@@ -213,5 +373,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: ASSOC_COLORS.cardBg,
   },
-  positionTitle: { fontWeight: "800", color: ASSOC_COLORS.foreground, marginBottom: 8 },
+  positionTitle: {
+    fontWeight: "800",
+    color: ASSOC_COLORS.foreground,
+    marginBottom: 8,
+  },
+  validationSummary: {
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+    gap: 4,
+  },
+  validationSummaryText: {
+    color: "#B91C1C",
+    fontSize: 13,
+    fontWeight: "500",
+  },
 });

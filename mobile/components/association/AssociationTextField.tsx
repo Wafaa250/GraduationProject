@@ -12,6 +12,7 @@ type Props = {
   multiline?: boolean;
   keyboardType?: "default" | "email-address" | "numeric" | "url";
   autoCapitalize?: "none" | "sentences" | "words";
+  editable?: boolean;
 };
 
 export function AssociationTextField({
@@ -23,6 +24,7 @@ export function AssociationTextField({
   multiline = false,
   keyboardType = "default",
   autoCapitalize = "sentences",
+  editable = true,
 }: Props) {
   const layout = useResponsiveLayout();
 
@@ -37,11 +39,13 @@ export function AssociationTextField({
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         multiline={multiline}
+        editable={editable}
         style={[
           styles.input,
           multiline && styles.inputMultiline,
           { borderRadius: layout.radius.input, fontSize: layout.fontSize.body },
           error ? styles.inputError : null,
+          !editable ? styles.inputDisabled : null,
         ]}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -69,6 +73,10 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: "#DC2626",
+  },
+  inputDisabled: {
+    opacity: 0.75,
+    backgroundColor: ASSOC_COLORS.background,
   },
   error: {
     color: "#DC2626",

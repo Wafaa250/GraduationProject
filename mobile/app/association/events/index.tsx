@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { router, type Href } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { parseApiErrorMessage, resolveApiFileUrl } from "@/api/axiosInstance";
@@ -56,9 +57,11 @@ export default function AssociationEventsListScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const handleDelete = (event: StudentOrganizationEvent) => {
     confirmAlert({

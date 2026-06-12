@@ -1,6 +1,5 @@
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { useState } from "react";
-import { Alert } from "react-native";
 
 import { parseApiErrorMessage } from "@/api/axiosInstance";
 import { createOrganizationEvent } from "@/api/organizationEventsApi";
@@ -10,7 +9,8 @@ import {
 } from "@/components/association/AssociationEventForm";
 import { AssociationPageHeader } from "@/components/association/AssociationPageHeader";
 import { AssociationWorkspaceScreen } from "@/components/association/AssociationWorkspaceScreen";
-import { associationEventEditPath, ASSOCIATION_ROUTES } from "@/lib/associationRoutes";
+import { associationEventPath, ASSOCIATION_ROUTES } from "@/lib/associationRoutes";
+import { showAlert } from "@/lib/confirmAlert";
 
 export default function AssociationCreateEventScreen() {
   const [saving, setSaving] = useState(false);
@@ -29,10 +29,16 @@ export default function AssociationCreateEventScreen() {
         onSubmit={async (payload) => {
           setSaving(true);
           try {
+            console.log("[AssociationCreateEvent] request payload:", payload);
             const created = await createOrganizationEvent(payload);
-            router.replace(associationEventEditPath(created.id) as never);
+            console.log("[AssociationCreateEvent] API response:", created);
+            showAlert("Event created successfully", undefined, () => {
+              router.replace(associationEventPath(created.id) as Href);
+            });
           } catch (err) {
-            Alert.alert("Could not create event", parseApiErrorMessage(err));
+            console.error("[AssociationCreateEvent] API error:", err);
+            showAlert("Could not create event", parseApiErrorMessage(err));
+            throw err;
           } finally {
             setSaving(false);
           }
