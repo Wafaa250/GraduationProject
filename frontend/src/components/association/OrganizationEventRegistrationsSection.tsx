@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
+  generateEventRegistrationAiRecommendations,
   listOrganizationEventRegistrations,
   parseApiErrorMessage,
+  type EventRegistrationAiRecommendation,
   type EventRegistrationListItem,
 } from '@/api/eventRegistrationsApi'
 import { ASSOCIATION_ROUTES } from '@/routes/paths'
@@ -19,6 +21,9 @@ type Props = {
 export function OrganizationEventRegistrationsSection({ eventId, onRegistrationsCountChange }: Props) {
   const [registrations, setRegistrations] = useState<EventRegistrationListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiRecommendations, setAiRecommendations] = useState<EventRegistrationAiRecommendation[] | null>(null)
+  const [aiUsedAi, setAiUsedAi] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -38,6 +43,29 @@ export function OrganizationEventRegistrationsSection({ eventId, onRegistrations
   useEffect(() => {
     void load()
   }, [load])
+
+  const handleGenerateAiRecommendations = async () => {
+    if (registrations.length === 0) {
+      toast.error('No registrations to analyze yet.')
+      return
+    }
+
+    setAiLoading(true)
+    try {
+      const response = await generateEventRegistrationAiRecommendations(eventId)
+      setAiRecommendations(response.recommendations)
+      setAiUsedAi(response.usedAi)
+      if (response.recommendations.length === 0) {
+        toast('No recommendations were generated.')
+      } else if (!response.usedAi) {
+        toast('Recommendations generated using profile matching (AI unavailable).')
+      }
+    } catch (err) {
+      toast.error(parseApiErrorMessage(err))
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   return (
     <section style={{ marginTop: 40 }}>
@@ -88,6 +116,75 @@ export function OrganizationEventRegistrationsSection({ eventId, onRegistrations
         </div>
       )}
       <style>{`@keyframes org-hub-spin { to { transform: rotate(360deg); } } .org-hub-spin { animation: org-hub-spin 0.8s linear infinite; }`}</style>
+
+      <section style={{ marginTop: 40 }}>
+        <div style={sectionHeadingBlock}>
+          <h2 style={sectionTitle}>AI Recommended Participants</h2>
+          <p style={sectionHint}>
+            Rank registered students by fit using skills, interests, major/faculty, and form answers.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          disabled={aiLoading || loading || registrations.length === 0}
+          onClick={() => void handleGenerateAiRecommendations()}
+          style={{
+            ...generateAiBtn,
+            opacity: aiLoading || loading || registrations.length === 0 ? 0.75 : 1,
+            cursor: aiLoading || loading || registrations.length === 0 ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {aiLoading ? (
+            <>
+              <Loader2 size={16} className="org-hub-spin" />
+              Generating recommendations…
+            </>
+          ) : (
+            <>
+              <Sparkles size={16} />
+              Generate AI Recommendations
+            </>
+          )}
+        </button>
+
+        {aiRecommendations && aiRecommendations.length > 0 ? (
+          <div style={{ ...assocCard, padding: 0, overflow: 'hidden', marginTop: 16 }}>
+            {!aiUsedAi ? (
+              <p style={aiFallbackNote}>
+                AI service was unavailable; scores were computed from profile and registration data.
+              </p>
+            ) : null}
+            <div style={aiTableHead}>
+              <span>Participant</span>
+              <span>Match</span>
+              <span>Reason</span>
+            </div>
+            {aiRecommendations.map((row, index) => (
+              <div
+                key={row.registrationId}
+                style={{
+                  ...aiTableRow,
+                  borderBottom: index === aiRecommendations.length - 1 ? 'none' : aiTableRow.borderBottom,
+                }}
+              >
+                <div>
+                  <p style={applicantName}>{row.studentName}</p>
+                  <p style={applicantMeta}>{row.studentMajor ?? '—'}</p>
+                </div>
+                <span style={matchScoreBadge}>{row.matchScore}%</span>
+                <p style={aiReason}>{row.reason}</p>
+              </div>
+            ))}
+          </div>
+        ) : aiRecommendations && aiRecommendations.length === 0 ? (
+          <div style={{ ...assocCard, padding: 24, marginTop: 16 }}>
+            <p style={{ margin: 0, fontSize: 14, color: assocDash.muted }}>
+              No recommendations were generated for this event.
+            </p>
+          </div>
+        ) : null}
+      </section>
     </section>
   )
 }
@@ -136,4 +233,56 @@ const viewLink: React.CSSProperties = {
   fontWeight: 700,
   color: assocDash.accentDark,
   textDecoration: 'none',
+}
+const generateAiBtn: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '12px 18px',
+  borderRadius: assocDash.radiusMd,
+  border: `1px solid ${assocDash.accentBorder}`,
+  background: assocDash.accentMuted,
+  color: assocDash.accentDark,
+  fontSize: 14,
+  fontWeight: 700,
+}
+const aiTableHead: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(160px, 1fr) 72px minmax(200px, 2fr)',
+  gap: 12,
+  padding: '12px 20px',
+  fontSize: 11,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  color: assocDash.subtle,
+  borderBottom: `1px solid ${assocDash.border}`,
+  background: assocDash.bg,
+}
+const aiTableRow: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(160px, 1fr) 72px minmax(200px, 2fr)',
+  gap: 12,
+  padding: '16px 20px',
+  alignItems: 'start',
+  borderBottom: `1px solid ${assocDash.border}`,
+  background: assocDash.surface,
+}
+const matchScoreBadge: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 800,
+  color: assocDash.accentDark,
+}
+const aiReason: React.CSSProperties = {
+  margin: 0,
+  fontSize: 13,
+  color: assocDash.text,
+  lineHeight: 1.5,
+}
+const aiFallbackNote: React.CSSProperties = {
+  margin: 0,
+  padding: '12px 20px',
+  fontSize: 12,
+  color: assocDash.muted,
+  borderBottom: `1px solid ${assocDash.border}`,
+  background: assocDash.bg,
 }

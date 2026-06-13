@@ -83,6 +83,7 @@ builder.Services.AddScoped<IStudentRegisterService, StudentRegisterService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddHttpClient<IAiStudentRecommendationService, OpenAiStudentRecommendationService>();
 builder.Services.AddHttpClient<IRecruitmentApplicantAnalysisService, OpenAiRecruitmentApplicantAnalysisService>();
+builder.Services.AddHttpClient<IEventRegistrationRecommendationService, OpenAiEventRegistrationRecommendationService>();
 builder.Services.AddScoped<IRecruitmentApplicationWorkflowService, RecruitmentApplicationWorkflowService>();
 builder.Services.AddScoped<IOrganizationMembershipService, OrganizationMembershipService>();
 builder.Services.AddScoped<IFeedService, FeedService>();

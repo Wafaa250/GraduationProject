@@ -75,4 +75,20 @@ namespace GraduationProject.API.DTOs
         public DateTime SubmittedAt { get; set; }
         public List<EventRegistrationAnswerResponseDto> Answers { get; set; } = new();
     }
+
+    public class EventRegistrationAiRecommendationDto
+    {
+        public int RegistrationId { get; set; }
+        public int StudentProfileId { get; set; }
+        public string StudentName { get; set; } = string.Empty;
+        public string? StudentMajor { get; set; }
+        public int MatchScore { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public class EventRegistrationAiRecommendationsResponseDto
+    {
+        public bool UsedAi { get; set; }
+        public List<EventRegistrationAiRecommendationDto> Recommendations { get; set; } = new();
+    }
 }

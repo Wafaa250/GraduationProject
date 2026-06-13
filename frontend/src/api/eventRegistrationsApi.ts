@@ -96,3 +96,26 @@ export async function getOrganizationEventRegistration(
   )
   return data
 }
+
+export type EventRegistrationAiRecommendation = {
+  registrationId: number
+  studentProfileId: number
+  studentName: string
+  studentMajor?: string | null
+  matchScore: number
+  reason: string
+}
+
+export type EventRegistrationAiRecommendationsResponse = {
+  usedAi: boolean
+  recommendations: EventRegistrationAiRecommendation[]
+}
+
+export async function generateEventRegistrationAiRecommendations(
+  eventId: number,
+): Promise<EventRegistrationAiRecommendationsResponse> {
+  const { data } = await api.post<EventRegistrationAiRecommendationsResponse>(
+    `/organization/events/${eventId}/registrations/generate-ai-recommendations`,
+  )
+  return data
+}

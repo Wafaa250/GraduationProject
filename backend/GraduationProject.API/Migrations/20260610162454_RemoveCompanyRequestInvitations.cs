@@ -15,12 +15,23 @@ namespace GraduationProject.API.Migrations
             migrationBuilder.DropTable(
                 name: "company_request_invitations");
 
-            migrationBuilder.AddColumn<int>(
-                name: "display_order",
-                table: "student_organization_team_members",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
+            // display_order may already exist if RemoveLeadershipDisplayOrder was never applied
+            // (or the column was retained while EF snapshots dropped it). Add only when missing.
+            migrationBuilder.Sql("""
+                DO $EF$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'student_organization_team_members'
+                          AND column_name = 'display_order'
+                    ) THEN
+                        ALTER TABLE student_organization_team_members
+                            ADD COLUMN display_order integer NOT NULL DEFAULT 0;
+                    END IF;
+                END $EF$;
+                """);
 
             migrationBuilder.CreateTable(
                 name: "doctor_posts",
@@ -100,9 +111,8 @@ namespace GraduationProject.API.Migrations
             migrationBuilder.DropTable(
                 name: "student_posts");
 
-            migrationBuilder.DropColumn(
-                name: "display_order",
-                table: "student_organization_team_members");
+            // Intentionally leave display_order unchanged on rollback. The column may have
+            // existed before this migration when RemoveLeadershipDisplayOrder was not applied.
 
             migrationBuilder.CreateTable(
                 name: "company_request_invitations",
